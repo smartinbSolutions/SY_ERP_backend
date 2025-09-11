@@ -1,6 +1,8 @@
-/src/Api
-node_modules
-dist
+# dependencies
+/node_modules
+/config.env
+/uploads
+services/test.js
+services/facebookAuth.js
 
-.DS_STORE
-.env
+

@@ -215,7 +215,6 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
     item.companyId = companyId;
   }
   try {
-    console.log(csvData);
 
     // Insert Tree into the database
     const insertedTree = await AccountingTree.insertMany(csvData, {

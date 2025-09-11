@@ -18,6 +18,8 @@ const SalesPointSchema = new mongoose.Schema(
       },
     ],
     description: String,
+    allowRounding: { type: Boolean, default: false },
+    roundingType: { type: String, default: "" },
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,

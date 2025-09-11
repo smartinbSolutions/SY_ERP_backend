@@ -60,7 +60,6 @@ const financailSource = async (
     } else {
       throw new Error("Invalid taker type.");
     }
-    console.log(source.id);
     if (taker !== "account")
       await createPaymentHistory(
         "payment",

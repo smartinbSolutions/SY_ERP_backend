@@ -125,7 +125,6 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
   });
 
   req.body.counter = Number(req.body.counter) + Number(count) + 1;
-  console.log(req.body.counter);
 
   const description = req.body.description;
   let tes1t = [];

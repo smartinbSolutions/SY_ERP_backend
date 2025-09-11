@@ -31,22 +31,18 @@ exports.createExpenseCategory = asyncHandler(async (req, res, next) => {
 // @route get /api/expenseCategories
 exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const { companyId, keyword = "", limit, page } = req.query;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
     }
 
-    const pageSize = parseInt(req.query.limit) || 10;
-    const page = parseInt(req.query.page) || 1;
-    const skip = (page - 1) * pageSize;
-    const keyword = req.query.keyword ? req.query.keyword.trim() : "";
+    const pageSize = parseInt(limit, 10) || 0;
+    const currentPage = parseInt(page, 10) || 1;
+    const skip = (currentPage - 1) * pageSize;
 
-    const matchStage = {
-      companyId: companyId,
-    };
-
-    if (keyword) {
+    const matchStage = { companyId };
+    if (keyword.trim()) {
       matchStage.$or = [
         { expenseCategoryName: { $regex: keyword, $options: "i" } },
         { "linkAccount.name": { $regex: keyword, $options: "i" } },
@@ -54,8 +50,8 @@ exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
       ];
     }
 
-    const pipeline = [
-      { $match: matchStage },
+    // 🔹 مراحل مشتركة (Lookup + Unwind)
+    const commonLookups = [
       {
         $lookup: {
           from: "accountingtrees",
@@ -64,9 +60,7 @@ exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
           as: "linkAccount",
         },
       },
-      {
-        $unwind: { path: "$linkAccount", preserveNullAndEmptyArrays: true },
-      },
+      { $unwind: { path: "$linkAccount", preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: "currencies",
@@ -81,6 +75,11 @@ exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
           preserveNullAndEmptyArrays: true,
         },
       },
+    ];
+
+    const pipeline = [
+      { $match: matchStage },
+      ...commonLookups,
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: pageSize },
@@ -88,46 +87,28 @@ exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
 
     const expenseCategories = await expensesCategoryModel.aggregate(pipeline);
 
-    // لحساب عدد العناصر الكلي مع نفس الفلترة
+    const startIndex = skip + 1;
+    const numberedCategories = expenseCategories.map((item, index) => ({
+      serial: startIndex + index,
+      ...item,
+    }));
+
     const countPipeline = [
       { $match: matchStage },
-      {
-        $lookup: {
-          from: "accountingtrees",
-          localField: "linkAccount",
-          foreignField: "_id",
-          as: "linkAccount",
-        },
-      },
-      {
-        $unwind: { path: "$linkAccount", preserveNullAndEmptyArrays: true },
-      },
-      {
-        $lookup: {
-          from: "currencies",
-          localField: "linkAccount.currency",
-          foreignField: "_id",
-          as: "linkAccount.currency",
-        },
-      },
-      {
-        $unwind: {
-          path: "$linkAccount.currency",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      ...commonLookups,
       { $count: "total" },
     ];
-
     const countResult = await expensesCategoryModel.aggregate(countPipeline);
+
     const totalItems = countResult[0]?.total || 0;
     const totalPages = Math.ceil(totalItems / pageSize);
 
     res.status(200).json({
       status: "true",
       pages: totalPages,
-      results: expenseCategories.length,
-      data: expenseCategories,
+      results: totalItems,
+
+      data: numberedCategories,
     });
   } catch (error) {
     return next(new ApiError(error.message || error, 500));
