@@ -40,6 +40,7 @@ const journalEntrySchema = new mongoose.Schema(
     },
     party: String,
     receiptNumber: String,
+    refId: String,
     auditing: { type: Boolean, default: false },
     posted: { type: Boolean, default: false },
   },

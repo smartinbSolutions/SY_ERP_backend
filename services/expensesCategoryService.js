@@ -37,7 +37,7 @@ exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
       return res.status(400).json({ message: "companyId is required" });
     }
 
-    const pageSize = parseInt(limit, 10) || 0;
+    const pageSize = parseInt(limit, 10) || 10;
     const currentPage = parseInt(page, 10) || 1;
     const skip = (currentPage - 1) * pageSize;
 
