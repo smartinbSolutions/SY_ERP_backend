@@ -39,7 +39,7 @@ app.use(globalError);
 //   res.sendFile(path.join(__dirname, "build", "index.html"));
 // });
 
-const PORT = 8006 || 4000;
+const PORT = process.env.PORT || 8080;
 const server = app.listen(PORT, () => {
   console.log(`app running on port ${PORT}`);
 });
