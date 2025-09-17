@@ -70,6 +70,7 @@ const assetCardRoute = require("./assetCardRoute");
 const investorRoute = require("./investorRoute");
 const investmentCompaniesRoute = require("./investmentCompaniesRoute");
 const investorSharesRoute = require("./investorSharesRoute");
+const reconciliationRoute = require("./reconciliationRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -107,6 +108,7 @@ const mountRoutes = (app) => {
   app.use("/api/sales-pos", SalesPosRout);
   app.use("/api/accounting-tree", accountingTreeRout);
   app.use("/api/journal", accountingRoute);
+  app.use("/api/reconciliation", reconciliationRoute);
   app.use("/api/purchaserequest", purchaseRequestRouter);
   app.use("/api/shippingCompany", shippingCompaniesRoute);
   app.use("/api/untracedproductlog", unTracedproductLogRout);

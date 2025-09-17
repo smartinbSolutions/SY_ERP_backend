@@ -36,7 +36,7 @@ const AccountingTreeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-AccountingTreeSchema.index({ code: 1 });
+AccountingTreeSchema.index({ code: 1, companyId: 1 }, { unique: true });
 AccountingTreeSchema.index({ parentId: 1 });
 AccountingTreeSchema.index({ accountType: 1 });
 AccountingTreeSchema.index({ currency: 1 });
