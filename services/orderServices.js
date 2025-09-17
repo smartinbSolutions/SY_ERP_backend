@@ -790,7 +790,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
         orders._id,
         companyId,
         req.body.paymentDescription,
-        nextCounterPayment,
+        Number(req.body.counters) + nextCounterPayment,
         "Deposit",
         "",
         financailSources.code
