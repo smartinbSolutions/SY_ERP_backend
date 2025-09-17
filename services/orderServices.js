@@ -581,6 +581,10 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   //change the items
   const movementMap = new Map();
 
+    await paymentHistoryModel.deleteMany({
+      ref: orders._id,
+      companyId,
+    });
   req.body.invoicesItems.forEach((item, index) => {
     if (
       item.type === "unTracedproduct" ||
@@ -817,7 +821,6 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       Number(req.body.paymentInMainCurrency);
     await customers.save();
   } else {
-    if (req.body.totalRemainderMainCurrency === orders.totalInMainCurrency) {
       if (req.body.customer.id === orders.customer.id) {
         const test = req.body.totalInMainCurrency - orders.totalInMainCurrency;
         customers.TotalUnpaid += test;
@@ -833,7 +836,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
 
       req.body.totalRemainder = req.body.totalRemainder;
       req.body.totalRemainderMainCurrency = req.body.totalRemainderMainCurrency;
-    }
+    
   }
 
   newOrderInvoice = await orderModel.updateOne(
@@ -844,11 +847,6 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     }
   );
 
-  if (req.body.totalRemainderMainCurrency === orders.totalInMainCurrency) {
-    await paymentHistoryModel.deleteMany({
-      ref: orders._id,
-      companyId,
-    });
 
     await createPaymentHistory(
       "invoice",
@@ -865,7 +863,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       "",
       req.body.currency.currencyCode
     );
-  }
+  
 
   const history = createInvoiceHistory(
     companyId,

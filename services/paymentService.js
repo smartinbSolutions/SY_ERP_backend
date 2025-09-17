@@ -708,7 +708,7 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
       req.body.totalMainCurrency,
       req.body.paymentInFundCurrency,
       "customer",
-      req.body.financailSource.id,
+      req.body.customerId,
       sales.counter,
       companyId,
       description,

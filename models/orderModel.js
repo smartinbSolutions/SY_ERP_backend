@@ -176,14 +176,6 @@ const orderSchema = new mongoose.Schema(
     description: String,
     type: {
       type: String,
-      enum: [
-        "sales",
-        "bills",
-        "openBalance",
-        "ecommerce",
-        "cancel",
-        "sales-pos",
-      ],
       default: "sales",
     },
 
@@ -207,6 +199,7 @@ const orderSchema = new mongoose.Schema(
       phone: String,
       address: String,
     },
+    status: { type: String, default: "Draft" },
     shipmentNumber: String,
     shipmentDate: String,
     companyId: {
