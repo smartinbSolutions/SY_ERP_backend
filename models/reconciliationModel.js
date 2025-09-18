@@ -7,6 +7,9 @@ const ReconciliationSchema = new mongoose.Schema(
     journalEntryId: {
       type: String,
     },
+    accoutId: {
+      type: String,
+    },
     journalLineCounter: { type: String },
     desc: String,
     matchedBy: { type: String },

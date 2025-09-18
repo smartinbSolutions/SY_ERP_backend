@@ -95,7 +95,7 @@ exports.getAllReconciliationsForAccount = asyncHandler(
     const { id } = req.params;
 
     const Reconciliatio = await reconciliationModel.find({
-      journalEntryId: id,
+      accoutId: id,
       companyId,
     });
 
