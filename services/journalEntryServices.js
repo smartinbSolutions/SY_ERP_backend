@@ -172,7 +172,14 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
 
 exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
   try {
-    const { companyId, limit, page, keyword, filters: filtersRaw } = req.query;
+    const {
+      companyId,
+      limit,
+      page,
+      keyword,
+      filters: filtersRaw,
+      gotoLastMatched,
+    } = req.query;
     const { id } = req.params;
 
     if (!companyId) {
@@ -181,10 +188,8 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 
     const filters = filtersRaw ? JSON.parse(filtersRaw) : {};
     const pageSize = parseInt(limit, 10) || 10;
-    const currentPage = parseInt(page, 10) || 1;
-    const skip = (currentPage - 1) * pageSize;
+    let currentPage = parseInt(page, 10) || 1;
 
-    // ✅ جلب الحساب
     const account = await AccountModel.findOne({ _id: id, companyId })
       .populate("currency")
       .lean();
@@ -193,7 +198,6 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
       return res.status(404).json({ message: "Account not found" });
     }
 
-    // ✅ بناء query للجورنال
     const query = { companyId, "journalAccounts.id": id };
 
     if (filters.partyId) query.party = filters.partyId;
@@ -226,15 +230,38 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 
     const reconciliations = await reconciliationModel
       .find({ companyId })
-      .select("journalLineCounter desc matchedBy matchedAt")
+      .sort({ createdAt: -1 })
+      .select("journalLineCounter journalEntryId desc matchedBy matchedAt")
       .lean();
 
-    // نعمل lookup سريع: { "journalLineCounter": reconciliation }
     const reconciliationMap = {};
     reconciliations.forEach((rec) => {
       reconciliationMap[rec.journalLineCounter] = rec;
     });
 
+    if (gotoLastMatched === "true" && reconciliations.length > 0) {
+      const lastRec = reconciliations[0];
+      const beforeDash = lastRec.journalLineCounter.split("-")[0];
+      const lastJournal = await journalModel
+        .findOne({ counter: beforeDash, companyId })
+        .lean();
+
+      const journalsSorted = allJournals.sort(
+        (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
+      );
+
+      const index = journalsSorted.findIndex(
+        (j) => j._id.toString() === lastJournal._id.toString()
+      );
+
+      if (index >= 0) {
+        currentPage = Math.floor(index / pageSize) + 1;
+      } else {
+        currentPage = 1; // fallback
+      }
+    }
+
+    const skip = (currentPage - 1) * pageSize;
     let runningBalanceMaine = 0;
     let runningBalance = 0;
 
@@ -264,9 +291,8 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
                 : accEntry.accountDebit - accEntry.accountCredit;
 
             const reconciliationInfo =
-              reconciliationMap[
-                `${journal.counter}-${accEntry.counter}`
-              ] || null;
+              reconciliationMap[`${journal.counter}-${accEntry.counter}`] ||
+              null;
 
             return {
               ...accEntry,
@@ -287,10 +313,12 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
     const paginatedJournals = filteredJournals
       .sort((a, b) => new Date(b.journalDate) - new Date(a.journalDate))
       .slice(skip, skip + pageSize);
+console.log(currentPage);
 
     return res.status(200).json({
       pages: totalPages,
       results: totalItems,
+      currentPage,
       runningBalanceMaine,
       runningBalance,
       data: account,
