@@ -5,6 +5,7 @@ const journalModel = require("../models/journalEntryModel");
 const AccountModel = require("../models/accountingTreeModel");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
+const reconciliationModel = require("../models/reconciliationModel");
 
 //@desc Get Account Transaction
 //@route Get /api/account
@@ -183,6 +184,7 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
     const currentPage = parseInt(page, 10) || 1;
     const skip = (currentPage - 1) * pageSize;
 
+    // ✅ جلب الحساب
     const account = await AccountModel.findOne({ _id: id, companyId })
       .populate("currency")
       .lean();
@@ -191,6 +193,7 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
       return res.status(404).json({ message: "Account not found" });
     }
 
+    // ✅ بناء query للجورنال
     const query = { companyId, "journalAccounts.id": id };
 
     if (filters.partyId) query.party = filters.partyId;
@@ -221,20 +224,30 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 
     const allJournals = await journalModel.find(query).lean();
 
+    const reconciliations = await reconciliationModel
+      .find({ companyId })
+      .select("journalLineCounter desc matchedBy matchedAt")
+      .lean();
+
+    // نعمل lookup سريع: { "journalLineCounter": reconciliation }
+    const reconciliationMap = {};
+    reconciliations.forEach((rec) => {
+      reconciliationMap[rec.journalLineCounter] = rec;
+    });
+
     let runningBalanceMaine = 0;
     let runningBalance = 0;
+
     const filteredJournals = allJournals
       .sort((a, b) => new Date(a.journalDate) - new Date(b.journalDate))
       .map((journal) => {
         const filteredAccounts = journal.journalAccounts
           .filter((acc) => {
             let match = acc.id === id && acc.posted !== false;
-
             if (filters.currency) {
               match =
                 match && acc.accountCurrency?.toString() === filters.currency;
             }
-
             return match;
           })
           .map((accEntry) => {
@@ -250,10 +263,16 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
                 ? accEntry.accountCredit - accEntry.accountDebit
                 : accEntry.accountDebit - accEntry.accountCredit;
 
+            const reconciliationInfo =
+              reconciliationMap[
+                `${journal.counter}-${accEntry.counter}`
+              ] || null;
+
             return {
               ...accEntry,
               runningBalanceMaine,
               runningBalance,
+              reconciliation: reconciliationInfo,
             };
           });
 
@@ -264,6 +283,7 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
           runningBalance,
         };
       });
+
     const paginatedJournals = filteredJournals
       .sort((a, b) => new Date(b.journalDate) - new Date(a.journalDate))
       .slice(skip, skip + pageSize);
