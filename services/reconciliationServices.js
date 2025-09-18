@@ -84,3 +84,24 @@ exports.deleteReconciliatio = asyncHandler(async (req, res, next) => {
     message: "Reconciliatio Deleted",
   });
 });
+
+exports.getAllReconciliationsForAccount = asyncHandler(
+  async (req, res, next) => {
+    const companyId = req.query.companyId;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+    const { id } = req.params;
+
+    const Reconciliatio = await reconciliationModel.find({
+      journalEntryId: id,
+      companyId,
+    });
+
+    res.status(201).json({
+      status: "success",
+      data: Reconciliatio,
+    });
+  }
+);

@@ -6,6 +6,7 @@ const {
   createReconciliatio,
   getOneReconciliatio,
   deleteReconciliatio,
+  getAllReconciliationsForAccount,
 } = require("../services/reconciliationServices");
 
 const reconciliationRoute = express.Router();
@@ -16,7 +17,7 @@ reconciliationRoute
   .route("/")
   .get(getReconciliations)
   .post(createReconciliatio);
-
+reconciliationRoute.route("/jornal/:id").get(getAllReconciliationsForAccount);
 reconciliationRoute
   .route("/:id")
   .get(getOneReconciliatio)

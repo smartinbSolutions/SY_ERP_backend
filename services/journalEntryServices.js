@@ -313,7 +313,6 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
     const paginatedJournals = filteredJournals
       .sort((a, b) => new Date(b.journalDate) - new Date(a.journalDate))
       .slice(skip, skip + pageSize);
-console.log(currentPage);
 
     return res.status(200).json({
       pages: totalPages,
