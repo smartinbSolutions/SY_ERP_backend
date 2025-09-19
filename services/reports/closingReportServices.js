@@ -10,8 +10,10 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
       .status(400)
       .json({ message: "companyId, startDate, endDate are required" });
   }
+
   let totalDebit = 0,
     totalCredit = 0;
+
   const accounts = await accountingTreeModel.find({
     companyId,
     finalAccount,
@@ -25,6 +27,21 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
 
   const accountIds = accounts.map((acc) => acc._id.toString());
 
+  const accountTotals = {};
+  const accountsMap = {};
+  accounts.forEach((acc) => {
+    accountsMap[acc._id.toString()] = acc;
+    accountTotals[acc._id.toString()] = {
+      id: acc._id.toString(),
+      name: acc.name,
+      code: acc.code,
+      parentId: acc.parentId || null,
+      parentCode: acc.parentCode || null,
+      debit: 0,
+      credit: 0,
+    };
+  });
+
   const journals = await journalEntryModel
     .find({
       companyId,
@@ -36,32 +53,19 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
     })
     .lean();
 
-  const accountTotals = {};
-  const accountsMap = {};
-  accounts.forEach((acc) => {
-    accountsMap[acc._id.toString()] = acc;
-  });
   const filteredJournals = journals.map((journal) => {
     const journalAccountsFiltered = journal.journalAccounts.filter((ja) =>
       accountIds.includes(ja.id)
     );
-    journalAccountsFiltered.forEach((ja) => {
-      const accountInfo = accountsMap[ja.id];
-      console.log(accountInfo);
 
-      if (!accountTotals[ja.id]) {
-        accountTotals[ja.id] = {
-          id: ja.id,
-          name: ja.name,
-          parent: accountInfo?.parentId || null,
-          debit: 0,
-          credit: 0,
-        };
+    journalAccountsFiltered.forEach((ja) => {
+      const accId = ja.id.toString();
+      if (accountTotals[accId]) {
+        accountTotals[accId].debit += ja.accountDebit || 0;
+        accountTotals[accId].credit += ja.accountCredit || 0;
       }
-      accountTotals[ja.id].debit += ja.accountDebit || 0;
-      accountTotals[ja.id].credit += ja.accountCredit || 0;
-      totalDebit += ja.accountDebit;
-      totalCredit += ja.accountCredit;
+      totalDebit += ja.accountDebit || 0;
+      totalCredit += ja.accountCredit || 0;
     });
 
     return {
@@ -76,4 +80,14 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
     totalDebit,
     accountTotals,
   });
+});
+
+exports.createClosingReports = asyncHandler(async (req, res) => {
+  const { companyId, startDate, endDate, finalAccount } = req.query;
+
+  if (!companyId || !startDate || !endDate) {
+    return res
+      .status(400)
+      .json({ message: "companyId, startDate, endDate are required" });
+  }
 });
