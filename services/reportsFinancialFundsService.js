@@ -103,8 +103,16 @@ exports.getSpecificReports = asyncHandler(async (req, res, next) => {
   }
 
   // Step 3: Sort by date descending
-  filteredReports.sort((a, b) => new Date(b.date) - new Date(a.date));
+  filteredReports.sort((a, b) => {
+    const dateA = new Date(a.date).setHours(0, 0, 0, 0);
+    const dateB = new Date(b.date).setHours(0, 0, 0, 0);
 
+    if (dateA !== dateB) {
+      return dateB - dateA;
+    }
+
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
   // Step 4: Pagination
   const paginatedTransactions = pageSize
     ? filteredReports.slice(skip, skip + pageSize)
