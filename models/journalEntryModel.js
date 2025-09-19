@@ -42,7 +42,6 @@ const journalEntrySchema = new mongoose.Schema(
     receiptNumber: String,
     refId: String,
     auditing: { type: Boolean, default: false },
-    posted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -20,8 +20,8 @@ const PaymentSchema = new mongoose.Schema(
     staffId: {
       type: String,
     },
-    fundName:String,
-    fundId:String,
+    fundName: String,
+    fundId: String,
     total: {
       type: Number,
       require: true,
@@ -59,7 +59,7 @@ const PaymentSchema = new mongoose.Schema(
       },
     ],
     financailType: String,
-    fundCurrency:String,
+    fundCurrency: String,
     paymentCurrency: String,
     type: String,
     date: String,
@@ -73,6 +73,7 @@ const PaymentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    auditing: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -132,6 +132,7 @@ const returnOrderSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    auditing: { type: Boolean, default: false },
   },
 
   { timestamps: true }

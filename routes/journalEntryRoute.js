@@ -11,6 +11,7 @@ const {
   updateJournal,
   getOneJournalByLink,
   updateJournalForInvoice,
+  auditingJornal,
 } = require("../services/journalEntryServices");
 
 const accountingRoute = express.Router();
@@ -21,6 +22,7 @@ accountingRoute
   .route("/")
   .get(getJournals)
   .post(uploadFileAndImagejournal, processFilesAndImagesjournal, createJournal);
+accountingRoute.route("/audit/:id").put(auditingJornal);
 accountingRoute
   .route("/:id")
   .get(getOneJournal)

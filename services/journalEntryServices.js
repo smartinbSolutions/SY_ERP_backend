@@ -6,6 +6,12 @@ const AccountModel = require("../models/accountingTreeModel");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const reconciliationModel = require("../models/reconciliationModel");
+const orderModel = require("../models/orderModel");
+const paymentModel = require("../models/paymentModel");
+const expensesModel = require("../models/expensesModel");
+const purchaseinvoicesModel = require("../models/purchaseinvoicesModel");
+const returnOrderModel = require("../models/returnOrderModel");
+const refundPurchaseInviceModel = require("../models/refundPurchaseInviceModel");
 
 //@desc Get Account Transaction
 //@route Get /api/account
@@ -478,5 +484,85 @@ exports.updateJournalForInvoice = asyncHandler(async (req, res, next) => {
     status: "success",
     message: "Journal Updated",
     data: updateJournal,
+  });
+});
+
+exports.auditingJornal = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { id } = req.params;
+  const { auditing } = req.body;
+
+  const journal = await journalModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { auditing: auditing },
+    { new: true }
+  );
+  if (journal.journalType === "Sales") {
+    await orderModel.findOneAndUpdate(
+      {
+        journalCounter: journal.linkCounter,
+        companyId,
+      },
+      { auditing: auditing },
+      { new: true }
+    );
+  } else if (
+    journal.journalType === "Payment In" ||
+    journal.journalType === "Payment Out"
+  ) {
+    await paymentModel.findOneAndUpdate(
+      {
+        journalCounter: journal.linkCounter,
+        companyId,
+      },
+      { auditing: auditing },
+      { new: true }
+    );
+  } else if (journal.journalType === "Expense") {
+    await expensesModel.findOneAndUpdate(
+      {
+        journalCounter: journal.linkCounter,
+        companyId,
+      },
+      { auditing: auditing },
+      { new: true }
+    );
+  } else if (journal.journalType === "Purchase") {
+    await purchaseinvoicesModel.findOneAndUpdate(
+      {
+        journalCounter: journal.linkCounter,
+        companyId,
+      },
+      { auditing: auditing },
+      { new: true }
+    );
+  } else if (journal.journalType === "SalesRefund") {
+    await returnOrderModel.findOneAndUpdate(
+      {
+        journalCounter: journal.linkCounter,
+        companyId,
+      },
+      { auditing: auditing },
+      { new: true }
+    );
+  } else if (journal.journalType === "PurchaseRefund") {
+    await refundPurchaseInviceModel.findOneAndUpdate(
+      {
+        journalCounter: journal.linkCounter,
+        companyId,
+      },
+      { auditing: auditing },
+      { new: true }
+    );
+  }
+  res.status(200).json({
+    status: "success",
+    message: "Journal audited",
+    data: journal,
   });
 });
