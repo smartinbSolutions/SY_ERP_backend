@@ -32,6 +32,7 @@ const AccountingTreeSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    finalAccount: String,
   },
   { timestamps: true }
 );
