@@ -71,6 +71,7 @@ const investorRoute = require("./investorRoute");
 const investmentCompaniesRoute = require("./investmentCompaniesRoute");
 const investorSharesRoute = require("./investorSharesRoute");
 const reconciliationRoute = require("./reconciliationRoute");
+const closingReportRoute = require("./reports/closingReportRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -163,5 +164,9 @@ const mountRoutes = (app) => {
   app.use("/api/investor", investorRoute);
   app.use("/api/investmentCompanies", investmentCompaniesRoute);
   app.use("/api/investorShares", investorSharesRoute);
+
+  //Report
+    app.use("/api/closingreports", closingReportRoute);
+
 };
 module.exports = mountRoutes;
