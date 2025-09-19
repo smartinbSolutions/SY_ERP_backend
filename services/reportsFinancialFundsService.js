@@ -104,8 +104,8 @@ exports.getSpecificReports = asyncHandler(async (req, res, next) => {
 
   // Step 3: Sort by date descending
   filteredReports.sort((a, b) => {
-    const dateA = new Date(a.date).setHours(0, 0, 0, 0);
-    const dateB = new Date(b.date).setHours(0, 0, 0, 0);
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
 
     if (dateA !== dateB) {
       return dateB - dateA;
