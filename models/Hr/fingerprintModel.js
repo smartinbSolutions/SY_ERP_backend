@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const fingerPrintSchema = new mongoose.Schema(
   {
     name: String,
-    userID: String,
+    userID: { type: mongoose.Schema.Types.ObjectId, ref: "staff" },
     email: String,
     Time: String,
     date: String,
     type: { type: String, enum: ["Check-in", "Check-out"], required: true },
-        companyId: {
+    companyId: {
       type: String,
       required: true,
       index: true,
@@ -17,4 +17,4 @@ const fingerPrintSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports =  mongoose.model("FingerPrint", fingerPrintSchema);
+module.exports = mongoose.model("FingerPrint", fingerPrintSchema);
