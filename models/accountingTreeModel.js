@@ -25,7 +25,7 @@ const AccountingTreeSchema = new mongoose.Schema(
     },
     creditor: { type: Number, default: 0 },
     debtor: { type: Number, default: 0 },
-    balanceType: String,
+    balanceType: { type: String, default: "debit" },
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,
