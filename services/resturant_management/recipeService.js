@@ -80,7 +80,9 @@ exports.getOneRecipe = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const recipe = await recipeModel.findOne({ _id: req.params.id, companyId });
+    const recipe = await recipeModel
+      .findOne({ _id: req.params.id, companyId })
+      .populate("recipeArray.rawMatrialId", "name");
 
     if (!recipe) {
       return res.status(404).json({
