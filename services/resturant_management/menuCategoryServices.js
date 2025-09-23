@@ -1,6 +1,5 @@
 const menuCategoryModel = require("../../models/resturant_management/menuCategoryModel");
 const ApiError = require("../../utils/apiError");
-const { default: slugify } = require("slugify");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const multerStorage = multer.memoryStorage();
@@ -57,7 +56,6 @@ exports.createMenuCategory = asyncHandler(async (req, res, next) => {
 
   req.body.companyId = companyId;
 
-  req.body.slug = slugify(req.body.name);
   const menuCategory = await menuCategoryModel.create(req.body);
   res.status(200).json({
     status: "true",

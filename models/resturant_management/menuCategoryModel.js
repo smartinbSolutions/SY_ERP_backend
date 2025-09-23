@@ -4,7 +4,6 @@ const menuCategorySchema = new mongoose.Schema({
   name: String,
   nameAR: String,
   nameTR: String,
-  slug: { type: String },
   sync: { type: Boolean, default: false },
   image: String,
   companyId: {

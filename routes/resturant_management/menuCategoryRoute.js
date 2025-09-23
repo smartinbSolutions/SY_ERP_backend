@@ -8,7 +8,7 @@ const {
   getMenuCategories,
   deleteMenuCategory,
   updataMenuCategory,
-} = require("../../services/resturant_management/menuCategoryServuces");
+} = require("../../services/resturant_management/menuCategoryServices");
 const authService = require("../../services/authService");
 
 const menuCategoryRout = express.Router();
