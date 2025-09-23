@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const rawMaterialModel = require("../../models/resturant_management/rawMaterialModel");
 
-const { default: slugify } = require("slugify");
 const categorySchema = require("../../models/CategoryModel");
 const brandSchema = require("../../models/brandModel");
 const UnitSchema = require("../../models/UnitsModel");
@@ -20,7 +19,6 @@ exports.createRawMaterial = asyncHandler(async (req, res, next) => {
   }
 
   const rawMaterialData = req.body;
-  rawMaterialData.slug = slugify(rawMaterialData.name);
   req.body.companyId = companyId;
   try {
     // Create raw material with the provided currency

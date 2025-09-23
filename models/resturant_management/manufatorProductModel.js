@@ -16,9 +16,13 @@ const manufatorProductSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Brand",
     },
-    category: {
+    kitchen: {
       type: mongoose.Schema.ObjectId,
       ref: "Category",
+    },
+    category: {
+      type: mongoose.Schema.ObjectId,
+      ref: "menuCategory",
     },
     label: {
       type: mongoose.Schema.ObjectId,
@@ -75,4 +79,4 @@ manufatorProductSchema.post("save", (doc) => {
   setImageURL(doc);
 });
 
-module.exports = mongoose.model("manufatorProduct", manufatorProductSchema);
+module.exports = mongoose.model("manufactorProduct", manufatorProductSchema);

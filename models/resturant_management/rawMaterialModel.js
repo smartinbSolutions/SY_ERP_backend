@@ -14,28 +14,15 @@ const rawMaterialSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Category",
     },
-    cost: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
     unit: {
       type: mongoose.Schema.ObjectId,
       ref: "Unit",
     },
-    currency: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Currency",
-    },
-    tax: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Tax",
-    },
+
     alarm: { type: Number, default: 0 },
     description: {
       type: String,
     },
-    quantity: Number,
     sold: {
       type: Number,
       default: 0,
@@ -51,6 +38,7 @@ const rawMaterialSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    storageType: String,
   },
   { timestamps: true }
 );

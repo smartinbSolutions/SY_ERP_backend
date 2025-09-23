@@ -13,11 +13,24 @@ const batchSchema = new mongoose.Schema(
     quantity: {
       type: Number,
     },
+    currency: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Currency",
+    },
+
+    tax: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Tax",
+    },
     leftQuantity: {
       type: Number,
     },
     buyingPrice: {
       type: Number,
+    },
+    overallCost: {
+      type: Number,
+      default: 0,
     },
     expirationDate: {
       type: String,

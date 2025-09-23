@@ -66,7 +66,7 @@ exports.getAllBatches = asyncHandler(async (req, res, next) => {
   }
 
   const { id } = req.params;
-  const pageSize = parseInt(req.query.limit);
+  const pageSize = parseInt(req.query.limit); 
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
   try {

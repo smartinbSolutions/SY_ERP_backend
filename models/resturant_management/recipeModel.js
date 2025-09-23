@@ -13,7 +13,6 @@ const recipeSchema = new mongoose.Schema(
         },
         cost: {
           type: Number,
-
           default: 0,
         },
         unit: {
@@ -42,14 +41,4 @@ const recipeSchema = new mongoose.Schema(
   { collection: "recipe" }
 );
 
-/*recipeSchema.virtual("overAllCost").get(function () {
-  return this.recipeArray.reduce(
-    (total, item) => total + item.cost * item.quantity,
-    0
-  );
-});
-
-recipeSchema.set("toJSON", { virtuals: true });
-recipeSchema.set("toObject", { virtuals: true });
-*/
 module.exports = mongoose.model("recipe", recipeSchema);
