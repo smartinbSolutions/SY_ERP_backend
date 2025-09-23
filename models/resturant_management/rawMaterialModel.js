@@ -18,7 +18,6 @@ const rawMaterialSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Unit",
     },
-
     alarm: { type: Number, default: 0 },
     description: {
       type: String,
@@ -27,6 +26,7 @@ const rawMaterialSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    cost: Number,
     calories: {
       type: Number,
       default: 0,
