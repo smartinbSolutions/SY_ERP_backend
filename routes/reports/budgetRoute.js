@@ -1,12 +1,13 @@
 const express = require("express");
 const {
-  getbudgetReport,
   createbudgetReport,
   getAllbudgetReport,
+  getAccountForbudgetReport,
+  getOneBugdgetRepor,
 } = require("../../services/reports/budgetServices");
 
 const budgetRoute = express.Router();
-budgetRoute.route("/").get(getbudgetReport).post(createbudgetReport);
-
+budgetRoute.route("/").get(getAccountForbudgetReport).post(createbudgetReport);
 budgetRoute.route("/budget").get(getAllbudgetReport);
+budgetRoute.route("/:id").get(getOneBugdgetRepor);
 module.exports = budgetRoute;

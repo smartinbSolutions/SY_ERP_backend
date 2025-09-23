@@ -18,8 +18,8 @@ exports.createbudgetReport = asyncHandler(async (req, res) => {
   });
 });
 
-exports.getbudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId, fromDate, toDate } = req.query;
+exports.getAccountForbudgetReport = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -60,6 +60,23 @@ exports.getAllbudgetReport = asyncHandler(async (req, res, next) => {
     status: "success",
     totalPages: totalPages,
     results: totalItems,
+    data: budget,
+  });
+});
+
+exports.getOneBugdgetRepor = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const { id } = req.params;
+  const budget = await budgetModel.findOne({
+    _id: id,
+    companyId,
+  });
+  res.status(201).json({
+    status: "success",
     data: budget,
   });
 });
