@@ -64,7 +64,7 @@ exports.getAllbudgetReport = asyncHandler(async (req, res, next) => {
   });
 });
 
-exports.getOneBugdgetRepor = asyncHandler(async (req, res, next) => {
+exports.getOneBudgetReport = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
   if (!companyId) {
@@ -79,4 +79,24 @@ exports.getOneBugdgetRepor = asyncHandler(async (req, res, next) => {
     status: "success",
     data: budget,
   });
+});
+
+exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const { id } = req.params;
+
+  const budget = await budgetModel.findOneAndUpdate(
+    { _id: id, companyId },
+    req.body,
+    { new: true }
+  );
+
+  if (!budget) {
+    return next(new ApiError(`No budget report for this id ${id}`, 404));
+  }
+  res.status(201).json({ status: "success", data: budget });
 });

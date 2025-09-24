@@ -31,6 +31,9 @@ const budgetSchema = new mongoose.Schema(
           nov: { type: Number, default: 0 },
           dec: { type: Number, default: 0 },
         },
+        parentId: String,
+        parentCode: String,
+
         total: { type: Number, default: 0 },
         _id: false,
       },
