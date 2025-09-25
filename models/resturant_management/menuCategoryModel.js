@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const menuCategorySchema = new mongoose.Schema({
-  name: String,
+  nameEN: String,
   nameAR: String,
   nameTR: String,
   sync: { type: Boolean, default: false },

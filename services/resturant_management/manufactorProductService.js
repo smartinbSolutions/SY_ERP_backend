@@ -77,7 +77,13 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
   }
   try {
     // Fetch all manufactorProducts
-    const manufactorProducts = await manufactorProductModel.find({ companyId });
+    const manufactorProducts = await manufactorProductModel
+      .find({ companyId })
+      .populate("RecipeId", "name")
+      .populate("brand", "name")
+      .populate("category", "name")
+      .populate("unit", "name")
+      .populate("tax", "name");
 
     // Respond with success message and data
     res.status(200).json({
