@@ -5,10 +5,17 @@ const {
   getAccountForbudgetReport,
   getOneBudgetReport,
   updateBudgetReport,
+  updateBudgetReportsStatus,
 } = require("../../services/reports/budgetServices");
+const authService = require("../../services/authService");
 
 const budgetRoute = express.Router();
+budgetRoute.use(authService.protect);
 budgetRoute.route("/").get(getAccountForbudgetReport).post(createbudgetReport);
 budgetRoute.route("/budget").get(getAllbudgetReport);
-budgetRoute.route("/:id").get(getOneBudgetReport).put(updateBudgetReport);
+budgetRoute
+  .route("/:id")
+  .get(getOneBudgetReport)
+  .put(updateBudgetReport)
+  .patch(updateBudgetReportsStatus);
 module.exports = budgetRoute;

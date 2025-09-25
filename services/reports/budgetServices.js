@@ -10,6 +10,8 @@ exports.createbudgetReport = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   req.body.companyId = companyId;
+  req.body.employee = req.user.name;
+
   const createbudget = await budgetModel.create(req.body);
   res.status(201).json({
     status: "success",
@@ -92,6 +94,27 @@ exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
   const budget = await budgetModel.findOneAndUpdate(
     { _id: id, companyId, status: "Draft" },
     req.body,
+    { new: true }
+  );
+
+  if (!budget) {
+    return next(new ApiError(`No budget report for this id ${id}`, 404));
+  }
+  res.status(201).json({ status: "success", data: budget });
+});
+
+exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const { id } = req.params;
+  console.log(req.body);
+
+  const budget = await budgetModel.findOneAndUpdate(
+    { _id: id, companyId, status: { $in: ["Draft", "Under Review"] } },
+    { status: req.body.status },
     { new: true }
   );
 
