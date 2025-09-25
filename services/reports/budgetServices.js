@@ -90,7 +90,7 @@ exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const budget = await budgetModel.findOneAndUpdate(
-    { _id: id, companyId },
+    { _id: id, companyId, status: "Draft" },
     req.body,
     { new: true }
   );
