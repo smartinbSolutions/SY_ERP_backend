@@ -4,7 +4,7 @@ const manufatorProductSchema = new mongoose.Schema(
   {
     RecipeId: {
       type: mongoose.Schema.ObjectId,
-      ref: "Recipe",
+      ref: "recipe",
     },
     Productname: {
       type: String,
@@ -14,19 +14,11 @@ const manufatorProductSchema = new mongoose.Schema(
     },
     brand: {
       type: mongoose.Schema.ObjectId,
-      ref: "Brand",
-    },
-    kitchen: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Category",
+      ref: "brand",
     },
     category: {
       type: mongoose.Schema.ObjectId,
       ref: "menuCategory",
-    },
-    label: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Label",
     },
     image: String,
     unit: {

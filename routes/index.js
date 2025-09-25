@@ -73,6 +73,7 @@ const investorSharesRoute = require("./investorSharesRoute");
 const reconciliationRoute = require("./reconciliationRoute");
 const closingReportRoute = require("./reports/closingReportRoute");
 const budgetRoute = require("./reports/budgetRoute");
+const menuOrderRoute = require("./resturant_management/menuOrderRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -160,6 +161,7 @@ const mountRoutes = (app) => {
   app.use("/api/recipe", recipeRoute);
   app.use("/api/manufactorProduct", manufactorProductRoute);
   app.use("/api/menu-category", menuCategoryRout);
+  app.use("/api/menu-order", menuOrderRoute);
 
   //Investment
   app.use("/api/investor", investorRoute);
