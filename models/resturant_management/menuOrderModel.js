@@ -12,15 +12,15 @@ const menuOrderSchema = new mongoose.Schema(
         quantity: { type: Number, required: true },
         unitPrice: { type: Number, required: true },
         totalPrice: { type: Number, required: true },
+        status: String,
+        processedBy: String,
       },
     ],
     totalPrice: { type: Number, default: 0 },
-    status: {
+    orderStatus: {
       type: String,
-      enum: ["pending", "inProgress", "completed", "cancelled", "failed"],
-      default: "pending",
     },
-    processedBy: { type: String },
+    orderProcessedBy: { type: String }, 
     companyId: {
       type: String,
       required: true,
