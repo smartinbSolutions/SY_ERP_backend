@@ -99,8 +99,6 @@ exports.getOneRawMaterial = asyncHandler(async (req, res, next) => {
     .populate({ path: "category" })
     .populate({ path: "brand", select: "name _id" })
     .populate({ path: "unit", select: "name code _id" })
-    .populate({ path: "tax" })
-    .populate({ path: "currency" })
     .lean();
 
   if (!rawMaterial) {
