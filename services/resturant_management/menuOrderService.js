@@ -163,12 +163,12 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
       });
     }
 
-
     res.status(200).json({
       status: "true",
       message: "menuOrder deleted",
     });
   } catch (error) {
+    // Handle errors
     console.error(`Error deleting menuOrder: ${error.message}`);
     return res.status(500).json({
       status: false,
@@ -178,75 +178,3 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
 });
 
 
-async function moveOrderToInProgress(orderId) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const order = await MenuOrder.findById(orderId)
-      .populate("orderItems.productId")
-      .session(session);  
-
-    if (!order) throw new Error("Order not found");
-    if (order.orderStatus !== "Pending") {
-      throw new Error("Order must be in Pending state");
-    }
-
-    for (let item of order.orderItems) {
-      const product = item.productId;
-
-      const recipe = await Recipe.findById(product.recipeId)
-        .populate("rawMaterials.rawMaterialId")
-        .session(session);
-
-      if (!recipe) throw new Error(`Recipe not found for product ${product._id}`);
-
-      for (let material of recipe.rawMaterials) {
-        const requiredQty = material.quantity * item.quantity;
-
-        let batches = await Batch.find({
-          rawMaterialId: material.rawMaterialId,
-          amount: { $gt: 0 }
-        })
-          .sort({ createdAt: 1 })
-          .session(session);
-
-        let remaining = requiredQty;
-
-        for (let batch of batches) {
-          if (remaining <= 0) break;
-
-          if (batch.amount >= remaining) {
-            batch.amount -= remaining;
-            await batch.save({ session });
-            remaining = 0;
-          } else {
-            remaining -= batch.amount;
-            batch.amount = 0;
-            await batch.save({ session });
-          }
-        }
-
-        if (remaining > 0) {
-          throw new Error(`Not enough stock for raw material ${material.rawMaterialId}`);
-        }
-      }
-    }
-
-    order.orderStatus = "In Progress";
-    await order.save({ session });
-
-    // 6. Commit Transaction
-    await session.commitTransaction();
-    session.endSession();
-
-    return order;
-
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
-  }
-}
-
-module.exports = { moveOrderToInProgress };
