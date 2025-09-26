@@ -1454,3 +1454,172 @@ exports.deletePaymentTransferFund = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ status: "success", data: payment });
 });
+
+exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  req.body.companyId = companyId;
+
+  // Format date
+  function padZero(value) {
+    return value < 10 ? `0${value}` : value;
+  }
+  const date = Date.now();
+  const date_ob = new Date(date);
+  const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
+    date_ob.getMinutes()
+  )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
+  const isoDate = `${req.body.date}T${formattedDate}Z`;
+  req.body.date = isoDate;
+
+  // Validate financial fund
+  const financialFundsId =
+    req.body?.financialSource?.id || req.body.financialFundsId;
+  const financialFunds = await FinancialFundsModel.findOne({
+    _id: financialFundsId,
+    companyId,
+  });
+
+  if (!financialFunds) {
+    return next(new ApiError("Financial fund not found", 404));
+  }
+
+  let paymentText = "";
+  let paymentType = "";
+  const description = req.body.description || "Advance payment";
+  let payment;
+
+  // Generate unique counter
+  const count = await paymentModel.countDocuments({
+    companyId,
+    paymentText: req.body.paymentText || "Advance",
+  });
+  req.body.counter = Number(req.body.counter || 0) + Number(count) + 1;
+
+  const totalMainCurrency = Number(req.body.totalMainCurrency);
+  let patext = "";
+
+  if (req.body.taker === "supplier") {
+    const supplier = await supplerModel.findOne({
+      _id: req.body.supplierId,
+      companyId,
+    });
+    if (!supplier) {
+      return next(new ApiError("Supplier not found", 404));
+    }
+
+    req.body.type = "supplier";
+    req.body.paymentText =
+      req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
+    payment = await paymentModel.create(req.body);
+
+    // Update financial fund and supplier balance
+    if (req.body.isWithDraw === true) {
+      financialFunds.fundBalance -= Number(req.body.total);
+      supplier.TotalUnpaid -= totalMainCurrency; // Paying supplier reduces their unpaid
+      paymentText = "Withdrawal";
+      patext = "Deposit";
+    } else {
+      financialFunds.fundBalance += Number(req.body.total);
+      supplier.TotalUnpaid += totalMainCurrency; // Receiving from supplier increases their unpaid
+      paymentText = "Deposit";
+      patext = "Withdrawal";
+    }
+
+    await supplier.save();
+    paymentType = paymentText;
+
+    // Create payment history
+    await createPaymentHistory(
+      "payment",
+      req.body.date || formattedDate,
+      totalMainCurrency,
+      req.body.paymentInFundCurrency,
+      "supplier",
+      req.body.supplierId,
+      0,
+      companyId,
+      description,
+      payment.id,
+      patext,
+      "",
+      req.body.financialFundsCurrencyCode
+    );
+  } else if (req.body.taker === "customer") {
+    const customer = await customerModel.findOne({
+      _id: req.body.customerId,
+      companyId,
+    });
+    if (!customer) {
+      return next(new ApiError("Customer not found", 404));
+    }
+
+    req.body.type = "customer";
+    req.body.paymentText =
+      req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
+    payment = await paymentModel.create(req.body);
+
+    // Update financial fund and customer balance
+    if (req.body.isWithDraw === true) {
+      financialFunds.fundBalance -= Number(req.body.total);
+      customer.TotalUnpaid += totalMainCurrency; // Paying customer increases their unpaid
+      paymentText = "Withdrawal";
+      patext = "Deposit";
+    } else {
+      financialFunds.fundBalance += Number(req.body.total);
+      customer.TotalUnpaid -= totalMainCurrency; // Receiving from customer reduces their unpaid
+      paymentText = "Deposit";
+      patext = "Withdrawal";
+    }
+
+    await customer.save();
+    paymentType = paymentText;
+
+    // Create payment history
+    await createPaymentHistory(
+      "payment",
+      req.body.date || formattedDate,
+      totalMainCurrency,
+      req.body.paymentInFundCurrency,
+      "customer",
+      req.body.customerId,
+      0,
+      companyId,
+      description,
+      payment.id,
+      patext,
+      "",
+      req.body.financialFundsCurrencyCode
+    );
+  } else {
+    return next(
+      new ApiError("Invalid taker type. Must be 'supplier' or 'customer'", 400)
+    );
+  }
+
+  // Save financial fund and create report
+  await financialFunds.save();
+  await ReportsFinancialFundsModel.create({
+    date: req.body.date || formattedDate,
+    amount: req.body.total || req.body.paymentInFundCurrency,
+    finalPriceMainCurrency: totalMainCurrency,
+    ref: payment._id,
+    type: paymentText,
+    financialFundId: financialFundsId,
+    financialFundRest: financialFunds.fundBalance,
+    exchangeRate: req.body.exchangeRate || 1,
+    description: description,
+    paymentType: paymentType,
+    payment: payment._id,
+    companyId,
+  });
+
+  if (!payment) {
+    return next(new ApiError("Payment not created", 404));
+  }
+
+  res.status(200).json({ status: "success", data: payment });
+});
