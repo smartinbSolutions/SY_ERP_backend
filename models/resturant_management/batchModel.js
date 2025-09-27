@@ -34,7 +34,7 @@ const batchSchema = new mongoose.Schema(
     },
     expirationDate: {
       type: String,
-    },
+    },  
     purchaseDate: {
       type: String,
       default: Date.now,

@@ -6,19 +6,24 @@ const {
   getAllmenuOrders,
   getOnemenuOrder,
   updatemenuOrder,
+  moveOrderToInProgress,
 } = require("../../services/resturant_management/menuOrderService");
 const authService = require("../../services/authService");
 
-const menuCategoryRout = express.Router();
+const menuOrderRouter = express.Router();
 
-menuCategoryRout
+menuOrderRouter
   .route("/")
   .get(getAllmenuOrders)
   .post(authService.protect, createmenuOrder);
-menuCategoryRout
+  menuOrderRouter
+  .route("/move-order")
+  .get(authService.protect, moveOrderToInProgress);
+menuOrderRouter
   .route("/:id")
   .get(getOnemenuOrder)
   .put(authService.protect, updatemenuOrder)
   .delete(authService.protect, deletemenuOrder);
 
-module.exports = menuCategoryRout;
+
+module.exports = menuOrderRouter;

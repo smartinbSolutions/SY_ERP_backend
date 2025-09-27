@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const menuOrderModel = require("../../models/resturant_management/menuOrderModel");
+const recipeModel = require("../../models/resturant_management/recipeModel");
+const batchModel = require("../../models/resturant_management/batchModel");
 
 // @desc Create menuOrder
 // @route POST /api/menuOrder
@@ -176,5 +178,104 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
     });
   }
 });
+//////
+//////
+////////
+//////
+///////
+//////
+//////
+////////
+//////
+///////
+//////
+//////
+////////
+//////
+///////
 
+exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
+  const { orderId, companyId } = req.query;
 
+  if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid or missing orderId",
+    });
+  }
+
+  if (!companyId) {
+    return res.status(400).json({
+      status: false,
+      message: "companyId is required",
+    });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const order = await menuOrderModel
+      .findOne({ _id: orderId, companyId })
+      .populate("orderItems.productId")
+      .session(session);
+
+    if (!order) throw new Error("Order not found");
+    if (order.orderStatus !== "Pending")
+      throw new Error("Order must be in Pending state");
+
+    for (const item of order.orderItems) {
+      const product = item.productId;
+
+      const recipe = await recipeModel
+        .findById(product.RecipeId)
+        .populate("recipeArray.rawMatrialId")
+        .session(session);
+
+      if (!recipe)
+        throw new Error(`Recipe not found for product ${product._id}`);
+
+      for (const material of recipe.recipeArray) {
+        const requiredQty = material.quantity * item.quantity;
+
+        const availableBatches = await batchModel
+          .find({
+            rawMaterialId: material.rawMatrialId,
+            leftQuantity: { $gt: 0 },
+          })
+          .sort({ createdAt: 1 })
+          .session(session);
+
+        let remainingQty = requiredQty;
+
+        for (const batch of availableBatches) {
+          if (remainingQty <= 0) break;
+
+          const deductQty = Math.min(batch.leftQuantity, remainingQty);
+          batch.leftQuantity -= deductQty;
+          remainingQty -= deductQty;
+          await batch.save({ session });
+        }
+
+        if (remainingQty > 0) {
+          throw new Error(`Not enough stock for raw material `);
+        }
+      }
+    }
+    order.orderStatus = "In Progress";
+    await order.save({ session });
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      status: true,
+      message: "Order moved to In Progress successfully",
+      data: order,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
+});
