@@ -110,10 +110,16 @@ exports.getOnemanufactorProduct = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   try {
-    const manufactorProduct = await manufactorProductModel.findOne({
-      _id: req.params.id,
-      companyId,
-    });
+    const manufactorProduct = await manufactorProductModel
+      .findOne({
+        _id: req.params.id,
+        companyId,
+      })
+      .populate("RecipeId")
+      .populate("brand", "name")
+      .populate("category", "name")
+      .populate("unit", "name")
+      .populate("tax", "name");
 
     if (!manufactorProduct) {
       return res.status(404).json({
