@@ -7,6 +7,7 @@ const budgetSchema = new mongoose.Schema(
     employee: String,
     name: String,
     status: { type: String, default: "Draft" },
+    budgetType: { type: String, default: "Months" },
     account: [
       {
         name: String,
