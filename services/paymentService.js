@@ -1464,33 +1464,15 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
   req.body.companyId = companyId;
 
   // Format date
-  function padZero(value) {
-    return value < 10 ? `0${value}` : value;
+  function padZero(value, length = 2) {
+    return value.toString().padStart(length, "0");
   }
-  const date = Date.now();
-  const date_ob = new Date(date);
-  const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
-  )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
+  const date = new Date();
+  const formattedDate = `${padZero(date.getHours())}:${padZero(
+    date.getMinutes()
+  )}:${padZero(date.getSeconds())}.${padZero(date.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.date}T${formattedDate}Z`;
   req.body.date = isoDate;
-
-  // Validate financial fund
-  const financialFundsId =
-    req.body?.financialSource?.id || req.body.financialFundsId;
-  const financialFunds = await FinancialFundsModel.findOne({
-    _id: financialFundsId,
-    companyId,
-  });
-
-  if (!financialFunds) {
-    return next(new ApiError("Financial fund not found", 404));
-  }
-
-  let paymentText = "";
-  let paymentType = "";
-  const description = req.body.description || "Advance payment";
-  let payment;
 
   // Generate unique counter
   const count = await paymentModel.countDocuments({
@@ -1500,9 +1482,131 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
   req.body.counter = Number(req.body.counter || 0) + Number(count) + 1;
 
   const totalMainCurrency = Number(req.body.totalMainCurrency);
+  let paymentText = "";
+  let paymentType = "";
+  const description = req.body.description || "Advance payment";
+  let payment;
   let patext = "";
 
-  if (req.body.taker === "supplier") {
+  // Validate financial funds
+  const sourceFundId = req.body.sourceFundId;
+  const sourceFund = await FinancialFundsModel.findOne({
+    _id: sourceFundId,
+  }).populate("fundCurrency");
+
+  if (!sourceFund) {
+    return next(new ApiError("Source financial fund not found", 404));
+  }
+
+  if (req.body.taker === "fund") req.body.taker = "account";
+
+  if (req.body.taker === "transfer") {
+    const destinationFundId = req.body.destinationFundId;
+    const destinationFund = await FinancialFundsModel.findOne({
+      _id: destinationFundId,
+      companyId,
+    }).populate("fundCurrency");
+
+    if (!destinationFund) {
+      return next(new ApiError("Destination financial fund not found", 404));
+    }
+
+    if (sourceFundId === destinationFundId) {
+      return next(
+        new ApiError("Source and destination funds cannot be the same", 400)
+      );
+    }
+
+    req.body.type = "transfer";
+    req.body.paymentText = "Transfer";
+    payment = await paymentModel.create(req.body);
+    payment.payid = payment._id; // Set payid after payment creation
+    await payment.save();
+
+    // Update financial funds balances
+    sourceFund.fundBalance -= Number(req.body.total);
+    destinationFund.fundBalance += Number(
+      req.body.paymentInFundCurrency *
+        (destinationFund.fundCurrency.exchangeRate /
+          sourceFund.fundCurrency.exchangeRate)
+    );
+    await sourceFund.save();
+    await destinationFund.save();
+
+    paymentText = "Transfer";
+    paymentType = "Transfer";
+
+    // Create payment history for source fund
+    await createPaymentHistory(
+      "payment",
+      req.body.date,
+      totalMainCurrency,
+      req.body.paymentInFundCurrency,
+      "fund",
+      sourceFundId,
+      0,
+      companyId,
+      description,
+      payment._id,
+      "Withdrawal",
+      "",
+      req.body.sourceFundCurrencyCode
+    );
+
+    // Create payment history for destination fund
+    await createPaymentHistory(
+      "payment",
+      req.body.date,
+      totalMainCurrency,
+      req.body.paymentInFundCurrency *
+        (destinationFund.fundCurrency.exchangeRate /
+          sourceFund.fundCurrency.exchangeRate),
+      "fund",
+      destinationFundId,
+      0,
+      companyId,
+      description,
+      payment._id,
+      "Deposit",
+      "",
+      req.body.destinationFundCurrencyCode
+    );
+
+    // Create report for source fund
+    await ReportsFinancialFundsModel.create({
+      date: req.body.date,
+      amount: req.body.total,
+      finalPriceMainCurrency: totalMainCurrency,
+      ref: payment._id,
+      type: "Withdrawal",
+      financialFundId: sourceFundId,
+      financialFundRest: sourceFund.fundBalance,
+      exchangeRate: req.body.exchangeRate || 1,
+      description: description,
+      paymentType: "Transfer",
+      payment: payment._id,
+      companyId,
+    });
+
+    // Create report for destination fund
+    await ReportsFinancialFundsModel.create({
+      date: req.body.date,
+      amount:
+        req.body.paymentInFundCurrency *
+        (destinationFund.fundCurrency.exchangeRate /
+          sourceFund.fundCurrency.exchangeRate),
+      finalPriceMainCurrency: totalMainCurrency,
+      ref: payment._id,
+      type: "Deposit",
+      financialFundId: destinationFundId,
+      financialFundRest: destinationFund.fundBalance,
+      exchangeRate: destinationFund.fundCurrency.exchangeRate || 1,
+      description: description,
+      paymentType: "Transfer",
+      payment: payment._id,
+      companyId,
+    });
+  } else if (req.body.taker === "supplier") {
     const supplier = await supplerModel.findOne({
       _id: req.body.supplierId,
       companyId,
@@ -1515,27 +1619,30 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
     req.body.paymentText =
       req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
     payment = await paymentModel.create(req.body);
+    payment.payid = `PAYID-${payment._id}`; // Set payid after payment creation
+    await payment.save();
 
     // Update financial fund and supplier balance
     if (req.body.isWithDraw === true) {
-      financialFunds.fundBalance -= Number(req.body.total);
+      sourceFund.fundBalance -= Number(req.body.total);
       supplier.TotalUnpaid -= totalMainCurrency; // Paying supplier reduces their unpaid
       paymentText = "Withdrawal";
       patext = "Deposit";
     } else {
-      financialFunds.fundBalance += Number(req.body.total);
+      sourceFund.fundBalance += Number(req.body.total);
       supplier.TotalUnpaid += totalMainCurrency; // Receiving from supplier increases their unpaid
       paymentText = "Deposit";
       patext = "Withdrawal";
     }
 
     await supplier.save();
+    await sourceFund.save();
     paymentType = paymentText;
 
     // Create payment history
     await createPaymentHistory(
       "payment",
-      req.body.date || formattedDate,
+      req.body.date,
       totalMainCurrency,
       req.body.paymentInFundCurrency,
       "supplier",
@@ -1543,11 +1650,27 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
       0,
       companyId,
       description,
-      payment.id,
+      payment._id,
       patext,
       "",
-      req.body.financialFundsCurrencyCode
+      req.body.sourceFundCurrencyCode
     );
+
+    // Create report
+    await ReportsFinancialFundsModel.create({
+      date: req.body.date,
+      amount: req.body.total || req.body.paymentInFundCurrency,
+      finalPriceMainCurrency: totalMainCurrency,
+      ref: payment._id,
+      type: paymentText,
+      financialFundId: sourceFundId,
+      financialFundRest: sourceFund.fundBalance,
+      exchangeRate: req.body.exchangeRate || 1,
+      description: description,
+      paymentType: paymentType,
+      payment: payment._id,
+      companyId,
+    });
   } else if (req.body.taker === "customer") {
     const customer = await customerModel.findOne({
       _id: req.body.customerId,
@@ -1561,27 +1684,30 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
     req.body.paymentText =
       req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
     payment = await paymentModel.create(req.body);
+    payment.payid = `PAYID-${payment._id}`; // Set payid after payment creation
+    await payment.save();
 
     // Update financial fund and customer balance
     if (req.body.isWithDraw === true) {
-      financialFunds.fundBalance -= Number(req.body.total);
+      sourceFund.fundBalance -= Number(req.body.total);
       customer.TotalUnpaid += totalMainCurrency; // Paying customer increases their unpaid
       paymentText = "Withdrawal";
       patext = "Deposit";
     } else {
-      financialFunds.fundBalance += Number(req.body.total);
+      sourceFund.fundBalance += Number(req.body.total);
       customer.TotalUnpaid -= totalMainCurrency; // Receiving from customer reduces their unpaid
       paymentText = "Deposit";
       patext = "Withdrawal";
     }
 
     await customer.save();
+    await sourceFund.save();
     paymentType = paymentText;
 
     // Create payment history
     await createPaymentHistory(
       "payment",
-      req.body.date || formattedDate,
+      req.body.date,
       totalMainCurrency,
       req.body.paymentInFundCurrency,
       "customer",
@@ -1589,33 +1715,88 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
       0,
       companyId,
       description,
-      payment.id,
+      payment._id,
       patext,
       "",
-      req.body.financialFundsCurrencyCode
+      req.body.sourceFundCurrencyCode
     );
+
+    // Create report
+    await ReportsFinancialFundsModel.create({
+      date: req.body.date,
+      amount: req.body.total || req.body.paymentInFundCurrency,
+      finalPriceMainCurrency: totalMainCurrency,
+      ref: payment._id,
+      type: paymentText,
+      financialFundId: sourceFundId,
+      financialFundRest: sourceFund.fundBalance,
+      exchangeRate: req.body.exchangeRate || 1,
+      description: description,
+      paymentType: paymentType,
+      payment: payment._id,
+      companyId,
+    });
+  } else if (req.body.taker === "account") {
+    // Assuming account handling is similar but without payid assignment
+    req.body.type = "account";
+    req.body.paymentText =
+      req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
+    payment = await paymentModel.create(req.body);
+
+    // Update financial fund balance
+    if (req.body.isWithDraw === true) {
+      sourceFund.fundBalance -= Number(req.body.total);
+      paymentText = "Withdrawal";
+      patext = "Deposit";
+    } else {
+      sourceFund.fundBalance += Number(req.body.total);
+      paymentText = "Deposit";
+      patext = "Withdrawal";
+    }
+
+    await sourceFund.save();
+    paymentType = paymentText;
+
+    // Create payment history
+    await createPaymentHistory(
+      "payment",
+      req.body.date,
+      totalMainCurrency,
+      req.body.paymentInFundCurrency,
+      "account",
+      req.body.accountId,
+      0,
+      companyId,
+      description,
+      payment._id,
+      patext,
+      "",
+      req.body.sourceFundCurrencyCode
+    );
+
+    // Create report
+    await ReportsFinancialFundsModel.create({
+      date: req.body.date,
+      amount: req.body.total || req.body.paymentInFundCurrency,
+      finalPriceMainCurrency: totalMainCurrency,
+      ref: payment._id,
+      type: paymentText,
+      financialFundId: sourceFundId,
+      financialFundRest: sourceFund.fundBalance,
+      exchangeRate: req.body.exchangeRate || 1,
+      description: description,
+      paymentType: paymentType,
+      payment: payment._id,
+      companyId,
+    });
   } else {
     return next(
-      new ApiError("Invalid taker type. Must be 'supplier' or 'customer'", 400)
+      new ApiError(
+        "Invalid taker type. Must be 'supplier', 'customer', 'account', or 'transfer'",
+        400
+      )
     );
   }
-
-  // Save financial fund and create report
-  await financialFunds.save();
-  await ReportsFinancialFundsModel.create({
-    date: req.body.date || formattedDate,
-    amount: req.body.total || req.body.paymentInFundCurrency,
-    finalPriceMainCurrency: totalMainCurrency,
-    ref: payment._id,
-    type: paymentText,
-    financialFundId: financialFundsId,
-    financialFundRest: financialFunds.fundBalance,
-    exchangeRate: req.body.exchangeRate || 1,
-    description: description,
-    paymentType: paymentType,
-    payment: payment._id,
-    companyId,
-  });
 
   if (!payment) {
     return next(new ApiError("Payment not created", 404));
