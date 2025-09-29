@@ -113,11 +113,17 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 //@access public just for Employee
 exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const staffMember = await Staff.findOne({ email: req.user.email, companyId });
 
+  if (!staffMember) {
+    return res.status(400).json({
+      status: false,
+      message: "User is not a staff member",
+    });
+  }
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  req.body.companyId = companyId;
 
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
@@ -136,9 +142,10 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   const Time = hours + ":" + minutes + ":" + seconds;
   req.body.date = Dates;
   req.body.Time = Time;
-  req.body.userID = req.user._id;
-  req.body.name = req.user.name;
-  req.body.email = req.user.email;
+  req.body.userID = staffMember._id;
+  req.body.name = staffMember.name;
+  req.body.email = staffMember.email;
+  req.body.companyId = companyId
 
   const fingerPrint = await fingerprintModel.create(req.body);
   res.status(200).json({
@@ -233,8 +240,8 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
 
     const salaryPerMonth = staffMember.salary || 0;
     if (salaryPerMonth <= 0) {
-      return res.status(400).json({ 
-        message: "Base salary is not set or invalid for this staff member" 
+      return res.status(400).json({
+        message: "Base salary is not set or invalid for this staff member",
       });
     }
 
@@ -245,10 +252,10 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
     if (startDate && endDate) {
       start = dayjs(startDate).startOf("day");
       end = dayjs(endDate).endOf("day");
-      
+
       if (start.isAfter(end)) {
-        return res.status(400).json({ 
-          message: "startDate cannot be after endDate" 
+        return res.status(400).json({
+          message: "startDate cannot be after endDate",
         });
       }
     } else if (month) {
@@ -265,11 +272,11 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
       .find({
         userID: userId,
         companyId,
-        date: { 
-          $gte: start.format("YYYY-MM-DD"), 
-          $lte: end.format("YYYY-MM-DD") 
+        date: {
+          $gte: start.format("YYYY-MM-DD"),
+          $lte: end.format("YYYY-MM-DD"),
         },
-        type: { $in: ["Check-in", "Check-out"] }
+        type: { $in: ["Check-in", "Check-out"] },
       })
       .select("date Time type")
       .sort({ date: 1, Time: 1 })
@@ -277,28 +284,29 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
 
     if (!records || records.length === 0) {
       return res.status(404).json({
-        message: "No attendance records found for this user in the given period",
+        message:
+          "No attendance records found for this user in the given period",
         period: {
           start: start.format("YYYY-MM-DD"),
-          end: end.format("YYYY-MM-DD")
-        }
+          end: end.format("YYYY-MM-DD"),
+        },
       });
     }
 
     // Group records by date and type
     const dailyRecords = {};
-    
-    records.forEach(record => {
+
+    records.forEach((record) => {
       const dateKey = record.date;
       if (!dailyRecords[dateKey]) {
         dailyRecords[dateKey] = {
           checkIns: [],
           checkOuts: [],
           hours: 0,
-          pairs: []
+          pairs: [],
         };
       }
-      
+
       if (record.type === "Check-in") {
         dailyRecords[dateKey].checkIns.push(record.Time);
       } else if (record.type === "Check-out") {
@@ -310,47 +318,51 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
     const dailySummary = {};
 
     // Calculate hours for each day
-    Object.keys(dailyRecords).forEach(dateKey => {
+    Object.keys(dailyRecords).forEach((dateKey) => {
       const day = dailyRecords[dateKey];
       let dayHours = 0;
-      
+
       // Pair check-ins with check-outs
       const minPairs = Math.min(day.checkIns.length, day.checkOuts.length);
-      
+
       for (let i = 0; i < minPairs; i++) {
         const checkInTime = dayjs(`${dateKey} ${day.checkIns[i]}`);
         const checkOutTime = dayjs(`${dateKey} ${day.checkOuts[i]}`);
-        
+
         // Validate time logic
         if (checkOutTime.isBefore(checkInTime)) {
           // Handle overnight shifts (check-out next day)
-          const adjustedCheckOutTime = checkOutTime.add(1, 'day');
-          const hoursDiff = adjustedCheckOutTime.diff(checkInTime, 'hour', true);
+          const adjustedCheckOutTime = checkOutTime.add(1, "day");
+          const hoursDiff = adjustedCheckOutTime.diff(
+            checkInTime,
+            "hour",
+            true
+          );
           dayHours += Math.max(0, hoursDiff);
-          
+
           day.pairs.push({
             checkIn: day.checkIns[i],
             checkOut: day.checkOuts[i],
             hours: hoursDiff,
-            overnight: true
+            overnight: true,
           });
         } else {
-          const hoursDiff = checkOutTime.diff(checkInTime, 'hour', true);
+          const hoursDiff = checkOutTime.diff(checkInTime, "hour", true);
           dayHours += Math.max(0, hoursDiff);
-          
+
           day.pairs.push({
             checkIn: day.checkIns[i],
             checkOut: day.checkOuts[i],
             hours: hoursDiff,
-            overnight: false
+            overnight: false,
           });
         }
       }
-      
+
       // Handle unpaired records
       const unpairedCheckIns = day.checkIns.length - minPairs;
       const unpairedCheckOuts = day.checkOuts.length - minPairs;
-      
+
       dailySummary[dateKey] = {
         checkIns: day.checkIns,
         checkOuts: day.checkOuts,
@@ -358,16 +370,20 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
         pairs: day.pairs,
         unpairedCheckIns,
         unpairedCheckOuts,
-        warnings: []
+        warnings: [],
       };
-      
+
       if (unpairedCheckIns > 0) {
-        dailySummary[dateKey].warnings.push(`Has ${unpairedCheckIns} unpaired check-in(s)`);
+        dailySummary[dateKey].warnings.push(
+          `Has ${unpairedCheckIns} unpaired check-in(s)`
+        );
       }
       if (unpairedCheckOuts > 0) {
-        dailySummary[dateKey].warnings.push(`Has ${unpairedCheckOuts} unpaired check-out(s)`);
+        dailySummary[dateKey].warnings.push(
+          `Has ${unpairedCheckOuts} unpaired check-out(s)`
+        );
       }
-      
+
       totalHours += dayHours;
     });
 
@@ -386,20 +402,21 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
       period: {
         start: start.format("YYYY-MM-DD"),
         end: end.format("YYYY-MM-DD"),
-        daysInPeriod: end.diff(start, 'day') + 1
+        daysInPeriod: end.diff(start, "day") + 1,
       },
       summary: {
-        totalCheckIns: records.filter(r => r.type === "Check-in").length,
-        totalCheckOuts: records.filter(r => r.type === "Check-out").length,
-        averageHoursPerDay: (totalHours / Object.keys(dailySummary).length).toFixed(2)
-      }
+        totalCheckIns: records.filter((r) => r.type === "Check-in").length,
+        totalCheckOuts: records.filter((r) => r.type === "Check-out").length,
+        averageHoursPerDay: (
+          totalHours / Object.keys(dailySummary).length
+        ).toFixed(2),
+      },
     });
-
   } catch (error) {
     console.error("Salary calculation error:", error);
     return res.status(500).json({
       message: "Error calculating salary",
-      error: error.message
+      error: error.message,
     });
   }
 });

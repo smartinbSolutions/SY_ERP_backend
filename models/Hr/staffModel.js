@@ -5,7 +5,7 @@ const StaffSchema = new mongoose.Schema({
     type: String,
   },
   email: {
-    type: String,
+    type: String, 
   },
   phoneNumber: String,
   salary: Number,
