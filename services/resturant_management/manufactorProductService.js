@@ -155,6 +155,11 @@ exports.updatemanufactorProduct = asyncHandler(async (req, res, next) => {
   const updatedData = req.body;
 
   try {
+    
+    if (updatedData.RecipeId === "null" || updatedData.RecipeId === "") {
+      delete updatedData.RecipeId;
+    }
+
     // Find and update the manufactorProduct
     const updatedmanufactorProduct =
       await manufactorProductModel.findOneAndUpdate(
