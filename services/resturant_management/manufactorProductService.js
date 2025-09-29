@@ -155,16 +155,17 @@ exports.updatemanufactorProduct = asyncHandler(async (req, res, next) => {
   const updatedData = req.body;
 
   try {
-    
-    if (updatedData.RecipeId === "null" || updatedData.RecipeId === "") {
-      delete updatedData.RecipeId;
+    if (updatedData.isRecipe === "false") {
+      updatedData.isRecipe = false;
+      updatedData.RecipeId = null;
     }
+
 
     // Find and update the manufactorProduct
     const updatedmanufactorProduct =
       await manufactorProductModel.findOneAndUpdate(
         { _id: manufactorProductId, companyId },
-        updatedData,
+        { $set: updatedData },
         { new: true, runValidators: true }
       );
 
