@@ -117,7 +117,7 @@ exports.getOnemanufactorProduct = asyncHandler(async (req, res, next) => {
       })
       .populate("RecipeId")
       .populate("brand", "name")
-      .populate("category", "name")
+      .populate("category", "nameEN")
       .populate("unit", "name")
       .populate("tax", "name");
 
