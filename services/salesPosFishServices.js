@@ -336,6 +336,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 // @access  privet/All
 exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const { startDate, endDate } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -357,10 +358,26 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
       $and: [
         query,
         {
-          $or: [{ counter: req.query.keyword }],
+          $or: [
+            { counter: req.query.keyword },
+            { employee: req.query.keyword },
+          ],
         },
       ],
     };
+  }
+
+  if (startDate && endDate) {
+    query.createdAt = {
+      $gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
+      $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+    };
+  } else if (startDate) {
+    const start = new Date(startDate);
+    const end = new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    query.createdAt = { $gte: start, $lte: end };
   }
 
   let mongooseQuery = posReceiptsModel.find(query);
@@ -946,24 +963,38 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
 });
 
 exports.getReceiptForDate = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const { companyId, keyword, sortBy, sortOrder } = req.query;
+  const { id } = req.params;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   const specificDate = new Date().toISOString().slice(0, 10);
-  const specificDateString = specificDate;
 
-  const { id } = req.params;
+  // Build query object
+  const query = {
+    createdAt: { $gte: specificDate },
+    type: "pos",
+    salesPoint: id,
+    companyId,
+  };
 
-  const orders = await posReceiptsModel
-    .find({
-      createdAt: { $gte: specificDateString },
-      type: "pos",
-      salesPoint: id,
-      companyId,
-    })
-    .sort({ createdAt: -1 });
+  // Filtering
+  if (keyword) {
+    query.counter = { $regex: keyword, $options: "i" };
+  }
+
+  // Sorting
+  let sort = { createdAt: -1 }; // default
+  if (sortBy) {
+    const validSortFields = ["createdAt", "invoiceGrandTotal"];
+    if (validSortFields.includes(sortBy)) {
+      sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
+    }
+  }
+
+  const orders = await posReceiptsModel.find(query).sort(sort);
 
   res.status(200).json({
     data: orders,
