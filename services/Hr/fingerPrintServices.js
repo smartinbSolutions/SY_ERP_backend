@@ -205,89 +205,201 @@ exports.updateFingerPrint = asyncHandler(async (req, res, next) => {
 // @route   GET /api/finger-print/salary?companyId=xxx&userId=xxx&month=yyyy-mm&startDate=yyyy-mm-dd&endDate=yyyy-mm-dd
 // @access  Admin or Employee
 
+//@desc    Calculate total worked hours and salary for a user in a month or custom date range
+//@route   GET /api/finger-print/salary?companyId=xxx&userId=xxx&month=2025-09&startDate=yyyy-mm-dd&endDate=yyyy-mm-dd
+//@access  Admin or Employee
+
 exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
-  console.log(req.query);
   const { companyId, userId, month, startDate, endDate } = req.query;
 
+  // Validate required parameters
   if (!companyId || !userId) {
     return res.status(400).json({
       message: "companyId and userId are required",
     });
   }
 
-  const staffMember = await Staff.findOne({ _id: userId, companyId });
-  if (!staffMember) {
-    return res.status(404).json({ message: "Staff not found" });
+  // Validate MongoDB ID format
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid userId format" });
   }
 
-  const salaryPerMonth = staffMember.salary || 0;
-  const salaryPerHour = salaryPerMonth / 160;
-
-  let start, end;
-  if (startDate && endDate) {
-    start = dayjs(startDate).startOf("day").format("YYYY-MM-DD");
-    end = dayjs(endDate).endOf("day").format("YYYY-MM-DD");
-  } else if (month) {
-    start = dayjs(month + "-01")
-      .startOf("month")
-      .format("YYYY-MM-DD");
-    end = dayjs(month + "-01")
-      .endOf("month")
-      .format("YYYY-MM-DD");
-  } else {
-    return res.status(400).json({
-      message: "Either month or startDate & endDate must be provided",
-    });
-  }
-
-  const records = await fingerPrintModel
-    .find({
-      userID: userId,
-      companyId,
-      date: { $gte: start, $lte: end },
-    })
-    .sort({ date: 1 });
-
-  if (!records || records.length === 0) {
-    return res.status(404).json({
-      message: "No attendance records found for this user in the given range",
-    });
-  }
-
-  let totalHours = 0;
-  const daily = {};
-
-  for (let record of records) {
-    const dateKey = record.date;
-    if (!daily[dateKey])
-      daily[dateKey] = { checkIn: null, checkOut: null, hours: 0 };
-
-    if (record.type === "Check-in") daily[dateKey].checkIn = record.Time;
-    if (record.type === "Check-out") daily[dateKey].checkOut = record.Time;
-
-    if (daily[dateKey].checkIn && daily[dateKey].checkOut) {
-      const inTime = dayjs(`${dateKey} ${daily[dateKey].checkIn}`);
-      const outTime = dayjs(`${dateKey} ${daily[dateKey].checkOut}`);
-      const diff = outTime.diff(inTime, "hour", true);
-
-      daily[dateKey].hours = diff;
-      totalHours += diff;
+  try {
+    // Get staff member details
+    const staffMember = await Staff.findOne({ _id: userId, companyId });
+    if (!staffMember) {
+      return res.status(404).json({ message: "Staff not found" });
     }
+
+    const salaryPerMonth = staffMember.salary || 0;
+    if (salaryPerMonth <= 0) {
+      return res.status(400).json({ 
+        message: "Base salary is not set or invalid for this staff member" 
+      });
+    }
+
+    const salaryPerHour = salaryPerMonth / 160; // Assuming 160 working hours per month
+
+    // Calculate date range
+    let start, end;
+    if (startDate && endDate) {
+      start = dayjs(startDate).startOf("day");
+      end = dayjs(endDate).endOf("day");
+      
+      if (start.isAfter(end)) {
+        return res.status(400).json({ 
+          message: "startDate cannot be after endDate" 
+        });
+      }
+    } else if (month) {
+      start = dayjs(month + "-01").startOf("month");
+      end = dayjs(month + "-01").endOf("month");
+    } else {
+      return res.status(400).json({
+        message: "Either month or startDate & endDate must be provided",
+      });
+    }
+
+    // Get all records for the period, sorted by date and time
+    const records = await fingerPrintModel
+      .find({
+        userID: userId,
+        companyId,
+        date: { 
+          $gte: start.format("YYYY-MM-DD"), 
+          $lte: end.format("YYYY-MM-DD") 
+        },
+        type: { $in: ["Check-in", "Check-out"] }
+      })
+      .select("date Time type")
+      .sort({ date: 1, Time: 1 })
+      .lean();
+
+    if (!records || records.length === 0) {
+      return res.status(404).json({
+        message: "No attendance records found for this user in the given period",
+        period: {
+          start: start.format("YYYY-MM-DD"),
+          end: end.format("YYYY-MM-DD")
+        }
+      });
+    }
+
+    // Group records by date and type
+    const dailyRecords = {};
+    
+    records.forEach(record => {
+      const dateKey = record.date;
+      if (!dailyRecords[dateKey]) {
+        dailyRecords[dateKey] = {
+          checkIns: [],
+          checkOuts: [],
+          hours: 0,
+          pairs: []
+        };
+      }
+      
+      if (record.type === "Check-in") {
+        dailyRecords[dateKey].checkIns.push(record.Time);
+      } else if (record.type === "Check-out") {
+        dailyRecords[dateKey].checkOuts.push(record.Time);
+      }
+    });
+
+    let totalHours = 0;
+    const dailySummary = {};
+
+    // Calculate hours for each day
+    Object.keys(dailyRecords).forEach(dateKey => {
+      const day = dailyRecords[dateKey];
+      let dayHours = 0;
+      
+      // Pair check-ins with check-outs
+      const minPairs = Math.min(day.checkIns.length, day.checkOuts.length);
+      
+      for (let i = 0; i < minPairs; i++) {
+        const checkInTime = dayjs(`${dateKey} ${day.checkIns[i]}`);
+        const checkOutTime = dayjs(`${dateKey} ${day.checkOuts[i]}`);
+        
+        // Validate time logic
+        if (checkOutTime.isBefore(checkInTime)) {
+          // Handle overnight shifts (check-out next day)
+          const adjustedCheckOutTime = checkOutTime.add(1, 'day');
+          const hoursDiff = adjustedCheckOutTime.diff(checkInTime, 'hour', true);
+          dayHours += Math.max(0, hoursDiff);
+          
+          day.pairs.push({
+            checkIn: day.checkIns[i],
+            checkOut: day.checkOuts[i],
+            hours: hoursDiff,
+            overnight: true
+          });
+        } else {
+          const hoursDiff = checkOutTime.diff(checkInTime, 'hour', true);
+          dayHours += Math.max(0, hoursDiff);
+          
+          day.pairs.push({
+            checkIn: day.checkIns[i],
+            checkOut: day.checkOuts[i],
+            hours: hoursDiff,
+            overnight: false
+          });
+        }
+      }
+      
+      // Handle unpaired records
+      const unpairedCheckIns = day.checkIns.length - minPairs;
+      const unpairedCheckOuts = day.checkOuts.length - minPairs;
+      
+      dailySummary[dateKey] = {
+        checkIns: day.checkIns,
+        checkOuts: day.checkOuts,
+        totalHours: dayHours,
+        pairs: day.pairs,
+        unpairedCheckIns,
+        unpairedCheckOuts,
+        warnings: []
+      };
+      
+      if (unpairedCheckIns > 0) {
+        dailySummary[dateKey].warnings.push(`Has ${unpairedCheckIns} unpaired check-in(s)`);
+      }
+      if (unpairedCheckOuts > 0) {
+        dailySummary[dateKey].warnings.push(`Has ${unpairedCheckOuts} unpaired check-out(s)`);
+      }
+      
+      totalHours += dayHours;
+    });
+
+    const calculatedSalary = totalHours * salaryPerHour;
+
+    res.status(200).json({
+      status: true,
+      userId,
+      staffName: staffMember.name,
+      baseSalary: salaryPerMonth,
+      salaryPerHour: salaryPerHour.toFixed(4),
+      totalHours: totalHours.toFixed(2),
+      calculatedSalary: calculatedSalary.toFixed(2),
+      totalDays: Object.keys(dailySummary).length,
+      dailySummary,
+      period: {
+        start: start.format("YYYY-MM-DD"),
+        end: end.format("YYYY-MM-DD"),
+        daysInPeriod: end.diff(start, 'day') + 1
+      },
+      summary: {
+        totalCheckIns: records.filter(r => r.type === "Check-in").length,
+        totalCheckOuts: records.filter(r => r.type === "Check-out").length,
+        averageHoursPerDay: (totalHours / Object.keys(dailySummary).length).toFixed(2)
+      }
+    });
+
+  } catch (error) {
+    console.error("Salary calculation error:", error);
+    return res.status(500).json({
+      message: "Error calculating salary",
+      error: error.message
+    });
   }
-
-  const calculatedSalary = totalHours * salaryPerHour;
-
-  res.status(200).json({
-    status: true,
-    userId,
-    staffName: staffMember.name,
-    baseSalary: salaryPerMonth,
-    totalHours: totalHours.toFixed(2),
-    calculatedSalary: calculatedSalary.toFixed(2),
-    daily,
-    period: {
-      start,
-      end,
-    },
-  });
 });
