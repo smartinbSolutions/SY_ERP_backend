@@ -29,7 +29,10 @@ const manufatorProductSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Tax",
     },
-    recipeCost: {
+    isRecipe: {
+      type: Boolean,
+    },
+    Cost: {
       type: Number,
     },
     profitRatio: {
