@@ -25,22 +25,6 @@ exports.createCustomar = asyncHandler(async (req, res, next) => {
   }
   req.body.companyId = companyId;
 
-  function padZero(value) {
-    return value < 10 ? `0${value}` : value;
-  }
-  const ts = Date.now();
-
-  const futureDateOb = new Date(ts);
-  futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
-
-  const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
-  )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds(),
-    3
-  )}`;
-  req.body.date = `${req.body.date}T${futureFormattedDate}Z`;
-
   req.body.openingBalance = req.body.TotalUnpaid;
 
   const customar = await customersModel.create(req.body);

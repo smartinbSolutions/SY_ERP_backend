@@ -52,11 +52,10 @@ exports.createFinancialFunds = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   req.body.companyId = companyId;
-  const data = new Date();
-  const Time = data.toISOString();
+
   const financialFunds = await FinancialFundsModel.create(req.body);
   await ReportsFinancialFundsModel.create({
-    date: Time,
+    date: req.body.date,
     amount: req.body.fundBalance,
     type: "Opening Balance",
     financialFundId: financialFunds._id,

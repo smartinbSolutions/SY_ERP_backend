@@ -9,9 +9,7 @@ const PaymentHistoryModel = require("../models/paymentHistoryModel");
 //Create New Supplier
 //rol:Who has rol can create
 exports.createSupplier = asyncHandler(async (req, res, next) => {
-  function padZero(value) {
-    return value < 10 ? `0${value}` : value;
-  }
+  
 
   const companyId = req.query.companyId;
 
@@ -23,16 +21,7 @@ exports.createSupplier = asyncHandler(async (req, res, next) => {
 
   req.body.openingBalance = req.body.TotalUnpaid;
   const supplier = await supplierModel.create(req.body);
-  const ts = Date.now();
-  const futureTs = ts + 5000;
-  const futureDateOb = new Date(futureTs);
-  const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
-  )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds(),
-    3
-  )}`;
-  req.body.date = `${req.body.date}T${futureFormattedDate}Z`;
+
 
   const test = req.body.TotalUnpaid;
   if (test !== null) {
