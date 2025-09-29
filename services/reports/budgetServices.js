@@ -110,10 +110,9 @@ exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   const { id } = req.params;
-  console.log(req.body);
 
   const budget = await budgetModel.findOneAndUpdate(
-    { _id: id, companyId, status: { $in: ["Draft", "Under Review"] } },
+    { _id: id, companyId },
     { status: req.body.status },
     { new: true }
   );
