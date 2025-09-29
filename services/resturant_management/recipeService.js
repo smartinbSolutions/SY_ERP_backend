@@ -50,9 +50,12 @@ exports.getAllRecipes = asyncHandler(async (req, res, next) => {
   }
   try {
     // Fetch all Recipes
-    const recipes = await recipeModel.find({ companyId }).populate({
-      path: "recipeArray.unit",
-    });
+    const recipes = await recipeModel
+      .find({ companyId })
+      .populate({
+        path: "recipeArray.unit",
+      })
+      .populate({ path: "recipeArray.rawMatrialId" });
 
     // Respond with success message and data
     res.status(200).json({
