@@ -806,7 +806,6 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
 
     await expense.save();
   } else if (req.body.taker === "account") {
-    payment = await paymentModel.create(req.body);
     if (req.body.isWithDraw === true) {
       financialFunds.fundBalance -=
         Number(req.body.totalMainCurrency) * req.body.exchangeRate;
@@ -816,6 +815,8 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
         Number(req.body.totalMainCurrency) * req.body.exchangeRate;
       paymentText = "Deposit";
     }
+    req.body.paymentText = paymentText;
+    payment = await paymentModel.create(req.body);
     paymentType = paymentText;
   } else if (req.body.taker === "salary") {
     const staff = await StaffModel.findOne({
