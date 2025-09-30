@@ -268,8 +268,10 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
     }
 
     const skip = (currentPage - 1) * pageSize;
-    let runningBalanceMaine = 0;
-    let runningBalance = 0;
+    let runningBalanceMaine = 0,
+      totalDebtor = 0,
+      totalCreditor = 0,
+      runningBalance = 0;
 
     const filteredJournals = allJournals
       .sort((a, b) => new Date(a.journalDate) - new Date(b.journalDate))
@@ -290,7 +292,8 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
               account.balanceType === "credit"
                 ? accEntry.MainCredit - accEntry.MainDebit
                 : accEntry.MainDebit - accEntry.MainCredit;
-
+            totalDebtor += accEntry.MainDebit;
+            totalCreditor += accEntry.MainCredit;
             runningBalance +=
               account.balanceType === "credit"
                 ? accEntry.accountCredit - accEntry.accountDebit
@@ -313,6 +316,8 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
           journalAccounts: filteredAccounts,
           runningBalanceMaine,
           runningBalance,
+          totalDebtor,
+          totalCreditor,
         };
       });
 
@@ -326,6 +331,8 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
       currentPage,
       runningBalanceMaine,
       runningBalance,
+      totalDebtor,
+      totalCreditor,
       data: account,
       journals: paginatedJournals,
     });
