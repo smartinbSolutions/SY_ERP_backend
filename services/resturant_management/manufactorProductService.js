@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const manufactorProductModel = require("../../models/resturant_management/manufatorProductModel");
+const categoryModel = require("../../models/resturant_management/menuCategoryModel");
 const multer = require("multer");
 const multerStorage = multer.memoryStorage();
 const { v4: uuidv4 } = require("uuid");
@@ -75,30 +76,51 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   try {
-    // Fetch all manufactorProducts
+    let filter = { companyId };
+
+    if (req.query.categoryName) {
+      const category = await categoryModel.findOne({
+        $or: [
+          { nameAR: { $regex: req.query.categoryName, $options: "i" } },
+          { nameEN: { $regex: req.query.categoryName, $options: "i" } },
+        ],
+        companyId,
+      });
+
+      if (category) {
+        filter.category = category._id;
+      } else {
+        return res.status(200).json({
+          status: true,
+          message: "No products found for this category name",
+          data: [],
+        });
+      }
+    }
+
     const manufactorProducts = await manufactorProductModel
-      .find({ companyId })
+      .find(filter)
       .populate({
-        path: "RecipeId", 
+        path: "RecipeId",
         populate: {
-          path: "recipeArray.rawMatrialId", 
-          model: "RawMaterial", select : "name"
+          path: "recipeArray.rawMatrialId",
+          model: "RawMaterial",
+          select: "name",
         },
       })
       .populate("brand", "name")
-      .populate("category", "name")
+      .populate("category", "nameEN")
       .populate("unit", "name")
       .populate("tax", "name");
 
-    // Respond with success message and data
     res.status(200).json({
-      status: "true",
+      status: true,
       message: "manufactorProducts fetched",
       data: manufactorProducts,
     });
   } catch (error) {
-    // Handle errors
     console.error(`Error fetching manufactorProducts: ${error.message}`);
     return res.status(500).json({
       status: false,
@@ -106,6 +128,7 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
     });
   }
 });
+
 // @desc Get one manufactorProduct
 // @route GET /api/manufactorProduct
 // @access Private
