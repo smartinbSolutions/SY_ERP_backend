@@ -79,7 +79,13 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
     // Fetch all manufactorProducts
     const manufactorProducts = await manufactorProductModel
       .find({ companyId })
-      .populate("RecipeId")
+      .populate({
+        path: "RecipeId", 
+        populate: {
+          path: "recipeArray.rawMatrialId", 
+          model: "RawMaterial", select : "name"
+        },
+      })
       .populate("brand", "name")
       .populate("category", "name")
       .populate("unit", "name")
@@ -159,7 +165,6 @@ exports.updatemanufactorProduct = asyncHandler(async (req, res, next) => {
       updatedData.isRecipe = false;
       updatedData.RecipeId = null;
     }
-
 
     // Find and update the manufactorProduct
     const updatedmanufactorProduct =
