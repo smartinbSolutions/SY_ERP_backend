@@ -41,10 +41,34 @@ exports.getMenuCategories = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const menuCategory = await menuCategoryModel.find({ companyId });
-  res
-    .status(200)
-    .json({ status: "true", results: menuCategory.length, data: menuCategory });
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  try {
+    const totalItems = await menuCategoryModel.countDocuments({ companyId });
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    const menuCategory = await menuCategoryModel
+      .find({ companyId })
+      .skip(skip)
+      .limit(pageSize);
+
+    res.status(200).json({
+      status: true,
+      results: menuCategory.length,
+      totalItems,
+      currentPage: page,
+      totalPages,
+      data: menuCategory,
+    });
+  } catch (error) {
+    console.error(`Error fetching menu categories: ${error.message}`);
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
 });
 
 exports.createMenuCategory = asyncHandler(async (req, res, next) => {

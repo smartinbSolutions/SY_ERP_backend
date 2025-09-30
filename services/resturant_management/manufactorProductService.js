@@ -77,6 +77,10 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
   try {
     let filter = { companyId };
 
@@ -100,6 +104,9 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
       }
     }
 
+    const totalItems = await manufactorProductModel.countDocuments(filter);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
     const manufactorProducts = await manufactorProductModel
       .find(filter)
       .populate({
@@ -113,11 +120,17 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
       .populate("brand", "name")
       .populate("category", "nameEN")
       .populate("unit", "name")
-      .populate("tax", "name");
+      .populate("tax", "name")
+      .skip(skip)
+      .limit(pageSize);
 
     res.status(200).json({
       status: true,
       message: "manufactorProducts fetched",
+      results: manufactorProducts.length,
+      totalItems,
+      currentPage: page,
+      totalPages,
       data: manufactorProducts,
     });
   } catch (error) {

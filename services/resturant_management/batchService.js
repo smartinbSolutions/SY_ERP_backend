@@ -65,34 +65,34 @@ exports.getAllBatches = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const { id } = req.params;
-  const pageSize = parseInt(req.query.limit); 
+  const { id } = req.params; // rawMaterialId
+  const pageSize = parseInt(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
+
   try {
     const totalItems = await BatchModel.countDocuments({
       rawMaterialId: id,
       companyId,
     });
 
-    // Calculate total pages
     const totalPages = Math.ceil(totalItems / pageSize);
-    // Fetch all Batches
-    const Batch = await BatchModel.find({ rawMaterialId: id, companyId })
+
+    const batches = await BatchModel.find({ rawMaterialId: id, companyId })
       .populate("stockId")
       .skip(skip)
       .limit(pageSize);
 
-    // Respond with success message and data
     res.status(200).json({
-      status: "true",
+      status: true,
       message: "Batches fetched",
-      results: Batch.length,
-      Pages: totalPages,
-      data: Batch,
+      results: batches.length,
+      totalItems,
+      currentPage: page,
+      totalPages,
+      data: batches,
     });
   } catch (error) {
-    // Handle errors
     console.error(`Error fetching Batches: ${error.message}`);
     return res.status(500).json({
       status: false,
@@ -100,6 +100,7 @@ exports.getAllBatches = asyncHandler(async (req, res, next) => {
     });
   }
 });
+
 // @desc Get one Batch
 // @route GET /api/Batch
 // @access Private

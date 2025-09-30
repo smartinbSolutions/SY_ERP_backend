@@ -49,8 +49,8 @@ exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const pageSize = parseInt(req.query.limit);
-  const page = parseInt(req.query.page);
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
   let query = { companyId };
@@ -62,7 +62,7 @@ exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
   }
 
   const [totalItems, rawMaterials] = await Promise.all([
-    rawMaterialModel.estimatedDocumentCount(),
+    rawMaterialModel.countDocuments(query),
     rawMaterialModel
       .find(query)
       .skip(skip)
@@ -76,13 +76,16 @@ exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
   const totalPages = Math.ceil(totalItems / pageSize);
 
   res.status(200).json({
-    status: "true",
+    status: true,
     message: "Raw materials fetched",
-    Pages: totalPages,
+    totalItems,
+    currentPage: page,
+    totalPages,
     results: rawMaterials.length,
     data: rawMaterials,
   });
 });
+
 
 // @desc Get one raw material
 // @route GET /api/raw_material

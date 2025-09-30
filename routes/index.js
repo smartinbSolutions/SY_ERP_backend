@@ -74,6 +74,7 @@ const reconciliationRoute = require("./reconciliationRoute");
 const closingReportRoute = require("./reports/closingReportRoute");
 const budgetRoute = require("./reports/budgetRoute");
 const menuOrderRoute = require("./resturant_management/menuOrderRoute");
+const tableRoute = require("./resturant_management/tablesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -162,6 +163,7 @@ const mountRoutes = (app) => {
   app.use("/api/manufactorProduct", manufactorProductRoute);
   app.use("/api/menu-category", menuCategoryRout);
   app.use("/api/menu-order", menuOrderRoute);
+  app.use("/api/table", tableRoute);
 
   //Investment
   app.use("/api/investor", investorRoute);

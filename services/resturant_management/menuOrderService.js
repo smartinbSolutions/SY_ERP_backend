@@ -41,20 +41,33 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
   try {
     let filter = { companyId };
     if (orderStatus) {
       filter.orderStatus = orderStatus;
     }
 
+    const totalItems = await menuOrderModel.countDocuments(filter);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
     const menuOrders = await menuOrderModel
       .find(filter)
-      .populate("orderItems.productId");
+      .populate("orderItems.productId")
+      .skip(skip)
+      .limit(pageSize);
 
     res.status(200).json({
       status: true,
-      message: "orders fecthed successfully",
-      orderNumber: menuOrders.length,
+      message: "Orders fetched successfully",
+      results: menuOrders.length,
+      totalItems,
+      currentPage: page,
+      totalPages,
       orders: menuOrders,
     });
   } catch (error) {
@@ -65,6 +78,7 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
     });
   }
 });
+
 // @desc Get one menuOrder
 // @route GET /api/menuOrder
 // @access Private
@@ -180,19 +194,6 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
 });
 //////
 //////
-////////
-//////
-///////
-//////
-//////
-////////
-//////
-///////
-//////
-//////
-////////
-//////
-///////
 
 exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
   const { orderId, companyId } = req.query;

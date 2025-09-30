@@ -1,19 +1,11 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const recipeModel = require("../../models/resturant_management/recipeModel");
-const UnitSchema = require("../../models/UnitsModel");
+const tablesModel = require("../../models/resturant_management/tabelsModel");
 
-// overAllCost
-
-/*exports.getOverAllCost = async function () {
-  const Recipe = mongoose.model("Recipe", recipeSchema);
-  const recipe = await Recipe.findOne().populate("recipeArray.rawMatrialId");
-}*/
-
-// @desc Create Recipe
-// @route POST /api/recipe
+// @desc Create Table
+// @route POST /api/table
 // @access Private
-exports.createRecipe = asyncHandler(async (req, res, next) => {
+exports.createTable = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -21,28 +13,28 @@ exports.createRecipe = asyncHandler(async (req, res, next) => {
   }
   req.body.companyId = companyId;
   try {
-    // Create Recipe with the provided currency
-    const recipe = await recipeModel.create(req.body);
+    // Create Table with the provided currency
+    const table = await tablesModel.create(req.body);
 
-    // Respond with success message and created Recipe data
+    // Respond with success message and created Table data
     res.status(201).json({
       status: "true",
-      message: "Recipe inserted",
-      data: recipe,
+      message: "Table inserted",
+      data: table,
     });
   } catch (error) {
     // Handle errors
-    console.error(`Error creating Recipe: ${error.message}`);
+    console.error(`Error creating Table: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
     });
   }
 });
-// @desc Get all Recipes
-// @route GET /api/recipe
+// @desc Get all Tables
+// @route GET /api/table
 // @access Private
-exports.getAllRecipes = asyncHandler(async (req, res, next) => {
+exports.getAllTables = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -56,32 +48,29 @@ exports.getAllRecipes = asyncHandler(async (req, res, next) => {
   try {
     const query = { companyId };
 
-    // حساب العدد الكلي للـ Recipes
-    const totalItems = await recipeModel.countDocuments(query);
+    // حساب العدد الكلي للـ Tables
+    const totalItems = await tablesModel.countDocuments(query);
     const totalPages = Math.ceil(totalItems / pageSize);
 
-    // Fetch Recipes with pagination
-    const recipes = await recipeModel
+    // Fetch Tables with pagination
+    const tables = await tablesModel
       .find(query)
+      .populate("currentOrder")
       .skip(skip)
-      .limit(pageSize)
-      .populate({
-        path: "recipeArray.unit",
-      })
-      .populate({ path: "recipeArray.rawMatrialId" });
+      .limit(pageSize);
 
     // Respond with success message and data
     res.status(200).json({
       status: true,
-      message: "Recipes fetched",
+      message: "Tables fetched",
       totalItems,
       currentPage: page,
       totalPages,
-      results: recipes.length,
-      data: recipes,
+      results: tables.length,
+      data: tables,
     });
   } catch (error) {
-    console.error(`Error fetching Recipes: ${error.message}`);
+    console.error(`Error fetching Tables: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
@@ -89,10 +78,10 @@ exports.getAllRecipes = asyncHandler(async (req, res, next) => {
   }
 });
 
-// @desc Get one Recipe
-// @route GET /api/recipe
+// @desc Get one Table
+// @route GET /api/table
 // @access Private
-exports.getOneRecipe = asyncHandler(async (req, res, next) => {
+exports.getOneTable = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -100,109 +89,108 @@ exports.getOneRecipe = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const recipe = await recipeModel
+    const table = await tablesModel
       .findOne({ _id: req.params.id, companyId })
-      .populate("recipeArray.rawMatrialId", "name");
-
-    if (!recipe) {
+      .populate("currentOrder");
+    if (!table) {
       return res.status(404).json({
         status: false,
-        message: "Recipe not found",
+        message: "Table not found",
       });
     }
 
     res.status(200).json({
       status: "true",
-      message: "Recipe fetched",
-      data: recipe,
+      message: "Table fetched",
+      data: table,
     });
   } catch (error) {
-    console.error(`Error fetching Recipe: ${error.message}`);
+    console.error(`Error fetching Table: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
     });
   }
 });
-// @desc Update Recipe
-// @route PUT /api/recipe/:id
+// @desc Update Table
+// @route PUT /api/table/:id
 // @access Private
-exports.updateRecipe = asyncHandler(async (req, res, next) => {
+exports.updateTable = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const recipeId = req.params.id;
+  const tableId = req.params.id;
   const updatedData = req.body;
 
   try {
-    // Find and update the Recipe
-    const updatedRecipe = await recipeModel.findOneAndUpdate(
-      { _id: recipeId, companyId },
+    // Find and update the Table
+    const updatedTable = await tablesModel.findOneAndUpdate(
+      { _id: tableId, companyId },
       updatedData,
       { new: true, runValidators: true }
     );
 
-    // If the Recipe is not found
-    if (!updatedRecipe) {
+    // If the Table is not found
+    if (!updatedTable) {
       return res.status(404).json({
         status: false,
-        message: "Recipe not found",
+        message: "Table not found",
       });
     }
 
     // Respond with success message and updated data
     res.status(200).json({
       status: "true",
-      message: "Recipe updated",
-      data: updatedRecipe,
+      message: "Table updated",
+      data: updatedTable,
     });
   } catch (error) {
     // Handle errors
-    console.error(`Error updating Recipe: ${error.message}`);
+    console.error(`Error updating Table: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
     });
   }
 });
-// @desc Delete Recipe
-// @route DELETE /api/recipe/:id
+// @desc Delete Table
+// @route DELETE /api/table/:id
 // @access Private
-exports.deleteRecipe = asyncHandler(async (req, res, next) => {
+exports.deleteTable = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const recipeId = req.params.id;
+  const tableId = req.params.id;
 
   try {
-    // Find and delete the Recipe
-    const deletedRecipe = await recipeModel.findOneAndDelete({
-      _id: recipeId,
+    // Find and delete the Table
+    const deletedTable = await tablesModel.findOneAndDelete({
+      _id: tableId,
       companyId,
     });
 
-    // If the Recipe is not found
-    if (!deletedRecipe) {
+    // If the Table is not found
+    if (!deletedTable) {
       return res.status(404).json({
         status: false,
-        message: "Recipe not found",
+        message: "Table not found",
       });
     }
 
     // Respond with success message
     res.status(200).json({
       status: "true",
-      message: "Recipe deleted",
+      message: "Table deleted",
     });
   } catch (error) {
     // Handle errors
-    console.error(`Error deleting Recipe: ${error.message}`);
+    console.error(`Error deleting Table: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
