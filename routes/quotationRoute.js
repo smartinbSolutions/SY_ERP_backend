@@ -4,13 +4,14 @@ const {
   getAllQuotations,
   getQuotationById,
   updateQuotation,
+  archiveQuotation,
 } = require("../services/quotationServices");
 
 const quotationRouter = express.Router();
 
 // Create a new quotation / Get all quotations
 quotationRouter.route("/").post(createCashQuotation).get(getAllQuotations);
-
+quotationRouter.route("/archive/:id").put(archiveQuotation);
 // Get / update / delete a specific quotation by ID
 quotationRouter.route("/:id").get(getQuotationById).put(updateQuotation);
 

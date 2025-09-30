@@ -1,7 +1,5 @@
-const { default: mongoose } = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const quotationModel = require("../models/quotationsModel.js");
-const { Search } = require("../utils/search.js");
 const ApiError = require("../utils/apiError");
 
 exports.createCashQuotation = asyncHandler(async (req, res, next) => {
@@ -34,7 +32,7 @@ exports.getAllQuotations = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
-  let query = { companyId };
+  let query = { companyId, archives: req.query.archives };
 
   // Date Range
   if (filters?.startDate || filters?.endDate) {
@@ -141,4 +139,27 @@ exports.updateQuotation = asyncHandler(async (req, res, next) => {
   }
 
   res.status(201).json({ status: "success", data: quotation });
+});
+
+exports.archiveQuotation = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const quotation = await quotationModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { archives: req.body.archives },
+    { new: true }
+  );
+
+  if (!quotation) {
+    return next(new ApiError(`No quotation found with id ${id}`, 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: quotation,
+  });
 });

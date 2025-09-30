@@ -1009,7 +1009,11 @@ exports.getPayment = asyncHandler(async (req, res, next) => {
   const pageSize = parseInt(req.query.limit) || 0;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
-  let query = { companyId, paymentText: req.query.type };
+  let query = {
+    companyId,
+    paymentText: req.query.type,
+    archives: req.query.archives,
+  };
 
   if (filters?.startDate || filters?.endDate) {
     query.startDate = {};

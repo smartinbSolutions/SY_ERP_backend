@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 
 const PaymentHistorySchema = new mongoose.Schema(
   {
+    archives: { type: Boolean, default: false },
+
     type: {
       type: String,
     },

@@ -442,6 +442,7 @@ exports.findAllOrder = asyncHandler(async (req, res, next) => {
   let query = {
     type: { $ne: "openBalance" },
     companyId,
+    archives: req.query.archives ,
   };
   if (filters?.startDate || filters?.endDate) {
     query.orderDate = {};
@@ -1594,7 +1595,65 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
     data: sales,
   });
 });
+exports.findCustomer = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
 
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const customerid = req.params.id;
+
+  const pageSize = req.query.limit || 10;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const filter = {
+    "customer.id": customerid,
+    paymentsStatus: "unpaid",
+    type: "sales",
+    companyId,
+  };
+
+  const sales = await orderModel.find(filter).skip(skip).limit(pageSize);
+
+  const totalItems = await orderModel.countDocuments(filter);
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  res.status(200).json({
+    results: sales.length,
+    Pages: totalPages,
+    totalItems,
+    data: sales,
+  });
+});
+
+exports.archiveOrder = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const order = await orderModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { archived: req.body.archived },
+    { new: true }
+  );
+
+  if (!order) {
+    return next(new ApiError("Order not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Order archived successfully",
+    data: order,
+  });
+});
+
+/*
 // @desc    Post Marge Salse invoice
 // @route   GET /api/margeorder
 // @access  privet
@@ -2191,36 +2250,4 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
 
 //   // }
 // });
-
-exports.findCustomer = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-  const customerid = req.params.id;
-
-  const pageSize = req.query.limit || 10;
-  const page = parseInt(req.query.page) || 1;
-  const skip = (page - 1) * pageSize;
-
-  const filter = {
-    "customer.id": customerid,
-    paymentsStatus: "unpaid",
-    type: "sales",
-    companyId,
-  };
-
-  const sales = await orderModel.find(filter).skip(skip).limit(pageSize);
-
-  const totalItems = await orderModel.countDocuments(filter);
-
-  const totalPages = Math.ceil(totalItems / pageSize);
-
-  res.status(200).json({
-    results: sales.length,
-    Pages: totalPages,
-    totalItems,
-    data: sales,
-  });
-});
+*/

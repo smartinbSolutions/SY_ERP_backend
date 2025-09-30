@@ -16,6 +16,7 @@ const orderSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    archives: { type: Boolean, default: false },
 
     exchangeRate: Number,
     invoicesItems: [

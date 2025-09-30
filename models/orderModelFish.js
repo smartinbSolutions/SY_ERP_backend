@@ -17,6 +17,7 @@ const orderFishSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    archives: { type: Boolean, default: false },
 
     cartItems: [
       {

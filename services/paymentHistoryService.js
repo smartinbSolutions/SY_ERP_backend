@@ -49,14 +49,20 @@ const createPaymentHistory = async (
 };
 
 const getPaymentHistory = asyncHandler(async (req, res, next) => {
-
   const pageSize = parseInt(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
+  const companyId = req.query.companyId;
 
   const { id } = req.params;
-
-  let query = { $or: [{ customerId: id }, { supplierId: id }] };
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  let query = {
+    $or: [{ customerId: id }, { supplierId: id }],
+    archives: req.body.archives,
+    companyId: req.body.companyId,
+  };
 
   // Fetch all transactions up to the current page
   const allTransactions = await PaymentHistoryModel.find(query).sort({

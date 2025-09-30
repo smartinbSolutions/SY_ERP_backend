@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 
 const PaymentSchema = new mongoose.Schema(
   {
+    archives: { type: Boolean, default: false },
+
     supplierName: {
       type: String,
     },

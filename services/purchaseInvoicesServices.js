@@ -5,14 +5,12 @@ const suppliersModel = require("../models/suppliersModel");
 const financialFundsModel = require("../models/financialFundsModel");
 const productModel = require("../models/productModel");
 
-const taxModel = require("../models/taxModel");
 const reportsFinancialFunds = require("../models/reportsFinancialFunds");
 const refundPurchaseInviceModel = require("../models/refundPurchaseInviceModel");
 
 const { createProductMovement } = require("../utils/productMovement");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
 const { createPaymentHistory } = require("./paymentHistoryService");
-const stockModel = require("../models/stockModel");
 const PaymentModel = require("../models/paymentModel");
 const paymentHistoryModel = require("../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
@@ -63,7 +61,11 @@ exports.findAllProductInvoices = asyncHandler(async (req, res, next) => {
   const pageSize = req.query.limit || 0;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
-  let query = { type: { $ne: "openingBalance" }, companyId };
+  let query = {
+    type: { $ne: "openingBalance" },
+    companyId,
+    archives: req.query.archives,
+  };
 
   if (filters?.startDate || filters?.endDate) {
     query.date = {};
@@ -1769,5 +1771,28 @@ exports.findSupplier = asyncHandler(async (req, res, next) => {
     results: purchaseInvoices.length,
     Pages: totalPages,
     data: purchaseInvoices,
+  });
+});
+
+exports.archivePurchaseInvoice = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const purchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { archives: req.body.archives },
+    { new: true }
+  );
+
+  if (!purchaseInvoice) {
+    return next(new ApiError(`No purchase Invoice found with id ${id}`, 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: purchaseInvoice,
   });
 });

@@ -11,6 +11,7 @@ const {
   updatePurchaseInvoices,
   findSupplier,
   uploadFile,
+  archivePurchaseInvoice,
 } = require("../services/purchaseInvoicesServices");
 const PurchaseInvoices = express.Router();
 PurchaseInvoices.use(authService.protect);
@@ -24,6 +25,11 @@ PurchaseInvoices.route("/refund/:id").get(getOneReturnPurchase);
 PurchaseInvoices.route("/")
   .post(uploadFile, createPurchaseInvoice)
   .get(findAllProductInvoices);
+PurchaseInvoices.route("/archive/:id").put(
+  authService.protect,
+  archivePurchaseInvoice
+);
+
 PurchaseInvoices.route("/:id")
   .get(findOneProductInvoices)
   .put(uploadFile, updatePurchaseInvoices)

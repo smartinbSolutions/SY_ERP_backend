@@ -10,6 +10,8 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
       phoneNumber: String,
       address: String,
     },
+    archives: { type: Boolean, default: false },
+
     type: { type: String, default: "normal" },
     invoicesItems: [
       {

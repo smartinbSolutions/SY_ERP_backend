@@ -17,7 +17,7 @@ exports.getAllPurchaseRequest = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
-  let query = { companyId };
+  let query = { companyId, archives: req.query.archives };
 
   // Date filter
   if (filters?.startDate || filters?.endDate) {
@@ -217,4 +217,27 @@ exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
     new Date().toISOString()
   );
   res.status(201).json({ status: "success", data: purchaseRequest });
+});
+
+exports.archivePurchaseRequest  = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const purchaseRequest = await purchaseRequestModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { archives: req.body.archives },
+    { new: true }
+  );
+
+  if (!purchaseRequest) {
+    return next(new ApiError(`No purchase Request found with id ${id}`, 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: purchaseRequest,
+  });
 });

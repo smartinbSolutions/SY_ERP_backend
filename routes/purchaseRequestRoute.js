@@ -4,6 +4,7 @@ const {
   createCashPurchaseRequest,
   getPurchaseRequestById,
   updatePurchaseRequest,
+  archivePurchaseRequest,
 } = require("../services/purchaseRequestServices");
 const authService = require("../services/authService");
 
@@ -16,6 +17,7 @@ purchaseRequestRouter
   .post(createCashPurchaseRequest)
   .get(getAllPurchaseRequest);
 
+purchaseRequestRouter.route("/archive/:id").put(archivePurchaseRequest);
 // Get / update / delete a specific purchaseRequest by ID
 purchaseRequestRouter
   .route("/:id")

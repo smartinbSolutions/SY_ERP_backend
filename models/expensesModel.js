@@ -16,6 +16,7 @@ const expensesSchema = new mongoose.Schema(
       phoneNumber: String,
       address: String,
     },
+    archives: { type: Boolean, default: false },
 
     expenceTotal: Number,
     expenceTotalMainCurrency: Number,

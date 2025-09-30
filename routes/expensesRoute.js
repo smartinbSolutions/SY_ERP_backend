@@ -13,6 +13,7 @@ const {
   getExpense,
   cancelExpense,
   getExpenseAndPurchaseForSupplier,
+  archiveExpense,
 } = require("../services/expenseService");
 
 const expensesRoute = express.Router();
@@ -22,12 +23,14 @@ expensesRoute
   .route("/")
   .post(uploadFile, createInvoiceExpenses)
   .get(getInvoiceExpenses);
+
+expensesRoute.route("/archive/:id").put(archiveExpense);
 expensesRoute
   .route("/:id")
   .get(getInvoiceExpense)
   .put(uploadFile, updateInvoiceExpense)
   .delete(cancelExpense);
-// .delete(authService.allowedTo("expenses"), deleteExpense)
+
 expensesRoute
   .route("/purchaseandexpence/:id")
   .get(getExpenseAndPurchaseForSupplier);

@@ -6,6 +6,8 @@ const quotationSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Employee",
     },
+    archives: { type: Boolean, default: false },
+
     invoicesItems: [
       {
         type: { type: String, default: "product" },

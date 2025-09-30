@@ -6,6 +6,8 @@ const purchaseRequestSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Employee",
     },
+        archives: { type: Boolean, default: false },
+
     invoicesItems: [
       {
         id: String,

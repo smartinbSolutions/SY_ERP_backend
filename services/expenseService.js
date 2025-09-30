@@ -263,7 +263,7 @@ exports.getInvoiceExpenses = asyncHandler(async (req, res, next) => {
   const pageSize = parseInt(req.query.limit) || 0;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
-  let query = { companyId }; // Initialize query object
+  let query = { companyId, archives: req.query.archives }; // Initialize query object
 
   if (req.query.keyword) {
     query.$or = [
@@ -718,6 +718,29 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
     });
   }
 );
+
+exports.archiveExpense = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const expense = await expensesModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { archives: req.body.archives },
+    { new: true }
+  );
+
+  if (!expense) {
+    return next(new ApiError(`No expense found with id ${id}`, 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: expense,
+  });
+});
 
 /*
 // exports.createExpenses = asyncHandler(async (req, res, next) => {
