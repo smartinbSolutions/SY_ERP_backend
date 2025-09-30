@@ -83,6 +83,7 @@ const financailSource = async (
 
 exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const { invoiceDraft } = req.body;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -246,7 +247,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         payment._id
       );
     }
-  } else {
+  } else if (req.body.paymentsStatus === "unpaid" && !invoiceDraft) {
     let total =
       Number(req.body.totalRemainderMainCurrency) ||
       req.body.totalInMainCurrency;
@@ -271,6 +272,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     }
 
     order = await orderModel.create(req.body);
+  } else {
+    order = await orderModel.create(req.body);
   }
   const productQRCodes = cartItems
     .filter(
@@ -286,7 +289,12 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   const movementMap = new Map();
 
   for (const item of cartItems) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
+    if (
+      item.type === "unTracedproduct" ||
+      item.type === "expense" ||
+      invoiceDraft
+    )
+      continue;
 
     const existing = movementMap.get(item.qr);
     if (!existing) {
@@ -321,6 +329,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
   const bulkOption = await Promise.all(
     cartItems.map(async (item) => {
+      if (invoiceDraft) return null;
       if (item.type !== "unTracedproduct" && item.type !== "expense") {
         const product = productMap.get(item.qr);
 
@@ -355,7 +364,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
         return null;
       } else if (item.type === "expense") {
-        console.log("Hi");
+        console.log("This item is an expense and cannot create a log for it");
         return null;
       }
     })
@@ -376,21 +385,23 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     req.user._id,
     req.body.orderDate || timeIsoString
   );
-  await createPaymentHistory(
-    "invoice",
-    req.body.orderDate || timeIsoString,
-    req.body.totalInMainCurrency,
-    req.body.invoiceGrandTotal,
-    "customer",
-    req.body.customer.id,
-    order._id,
-    companyId,
-    req.body.description,
-    "",
-    "",
-    "",
-    req.body.currency.currencyCode
-  );
+  if (!invoiceDraft) {
+    await createPaymentHistory(
+      "invoice",
+      req.body.orderDate || timeIsoString,
+      req.body.totalInMainCurrency,
+      req.body.invoiceGrandTotal,
+      "customer",
+      req.body.customer.id,
+      order._id,
+      companyId,
+      req.body.description,
+      "",
+      "",
+      "",
+      req.body.currency.currencyCode
+    );
+  }
   if (req.body.paid === "paid") {
     await createPaymentHistory(
       "payment",
@@ -581,10 +592,10 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   //change the items
   const movementMap = new Map();
 
-    await paymentHistoryModel.deleteMany({
-      ref: orders._id,
-      companyId,
-    });
+  await paymentHistoryModel.deleteMany({
+    ref: orders._id,
+    companyId,
+  });
   req.body.invoicesItems.forEach((item, index) => {
     if (
       item.type === "unTracedproduct" ||
@@ -821,22 +832,21 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       Number(req.body.paymentInMainCurrency);
     await customers.save();
   } else {
-      if (req.body.customer.id === orders.customer.id) {
-        const test = req.body.totalInMainCurrency - orders.totalInMainCurrency;
-        customers.TotalUnpaid += test;
-        customers.total += test;
-      } else {
-        orderCustomer.total -= orders.totalInMainCurrency;
-        orderCustomer.TotalUnpaid -= orders.totalInMainCurrency;
-        customers.total += req.body.totalInMainCurrency;
-        customers.TotalUnpaid += req.body.totalInMainCurrency;
-      }
-      await customers.save();
-      await orderCustomer.save();
+    if (req.body.customer.id === orders.customer.id) {
+      const test = req.body.totalInMainCurrency - orders.totalInMainCurrency;
+      customers.TotalUnpaid += test;
+      customers.total += test;
+    } else {
+      orderCustomer.total -= orders.totalInMainCurrency;
+      orderCustomer.TotalUnpaid -= orders.totalInMainCurrency;
+      customers.total += req.body.totalInMainCurrency;
+      customers.TotalUnpaid += req.body.totalInMainCurrency;
+    }
+    await customers.save();
+    await orderCustomer.save();
 
-      req.body.totalRemainder = req.body.totalRemainder;
-      req.body.totalRemainderMainCurrency = req.body.totalRemainderMainCurrency;
-    
+    req.body.totalRemainder = req.body.totalRemainder;
+    req.body.totalRemainderMainCurrency = req.body.totalRemainderMainCurrency;
   }
 
   newOrderInvoice = await orderModel.updateOne(
@@ -847,23 +857,21 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     }
   );
 
-
-    await createPaymentHistory(
-      "invoice",
-      req.body.orderDate,
-      req.body.totalInMainCurrency,
-      req.body.invoiceGrandTotal,
-      "customer",
-      req.body.customer.id,
-      orders._id,
-      companyId,
-      req.body.description,
-      "",
-      "",
-      "",
-      req.body.currency.currencyCode
-    );
-  
+  await createPaymentHistory(
+    "invoice",
+    req.body.orderDate,
+    req.body.totalInMainCurrency,
+    req.body.invoiceGrandTotal,
+    "customer",
+    req.body.customer.id,
+    orders._id,
+    companyId,
+    req.body.description,
+    "",
+    "",
+    "",
+    req.body.currency.currencyCode
+  );
 
   const history = createInvoiceHistory(
     companyId,
