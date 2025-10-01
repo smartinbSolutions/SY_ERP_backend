@@ -60,14 +60,14 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
   }
   let query = {
     $or: [{ customerId: id }, { supplierId: id }],
-    archives: req.body.archives,
-    companyId: req.body.companyId,
+    companyId,
   };
 
   // Fetch all transactions up to the current page
   const allTransactions = await PaymentHistoryModel.find(query).sort({
     date: 1,
   });
+
   // console.log(allTransactions);
   let runningBalance = 0;
   allTransactions.forEach((transaction) => {
