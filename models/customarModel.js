@@ -8,6 +8,7 @@ const customarSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    latinName:String,
     phoneNumber: {
       type: String,
 

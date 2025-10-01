@@ -6,6 +6,7 @@ const supplierSchema = new mongoose.Schema(
       type: String,
       require: [true, "supplier Name Required"],
     },
+    latinName: String,
     idNumber: Number,
     nickName: String,
     phoneNumber: {
