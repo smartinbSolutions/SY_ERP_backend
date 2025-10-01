@@ -195,22 +195,19 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
 });
 //////
 //////
-
 exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
-  const { orderId, companyId } = req.query;
+  const { orderId, productId, companyId } = req.query;
 
   if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
-    return res.status(400).json({
-      status: false,
-      message: "Invalid or missing orderId",
-    });
+    return res
+      .status(400)
+      .json({ status: false, message: "Invalid or missing orderId" });
   }
 
   if (!companyId) {
-    return res.status(400).json({
-      status: false,
-      message: "companyId is required",
-    });
+    return res
+      .status(400)
+      .json({ status: false, message: "companyId is required" });
   }
 
   const session = await mongoose.startSession();
@@ -223,10 +220,26 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       .session(session);
 
     if (!order) throw new Error("Order not found");
-    if (order.orderStatus !== "Pending")
-      throw new Error("Order must be in Pending state");
 
-    for (const item of order.orderItems) {
+    // if (order.orderStatus !== "Pending" && !productId) {
+    //   throw new Error("Order must be in Pending state if processing all items");
+    // }
+
+    let itemsToProcess = order.orderItems;
+
+    if (productId) {
+      itemsToProcess = order.orderItems.filter(
+        (item) => item.productId._id.toString() === productId
+      );
+
+      if (itemsToProcess.length === 0) {
+        throw new Error("Product not found in this order");
+      }
+    }
+
+    for (const item of itemsToProcess) {
+      // if (item.status && item.status !== "Pending") continue;
+
       const product = item.productId;
 
       const recipe = await recipeModel
@@ -240,6 +253,8 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       for (const material of recipe.recipeArray) {
         const requiredQty = material.quantity * item.quantity;
 
+        let remainingQty = requiredQty;
+
         const availableBatches = await batchModel
           .find({
             rawMaterialId: material.rawMatrialId,
@@ -247,8 +262,6 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
           })
           .sort({ createdAt: 1 })
           .session(session);
-
-        let remainingQty = requiredQty;
 
         for (const batch of availableBatches) {
           if (remainingQty <= 0) break;
@@ -258,20 +271,26 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
           remainingQty -= deductQty;
           await batch.save({ session });
         }
-
-        if (remainingQty > 0) {
-          throw new Error(`Not enough stock for raw material `);
-        }
       }
-    }
-    order.orderStatus = "In Progress";
-    await order.save({ session });
 
+      item.status = "In Progress";
+    }
+
+    const allInProgress = order.orderItems.every(
+      (i) => i.status === "In Progress"
+    );
+    if (allInProgress) {
+      order.orderStatus = "In Progress";
+    }
+
+    await order.save({ session });
     await session.commitTransaction();
 
     res.status(200).json({
       status: true,
-      message: "Order moved to In Progress successfully",
+      message: productId
+        ? `Product ${productId} moved to In Progress successfully`
+        : "Order moved to In Progress successfully",
       data: order,
     });
   } catch (error) {
