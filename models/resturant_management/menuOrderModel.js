@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const menuOrderSchema = new mongoose.Schema(
   {
+    table: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Table",
+    },
+    orderNote: String,
     orderItems: [
       {
         productId: {
@@ -14,13 +19,14 @@ const menuOrderSchema = new mongoose.Schema(
         totalPrice: { type: Number, required: true },
         status: String,
         processedBy: String,
+        note: String,
       },
     ],
     totalPrice: { type: Number, default: 0 },
     orderStatus: {
       type: String,
     },
-    orderProcessedBy: { type: String }, 
+    orderProcessedBy: { type: String },
     companyId: {
       type: String,
       required: true,

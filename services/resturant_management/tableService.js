@@ -55,7 +55,6 @@ exports.getAllTables = asyncHandler(async (req, res, next) => {
     // Fetch Tables with pagination
     const tables = await tablesModel
       .find(query)
-      .populate("currentOrder")
       .skip(skip)
       .limit(pageSize);
 

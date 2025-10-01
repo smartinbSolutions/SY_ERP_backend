@@ -58,6 +58,7 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
     const menuOrders = await menuOrderModel
       .find(filter)
       .populate("orderItems.productId")
+      .populate("table")
       .skip(skip)
       .limit(pageSize);
 
