@@ -359,8 +359,8 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
         query,
         {
           $or: [
-            { counter: req.query.keyword },
-            { employee: req.query.keyword },
+            { counter: { $regex: req.query.keyword, $options: "i" } },
+            { employee: { $regex: req.query.keyword, $options: "i" } },
           ],
         },
       ],
