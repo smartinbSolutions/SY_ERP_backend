@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const tablesModel = require("../../models/resturant_management/tabelsModel");
+const tablesModel = require("../../models/resturant_management/tablesModel");
 
 // @desc Create Table
 // @route POST /api/table
@@ -53,10 +53,7 @@ exports.getAllTables = asyncHandler(async (req, res, next) => {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     // Fetch Tables with pagination
-    const tables = await tablesModel
-      .find(query)
-      .skip(skip)
-      .limit(pageSize);
+    const tables = await tablesModel.find(query).skip(skip).limit(pageSize);
 
     // Respond with success message and data
     res.status(200).json({
@@ -88,9 +85,7 @@ exports.getOneTable = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const table = await tablesModel
-      .findOne({ _id: req.params.id, companyId })
-      .populate("currentOrder");
+    const table = await tablesModel.findOne({ _id: req.params.id, companyId });
     if (!table) {
       return res.status(404).json({
         status: false,
