@@ -1012,7 +1012,6 @@ exports.getPayment = asyncHandler(async (req, res, next) => {
   let query = {
     companyId,
     paymentText: req.query.type,
-    archives: req.query.archives,
   };
 
   if (filters?.startDate || filters?.endDate) {
