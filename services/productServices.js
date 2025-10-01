@@ -654,8 +654,9 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   try {
     // Create product
     const product = await createProductHandler(productData);
-    const findCureency = await currencyModel.findById({
+    const findCureency = await currencyModel.findOne({
       _id: req.body.currency,
+      companyId,
     });
 
     // Update stocks with product ID
@@ -1552,6 +1553,7 @@ exports.addProduct = asyncHandler(async (req, res) => {
       // Find IDs for currency, category, unit, and brand
       const currency = await currencyModel.findOne({
         currencyName: item.currency,
+        companyId,
       });
       const category = await categoryModel.findOne({ name: item.category });
       const unit = await UnitsModel.findOne({ name: item.unit });
