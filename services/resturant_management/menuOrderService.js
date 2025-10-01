@@ -90,10 +90,12 @@ exports.getOnemenuOrder = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   try {
-    const menuOrder = await menuOrderModel.findOne({
-      _id: req.params.id,
-      companyId,
-    });
+    const menuOrder = await menuOrderModel
+      .findOne({
+        _id: req.params.id,
+        companyId,
+      })
+      .populate("orderItems.productId");
 
     if (!menuOrder) {
       return res.status(404).json({
