@@ -337,6 +337,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const { startDate, endDate } = req.query;
+  const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -367,6 +368,18 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
     };
   }
 
+  if (filters?.startDate || filters?.endDate) {
+    query.date = {};
+    if (filters?.startDate) {
+      query.date.$gte = filters.startDate.slice(0, 10) + "T00:00:00.000Z";
+    }
+    if (filters?.endDate) {
+      query.date.$lte = filters.endDate.slice(0, 10) + "T23:59:59.999Z";
+    }
+  }
+  if (filters.employee) {
+    query.employee = filters.employee;
+  }
   if (startDate && endDate) {
     query.createdAt = {
       $gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
@@ -380,6 +393,10 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
     query.createdAt = { $gte: start, $lte: end };
   }
 
+
+  if (filters?.tags?.length) {
+    query["tags.name"] = { $in: filters.tags.map((tag) => tag.name) };
+  }
   let mongooseQuery = posReceiptsModel.find(query);
 
   // Apply sorting
