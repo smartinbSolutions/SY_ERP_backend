@@ -3,6 +3,7 @@ const asyncHandler = require("express-async-handler");
 const menuOrderModel = require("../../models/resturant_management/menuOrderModel");
 const recipeModel = require("../../models/resturant_management/recipeModel");
 const batchModel = require("../../models/resturant_management/batchModel");
+const { model } = require("mongoose");
 
 // @desc Create menuOrder
 // @route POST /api/menuOrder
@@ -95,8 +96,19 @@ exports.getOnemenuOrder = asyncHandler(async (req, res, next) => {
         _id: req.params.id,
         companyId,
       })
-      .populate("orderItems.productId");
-
+      .populate({
+        path: "orderItems.productId",
+        model: "manufactorProduct",
+        populate: {
+          path: "RecipeId",
+          model: "recipe",
+          populate: {
+            path: "recipeArray.rawMatrialId",
+            model: "RawMaterial",
+          },
+        },
+      });
+      
     if (!menuOrder) {
       return res.status(404).json({
         status: false,
