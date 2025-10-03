@@ -4,10 +4,8 @@ const PurchaseInvoicesModel = require("../models/purchaseinvoicesModel");
 const suppliersModel = require("../models/suppliersModel");
 const financialFundsModel = require("../models/financialFundsModel");
 const productModel = require("../models/productModel");
-
 const reportsFinancialFunds = require("../models/reportsFinancialFunds");
 const refundPurchaseInviceModel = require("../models/refundPurchaseInviceModel");
-
 const { createProductMovement } = require("../utils/productMovement");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
 const { createPaymentHistory } = require("./paymentHistoryService");
@@ -177,6 +175,7 @@ exports.findOneProductInvoices = asyncHandler(async (req, res, next) => {
 
 exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const { invoiceDraft } = req.body;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -270,7 +269,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   // Prepare and update invoice items with product data
 
   // Handle invoice creation based on 'paid' status
-  if (req.body.paid === "paid") {
+  if (req.body.paid === "paid" && !invoiceDraft) {
     // Handle paid invoice logic
     req.body.status = "paid";
     if (req.body.totalRemainderMainCurrency > 0.3) {
@@ -400,7 +399,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     );
 
     await financialFund.save();
-  } else {
+  } else if (req.body.paid === "unpaid" && !invoiceDraft) {
     // Handle unpaid invoice logic
     let total = Number(totalPurchasePriceMainCurrency);
     // if (supplier.TotalUnpaid <= -1) {
@@ -456,6 +455,43 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       file: req.body.file,
       companyId,
     });
+  } else if (req.body.paid === "unpaid" && invoiceDraft) {
+    newPurchaseInvoice = await PurchaseInvoicesModel.create({
+      employee: req.user._id,
+      date: req.body.date || formattedDate,
+      invoicesItems: invoicesItem,
+      supllier: supllierObject,
+      currency,
+      exchangeRate,
+      financailFund,
+      invoiceNumber,
+      paid: "unpaid",
+      totalPurchasePriceMainCurrency,
+      invoiceSubTotal,
+      invoiceDiscount,
+      totalRemainder: req.body.totalRemainder,
+      totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+      invoiceGrandTotal,
+      taxDetails,
+      invoiceName,
+      ManualInvoiceDiscount,
+      ManualInvoiceDiscountValue,
+      InvoiceDiscountType,
+      subtotalWithDiscount,
+      paymentDate,
+      invoiceTax,
+      tag,
+      counter: Number(counter) + nextCounterPurchaseInvoices,
+      journalCounter: req.body.journalCounter,
+      type: "purchase",
+      dueDate: paymentDate,
+      description: req.body.description,
+      file: req.body.file,
+      companyId,
+      isDraft: true,
+    });
+  } else {
+    console.log("Really? Not paid or unpaid?");
   }
 
   const bulkProductUpdates = invoicesItem
@@ -500,7 +536,12 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       },
     }));
 
-  await productModel.bulkWrite([...bulkProductUpdates, ...bulkProductInserts]);
+  if (!invoiceDraft) {
+    await productModel.bulkWrite([
+      ...bulkProductUpdates,
+      ...bulkProductInserts,
+    ]);
+  }
 
   const movementMap = new Map();
   for (const item of invoicesItem) {
@@ -514,45 +555,47 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       existing.orginalBuyingPrice = item.orginalBuyingPrice;
     }
   }
-  await Promise.all(
-    Array.from(movementMap.entries()).map(async ([qr, item]) => {
-      const product = productMap.get(qr);
-      if (!product) return;
+  if (!invoiceDraft) {
+    await Promise.all(
+      Array.from(movementMap.entries()).map(async ([qr, item]) => {
+        const product = productMap.get(qr);
+        if (!product) return;
 
-      const totalStockQuantity = product.stocks.reduce(
-        (total, stock) => total + stock.productQuantity,
-        0
-      );
+        const totalStockQuantity = product.stocks.reduce(
+          (total, stock) => total + stock.productQuantity,
+          0
+        );
 
-      await createProductMovement(
-        product._id,
-        newPurchaseInvoice._id,
-        totalStockQuantity + item.quantity,
-        item.quantity,
-        0,
-        0,
-        "movement",
-        "in",
-        "purchase",
-        companyId
-      );
-
-      if (item.orginalBuyingPrice !== product.buyingprice) {
         await createProductMovement(
           product._id,
           newPurchaseInvoice._id,
+          totalStockQuantity + item.quantity,
+          item.quantity,
           0,
           0,
-          item.orginalBuyingPrice,
-          product.buyingprice,
-          "price",
+          "movement",
           "in",
           "purchase",
           companyId
         );
-      }
-    })
-  );
+
+        if (item.orginalBuyingPrice !== product.buyingprice) {
+          await createProductMovement(
+            product._id,
+            newPurchaseInvoice._id,
+            0,
+            0,
+            item.orginalBuyingPrice,
+            product.buyingprice,
+            "price",
+            "in",
+            "purchase",
+            companyId
+          );
+        }
+      })
+    );
+  }
 
   const bulkSupplierPromises = invoicesItem.map(async (item) => {
     const product = productMap.get(item.qr);
@@ -581,24 +624,26 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     return Promise.all(updates);
   });
 
-  await Promise.all(bulkSupplierPromises);
+  if (!invoiceDraft) await Promise.all(bulkSupplierPromises);
 
-  await supplier.save();
-  await createPaymentHistory(
-    "invoice",
-    req.body.date || formattedDate,
-    totalPurchasePriceMainCurrency,
-    invoiceGrandTotal,
-    "supplier",
-    supllierObject.id,
-    newPurchaseInvoice._id,
-    companyId,
-    req.body.description,
-    "",
-    "",
-    "",
-    currency.currencyCode
-  );
+  if (!invoiceDraft) {
+    await supplier.save();
+    await createPaymentHistory(
+      "invoice",
+      req.body.date || formattedDate,
+      totalPurchasePriceMainCurrency,
+      invoiceGrandTotal,
+      "supplier",
+      supllierObject.id,
+      newPurchaseInvoice._id,
+      companyId,
+      req.body.description,
+      "",
+      "",
+      "",
+      currency.currencyCode
+    );
+  }
 
   createInvoiceHistory(
     companyId,

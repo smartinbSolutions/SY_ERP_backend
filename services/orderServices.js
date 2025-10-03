@@ -272,8 +272,11 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     }
 
     order = await orderModel.create(req.body);
-  } else {
+  } else if (req.body.paymentsStatus === "unpaid" && invoiceDraft) {
+    req.body.isDraft = true;
     order = await orderModel.create(req.body);
+  } else {
+    console.log("Really? Not paid or unpaid?");
   }
   const productQRCodes = cartItems
     .filter(
@@ -442,7 +445,7 @@ exports.findAllOrder = asyncHandler(async (req, res, next) => {
   let query = {
     type: { $ne: "openBalance" },
     companyId,
-    archives: req.query.archives ,
+    archives: req.query.archives,
   };
   if (filters?.startDate || filters?.endDate) {
     query.orderDate = {};

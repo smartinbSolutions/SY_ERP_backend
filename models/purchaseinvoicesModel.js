@@ -123,6 +123,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
     receiptNumber: String,
     invoiceType: { type: String, default: "Purchase" },
     journalCounter: String,
+    isDraft: { type: Boolean, default: false },
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,

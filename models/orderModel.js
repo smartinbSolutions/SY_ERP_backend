@@ -192,6 +192,7 @@ const orderSchema = new mongoose.Schema(
     ettn: { type: String, default: "" },
     efaturaStatus: { type: String, default: "" },
     sync: { type: Boolean, default: false },
+    isDraft: { type: Boolean, default: false },
     shipmentComapny: {
       id: String,
       name: String,
