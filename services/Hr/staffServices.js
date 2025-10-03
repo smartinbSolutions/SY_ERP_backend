@@ -8,6 +8,9 @@ const multerStorage = multer.memoryStorage();
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
 const SalaryHistoryModel = require("../../models/Hr/salaryHistoryModel");
+const bcrypt = require("bcrypt");
+const generatePassword = require("../../utils/tools/generatePassword");
+const sendEmail = require("../../utils/sendEmail");
 
 const multerFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|webp/;
@@ -106,6 +109,14 @@ exports.createStaff = asyncHandler(async (req, res, next) => {
   req.body.slug = slugify(req.body.name);
   req.body.companyId = companyId;
   req.body.tags = JSON.parse(req.body.tags);
+  const employeePass = generatePassword();
+  await sendEmail({
+    email: req.body.email,
+    subject: "New Password",
+    message: `Hello ${req.body.name}, Your password is ${employeePass}`,
+  });
+  req.body.password = await bcrypt.hash(employeePass, 12);
+
   const Staffs = await StaffsModel.create(req.body);
   res
     .status(201)

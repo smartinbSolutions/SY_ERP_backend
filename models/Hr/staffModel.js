@@ -6,6 +6,7 @@ const StaffSchema = new mongoose.Schema({
   },
   email: {
     type: String,
+    unique: true,
   },
   latinName: String,
   phoneNumber: String,
@@ -16,7 +17,7 @@ const StaffSchema = new mongoose.Schema({
   hireDate: String,
   currency: { type: mongoose.Schema.ObjectId, ref: "Currency" },
   dateSalaryDue: String,
-
+  password: String,
   employmentStatus: { type: Boolean, default: true },
   tags: [
     {
@@ -32,6 +33,7 @@ const StaffSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  session: { type: Boolean, default: false },
 });
 const setFileURLs = (doc) => {
   if (doc.profileImage) {
