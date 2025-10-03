@@ -1,6 +1,5 @@
 const express = require("express");
-
-const authService = require("../../services/authService");
+const hrAuthServices =require("../../services/Hr/hrAuthServices")
 const {
   createFingerPrint,
   getFingerPrint,
@@ -12,7 +11,7 @@ const {
 } = require("../../services/Hr/fingerPrintServices");
 
 const FingerPrintRout = express.Router();
-FingerPrintRout.use(authService.protect);
+FingerPrintRout.use(hrAuthServices.protect);
 
 FingerPrintRout.route("/loged").get(getLoggedUserFingerPrint);
 FingerPrintRout.route("/salary").get(calculateSalaryFlexible);

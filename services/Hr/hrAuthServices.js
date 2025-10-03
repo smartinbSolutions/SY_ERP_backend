@@ -3,6 +3,7 @@ const ApiError = require("../../utils/apiError");
 const createToken = require("../../utils/createToken");
 const bcrypt = require("bcrypt");
 const asyncHandler = require("express-async-handler");
+const jwt = require("jsonwebtoken");
 
 exports.hrLogin = asyncHandler(async (req, res, next) => {
   try {
