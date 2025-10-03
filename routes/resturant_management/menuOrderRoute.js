@@ -16,14 +16,13 @@ menuOrderRouter
   .route("/")
   .get(getAllmenuOrders)
   .post(authService.protect, createmenuOrder);
-  menuOrderRouter
+menuOrderRouter
   .route("/move-order")
-  .get(authService.protect, moveOrderToInProgress);
+  .post(authService.protect, moveOrderToInProgress);
 menuOrderRouter
   .route("/:id")
   .get(getOnemenuOrder)
   .put(authService.protect, updatemenuOrder)
   .delete(authService.protect, deletemenuOrder);
-
 
 module.exports = menuOrderRouter;
