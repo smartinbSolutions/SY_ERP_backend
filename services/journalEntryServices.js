@@ -12,6 +12,11 @@ const expensesModel = require("../models/expensesModel");
 const purchaseinvoicesModel = require("../models/purchaseinvoicesModel");
 const returnOrderModel = require("../models/returnOrderModel");
 const refundPurchaseInviceModel = require("../models/refundPurchaseInviceModel");
+const customarModel = require("../models/customarModel");
+const { createPaymentHistory } = require("./paymentHistoryService");
+const suppliersModel = require("../models/suppliersModel");
+const financialFundsModel = require("../models/financialFundsModel");
+const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
 
 //@desc Get Account Transaction
 //@route Get /api/account
@@ -155,9 +160,122 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
   req.body.journalDate = isoDate;
-  console.log(req.body);
 
   const create = await journalModel.create(req.body);
+  const updateOperations = req.body.journalAccounts.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id },
+      update: {
+        $inc: {
+          debtor: item.MainDebit || 0,
+          creditor: item.MainCredit || 0,
+        },
+      },
+    },
+  }));
+  await AccountModel.bulkWrite(updateOperations);
+  res.status(200).json({
+    status: "success",
+    data: create,
+  });
+});
+
+exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  console.log(req.body);
+  req.body.companyId = companyId;
+  const nextCounterPayment =
+    (await journalModel.countDocuments({ companyId })) + 1;
+  const accountingTreePayment =
+    (await journalModel.countDocuments({ companyId })) + 1;
+
+  req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
+  req.body.counter = Number(req.body.counter) + nextCounterPayment;
+  req.body.journalRefNum = accountingTreePayment;
+  req.body.journalType = "Opening Balance";
+
+  function padZero(value) {
+    return value < 10 ? `0${value}` : value;
+  }
+
+  const ts = Date.now();
+  const date_ob = new Date(ts);
+  const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
+    date_ob.getMinutes()
+  )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
+  const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
+
+  req.body.journalDate = isoDate;
+
+  const create = await journalModel.create(req.body);
+  for (const item of req.body.journalAccounts) {
+    const total = item.MainDebit - item.MainCredit;
+
+    if (item.party === "Customer") {
+      const cutomerData = await customarModel.findOneAndUpdate(
+        {
+          _id: item.partyId,
+          companyId,
+        },
+        { $inc: { total: total, TotalUnpaid: total } },
+        { new: true }
+      );
+      await createPaymentHistory(
+        "Opening balance",
+        req.body.journalDate,
+        cutomerData.TotalUnpaid,
+        cutomerData.TotalUnpaid,
+        "customer",
+        cutomerData._id,
+        "",
+        companyId,
+        "",
+        "",
+        req.body.MainCredit > 0 ? "Withdrawal" : "Deposit",
+        "Opening balance"
+      );
+    } else if (item.party === "Supplier") {
+      const supplierData = await suppliersModel.findOneAndUpdate(
+        { _id: item.partyId, companyId },
+        { $inc: { total: total, TotalUnpaid: total } },
+        { new: true }
+      );
+      await createPaymentHistory(
+        "Opening balance",
+        req.body.journalDate,
+        supplierData.TotalUnpaid,
+        supplierData.TotalUnpaid,
+        "supplier",
+        supplierData._id,
+        "",
+        companyId,
+        "",
+        "",
+        req.body.MainCredit > 0 ? "Withdrawal" : "Deposit",
+        "Opening balance"
+      );
+    } else if (item.party === "Funds") {
+      const fundsData = await financialFundsModel.findOneAndUpdate(
+        { _id: item.partyId, companyId },
+        { $inc: { fundBalance: total } },
+        { new: true }
+      );
+      await ReportsFinancialFundsModel.create({
+        date: req.body.journalDate,
+        amount: total,
+        type: "Opening Balance",
+        financialFundId: fundsData._id,
+        financialFundRest: total,
+        paymentType: req.body.MainCredit > 0 ? "Withdrawal" : "Deposit",
+        companyId,
+      });
+    }
+  }
+
   const updateOperations = req.body.journalAccounts.map((item) => ({
     updateOne: {
       filter: { _id: item.id },

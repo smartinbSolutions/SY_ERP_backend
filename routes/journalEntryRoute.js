@@ -12,6 +12,7 @@ const {
   getOneJournalByLink,
   updateJournalForInvoice,
   auditingJornal,
+  createJournalOpenBalance,
 } = require("../services/journalEntryServices");
 
 const accountingRoute = express.Router();
@@ -22,6 +23,14 @@ accountingRoute
   .route("/")
   .get(getJournals)
   .post(uploadFileAndImagejournal, processFilesAndImagesjournal, createJournal);
+accountingRoute
+  .route("/openbalance")
+  .post(
+    uploadFileAndImagejournal,
+    processFilesAndImagesjournal,
+    createJournalOpenBalance
+  );
+
 accountingRoute.route("/audit/:id").put(auditingJornal);
 accountingRoute
   .route("/:id")
