@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { getParasutOneProduct } = require("../services/parasut/parasutServices");
 
 const productSchema = new mongoose.Schema(
   {
@@ -15,6 +14,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: "name TR",
     },
+    latinName: String,
     slug: {
       type: String,
       lowercase: true,

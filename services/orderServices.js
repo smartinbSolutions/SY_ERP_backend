@@ -564,6 +564,8 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   req.body.companyId = companyId;
 
   const invoiceDraft = req.body.isDraft === true || req.body.isDraft === "true";
+  req.body.isDraft = invoiceDraft;
+
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
@@ -726,7 +728,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     }
     newOrderInvoice = await orderModel.findOneAndUpdate(
       { _id: id, companyId },
-      req.body,
+      { $set: { ...req.body, isDraft: false } },
       {
         new: true,
       }
@@ -837,7 +839,9 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       req.body.totalInMainCurrency -
       Number(req.body.paymentInMainCurrency);
     await customers.save();
-  } else if (req.body.paymentsStatus === "unpaid" && !invoiceDraft) {
+  } else if (req.body.paymentsStatus === "unpaid") {
+    req.body.isDraft = invoiceDraft;
+
     if (req.body.customer.id === orders.customer.id) {
       const test = req.body.totalInMainCurrency - orders.totalInMainCurrency;
       customers.TotalUnpaid += test;
@@ -853,15 +857,15 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
 
     req.body.totalRemainder = req.body.totalRemainder;
     req.body.totalRemainderMainCurrency = req.body.totalRemainderMainCurrency;
-  } else if (req.body.paymentsStatus === "unpaid" && invoiceDraft) {
-    req.body.isDraft = true;
+
     newOrderInvoice = await orderModel.findOneAndUpdate(
       { _id: id, companyId },
-      req.body,
+      { $set: req.body },
       { new: true }
     );
   } else {
-    console.log("Really? Not paid or unpaid?");
+    console.log("Invalid paymentsStatus value");
+    return res.status(400).json({ message: "Invalid paymentsStatus value" });
   }
 
   if (!invoiceDraft) {
