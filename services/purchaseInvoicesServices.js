@@ -719,6 +719,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     paymentDate,
     invoiceTax,
     counter,
+    journalCounter,
   } = req.body;
 
   let invoicesItem, supllierObject, taxDetails, financailFund, tag, currency;
@@ -883,6 +884,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         invoiceTax,
         tag,
         counter: Number(counter),
+        journalCounter,
         totalRemainder: req.body.totalRemainder,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
         description: req.body.description,
@@ -1035,6 +1037,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         invoiceTax,
         tag,
         counter: Number(counter),
+        journalCounter,
         type: "purchase",
         dueDate: paymentDate,
         description: req.body.description,
@@ -1073,6 +1076,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         invoiceTax,
         tag,
         counter: Number(counter),
+        journalCounter,
         type: "purchase",
         dueDate: paymentDate,
         description: req.body.description,
