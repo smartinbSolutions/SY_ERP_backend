@@ -380,6 +380,9 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
   if (filters.employee) {
     query.employee = filters.employee;
   }
+  if (filters.salesPoint) {
+    query.salesPoint = filters.salesPoint;
+  }
   if (startDate && endDate) {
     query.createdAt = {
       $gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
@@ -392,7 +395,6 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
     end.setHours(23, 59, 59, 999);
     query.createdAt = { $gte: start, $lte: end };
   }
-
 
   if (filters?.tags?.length) {
     query["tags.name"] = { $in: filters.tags.map((tag) => tag.name) };
