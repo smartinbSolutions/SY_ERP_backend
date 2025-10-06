@@ -175,7 +175,8 @@ exports.findOneProductInvoices = asyncHandler(async (req, res, next) => {
 
 exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const { invoiceDraft } = req.body;
+
+  const invoiceDraft = req.body.isDraft === "true";
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -661,6 +662,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
 exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const invoiceDraft = req.body.isDraft === "true";
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -699,6 +701,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
   req.body.paymentDate = isoDate;
   const isopurchasDate = `${req.body.date}T${formattedDatePurchase}Z`;
   req.body.date = isopurchasDate;
+
   const {
     paid,
     exchangeRate,
@@ -715,96 +718,111 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     subtotalWithDiscount,
     paymentDate,
     invoiceTax,
+    counter,
   } = req.body;
+
   let invoicesItem, supllierObject, taxDetails, financailFund, tag, currency;
-
-  supllierObject = JSON.parse(req.body.supllierObject);
-
-  taxDetails = JSON.parse(req.body.taxDetails);
-  invoicesItem = JSON.parse(req.body.invoicesItems);
-  currency = JSON.parse(req.body.currency);
-  tag = JSON.parse(req.body.tag);
+  supllierObject = req.body.supllierObject
+    ? JSON.parse(req.body.supllierObject)
+    : purchase.supllier;
+  taxDetails = req.body.taxDetails
+    ? JSON.parse(req.body.taxDetails)
+    : purchase.taxDetails;
+  invoicesItem = req.body.invoicesItems
+    ? JSON.parse(req.body.invoicesItems)
+    : purchase.invoicesItems;
+  currency = req.body.currency
+    ? JSON.parse(req.body.currency)
+    : purchase.currency;
+  tag = req.body.tag ? JSON.parse(req.body.tag) : purchase.tag;
 
   let payment;
   const originalItems = purchase.invoicesItems;
-  const updatedItems = JSON.parse(req.body.invoicesItems);
+  const updatedItems = invoicesItem;
   const bulkProductUpdatesOriginal = [];
   const bulkProductUpdatesNew = [];
 
-  // Reverting the quantities of original items
-  originalItems
-    .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
-    )
-    .forEach((item) => {
-      bulkProductUpdatesOriginal.push({
-        updateOne: {
-          filter: { qr: item.qr, "stocks.stockId": item.stock._id },
-          update: {
-            $inc: {
-              quantity: -item.quantity,
-              "stocks.$.productQuantity": -item.quantity,
+  if (!invoiceDraft) {
+    // Reverting quantities of original items
+    originalItems
+      .filter(
+        (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+      )
+      .forEach((item) => {
+        bulkProductUpdatesOriginal.push({
+          updateOne: {
+            filter: {
+              qr: item.qr,
+              "stocks.stockId": item.stock._id,
+              companyId,
+            },
+            update: {
+              $inc: {
+                quantity: -item.quantity,
+                "stocks.$.productQuantity": -item.quantity,
+              },
             },
           },
-        },
+        });
       });
-    });
 
-  // Applying the quantities of updated items
-  updatedItems
-    .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
-    )
-    .forEach((item) => {
-      const filterForUpdate = {
-        qr: item.qr,
-        "stocks.stockId": item.stock._id,
-      };
+    // Applying quantities of updated items
+    updatedItems
+      .filter(
+        (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+      )
+      .forEach((item) => {
+        const filterForUpdate = {
+          qr: item.qr,
+          "stocks.stockId": item.stock._id,
+          companyId,
+        };
 
-      const updateIfExists = {
-        $inc: {
-          quantity: +item.quantity,
-          "stocks.$.productQuantity": +item.quantity,
-        },
-        $set: {
-          buyingprice: item.orginalBuyingPrice,
-        },
-      };
-
-      const filterForInsert = {
-        qr: item.qr,
-        "stocks.stockId": { $ne: item.stock._id },
-        companyId,
-      };
-
-      const updateIfMissing = {
-        $inc: {
-          quantity: +item.quantity,
-        },
-        $set: {
-          buyingprice: item.orginalBuyingPrice,
-        },
-        $push: {
-          stocks: {
-            stockId: item.stock._id,
-            stockName: item.stock.stock,
-            productQuantity: item.quantity,
+        const updateIfExists = {
+          $inc: {
+            quantity: +item.quantity,
+            "stocks.$.productQuantity": +item.quantity,
           },
-        },
-      };
+          $set: {
+            buyingprice: item.orginalBuyingPrice,
+          },
+        };
 
-      bulkProductUpdatesNew.push(
-        { updateOne: { filter: filterForUpdate, update: updateIfExists } },
-        { updateOne: { filter: filterForInsert, update: updateIfMissing } }
-      );
-    });
+        const filterForInsert = {
+          qr: item.qr,
+          "stocks.stockId": { $ne: item.stock._id },
+          companyId,
+        };
 
-  try {
-    await productModel.bulkWrite(bulkProductUpdatesOriginal);
-    await productModel.bulkWrite(bulkProductUpdatesNew);
-  } catch (error) {
-    console.error("Error during bulk updates:", error);
-    return next(new ApiError("Bulk update failed" + error, 500));
+        const updateIfMissing = {
+          $inc: {
+            quantity: +item.quantity,
+          },
+          $set: {
+            buyingprice: item.orginalBuyingPrice,
+          },
+          $push: {
+            stocks: {
+              stockId: item.stock._id,
+              stockName: item.stock.stock,
+              productQuantity: item.quantity,
+            },
+          },
+        };
+
+        bulkProductUpdatesNew.push(
+          { updateOne: { filter: filterForUpdate, update: updateIfExists } },
+          { updateOne: { filter: filterForInsert, update: updateIfMissing } }
+        );
+      });
+
+    try {
+      await productModel.bulkWrite(bulkProductUpdatesOriginal);
+      await productModel.bulkWrite(bulkProductUpdatesNew);
+    } catch (error) {
+      console.error("Error during bulk updates:", error);
+      return next(new ApiError("Bulk update failed: " + error, 500));
+    }
   }
 
   const purchaseSupplier = await suppliersModel.findOne({
@@ -815,12 +833,15 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     _id: supllierObject.id,
     companyId,
   });
+  if (!supplier) {
+    return res.status(404).json({ message: "Supplier not found" });
+  }
+
   let newPurchaseInvoice;
   req.body.file = req.file?.filename;
 
-  if (paid === "paid") {
+  if (paid === "paid" && !invoiceDraft) {
     financailFund = JSON.parse(req.body.financailFund);
-
     if (req.body.totalRemainderMainCurrency > 0.3) {
       req.body.paid = "unpaid";
     }
@@ -830,6 +851,9 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       _id: financailFund.id,
       companyId,
     });
+    if (!financialFund) {
+      return res.status(404).json({ message: "Financial fund not found" });
+    }
     financialFund.fundBalance -= paymentInFundCurrency;
 
     newPurchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
@@ -858,14 +882,17 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         paymentDate,
         invoiceTax,
         tag,
+        counter: Number(counter),
         totalRemainder: req.body.totalRemainder,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
         description: req.body.description,
         file: req.body.file,
         companyId,
+        isDraft: false,
       },
       { new: true }
     );
+
     payment = await PaymentModel.create({
       supplierId: supllierObject.id,
       supplierName: supllierObject.name,
@@ -879,9 +906,9 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       financialFundsId: financailFund.id,
       invoiceNumber: invoiceNumber,
       invoiceID: newPurchaseInvoice._id,
-      counter: Number(req.body.counter) + nextCounterPayment,
+      counter: Number(counter) + nextCounterPayment,
       description: req.body.paymentDescription,
-      invoiceCurrencyCode: req.body.currency.currencyCode,
+      invoiceCurrencyCode: currency.currencyCode,
       paymentText: "Withdrawal",
       type: "purchase",
       companyId,
@@ -890,12 +917,13 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         status: req.body.paid,
         invoiceTotal: req.body.invoiceGrandTotal,
         invoiceName: req.body.invoiceName,
-        invoiceCurrencyCode: req.body.currency.currencyCode,
+        invoiceCurrencyCode: currency.currencyCode,
         paymentInFundCurrency: paymentInFundCurrency,
         paymentMainCurrency: req.body.paymentInMainCurrency,
         paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
       },
     });
+
     const reports = await reportsFinancialFunds.create({
       date: req.body.paymentDate || formattedDate,
       ref: newPurchaseInvoice._id,
@@ -910,7 +938,8 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       description: req.body.paymentDescription,
       companyId,
     });
-    purchase.payments.push({
+
+    newPurchaseInvoice.payments.push({
       payment: paymentInFundCurrency,
       paymentMainCurrency: req.body.paymentInMainCurrency,
       financialFunds: financialFund.fundName,
@@ -918,12 +947,13 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       financialFundsCurrencyCode: financailFund.code,
       paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
       paymentID: payment._id,
+      financialFundsId: financailFund.id,
     });
-    purchase.reportsBalanceId = reports.id;
+    newPurchaseInvoice.reportsBalanceId = reports.id;
 
-    await purchase.save();
-
+    await newPurchaseInvoice.save();
     await financialFund.save();
+
     if (supllierObject.id === purchase.supllier.id) {
       supplier.total +=
         totalPurchasePriceMainCurrency -
@@ -939,11 +969,12 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       Number(totalPurchasePriceMainCurrency) -
       Number(req.body.paymentInMainCurrency);
     await supplier.save();
+
     await createPaymentHistory(
       "payment",
       req.body.paymentDate || formattedDate,
       req.body.paymentInMainCurrency,
-      req.body.paymentInFundCurrency,
+      paymentInFundCurrency,
       "supplier",
       supllierObject.id,
       id,
@@ -954,7 +985,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       "purchase",
       financailFund.code
     );
-  } else {
+  } else if (paid === "unpaid" && !invoiceDraft) {
     if (
       req.body.totalRemainderMainCurrency ===
       purchase.totalPurchasePriceMainCurrency
@@ -969,178 +1000,225 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       } else {
         purchaseSupplier.total -= purchase.totalPurchasePriceMainCurrency;
         purchaseSupplier.TotalUnpaid -= purchase.totalPurchasePriceMainCurrency;
-
         supplier.total += totalPurchasePriceMainCurrency;
         supplier.TotalUnpaid += totalPurchasePriceMainCurrency;
       }
       await purchaseSupplier.save();
       await supplier.save();
     }
-    const newInvoiceData = {
-      employee: req.user._id,
-      date: req.body.date || formattedDate,
-      invoicesItems: invoicesItem,
-      supllier: supllierObject,
-      currency,
-      exchangeRate,
-      financailFund,
-      invoiceNumber,
-      paid: "unpaid",
-      totalPurchasePriceMainCurrency,
-      invoiceSubTotal,
-      invoiceDiscount,
-      totalRemainderMainCurrency: totalPurchasePriceMainCurrency,
-      totalRemainder: invoiceGrandTotal,
-      invoiceGrandTotal,
-      taxDetails,
-      invoiceName,
-      ManualInvoiceDiscount,
-      ManualInvoiceDiscountValue,
-      InvoiceDiscountType,
-      subtotalWithDiscount,
-      paymentDate,
-      invoiceTax,
-      tag,
-      totalRemainder: req.body.totalRemainder,
-      totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-      file: req.body.file,
-      companyId,
-    };
-    newPurchaseInvoice = await PurchaseInvoicesModel.updateOne(
+
+    newPurchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
       { _id: id, companyId },
-      newInvoiceData
+      {
+        employee: req.user._id,
+        date: req.body.date || formattedDate,
+        invoicesItems: invoicesItem,
+        supllier: supllierObject,
+        currency,
+        exchangeRate,
+        financailFund,
+        invoiceNumber,
+        paid: "unpaid",
+        totalPurchasePriceMainCurrency,
+        invoiceSubTotal,
+        invoiceDiscount,
+        totalRemainder: req.body.totalRemainder,
+        totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+        invoiceGrandTotal,
+        taxDetails,
+        invoiceName,
+        ManualInvoiceDiscount,
+        ManualInvoiceDiscountValue,
+        InvoiceDiscountType,
+        subtotalWithDiscount,
+        paymentDate,
+        invoiceTax,
+        tag,
+        counter: Number(counter),
+        type: "purchase",
+        dueDate: paymentDate,
+        description: req.body.description,
+        file: req.body.file,
+        companyId,
+        isDraft: false,
+      },
+      { new: true }
     );
+  } else if (paid === "unpaid" && invoiceDraft) {
+    newPurchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
+      { _id: id, companyId },
+      {
+        employee: req.user._id,
+        date: req.body.date || formattedDate,
+        invoicesItems: invoicesItem,
+        supllier: supllierObject,
+        currency,
+        exchangeRate,
+        financailFund,
+        invoiceNumber,
+        paid: "unpaid",
+        totalPurchasePriceMainCurrency,
+        invoiceSubTotal,
+        invoiceDiscount,
+        totalRemainder: req.body.totalRemainder,
+        totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+        invoiceGrandTotal,
+        taxDetails,
+        invoiceName,
+        ManualInvoiceDiscount,
+        ManualInvoiceDiscountValue,
+        InvoiceDiscountType,
+        subtotalWithDiscount,
+        paymentDate,
+        invoiceTax,
+        tag,
+        counter: Number(counter),
+        type: "purchase",
+        dueDate: paymentDate,
+        description: req.body.description,
+        file: req.body.file,
+        companyId,
+        isDraft: true,
+      },
+      { new: true }
+    );
+  } else {
+    console.log("Invalid paid status or draft condition");
   }
 
-  const productQRCodes = invoicesItem.map((item) => item.qr);
-  const products = await productModel.find({
-    qr: { $in: productQRCodes },
-    companyId,
-  });
-  const productMap = new Map(products.map((prod) => [prod.qr, prod]));
-  const movementMap = new Map();
+  if (!invoiceDraft) {
+    const productQRCodes = invoicesItem.map((item) => item.qr);
+    const products = await productModel.find({
+      qr: { $in: productQRCodes },
+      companyId,
+    });
+    const productMap = new Map(products.map((prod) => [prod.qr, prod]));
+    const movementMap = new Map();
 
-  invoicesItem.forEach((item) => {
-    if (item.type === "unTracedproduct" || item.type === "expense") return;
+    invoicesItem.forEach((item) => {
+      if (item.type === "unTracedproduct" || item.type === "expense") return;
 
-    const existing = movementMap.get(item.qr);
-    const originalItem = originalItems.find((o) => o.qr === item.qr);
-    const originalQty = originalItem?.quantity ?? 0;
+      const existing = movementMap.get(item.qr);
+      const originalItem = originalItems.find((o) => o.qr === item.qr);
+      const originalQty = originalItem?.quantity ?? 0;
 
-    if (!existing) {
-      movementMap.set(item.qr, {
-        ...item,
-        quantity: item.quantity - originalQty,
-      });
-    } else {
-      existing.quantity += item.quantity - originalQty;
-      existing.orginalBuyingPrice = item.orginalBuyingPrice;
-    }
-  });
+      if (!existing) {
+        movementMap.set(item.qr, {
+          ...item,
+          quantity: item.quantity - originalQty,
+        });
+      } else {
+        existing.quantity += item.quantity - originalQty;
+        existing.orginalBuyingPrice = item.orginalBuyingPrice;
+      }
+    });
 
-  await Promise.all(
-    Array.from(movementMap.entries()).map(async ([qr, item]) => {
-      const product = productMap.get(qr);
-      if (!product) return;
+    await Promise.all(
+      Array.from(movementMap.entries()).map(async ([qr, item]) => {
+        const product = productMap.get(qr);
+        if (!product) return;
 
-      const totalStockQuantity = product.stocks.reduce(
-        (total, stock) => total + stock.productQuantity,
-        0
-      );
+        const totalStockQuantity = product.stocks.reduce(
+          (total, stock) => total + stock.productQuantity,
+          0
+        );
 
-      await createProductMovement(
-        product._id,
-        newPurchaseInvoice._id,
-        totalStockQuantity,
-        item.quantity,
-        0,
-        0,
-        "movement",
-        "in",
-        "purchase",
-        companyId
-      );
-
-      if (
-        item.orginalBuyingPrice !== undefined &&
-        item.orginalBuyingPrice !== product.buyingprice
-      ) {
         await createProductMovement(
           product._id,
           newPurchaseInvoice._id,
+          totalStockQuantity,
+          item.quantity,
           0,
           0,
-          item.orginalBuyingPrice,
-          product.buyingprice,
-          "price",
+          "movement",
           "in",
           "purchase",
           companyId
         );
-      }
-    })
-  );
 
-  const bulkSupplierPromises = invoicesItem.map(async (item, index) => {
-    const product = productMap.get(item.qr);
-    const updates = [];
+        if (
+          item.orginalBuyingPrice !== undefined &&
+          item.orginalBuyingPrice !== product.buyingprice
+        ) {
+          await createProductMovement(
+            product._id,
+            newPurchaseInvoice._id,
+            0,
+            0,
+            item.orginalBuyingPrice,
+            product.buyingprice,
+            "price",
+            "in",
+            "purchase",
+            companyId
+          );
+        }
+      })
+    );
 
-    if (product) {
-      if (!product.suppliers.includes(supllierObject.id)) {
-        product.suppliers.push(supllierObject.id);
-        updates.push(product.save());
+    const bulkSupplierPromises = invoicesItem.map(async (item) => {
+      const product = productMap.get(item.qr);
+      const updates = [];
+
+      if (product) {
+        if (!product.suppliers.includes(supllierObject.id)) {
+          product.suppliers.push(supllierObject.id);
+          updates.push(product.save());
+        }
+      } else if (item.type === "unTracedproduct") {
+        await unTracedproductLogModel.create({
+          name: item.name,
+          buyingPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
+          type: "purchase",
+          quantity: item.quantity,
+          tax: item.tax,
+          totalWithoutTax: item.totalWithoutTax,
+          total: item.total,
+          companyId,
+        });
+      } else if (item.type === "expense") {
+        console.log("Hi");
       }
-    } else if (item.type === "unTracedproduct") {
-      await unTracedproductLogModel.create({
-        name: item.name,
-        buyingPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
-        type: "purchase",
-        quantity: item.quantity,
-        tax: item.tax,
-        totalWithoutTax: item.totalWithoutTax,
-        total: item.total,
+
+      return Promise.all(updates);
+    });
+
+    await Promise.all(bulkSupplierPromises);
+
+    if (
+      req.body.totalRemainderMainCurrency ===
+      purchase.totalPurchasePriceMainCurrency
+    ) {
+      await paymentHistoryModel.deleteMany({
+        ref: id,
         companyId,
       });
-    } else if (item.type === "expense") {
-      console.log("Hi");
+      await createPaymentHistory(
+        "invoice",
+        req.body.date || formattedDate,
+        totalPurchasePriceMainCurrency,
+        invoiceGrandTotal,
+        "supplier",
+        supllierObject.id,
+        id,
+        companyId,
+        req.body.description,
+        "",
+        "",
+        "",
+        currency.currencyCode
+      );
     }
+  }
 
-    return Promise.all(updates);
-  });
-
-  await Promise.all(bulkSupplierPromises);
-
-  const history = await createInvoiceHistory(
+  await createInvoiceHistory(
     companyId,
     id,
     "edit",
     req.user._id,
     new Date().toISOString()
   );
-  if (
-    req.body.totalRemainderMainCurrency ===
-    purchase.totalPurchasePriceMainCurrency
-  ) {
-    await PaymentHistoryModel.deleteMany({
-      ref: id,
-      companyId,
-    });
-    await createPaymentHistory(
-      "invoice",
-      req.body.date || formattedDate,
-      totalPurchasePriceMainCurrency,
-      invoiceGrandTotal,
-      "supplier",
-      supllierObject.id,
-      id,
-      companyId,
-      req.body.description,
-      "",
-      "",
-      "",
-      currency.currencyCode
-    );
-  }
+
   res.status(200).json({
     status: "success",
     message: "Purchase invoice updated successfully",

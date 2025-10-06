@@ -562,6 +562,8 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   req.body.companyId = companyId;
+
+  const invoiceDraft = req.body.isDraft === true || req.body.isDraft === "true";
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
@@ -835,7 +837,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       req.body.totalInMainCurrency -
       Number(req.body.paymentInMainCurrency);
     await customers.save();
-  } else {
+  } else if (req.body.paymentsStatus === "unpaid" && !invoiceDraft) {
     if (req.body.customer.id === orders.customer.id) {
       const test = req.body.totalInMainCurrency - orders.totalInMainCurrency;
       customers.TotalUnpaid += test;
@@ -851,31 +853,34 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
 
     req.body.totalRemainder = req.body.totalRemainder;
     req.body.totalRemainderMainCurrency = req.body.totalRemainderMainCurrency;
+  } else if (req.body.paymentsStatus === "unpaid" && invoiceDraft) {
+    req.body.isDraft = true;
+    newOrderInvoice = await orderModel.findOneAndUpdate(
+      { _id: id, companyId },
+      req.body,
+      { new: true }
+    );
+  } else {
+    console.log("Really? Not paid or unpaid?");
   }
 
-  newOrderInvoice = await orderModel.updateOne(
-    { _id: id, companyId },
-    req.body,
-    {
-      new: true,
-    }
-  );
-
-  await createPaymentHistory(
-    "invoice",
-    req.body.orderDate,
-    req.body.totalInMainCurrency,
-    req.body.invoiceGrandTotal,
-    "customer",
-    req.body.customer.id,
-    orders._id,
-    companyId,
-    req.body.description,
-    "",
-    "",
-    "",
-    req.body.currency.currencyCode
-  );
+  if (!invoiceDraft) {
+    await createPaymentHistory(
+      "invoice",
+      req.body.orderDate,
+      req.body.totalInMainCurrency,
+      req.body.invoiceGrandTotal,
+      "customer",
+      req.body.customer.id,
+      orders._id,
+      companyId,
+      req.body.description,
+      "",
+      "",
+      "",
+      req.body.currency.currencyCode
+    );
+  }
 
   const history = createInvoiceHistory(
     companyId,
