@@ -83,7 +83,7 @@ const financailSource = async (
 
 exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const { invoiceDraft } = req.body;
+  const { isDraft: invoiceDraft } = req.body;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -377,9 +377,11 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   const validBulkOptions = bulkOption.filter((option) => option !== null);
 
   // Perform bulkWrite
-  await productModel.bulkWrite(validBulkOptions);
+  if (!invoiceDraft && validBulkOptions.length > 0) {
+    await productModel.bulkWrite(validBulkOptions);
+  }
 
-  await customars.save();
+  if (!invoiceDraft) await customars.save();
 
   const history = createInvoiceHistory(
     companyId,
@@ -388,7 +390,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     req.user._id,
     req.body.orderDate || timeIsoString
   );
-  if (!invoiceDraft) {
+
+  if (req.body.paid === "paid" && !invoiceDraft) {
     await createPaymentHistory(
       "invoice",
       req.body.orderDate || timeIsoString,
@@ -404,8 +407,6 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       "",
       req.body.currency.currencyCode
     );
-  }
-  if (req.body.paid === "paid") {
     await createPaymentHistory(
       "payment",
       req.body.paymentDate || timeIsoString,
@@ -422,6 +423,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       financailSources.code
     );
   }
+
   res.status(201).json({ status: "success", data: order, history });
 });
 
@@ -569,9 +571,14 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
+
   const timeIsoString = new Date().toISOString();
   const { id } = req.params;
   const orders = await orderModel.findById(id);
+
+  const wasDraft = orders.isDraft;
+  const isDraft = req.body.isDraft;
+
   const ts = Date.now();
   const date_ob = new Date(ts);
   const futureDateOb = new Date(ts);
@@ -586,6 +593,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     futureDateOb.getMilliseconds(),
     3
   )}`;
+
   const isoDate = `${req.body.orderDate}T${formattedDate}Z`;
   const isoPaymentDate = `${req.body.paymentDate}T${formattedDateAdd3}Z`;
   req.body.paymentDate = isoPaymentDate;
@@ -595,16 +603,18 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   req.body.orderDate = isoDate;
 
   const originalItems = orders.invoicesItems;
-  const updatedItems = req.body.invoicesItems;
 
-  //change the items
+  // =======================================================
+  // === Movement Logic (Fixed for Draft -> Final case) ====
+  // =======================================================
   const movementMap = new Map();
 
   await paymentHistoryModel.deleteMany({
     ref: orders._id,
     companyId,
   });
-  req.body.invoicesItems.forEach((item, index) => {
+
+  req.body.invoicesItems.forEach((item) => {
     if (
       item.type === "unTracedproduct" ||
       item.type === "expense" ||
@@ -612,7 +622,16 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     )
       return;
 
-    const diff = item?.soldQuantity - (originalItems[index]?.soldQuantity || 0);
+    let diff = 0;
+
+    if (wasDraft && !isDraft) {
+      // Draft finalized — apply all quantities
+      diff = item.soldQuantity;
+    } else {
+      // Normal case (quantity changed)
+      const oldItem = originalItems.find((o) => o.qr === item.qr);
+      diff = item.soldQuantity - (oldItem?.soldQuantity || 0);
+    }
 
     if (!movementMap.has(item.qr)) {
       movementMap.set(item.qr, { ...item, quantityDiff: diff });
@@ -621,11 +640,13 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       existing.quantityDiff += diff;
     }
   });
+
+  // Create product movement records
   await Promise.all(
     Array.from(movementMap.entries()).map(async ([qr, item]) => {
       const product = await productModel.findOne({ qr });
 
-      if (product && product.type !== "Service") {
+      if (product && product.type !== "Service" && item.quantityDiff !== 0) {
         const totalStockQuantity = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity,
           0
@@ -634,7 +655,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
         await createProductMovement(
           product._id,
           id,
-          totalStockQuantity,
+          totalStockQuantity - item.quantityDiff,
           item.quantityDiff,
           0,
           0,
@@ -647,6 +668,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     })
   );
 
+  // Untraced / expense handling
   await Promise.all(
     req.body.invoicesItems.map(async (item) => {
       if (item.type === "unTracedproduct") {
@@ -661,62 +683,52 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
           companyId,
         });
       } else if (item.type === "expense") {
-        console.log("Hi");
+        console.log("Expense item ignored in stock movement");
       }
     })
   );
-  // Create product movement for each item
 
-  // Prepare bulk updates for products and stocks
-  const bulkProductUpdatesOriginal = originalItems
+  // =======================================================
+  // === Bulk Stock Update (with ObjectId casting) =========
+  // =======================================================
+  const bulkProductUpdates = Array.from(movementMap.values())
     .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+      (item) =>
+        item.type !== "unTracedproduct" &&
+        item.type !== "expense" &&
+        item.quantityDiff !== 0
     )
     .map((item) => ({
       updateOne: {
-        filter: { qr: item.qr, "stocks.stockId": item.stock._id },
+        filter: {
+          qr: item.qr,
+          "stocks.stockId": new mongoose.Types.ObjectId(item.stock._id),
+        },
         update: {
           $inc: {
-            "stocks.$.productQuantity": +item.soldQuantity,
+            "stocks.$.productQuantity": -item.quantityDiff,
           },
         },
       },
     }));
 
-  const bulkProductUpdatesNew = updatedItems
-    .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
-    )
-    .map((item) => ({
-      updateOne: {
-        filter: { qr: item.qr, "stocks.stockId": item.stock._id },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": -item.soldQuantity,
-          },
-        },
-      },
-    }));
+  if (bulkProductUpdates.length > 0) {
+    await productModel.bulkWrite(bulkProductUpdates);
+  }
 
-  // Perform bulk writes
-
-  await Promise.all([
-    productModel.bulkWrite(bulkProductUpdatesOriginal),
-    productModel.bulkWrite(bulkProductUpdatesNew),
-  ]);
-
+  // =======================================================
+  // === Continue with existing payment + customer logic ===
+  // =======================================================
   let newOrderInvoice;
-  //
-
   const orderCustomer = await customersModel.findOne({
     _id: orders.customer.id,
     companyId,
   });
-
   const customers = await customersModel.findOne({
     _id: req.body.customer.id,
     companyId,
   });
+
   req.body.returnCartItem = req.body.invoicesItems;
   const financailSources = req.body.financailSource;
   req.body.financailFund = req.body.financailSource;
@@ -726,15 +738,14 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     if (req.body.totalRemainderMainCurrency > 0.5) {
       req.body.paymentsStatus = "unpaid";
     }
+
     newOrderInvoice = await orderModel.findOneAndUpdate(
       { _id: id, companyId },
       { $set: { ...req.body, isDraft: false } },
-      {
-        new: true,
-      }
+      { new: true }
     );
 
-    payment = await paymentModel.create({
+    const payment = await paymentModel.create({
       customerId: req.body.customer.id,
       customerName: req.body.customer.name,
       total: req.body.paymentInInvoiceCurrency,
@@ -764,6 +775,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
         paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
       },
     });
+
     newOrderInvoice.payments.push({
       payment: req.body.paymentInFundCurrency,
       paymentMainCurrency: req.body.paymentInMainCurrency,
@@ -773,6 +785,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       paymentID: payment._id,
       paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
     });
+
     await newOrderInvoice.save();
 
     if (financailSources.type === "fund") {
@@ -797,6 +810,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
         description: req.body.paymentDescription,
         companyId,
       });
+
       newOrderInvoice.reportsBalanceId = reports.id;
 
       await createPaymentHistory(
@@ -833,6 +847,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       await orderCustomer.save();
       customers.total += req.body.totalInMainCurrency;
     }
+
     customers.TotalUnpaid =
       customers.TotalUnpaid -
       orders.totalInMainCurrency +
@@ -852,6 +867,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       customers.total += req.body.totalInMainCurrency;
       customers.TotalUnpaid += req.body.totalInMainCurrency;
     }
+
     await customers.save();
     await orderCustomer.save();
 
@@ -864,7 +880,6 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       { new: true }
     );
   } else {
-    console.log("Invalid paymentsStatus value");
     return res.status(400).json({ message: "Invalid paymentsStatus value" });
   }
 
@@ -893,6 +908,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
     req.user._id,
     new Date().toISOString()
   );
+
   res.status(200).json({
     status: "success",
     message: "Order updated successfully",

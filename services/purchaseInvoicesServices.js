@@ -818,7 +818,6 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       });
 
     try {
-      await productModel.bulkWrite(bulkProductUpdatesOriginal);
       await productModel.bulkWrite(bulkProductUpdatesNew);
     } catch (error) {
       console.error("Error during bulk updates:", error);
@@ -1099,39 +1098,50 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     const productMap = new Map(products.map((prod) => [prod.qr, prod]));
     const movementMap = new Map();
 
+    const wasDraft = Boolean(purchase.isDraft);
+    const isDraft = Boolean(invoiceDraft);
+
     invoicesItem.forEach((item) => {
       if (item.type === "unTracedproduct" || item.type === "expense") return;
 
-      const existing = movementMap.get(item.qr);
       const originalItem = originalItems.find((o) => o.qr === item.qr);
-      const originalQty = originalItem?.quantity ?? 0;
+      const originalQty = Number(originalItem?.quantity ?? 0);
+      const newQty = Number(item.quantity ?? 0);
 
+      const diff = wasDraft && !isDraft ? newQty : newQty - originalQty;
+
+      if (diff === 0) return;
+
+      const existing = movementMap.get(item.qr);
       if (!existing) {
-        movementMap.set(item.qr, {
-          ...item,
-          quantity: item.quantity - originalQty,
-        });
+        movementMap.set(item.qr, { ...item, quantityDiff: diff });
       } else {
-        existing.quantity += item.quantity - originalQty;
-        existing.orginalBuyingPrice = item.orginalBuyingPrice;
+        existing.quantityDiff = (existing.quantityDiff || 0) + diff;
+        existing.orginalBuyingPrice =
+          item.orginalBuyingPrice ?? existing.orginalBuyingPrice;
       }
     });
 
+    // Create product movement records for non-zero diffs
     await Promise.all(
       Array.from(movementMap.entries()).map(async ([qr, item]) => {
+        const diff = Number(item.quantityDiff || 0);
+        if (diff === 0) return;
+
         const product = productMap.get(qr);
         if (!product) return;
 
         const totalStockQuantity = product.stocks.reduce(
-          (total, stock) => total + stock.productQuantity,
+          (total, stock) => total + (Number(stock.productQuantity) || 0),
           0
         );
 
+        // For purchases the movement direction is "in"
         await createProductMovement(
           product._id,
           newPurchaseInvoice._id,
           totalStockQuantity,
-          item.quantity,
+          diff,
           0,
           0,
           "movement",
@@ -1140,6 +1150,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           companyId
         );
 
+        // price change movement if needed
         if (
           item.orginalBuyingPrice !== undefined &&
           item.orginalBuyingPrice !== product.buyingprice
@@ -1159,60 +1170,6 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         }
       })
     );
-
-    const bulkSupplierPromises = invoicesItem.map(async (item) => {
-      const product = productMap.get(item.qr);
-      const updates = [];
-
-      if (product) {
-        if (!product.suppliers.includes(supllierObject.id)) {
-          product.suppliers.push(supllierObject.id);
-          updates.push(product.save());
-        }
-      } else if (item.type === "unTracedproduct") {
-        await unTracedproductLogModel.create({
-          name: item.name,
-          buyingPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
-          type: "purchase",
-          quantity: item.quantity,
-          tax: item.tax,
-          totalWithoutTax: item.totalWithoutTax,
-          total: item.total,
-          companyId,
-        });
-      } else if (item.type === "expense") {
-        console.log("Hi");
-      }
-
-      return Promise.all(updates);
-    });
-
-    await Promise.all(bulkSupplierPromises);
-
-    if (
-      req.body.totalRemainderMainCurrency ===
-      purchase.totalPurchasePriceMainCurrency
-    ) {
-      await paymentHistoryModel.deleteMany({
-        ref: id,
-        companyId,
-      });
-      await createPaymentHistory(
-        "invoice",
-        req.body.date || formattedDate,
-        totalPurchasePriceMainCurrency,
-        invoiceGrandTotal,
-        "supplier",
-        supllierObject.id,
-        id,
-        companyId,
-        req.body.description,
-        "",
-        "",
-        "",
-        currency.currencyCode
-      );
-    }
   }
 
   await createInvoiceHistory(
