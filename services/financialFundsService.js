@@ -349,6 +349,7 @@ exports.transfer = asyncHandler(async (req, res, next) => {
     fundId: fund,
     paymentText: "Transfer",
     fundCurrency,
+    description: description,
   });
 
   await financialFund.save();
