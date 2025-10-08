@@ -204,6 +204,7 @@ const orderSchema = new mongoose.Schema(
     status: { type: String, default: "Draft" },
     shipmentNumber: String,
     shipmentDate: String,
+    file: String,
     companyId: {
       type: String,
       required: true,

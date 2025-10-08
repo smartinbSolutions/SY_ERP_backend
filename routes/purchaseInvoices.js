@@ -12,6 +12,7 @@ const {
   findSupplier,
   uploadFile,
   archivePurchaseInvoice,
+  patchPurchaseInvoice,
 } = require("../services/purchaseInvoicesServices");
 const PurchaseInvoices = express.Router();
 PurchaseInvoices.use(authService.protect);
@@ -33,6 +34,7 @@ PurchaseInvoices.route("/archive/:id").put(
 PurchaseInvoices.route("/:id")
   .get(findOneProductInvoices)
   .put(uploadFile, updatePurchaseInvoices)
-  .delete(cancelPurchaseInvoice);
+  .delete(cancelPurchaseInvoice)
+  .patch(uploadFile, patchPurchaseInvoice);
 
 module.exports = PurchaseInvoices;

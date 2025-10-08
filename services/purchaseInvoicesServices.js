@@ -1187,6 +1187,44 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.patchPurchaseInvoice = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is missing" });
+
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: "id is missing" });
+
+  const purchaseInv = await PurchaseInvoicesModel.findOne({
+    _id: id,
+    companyId,
+  });
+  if (!purchaseInv)
+    return res.status(404).json({ message: "purchaseInv not found" });
+
+  const { description, tag } = req.body;
+
+  if (req.file) purchaseInv.file = req.file.filename;
+  if (description !== undefined) purchaseInv.description = description;
+  if (tag !== undefined) purchaseInv.tag = JSON.parse(tag);
+
+  await purchaseInv.save();
+
+  await createInvoiceHistory(
+    companyId,
+    id,
+    "edit",
+    req.user._id,
+    new Date().toISOString()
+  );
+
+  res.status(200).json({
+    status: "success",
+    message: "Purchase invoice patched successfully",
+    data: purchaseInv,
+  });
+});
+
 exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 

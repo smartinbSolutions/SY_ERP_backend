@@ -917,6 +917,41 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.patchOrder = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is missing" });
+
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: "id is missing" });
+
+  const order = await orderModel.findOne({ _id: id, companyId });
+  if (!order) return res.status(404).json({ message: "order not found" });
+
+  const { description, tag } = req.body;
+
+  if (req.file) order.file = req.file.filename;
+  if (description !== undefined) order.description = description;
+  if (tag !== undefined) order.tag = JSON.parse(tag);
+
+  await order.save();
+
+  const history = createInvoiceHistory(
+    companyId,
+    id,
+    "edit",
+    req.user._id,
+    new Date().toISOString()
+  );
+
+  res.status(200).json({
+    status: "success",
+    message: "Order patched successfully",
+    data: order,
+    history,
+  });
+});
+
 exports.returnOrder = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 

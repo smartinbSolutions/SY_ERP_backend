@@ -11,6 +11,7 @@ const {
   findCustomer,
   mergeReceipts,
   archiveOrder,
+  patchOrder,
 } = require("../services/orderServices");
 
 const authService = require("../services/authService");
@@ -18,6 +19,7 @@ const {
   EcommerceOrderIntegration,
   EcommerceOrderIntegrationFull,
 } = require("../services/integration/salesIntegration");
+const { uploadFile } = require("../services/purchaseInvoicesServices");
 
 const OrderRout = express.Router();
 
@@ -37,7 +39,8 @@ OrderRout.route("/merge").post(authService.protect, mergeReceipts);
 OrderRout.route("/:id")
   .get(findOneOrder)
   .put(authService.protect, editOrderInvoice)
-  .delete(authService.protect, canceledOrder);
+  .delete(authService.protect, canceledOrder)
+  .patch(authService.protect, uploadFile, patchOrder);
 
 OrderRout.route("/integrate/sales").post(
   authService.protect,
