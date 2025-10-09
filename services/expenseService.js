@@ -1,19 +1,13 @@
-const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const multer = require("multer");
 const ApiError = require("../utils/apiError");
 const { v4: uuidv4 } = require("uuid");
 const expensesModel = require("../models/expensesModel");
-const expensesCategorySchama = require("../models/expensesCategoryModel");
 const FinancialFundsModel = require("../models/financialFundsModel");
-const TaxSchema = require("../models/taxModel");
 const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
-const { Search } = require("../utils/search");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
-const emoloyeeShcema = require("../models/employeeModel");
 const SupplierModel = require("../models/suppliersModel");
 const { createPaymentHistory } = require("./paymentHistoryService");
-const currencySchema = require("../models/currencyModel");
 const paymentModel = require("../models/paymentModel");
 const PaymentHistoryModel = require("../models/paymentHistoryModel");
 const PurchaseInvoicesModel = require("../models/purchaseinvoicesModel");
@@ -605,6 +599,43 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     new Date().toISOString()
   );
   res.status(200).json({ status: "true", message: "Expense updated" });
+});
+
+exports.patchExpense = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is missing" });
+
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: "id is missing" });
+
+  const expense = await expensesModel.findOne({
+    _id: id,
+    companyId,
+  });
+  if (!expense) return res.status(404).json({ message: "expense not found" });
+
+  const { description, tag } = req.body;
+
+  if (req.file) expense.expenseFile = req.file.filename;
+  if (description !== undefined) expense.description = description;
+  if (tag !== undefined) expense.tag = JSON.parse(tag);
+
+  await expense.save();
+
+  await createInvoiceHistory(
+    companyId,
+    id,
+    "edit",
+    req.user._id,
+    new Date().toISOString()
+  );
+
+  res.status(200).json({
+    status: "success",
+    message: "Expense patched successfully",
+    data: expense,
+  });
 });
 
 exports.cancelExpense = asyncHandler(async (req, res, next) => {

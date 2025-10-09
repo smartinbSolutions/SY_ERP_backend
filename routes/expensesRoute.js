@@ -14,6 +14,7 @@ const {
   cancelExpense,
   getExpenseAndPurchaseForSupplier,
   archiveExpense,
+  patchExpense,
 } = require("../services/expenseService");
 
 const expensesRoute = express.Router();
@@ -29,7 +30,8 @@ expensesRoute
   .route("/:id")
   .get(getInvoiceExpense)
   .put(uploadFile, updateInvoiceExpense)
-  .delete(cancelExpense);
+  .delete(cancelExpense)
+  .patch(uploadFile, patchExpense);
 
 expensesRoute
   .route("/purchaseandexpence/:id")
