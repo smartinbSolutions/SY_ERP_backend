@@ -34,7 +34,7 @@ const batchSchema = new mongoose.Schema(
     },
     expirationDate: {
       type: String,
-    },  
+    },
     purchaseDate: {
       type: String,
       default: Date.now,
@@ -48,5 +48,6 @@ const batchSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+batchSchema.index({ rawMaterialId: 1, leftQuantity: 1, createdAt: 1 });
 
 module.exports = mongoose.model("Batch", batchSchema);

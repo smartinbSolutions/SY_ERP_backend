@@ -77,9 +77,11 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const pageSize = parseInt(req.query.limit) || 10;
-  const page = parseInt(req.query.page) || 1;
-  const skip = (page - 1) * pageSize;
+  const limitQuery = req.query.limit;
+  const pageQuery = req.query.page;
+  const pageSize = limitQuery ? parseInt(limitQuery) : 0;
+  const currentPage = pageQuery ? parseInt(pageQuery) : 1;
+  const skip = (currentPage - 1) * pageSize;
 
   try {
     let filter = { companyId };
@@ -104,10 +106,16 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
       }
     }
 
-    const totalItems = await manufactorProductModel.countDocuments(filter);
-    const totalPages = Math.ceil(totalItems / pageSize);
+    if (req.query.keyword) {
+      filter.$or = [
+        { Productname: { $regex: req.query.keyword, $options: "i" } },
+      ];
+    }
 
-    const manufactorProducts = await manufactorProductModel
+    const totalItems = await manufactorProductModel.countDocuments(filter);
+    const totalPages = pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1;
+
+    let query = manufactorProductModel
       .find(filter)
       .populate({
         path: "RecipeId",
@@ -120,16 +128,20 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
       .populate("brand", "name")
       .populate("category", "nameEN")
       .populate("unit", "name")
-      .populate("tax", "name")
-      .skip(skip)
-      .limit(pageSize);
+      .populate("tax", "name");
+
+    if (pageSize > 0) {
+      query = query.skip(skip).limit(pageSize);
+    }
+
+    const manufactorProducts = await query;
 
     res.status(200).json({
       status: true,
       message: "manufactorProducts fetched",
       results: manufactorProducts.length,
       totalItems,
-      currentPage: page,
+      currentPage: pageSize > 0 ? currentPage : 1,
       totalPages,
       data: manufactorProducts,
     });

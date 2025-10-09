@@ -36,26 +36,26 @@ exports.createTable = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.getAllTables = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const tableNumber = req.query.tableNumber;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const pageSize = parseInt(req.query.limit) || 10; // عدد العناصر في الصفحة
-  const page = parseInt(req.query.page) || 1; // رقم الصفحة الحالي
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
   try {
     const query = { companyId };
-
-    // حساب العدد الكلي للـ Tables
+    if (tableNumber) {
+      query.tableNumber = tableNumber;
+    }
     const totalItems = await tablesModel.countDocuments(query);
     const totalPages = Math.ceil(totalItems / pageSize);
 
-    // Fetch Tables with pagination
     const tables = await tablesModel.find(query).skip(skip).limit(pageSize);
 
-    // Respond with success message and data
     res.status(200).json({
       status: true,
       message: "Tables fetched",
