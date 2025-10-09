@@ -216,34 +216,26 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
 exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
   const { orderId, productId, companyId } = req.query;
 
-  console.log("🚀 moveOrderToInProgress called with:", { orderId, productId, companyId });
-
   if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
-    console.log("❌ Invalid or missing orderId");
-    return res
-      .status(400)
-      .json({ status: false, message: "Invalid or missing orderId" });
+    return res.status(400).json({
+      status: false,
+      message: "Invalid or missing orderId",
+    });
   }
 
   if (!companyId) {
-    console.log("❌ companyId is required");
-    return res
-      .status(400)
-      .json({ status: false, message: "companyId is required" });
+    return res.status(400).json({
+      status: false,
+      message: "companyId is required",
+    });
   }
-
-  const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
     const order = await menuOrderModel
       .findOne({ _id: orderId, companyId })
-      .populate("orderItems.productId")
-      .session(session);
+      .populate("orderItems.productId", "_id");
 
     if (!order) throw new Error("Order not found");
-
-    console.log("✅ Order fetched:", order._id);
 
     let itemsToProcess = order.orderItems;
 
@@ -255,85 +247,65 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       if (itemsToProcess.length === 0) {
         throw new Error("Product not found in this order");
       }
-
-      console.log(`✅ Processing single product: ${productId}`);
     } else {
-      console.log(`✅ Processing all products in the order`);
     }
 
     for (const item of itemsToProcess) {
       const product = item.productId;
-      console.log(`➡ Processing item: ${item._id}, product: ${product.Productname}`);
 
       if (product.RecipeId) {
-        console.log(`🔹 Product has recipe: ${product.RecipeId}`);
-
         const recipe = await recipeModel
           .findById(product.RecipeId)
-          .populate("recipeArray.rawMatrialId")
-          .session(session);
+          .populate("recipeArray.rawMatrialId", "_id")
+          .lean();
 
         if (!recipe) {
-          console.log(`❌ Recipe not found for product ${product._id}`);
           throw new Error(`Recipe not found for product ${product._id}`);
         }
 
         for (const material of recipe.recipeArray) {
           const requiredQty = material.quantity * item.quantity;
           let remainingQty = requiredQty;
-          console.log(`   🔸 Material: ${material.rawMatrialId}, requiredQty: ${requiredQty}`);
 
           const availableBatches = await batchModel
             .find({
               rawMaterialId: material.rawMatrialId,
               leftQuantity: { $gt: 0 },
             })
-            .sort({ createdAt: 1 })
-            .session(session);
+            .sort({ createdAt: 1 });
 
           for (const batch of availableBatches) {
             if (remainingQty <= 0) break;
 
             const deductQty = Math.min(batch.leftQuantity, remainingQty);
-            console.log(`      - Deducting ${deductQty} from batch ${batch._id}`);
             batch.leftQuantity -= deductQty;
             remainingQty -= deductQty;
-            await batch.save({ session });
+            await batch.save();
           }
 
           if (remainingQty > 0) {
-            console.log(`⚠ Not enough stock for material ${material.rawMatrialId}. Missing: ${remainingQty}`);
           }
         }
       } else {
-        console.log(`🔹 Product has no recipe, deducting from product stock`);
-
         const availableBatches = await batchModel
           .find({
             rawMaterialId: product._id,
             leftQuantity: { $gt: 0 },
           })
-          .sort({ createdAt: 1 })
-          .session(session);
+          .sort({ createdAt: 1 });
 
         let remainingQty = item.quantity;
         for (const batch of availableBatches) {
           if (remainingQty <= 0) break;
 
           const deductQty = Math.min(batch.leftQuantity, remainingQty);
-          console.log(`      - Deducting ${deductQty} from batch ${batch._id}`);
           batch.leftQuantity -= deductQty;
           remainingQty -= deductQty;
-          await batch.save({ session });
-        }
-
-        if (remainingQty > 0) {
-          console.log(`⚠ Not enough stock for product ${product._id}. Missing: ${remainingQty}`);
+          await batch.save();
         }
       }
 
       item.status = "In Progress";
-      console.log(`✅ Item ${item._id} status updated to In Progress`);
     }
 
     const allInProgress = order.orderItems.every(
@@ -341,13 +313,9 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
     );
     if (allInProgress) {
       order.orderStatus = "In Progress";
-      console.log(`✅ Order ${order._id} status updated to In Progress`);
     }
 
-    await order.save({ session });
-    await session.commitTransaction();
-
-    console.log("🎉 Transaction committed successfully");
+    await order.save();
 
     res.status(200).json({
       status: true,
@@ -357,11 +325,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       data: order,
     });
   } catch (error) {
-    await session.abortTransaction();
-    console.log("❌ Transaction aborted due to error:", error.message);
+    console.log("❌ Error:", error.message);
     next(error);
-  } finally {
-    session.endSession();
-    console.log("🛑 Session ended");
   }
 });
