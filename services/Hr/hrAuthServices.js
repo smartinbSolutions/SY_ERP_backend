@@ -37,7 +37,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     const token = createToken(user._id);
     res.status(200).json({
       status: "true",
-      companyData,
+      company: companyData.companyName,
       data: user,
       token,
     });

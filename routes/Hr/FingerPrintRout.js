@@ -9,6 +9,7 @@ const {
   calculateSalaryFlexible,
   createLogedFingerPrint,
   createFingerPrint,
+  getTodayFingerPrint,
 } = require("../../services/Hr/fingerPrintServices");
 const authService = require("../../services/authService");
 
@@ -18,6 +19,8 @@ const FingerPrintRout = express.Router();
 FingerPrintRout.route("/loged")
   .get(hrAuthServices.protect, getLoggedUserFingerPrint)
   .post(hrAuthServices.protect, createLogedFingerPrint);
+  FingerPrintRout.route("/loged/today")
+  .get(hrAuthServices.protect, getTodayFingerPrint)
 FingerPrintRout.route("/loged/:id").get(
   hrAuthServices.protect,
   getOneFingerPrint
