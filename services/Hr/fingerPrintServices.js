@@ -111,7 +111,7 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 //@desc Post Make the finger print for enter and exit
 //@route POST /api/finger-print
 //@access public just for Employee
-exports.createFingerPrint = asyncHandler(async (req, res, next) => {
+exports.createLogedFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const staffMember = await Staff.findOne({ email: req.user.email, companyId });
 
@@ -145,7 +145,41 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   req.body.userID = staffMember._id;
   req.body.name = staffMember.name;
   req.body.email = staffMember.email;
-  req.body.companyId = companyId
+  req.body.companyId = companyId;
+
+  const fingerPrint = await fingerprintModel.create(req.body);
+  res.status(200).json({
+    status: "success",
+    data: fingerPrint,
+  });
+});
+
+exports.createFingerPrint = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  function padZero(value) {
+    return value < 10 ? `0${value}` : value;
+  }
+
+  let ts = Date.now();
+  let date_ob = new Date(ts);
+  let date = padZero(date_ob.getDate());
+  let month = padZero(date_ob.getMonth() + 1);
+  let year = date_ob.getFullYear();
+  let hours = padZero(date_ob.getHours());
+  let minutes = padZero(date_ob.getMinutes());
+  let seconds = padZero(date_ob.getSeconds());
+
+  const Dates = year + "-" + month + "-" + date;
+  const Time = hours + ":" + minutes + ":" + seconds;
+  req.body.date = Dates;
+  req.body.Time = Time;
+
+  req.body.companyId = companyId;
 
   const fingerPrint = await fingerprintModel.create(req.body);
   res.status(200).json({

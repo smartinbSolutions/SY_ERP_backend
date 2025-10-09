@@ -1477,6 +1477,7 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
   )}:${padZero(date.getSeconds())}.${padZero(date.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.date}T${formattedDate}Z`;
   req.body.date = isoDate;
+  console.log(req.body);
 
   // Generate unique counter
   const count = await paymentModel.countDocuments({
@@ -1494,15 +1495,28 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
 
   // Validate financial funds
   const sourceFundId = req.body.sourceFundId;
-  const sourceFund = await FinancialFundsModel.findOne({
-    _id: sourceFundId,
-  }).populate("fundCurrency");
+  let sourceFund;
+  if (req.body.EntityTypeFrom === "fund") {
+    sourceFund = await FinancialFundsModel.findOne({
+      _id: sourceFundId,
+      companyId,
+    }).populate("fundCurrency");
 
-  if (!sourceFund) {
-    return next(new ApiError("Source financial fund not found", 404));
+    if (!sourceFund) {
+      return next(new ApiError("Source financial fund not found", 404));
+    }
+  } else if (req.body.EntityTypeFrom === "account") {
+    sourceFund = await accountingTree
+      .findOne({
+        _id: sourceFundId,
+        companyId,
+      })
+      .populate("currency");
+
+    if (!sourceFund) {
+      return next(new ApiError("Source financial fund not found", 404));
+    }
   }
-
-  if (req.body.taker === "fund") req.body.taker = "account";
 
   if (req.body.taker === "transfer") {
     const destinationFundId = req.body.destinationFundId;
@@ -1680,6 +1694,7 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
       _id: req.body.customerId,
       companyId,
     });
+
     if (!customer) {
       return next(new ApiError("Customer not found", 404));
     }
@@ -1687,25 +1702,38 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
     req.body.type = "customer";
     req.body.paymentText =
       req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
+    req.body.financialFundsName = req.body.sourceFundName;
+    req.body.financialFundsId = req.body.sourceFundId;
+
     payment = await paymentModel.create(req.body);
-    payment.payid = `PAYID-${payment._id}`; // Set payid after payment creation
-    await payment.save();
+    // payment.payid = `PAYID-${payment._id}`; // Set payid after payment creation
+    // await payment.save();
 
     // Update financial fund and customer balance
     if (req.body.isWithDraw === true) {
-      sourceFund.fundBalance -= Number(req.body.total);
+      if (req.body.EntityTypeFrom === "fund") {
+        sourceFund.fundBalance -= Number(req.body.total);
+      } else if (req.body.EntityTypeFrom === "account") {
+        sourceFund.creditor += Number(req.body.total);
+      }
       customer.TotalUnpaid += totalMainCurrency; // Paying customer increases their unpaid
       paymentText = "Withdrawal";
       patext = "Deposit";
     } else {
-      sourceFund.fundBalance += Number(req.body.total);
+      if (req.body.EntityTypeFrom === "fund") {
+        sourceFund.fundBalance += Number(req.body.total);
+      } else if (req.body.EntityTypeFrom === "account") {
+        sourceFund.debtor += Number(req.body.total);
+      }
       customer.TotalUnpaid -= totalMainCurrency; // Receiving from customer reduces their unpaid
       paymentText = "Deposit";
       patext = "Withdrawal";
     }
 
     await customer.save();
+
     await sourceFund.save();
+
     paymentType = paymentText;
 
     // Create payment history
@@ -1726,20 +1754,22 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
     );
 
     // Create report
-    await ReportsFinancialFundsModel.create({
-      date: req.body.date,
-      amount: req.body.total || req.body.paymentInFundCurrency,
-      finalPriceMainCurrency: totalMainCurrency,
-      ref: payment._id,
-      type: paymentText,
-      financialFundId: sourceFundId,
-      financialFundRest: sourceFund.fundBalance,
-      exchangeRate: req.body.exchangeRate || 1,
-      description: description,
-      paymentType: paymentType,
-      payment: payment._id,
-      companyId,
-    });
+    if (req.body.EntityTypeFrom === "fund") {
+      await ReportsFinancialFundsModel.create({
+        date: req.body.date,
+        amount: req.body.total || req.body.paymentInFundCurrency,
+        finalPriceMainCurrency: totalMainCurrency,
+        ref: payment._id,
+        type: paymentText,
+        financialFundId: sourceFundId,
+        financialFundRest: sourceFund.fundBalance,
+        exchangeRate: req.body.exchangeRate || 1,
+        description: description,
+        paymentType: paymentType,
+        payment: payment._id,
+        companyId,
+      });
+    }
   } else if (req.body.taker === "account") {
     // Assuming account handling is similar but without payid assignment
     req.body.type = "account";

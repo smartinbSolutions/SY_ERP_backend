@@ -96,6 +96,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
         _id: decoded.userId,
         companyId: companyId,
       });
+      console.log(decoded.userId);
 
       if (!curentUser) {
         return next(new ApiError("The user does not exit", 404));
