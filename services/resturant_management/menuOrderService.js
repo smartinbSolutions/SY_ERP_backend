@@ -53,9 +53,6 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
       filter.orderStatus = orderStatus;
     }
 
-    if (pageSize > 0) {
-      query = query.skip(skip).limit(pageSize);
-    }
     const totalItems = await menuOrderModel.countDocuments(filter);
     const totalPages = Math.ceil(totalItems / pageSize);
 
