@@ -33,13 +33,13 @@ const investorSchema = new mongoose.Schema(
 );
 const setImageURL = (doc) => {
   if (doc.passportImage) {
-    doc.passportImage = `${process.env.BASE_URL}/investor/${doc.passportImage}`;
+    doc.passportImage = `${process.env.BASE_URL}/Investor/${doc.passportImage}`;
   }
   if (doc.idCardImage) {
-    doc.idCardImage = `${process.env.BASE_URL}/investor/${doc.idCardImage}`;
+    doc.idCardImage = `${process.env.BASE_URL}/Investor/${doc.idCardImage}`;
   }
   if (doc.profileImage) {
-    doc.profileImage = `${process.env.BASE_URL}/investor/${doc.profileImage}`;
+    doc.profileImage = `${process.env.BASE_URL}/Investor/${doc.profileImage}`;
   }
 };
 // findOne, findAll and update
