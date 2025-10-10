@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const investmentCompaniesModel = require("../models/investmentCompaniesModel");
 const multer = require("multer");
+const fs = require("fs");
 
 //for creating
 const storage = multer.memoryStorage();
@@ -19,17 +20,24 @@ exports.resizeInvestorImages = asyncHandler(async (req, res, next) => {
 
   await Promise.all(
     req.files.map(async (file) => {
-      const filename = `Investor-${uuidv4()}-${Date.now()}-${
-        file.fieldname
-      }.webp`;
+      const isImage = file.mimetype.startsWith("image/");
+      const filename = `Investor-${uuidv4()}-${Date.now()}-${file.fieldname}${
+        isImage ? ".webp" : ".pdf"
+      }`;
+      const outputPath = `uploads/Investor/${filename}`;
 
-      await sharp(file.buffer)
-        .toFormat("webp")
-        .webp({ quality: 70 })
-        .toFile(`uploads/Investor/${filename}`);
+      if (isImage) {
+        await sharp(file.buffer)
+          .toFormat("webp")
+          .webp({ quality: 70 })
+          .toFile(outputPath);
+      } else if (file.mimetype === "application/pdf") {
+        await fs.promises.writeFile(outputPath, file.buffer);
+      } else {
+        throw new Error("Unsupported file type");
+      }
 
-      // Special case for profileImage
-      if (file.fieldname === "profileImage") {
+      if (file.fieldname === "profileImage" && isImage) {
         req.body.profileImage = filename;
       } else {
         req.body.attachments.push({
@@ -80,11 +88,11 @@ exports.createInvestor = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.getAllInvestors = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const { keyword, page = 1, limit = 10, sort = "-createdAt" } = req.query;
+
+  const { keyword, page = 1, limit = 10, sort } = req.query;
 
   try {
     const query = { companyId };
@@ -99,8 +107,13 @@ exports.getAllInvestors = asyncHandler(async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
+    const sortOption = sort && sort.trim() !== "" ? sort : "-createdAt";
+
     const [investors, total, company] = await Promise.all([
-      Investor.find(query).sort(sort).skip(skip).limit(parseInt(limit)),
+      Investor.find(query)
+        .sort(sortOption) // newest first by default
+        .skip(skip)
+        .limit(parseInt(limit)),
 
       Investor.countDocuments(query),
       investmentCompaniesModel.findOne({ companyId }),
@@ -140,7 +153,7 @@ exports.getAllInvestors = asyncHandler(async (req, res, next) => {
       data: investorsList,
     });
   } catch (error) {
-    console.error(`error while fetching investors data: ${error.message}`);
+    console.error(`Error while fetching investors data: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
@@ -301,6 +314,8 @@ exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
       actor.ownedShares -= Number(shares);
       counterparty.ownedShares += Number(shares);
     }
+    actor.deletable = false;
+    counterparty.deletable = false;
 
     await actor.save();
     await counterparty.save();
@@ -345,15 +360,32 @@ const storageDisk = multer.diskStorage({
     cb(null, "uploads/Investor");
   },
   filename: (req, file, cb) => {
+    const ext = file.mimetype.startsWith("image/")
+      ? ".webp"
+      : file.mimetype === "application/pdf"
+      ? ".pdf"
+      : "";
     const filename = `Investor-${uuidv4()}-${Date.now()}-${
       file.fieldname
-    }.webp`;
+    }${ext}`;
     cb(null, filename);
   },
 });
-const uploadDisk = multer({ storage: storageDisk });
 
-// allow ANY field name as attachment key
+const uploadDisk = multer({
+  storage: storageDisk,
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image and PDF files are allowed!"), false);
+    }
+  },
+});
+
 exports.uploadInvestorImagesDisk = uploadDisk.any();
 
 // @desc Update investor
@@ -439,27 +471,35 @@ exports.deleteInvestor = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    // Find and delete the Investor
-    const deletedInvestor = await Investor.findOneAndDelete({
+    // Find the investor first
+    const investor = await Investor.findOne({
       companyId,
       _id: req.params.id,
     });
 
-    // If the Investor is not found
-    if (!deletedInvestor) {
+    if (!investor) {
       return res.status(404).json({
         status: false,
         message: "Investor not found",
       });
     }
 
-    // Respond with success message
+    // Check if investor is deletable
+    if (!investor.deletable) {
+      return res.status(403).json({
+        status: false,
+        message: "This investor cannot be deleted.",
+      });
+    }
+
+    // Delete the investor
+    await Investor.deleteOne({ _id: investor._id });
+
     res.status(200).json({
       status: true,
-      message: "Investor deleted",
+      message: "Investor deleted successfully.",
     });
   } catch (error) {
-    // Handle errors
     console.error(`Error deleting Investor: ${error.message}`);
     return res.status(500).json({
       status: false,

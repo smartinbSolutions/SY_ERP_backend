@@ -25,6 +25,7 @@ const investorSchema = new mongoose.Schema(
       _id: false,
     },
     profileImage: String,
+    deletable: { type: Boolean, default: true },
     isFounder: { type: Boolean, default: false },
     ownedShares: { type: Number, default: 0 },
     companyId: String,
