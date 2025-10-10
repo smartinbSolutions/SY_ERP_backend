@@ -14,7 +14,7 @@ exports.createinvestorShares = asyncHandler(async (req, res, next) => {
 
   try {
     req.body.companyId = companyId;
-    const investorShare = await investorShares.create(req.body);
+    const investorShare = await InvestorShares.create(req.body);
 
     // Respond with success message and created investor data
     res.status(201).json({
@@ -117,7 +117,7 @@ exports.getOneInvestorShares = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const investorShare = await investorShares.findById(req.params.id);
+    const investorShare = await InvestorShares.findById(req.params.id);
 
     if (!investorShare) {
       return res.status(404).json({
@@ -151,7 +151,7 @@ exports.updateInvestorSharesModel = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const updatedinvestorShares = await investorShares.findOneAndUpdate(
+    const updatedinvestorShares = await InvestorShares.findOneAndUpdate(
       { companyId, _id: req.params.id },
       req.body,
       { new: true, runValidators: true }
@@ -189,7 +189,7 @@ exports.deleteInvestorShares = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const deletedinvestorShares = await investorShares.findOneAndDelete({
+    const deletedinvestorShares = await InvestorShares.findOneAndDelete({
       companyId,
       _id: req.params.id,
     });
