@@ -1,3 +1,4 @@
+const companyInfoModel = require("../../models/companyInfoModel");
 const StaffsModel = require("../../models/Hr/staffModel");
 const ApiError = require("../../utils/apiError");
 const createToken = require("../../utils/createToken");
@@ -12,11 +13,13 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     const user = await StaffsModel.findOne({
       email: req.body.email,
       session: false,
-    });
+    })
+      .populate({ path: "position", select: "name -_id" })
+      .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" });
 
     if (!user) {
       return next(
-        new ApiError("Incorrect email or Have session in other divase", 401)
+        new ApiError("Incorrect email or Have session in other divase ", 401)
       );
     }
     user.session = true;
@@ -29,13 +32,14 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     if (!passwordMatch) {
       return next(new ApiError("Incorrect Password", 401));
     }
-
+    user.password = undefined;
+    const companyData = await companyInfoModel.findById(user.companyId);
     const token = createToken(user._id);
     res.status(200).json({
       status: "true",
+      company: companyData.companyName,
       data: user,
       token,
-      companyId: req.body.companyId,
     });
   } catch (error) {
     console.error("Error during login:", error);
@@ -96,6 +100,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
         _id: decoded.userId,
         companyId: companyId,
       });
+      console.log(decoded.userId);
 
       if (!curentUser) {
         return next(new ApiError("The user does not exit", 404));

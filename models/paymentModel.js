@@ -22,6 +22,7 @@ const PaymentSchema = new mongoose.Schema(
     staffId: {
       type: String,
     },
+    partName: String,
     fundName: String,
     fundId: String,
     total: {
