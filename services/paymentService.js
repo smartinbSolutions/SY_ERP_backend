@@ -1808,3 +1808,27 @@ exports.createAdvancePayment = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ status: "success", data: payment });
 });
+
+exports.patchPayment = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is missing" });
+
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: "id is missing" });
+
+  const payment = await paymentModel.findOne({ _id: id, companyId });
+  if (!payment) return res.status(404).json({ message: "payment not found" });
+
+  const { description } = req.body;
+
+  if (description) payment.description = description;
+
+  await payment.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Payment patched successfully",
+    data: payment,
+  });
+});
