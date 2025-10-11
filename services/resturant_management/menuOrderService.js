@@ -308,7 +308,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       item.status = "In Progress";
     }
 
-    const allInProgress = order.orderItems.every(
+    const allInProgress = order.orderItems.some(
       (i) => i.status === "In Progress"
     );
     if (allInProgress) {

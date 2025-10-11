@@ -20,6 +20,7 @@ const OrderRout = require("./orderRout");
 const paymentRout = require("./paymentRoute");
 const paymentTypes = require("./paymentTypesRoute");
 const productMovementsRoute = require("./productMovementRoute");
+const rawMaterialMovementRoute = require("./rawMatrialMovementRoute");
 const productRout = require("./productRout");
 const PurchaseInvoices = require("./purchaseInvoices");
 const reportsFinancialFundRoute = require("./reportsFinancialFundsRoute");
@@ -166,6 +167,7 @@ const mountRoutes = (app) => {
   app.use("/api/menu-category", menuCategoryRout);
   app.use("/api/menu-order", menuOrderRoute);
   app.use("/api/table", tableRoute);
+  app.use("/api/rawMaterialMovement", rawMaterialMovementRoute);
 
   //Investment
   app.use("/api/investor", investorRoute);
