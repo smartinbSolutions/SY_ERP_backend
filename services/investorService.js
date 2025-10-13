@@ -19,7 +19,7 @@ exports.resizeInvestorImages = asyncHandler(async (req, res, next) => {
   req.body.attachments = [];
 
   await Promise.all(
-    req.files.map(async (file) => {
+    req.files.map(async (file, i) => {
       const isImage = file.mimetype.startsWith("image/");
       const filename = `Investor-${uuidv4()}-${Date.now()}-${file.fieldname}${
         isImage ? ".webp" : ".pdf"
@@ -37,11 +37,14 @@ exports.resizeInvestorImages = asyncHandler(async (req, res, next) => {
         throw new Error("Unsupported file type");
       }
 
+      // handle attachments
+      const key = req.body[`attachment_${i}_key`] || file.fieldname;
+
       if (file.fieldname === "profileImage" && isImage) {
         req.body.profileImage = filename;
       } else {
         req.body.attachments.push({
-          key: file.fieldname,
+          key,
           fileUrl: filename,
         });
       }
@@ -100,6 +103,7 @@ exports.getAllInvestors = asyncHandler(async (req, res, next) => {
     if (keyword && keyword.trim() !== "") {
       query.$or = [
         { fullName: { $regex: keyword, $options: "i" } },
+        { latinName: { $regex: keyword, $options: "i" } },
         { email: { $regex: keyword, $options: "i" } },
         { phoneNumber: { $regex: keyword, $options: "i" } },
       ];
@@ -365,9 +369,9 @@ const storageDisk = multer.diskStorage({
       : file.mimetype === "application/pdf"
       ? ".pdf"
       : "";
-    const filename = `Investor-${uuidv4()}-${Date.now()}-${
-      file.fieldname
-    }${ext}`;
+
+    const safeFieldname = file.fieldname.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const filename = `Investor-${uuidv4()}-${Date.now()}-${safeFieldname}${ext}`;
     cb(null, filename);
   },
 });
@@ -388,6 +392,40 @@ const uploadDisk = multer({
 
 exports.uploadInvestorImagesDisk = uploadDisk.any();
 
+exports.processInvestorFiles = asyncHandler(async (req, res, next) => {
+  if (!req.files || req.files.length === 0) return next();
+
+  req.body.attachments = [];
+
+  await Promise.all(
+    req.files.map(async (file, i) => {
+      const isImage = file.mimetype.startsWith("image/");
+      const outputPath = file.path;
+
+      // Convert only images (PDFs are fine)
+      if (isImage) {
+        await sharp(outputPath)
+          .toFormat("webp")
+          .webp({ quality: 70 })
+          .toFile(outputPath);
+      }
+
+      const key = req.body[`attachment_${i}_key`] || file.fieldname;
+
+      if (file.fieldname === "profileImage" && isImage) {
+        req.body.profileImage = file.filename;
+      } else {
+        req.body.attachments.push({
+          key,
+          fileUrl: file.filename,
+        });
+      }
+    })
+  );
+
+  next();
+});
+
 // @desc Update investor
 // @route PUT /api/investor/:id
 // @access Private
@@ -402,6 +440,7 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
       _id: req.params.id,
       companyId,
     });
+
     if (!existingInvestor) {
       return res.status(404).json({
         status: false,
@@ -409,33 +448,85 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
       });
     }
 
-    // Update basic fields
-    if (req.body.fullName) existingInvestor.fullName = req.body.fullName;
-    if (req.body.phoneNumber)
-      existingInvestor.phoneNumber = req.body.phoneNumber;
-    if (req.body.email) existingInvestor.email = req.body.email;
-    if (req.body.birthDate) existingInvestor.birthDate = req.body.birthDate;
+    const fields = [
+      "fullName",
+      "phoneNumber",
+      "email",
+      "birthDate",
+      "latinName",
+    ];
+    fields.forEach((f) => {
+      if (req.body[f]) existingInvestor[f] = req.body[f];
+    });
+
     if (req.body.ibanNumbers) {
       existingInvestor.ibanNumbers = JSON.parse(req.body.ibanNumbers);
     }
 
-    // Update profile image if uploaded
-    if (req.files?.profileImage?.length > 0) {
-      existingInvestor.profileImage = req.files.profileImage[0].path;
+    // === Keep-list approach: delete attachments that are NOT included in existingAttachments ===
+    if (typeof req.body.existingAttachments !== "undefined") {
+      let keepKeys = [];
+      try {
+        keepKeys = JSON.parse(req.body.existingAttachments || "[]");
+      } catch (err) {
+        console.warn("Invalid existingAttachments payload:", err.message);
+        keepKeys = [];
+      }
+
+      existingInvestor.attachments = existingInvestor.attachments.filter(
+        (att) => {
+          const shouldKeep = keepKeys.includes(att.key);
+          if (!shouldKeep) {
+            try {
+              fs.unlinkSync(path.join("uploads/Investor", att.fileUrl));
+            } catch (err) {
+              console.warn("Failed to delete removed attachment:", err.message);
+            }
+          }
+          return shouldKeep;
+        }
+      );
     }
 
-    // Add/merge attachments
+    // === Handle uploaded files (req.files is an array from upload.any()) ===
     if (req.files && req.files.length > 0) {
       req.files.forEach((file) => {
+        // file.fieldname is like "attachment_0" or "profileImage"
+        // the client sends attachment_{index}_key for new files
+        const key =
+          req.body[`${file.fieldname}_key`] ||
+          file.fieldname.replace(/^attachment_\d+/, "attachment");
+
         if (file.fieldname === "profileImage") {
+          // delete old profile image
+          if (existingInvestor.profileImage) {
+            try {
+              fs.unlinkSync(
+                path.join("uploads/Investor", existingInvestor.profileImage)
+              );
+            } catch (err) {
+              console.warn("Failed to delete old profile image:", err.message);
+            }
+          }
           existingInvestor.profileImage = file.filename;
         } else {
           const index = existingInvestor.attachments.findIndex(
-            (att) => att.key === file.fieldname
+            (att) => att.key === key
           );
-          const newFile = { key: file.fieldname, fileUrl: file.filename };
+          const newFile = { key, fileUrl: file.filename };
 
           if (index > -1) {
+            // replace: delete old file then set new
+            try {
+              fs.unlinkSync(
+                path.join(
+                  "uploads/Investor",
+                  existingInvestor.attachments[index].fileUrl
+                )
+              );
+            } catch (err) {
+              console.warn("Failed to delete old attachment:", err.message);
+            }
             existingInvestor.attachments[index] = newFile;
           } else {
             existingInvestor.attachments.push(newFile);
@@ -448,12 +539,12 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       status: true,
-      message: "success",
+      message: "Investor updated successfully",
       data: updatedInvestor,
     });
   } catch (error) {
-    console.error(`Error updating Investor: ${error.message}`);
-    return res.status(500).json({
+    console.error("Error updating investor:", error.message);
+    res.status(500).json({
       status: false,
       message: error.message,
     });

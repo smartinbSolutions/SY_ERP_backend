@@ -8,6 +8,7 @@ const {
   resizeInvestorImages,
   uploadInvestorImages,
   uploadInvestorImagesDisk,
+  processInvestorFiles,
 } = require("../services/investorService");
 const authService = require("../services/authService");
 
@@ -21,7 +22,7 @@ investorRoute
 
 investorRoute
   .route("/:id")
-  .put(uploadInvestorImagesDisk, updateInvestor)
+  .put(uploadInvestorImagesDisk, processInvestorFiles, updateInvestor)
   .get(getOneInvestor)
   .delete(deleteInvestor);
 

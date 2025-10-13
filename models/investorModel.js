@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const investorSchema = new mongoose.Schema(
   {
     fullName: String,
+    latinName: String,
     slug: { type: String, lowercase: true },
     phoneNumber: String,
     email: String,
