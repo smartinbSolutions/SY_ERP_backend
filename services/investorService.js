@@ -211,7 +211,8 @@ exports.getOneInvestor = asyncHandler(async (req, res, next) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .populate("counterpartyId", "fullName email");
+      .populate("counterpartyId", "fullName email")
+      .populate("investorId", "fullName email");
 
     // Calculate total invested, current value, and profit
     let totalInvested = 0;
@@ -273,7 +274,14 @@ exports.getOneInvestor = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const { shares, type, counterpartyId, sharePrice, purchaseValue } = req.body;
+  const {
+    shares,
+    type,
+    counterpartyId,
+    sharePrice,
+    purchaseValue,
+    description,
+  } = req.body;
 
   if (!companyId) {
     return res
@@ -367,6 +375,7 @@ exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
         shares: Number(shares),
         sharePrice: Number(sharePrice),
         purchaseValue,
+        description,
         companyId,
       },
       {
@@ -376,6 +385,7 @@ exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
         shares: Number(shares),
         sharePrice: Number(sharePrice),
         purchaseValue,
+        description,
         companyId,
       },
     ]);

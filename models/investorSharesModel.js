@@ -15,6 +15,7 @@ const shareTransactionSchema = new mongoose.Schema(
     shares: Number,
     sharePrice: Number,
     purchaseValue: Number,
+    description: { type: String, default: "" },
     companyId: String,
   },
   { timestamps: true }
