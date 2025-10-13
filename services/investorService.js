@@ -213,19 +213,50 @@ exports.getOneInvestor = asyncHandler(async (req, res, next) => {
       .sort({ createdAt: -1 })
       .populate("counterpartyId", "fullName email");
 
+    // Calculate total invested, current value, and profit
+    let totalInvested = 0;
+    let currentValue = 0;
+
+    transactions.forEach((t) => {
+      const invested = t.purchaseValue || t.shares * t.sharePrice;
+      const current = t.shares * company.sharePrice;
+      totalInvested += invested;
+      currentValue += current;
+    });
+
+    const totalProfit = currentValue - totalInvested;
+    const profitPercentage =
+      totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+
     res.status(200).json({
       status: true,
       message: "success",
       data: {
         ...investor.toObject(),
-        ownershipPercentage: ownershipPercentage,
+        ownershipPercentage,
+        totalInvested,
+        currentValue,
+        totalProfit,
+        profitPercentage,
+        currentSharePrice: company.sharePrice,
       },
       transactions: {
         total: totalTransactions,
         page,
         limit,
         totalPages: Math.ceil(totalTransactions / limit),
-        items: transactions,
+        items: transactions.map((t) => ({
+          ...t.toObject(),
+          currentValue: t.shares * company.sharePrice,
+          profit:
+            t.shares * company.sharePrice -
+            (t.purchaseValue || t.shares * t.sharePrice),
+          profitPercentage:
+            ((t.shares * company.sharePrice -
+              (t.purchaseValue || t.shares * t.sharePrice)) /
+              (t.purchaseValue || t.shares * t.sharePrice)) *
+            100,
+        })),
       },
     });
   } catch (error) {
@@ -242,7 +273,7 @@ exports.getOneInvestor = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const { shares, type, counterpartyId, sharePrice } = req.body;
+  const { shares, type, counterpartyId, sharePrice, purchaseValue } = req.body;
 
   if (!companyId) {
     return res
@@ -335,6 +366,7 @@ exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
         type: "buy",
         shares: Number(shares),
         sharePrice: Number(sharePrice),
+        purchaseValue,
         companyId,
       },
       {
@@ -343,6 +375,7 @@ exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
         type: "sell",
         shares: Number(shares),
         sharePrice: Number(sharePrice),
+        purchaseValue,
         companyId,
       },
     ]);
