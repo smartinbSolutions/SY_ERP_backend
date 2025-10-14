@@ -62,7 +62,7 @@ exports.findAllProductInvoices = asyncHandler(async (req, res, next) => {
   let query = {
     type: { $ne: "openingBalance" },
     companyId,
-    archives: req.query.archives,
+    // archives: req.query.archives,
   };
 
   if (filters?.startDate || filters?.endDate) {

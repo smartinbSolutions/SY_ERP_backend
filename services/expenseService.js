@@ -257,7 +257,10 @@ exports.getInvoiceExpenses = asyncHandler(async (req, res, next) => {
   const pageSize = parseInt(req.query.limit) || 0;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
-  let query = { companyId, archives: req.query.archives }; // Initialize query object
+  let query = {
+    companyId,
+    //  archives: req.query.archives
+  };
 
   if (req.query.keyword) {
     query.$or = [
@@ -618,7 +621,7 @@ exports.patchExpense = asyncHandler(async (req, res, next) => {
   const { description, tag } = req.body;
 
   if (req.file) expense.expenseFile = req.file.filename;
-  if (description !== undefined) expense.description = description;
+  if (description !== undefined) expense.expenseClarification = description;
   if (tag !== undefined) expense.tag = JSON.parse(tag);
 
   await expense.save();

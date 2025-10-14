@@ -92,11 +92,12 @@ exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.getTodayFingerPrint = asyncHandler(async (req, res, next) => {
+  console.log("triggerd");
   const companyId = req.query.companyId;
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
-
+  console.log("companyId", companyId);
   let ts = Date.now();
   let date_ob = new Date(ts);
   let date = padZero(date_ob.getDate());
@@ -107,7 +108,7 @@ exports.getTodayFingerPrint = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const fingerPrint =await fingerPrintModel.find({ date: Dates, companyId });
+  const fingerPrint = await fingerPrintModel.find({ date: Dates, companyId });
 
   res.status(201).json({
     status: "success",

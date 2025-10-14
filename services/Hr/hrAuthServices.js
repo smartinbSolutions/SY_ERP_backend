@@ -12,7 +12,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
 
     const user = await StaffsModel.findOne({
       email: req.body.email,
-      session: false,
+      // session: false,
     })
       .populate({ path: "position", select: "name -_id" })
       .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" });

@@ -32,7 +32,10 @@ exports.getAllQuotations = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
-  let query = { companyId, archives: req.query.archives };
+  let query = {
+    companyId,
+    // archives: req.query.archives
+  };
 
   // Date Range
   if (filters?.startDate || filters?.endDate) {

@@ -447,7 +447,7 @@ exports.findAllOrder = asyncHandler(async (req, res, next) => {
   let query = {
     type: { $ne: "openBalance" },
     companyId,
-    archives: req.query.archives,
+    // archives: req.query.archives,
   };
   if (filters?.startDate || filters?.endDate) {
     query.orderDate = {};
