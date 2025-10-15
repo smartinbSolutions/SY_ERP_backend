@@ -163,7 +163,9 @@ exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
           // Update investor shares
           await Investor.findOneAndUpdate(
             { companyId, _id: investorId },
-            { $set: { ownedShares: shares, isFounder: true } },
+            {
+              $set: { ownedShares: shares, isFounder: true, deletable: false },
+            },
             { new: true, upsert: false }
           );
 

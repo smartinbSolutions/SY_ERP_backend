@@ -123,18 +123,18 @@ exports.getAllInvestors = asyncHandler(async (req, res, next) => {
       investmentCompaniesModel.findOne({ companyId }),
     ]);
 
-    if (!company) {
-      return res.status(404).json({
-        status: false,
-        message: "Company not found",
-      });
-    }
+    // if (!company) {
+    //   return res.status(404).json({
+    //     status: false,
+    //     message: "Company not found",
+    //   });
+    // }
 
     const totalPages = Math.ceil(total / limit);
 
     const investorsList = investors.map((inv) => {
-      const ownershipPercentage = company.totalShares
-        ? ((inv.ownedShares || 0) / company.totalShares) * 100
+      const ownershipPercentage = company?.totalShares
+        ? ((inv.ownedShares || 0) / company?.totalShares) * 100
         : 0;
 
       return {
