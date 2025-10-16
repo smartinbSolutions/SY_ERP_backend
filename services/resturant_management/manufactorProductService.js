@@ -125,8 +125,8 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
           select: "name",
         },
       })
-      .populate("brand", "name")
-      .populate("category", "nameEN")
+      .populate("brand")
+      .populate("category")
       .populate("unit", "name")
       .populate("tax", "name");
 

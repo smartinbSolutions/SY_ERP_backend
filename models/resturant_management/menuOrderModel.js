@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const menuOrderSchema = new mongoose.Schema(
   {
     table: {
@@ -26,6 +25,11 @@ const menuOrderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
     },
+    salePointId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "salesPoints",
+    },
+
     orderProcessedBy: { type: String },
     companyId: {
       type: String,
@@ -35,7 +39,5 @@ const menuOrderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-
 
 module.exports = mongoose.model("MenuOrder", menuOrderSchema);

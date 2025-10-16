@@ -86,7 +86,6 @@ exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // @desc Get one raw material
 // @route GET /api/raw_material
 // @access Private

@@ -14,7 +14,7 @@ const menuCategorySchema = new mongoose.Schema({
 });
 const setImageURL = (doc) => {
   if (doc.image) {
-    const imageUrl = `${process.env.BASE_URL}/MenuCategory/${doc.image}`;
+    const imageUrl = `MenuCategory/${doc.image}`;
     doc.image = imageUrl;
   }
 };
