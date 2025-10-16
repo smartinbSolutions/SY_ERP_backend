@@ -3,7 +3,7 @@ const asyncHandler = require("express-async-handler");
 const menuOrderModel = require("../../models/resturant_management/menuOrderModel");
 const recipeModel = require("../../models/resturant_management/recipeModel");
 const batchModel = require("../../models/resturant_management/batchModel");
-const { model } = require("mongoose");
+const { createRawMatrialMovement } = require("../../utils/rawMatrialMovement");
 
 // @desc Create menuOrder
 // @route POST /api/menuOrder
@@ -37,7 +37,7 @@ exports.createmenuOrder = asyncHandler(async (req, res, next) => {
 // @route GET /api/menuOrder
 // @access Private
 exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
-  const { companyId, orderStatus } = req.query;
+  const { companyId, orderStatus, salePointId } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -49,8 +49,13 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
 
   try {
     let filter = { companyId };
+
     if (orderStatus) {
       filter.orderStatus = orderStatus;
+    }
+
+    if (salePointId) {
+      filter.salePointId = salePointId;
     }
 
     const totalItems = await menuOrderModel.countDocuments(filter);
@@ -60,12 +65,17 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
       .find(filter)
       .populate("orderItems.productId")
       .populate("table")
+      .populate({
+        path: "salePointId",
+        model: "salesPoints",
+        populate: { path: "salesPointCurrency", model: "Currency" },
+      })
       .skip(skip)
       .limit(pageSize);
 
     res.status(200).json({
       status: true,
-      message: "Orders fetched successfully",
+      message: "Orders retrieved successfully",
       results: menuOrders.length,
       totalItems,
       currentPage: page,
@@ -73,7 +83,7 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
       orders: menuOrders,
     });
   } catch (error) {
-    console.error(`Error fetching menuOrders: ${error.message}`);
+    console.error(Error`while fetching orders: ${error.message}`);
     return res.status(500).json({
       status: false,
       message: error.message,
@@ -281,6 +291,22 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
             batch.leftQuantity -= deductQty;
             remainingQty -= deductQty;
             await batch.save();
+
+            await createRawMatrialMovement(
+              material.rawMatrialId,
+              order._id,
+              deductQty,
+              batch.leftQuantity,
+              batch.buyingPrice,
+              batch.buyingPrice,
+              "Menu Order Consumption",
+              "out",
+              "MenuOrder",
+              companyId,
+              `Consumed in order ${order._id}`,
+              batch.currency || "",
+              batch.currency || ""
+            );
           }
 
           if (remainingQty > 0) {
@@ -302,6 +328,21 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
           batch.leftQuantity -= deductQty;
           remainingQty -= deductQty;
           await batch.save();
+          await createRawMatrialMovement(
+            product._id,
+            order._id,
+            deductQty,
+            batch.leftQuantity,
+            batch.buyingPrice,
+            batch.buyingPrice,
+            "Menu Order Consumption",
+            "out",
+            "MenuOrder",
+            companyId,
+            `Consumed in order ${order._id}`,
+            batch.currency || "",
+            batch.currency || ""
+          );
         }
       }
 

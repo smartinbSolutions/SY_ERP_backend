@@ -13,6 +13,10 @@ const StaffSchema = new mongoose.Schema({
   salary: Number,
   profileImage: String,
   position: { type: mongoose.Schema.ObjectId, ref: "Positions" },
+  groupId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Groups",
+  },
   department: String,
   hireDate: String,
   currency: { type: mongoose.Schema.ObjectId, ref: "Currency" },
