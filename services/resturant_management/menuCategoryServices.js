@@ -79,7 +79,7 @@ exports.createMenuCategory = asyncHandler(async (req, res, next) => {
   }
 
   req.body.companyId = companyId;
-
+  console.log(req.body);
   const menuCategory = await menuCategoryModel.create(req.body);
   res.status(200).json({
     status: "true",

@@ -60,7 +60,7 @@ const manufatorProductSchema = new mongoose.Schema(
 
 const setImageURL = (doc) => {
   if (doc.image) {
-    const imageUrl = `${process.env.BASE_URL}/manufatorProduct/${doc.image}`;
+    const imageUrl = `manufatorProduct/${doc.image}`;
     doc.image = imageUrl;
   }
 };
