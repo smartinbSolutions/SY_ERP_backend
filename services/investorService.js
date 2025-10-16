@@ -65,6 +65,8 @@ exports.createInvestor = asyncHandler(async (req, res, next) => {
 
   try {
     req.body.companyId = companyId;
+    const isFounder = req.body.isFounder === "true";
+    req.body.isFounder = isFounder;
 
     if (req.body.ibanNumbers) {
       req.body.ibanNumbers = JSON.parse(req.body.ibanNumbers);
