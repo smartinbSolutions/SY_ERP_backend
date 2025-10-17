@@ -22,6 +22,8 @@ const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const paymentHistoryModel = require("../models/paymentHistoryModel");
 const suppliersModel = require("../models/suppliersModel");
 const accountingTreeModel = require("../models/accountingTreeModel");
+const companyInfoModel = require("../models/companyInfoModel");
+const { generateCounter } = require("../utils/counterFormat");
 
 const financailSource = async (
   taker,
@@ -1499,6 +1501,8 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+  const company = await companyInfoModel.findById(companyId);
+
   const nextCounter = (await orderModel.countDocuments({ companyId })) + 1;
   const salesPoints = await salesPointModel
     .findOne({ _id: id, companyId })
@@ -1513,6 +1517,12 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
     salesPoint: id,
     companyId,
     merged: { $ne: true },
+  });
+  const { dateFormat, counterFormat } = company.prefix;
+  const counter = generateCounter({
+    dateFormat,
+    counterFormat,
+    date: new Date(),
   });
 
   const cartItems = [];
@@ -1621,7 +1631,7 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
     orderDate: date,
     type: "bills",
     totalInMainCurrency: totalInMainCurrency,
-    counter: nextCounter,
+    counter: counter + nextCounter,
     paymentsStatus: "paid",
     invoiceName: `Post-Merged-${nextCounter}`,
     currency: {
