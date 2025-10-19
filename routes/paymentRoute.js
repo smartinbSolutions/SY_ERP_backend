@@ -9,6 +9,7 @@ const {
   deletePaymentTransferFund,
   createAdvancePayment,
   patchPayment,
+  uploadFile,
 } = require("../services/paymentService");
 
 const paymentRout = express.Router();
@@ -19,6 +20,6 @@ paymentRout
   .route("/:id")
   .get(getOnePayment)
   .delete(deletePayment)
-  .patch(patchPayment);
+  .patch(uploadFile, patchPayment);
 paymentRout.route("/transfer/:id").delete(deletePaymentTransferFund);
 module.exports = paymentRout;

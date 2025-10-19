@@ -69,7 +69,7 @@ const PaymentSchema = new mongoose.Schema(
     description: String,
     journalCounter: String,
     paymentText: String,
-
+    file: String,
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,

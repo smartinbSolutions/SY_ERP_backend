@@ -17,6 +17,38 @@ const StaffModel = require("../models/Hr/staffModel");
 const SalaryHistoryModel = require("../models/Hr/salaryHistoryModel");
 const returnOrderModel = require("../models/returnOrderModel");
 const accountingTree = require("../models/accountingTreeModel");
+const multer = require("multer");
+
+const multerStorage = multer.diskStorage({
+  destination: function (req, file, callback) {
+    // Specify the destination folder for storing the files
+    callback(null, "./uploads/invoice");
+  },
+  filename: function (req, file, callback) {
+    // Specify the filename for the uploaded file
+    const originalname = file.originalname;
+    const lastDotIndex = originalname.lastIndexOf(".");
+    const fileExtension =
+      lastDotIndex !== -1 ? originalname.slice(lastDotIndex + 1) : "";
+    const filename = `payment-${Date.now()}.${fileExtension}`;
+
+    callback(null, filename);
+  },
+});
+
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: (req, file, callback) => {
+    const allowedMimes = ["application/pdf"];
+    if (allowedMimes.includes(file.mimetype)) {
+      callback(null, true);
+    } else {
+      callback(new ApiError("Invalid file type. Only PDFs are allowed."));
+    }
+  },
+});
+
+exports.uploadFile = upload.single("file");
 
 async function recalculateBalances(startDate, companyId) {
   // Fetch transactions (purchases and sales) that are affected
@@ -1851,6 +1883,8 @@ exports.patchPayment = asyncHandler(async (req, res, next) => {
   if (!payment) return res.status(404).json({ message: "payment not found" });
 
   const { description } = req.body;
+
+  if (req.file) payment.file = req.file.filename;
 
   if (description) payment.description = description;
 
