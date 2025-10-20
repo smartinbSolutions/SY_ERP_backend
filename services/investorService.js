@@ -3,9 +3,12 @@ const Investor = require("../models/investorModel");
 const shareTransactionSchema = require("../models/investorSharesModel");
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
+const bcrypt = require("bcryptjs");
 const investmentCompaniesModel = require("../models/investmentCompaniesModel");
 const multer = require("multer");
 const fs = require("fs");
+const generatePassword = require("../utils/tools/generatePassword");
+const sendEmail = require("../utils/sendEmail");
 
 //for creating
 const storage = multer.memoryStorage();
@@ -71,6 +74,17 @@ exports.createInvestor = asyncHandler(async (req, res, next) => {
     if (req.body.ibanNumbers) {
       req.body.ibanNumbers = JSON.parse(req.body.ibanNumbers);
     }
+
+    const investorPass = generatePassword();
+    const hashedPassword = await bcrypt.hash(investorPass, 12);
+
+    req.body.password = hashedPassword;
+    //Sned password to email
+    await sendEmail({
+      email: req.body.email,
+      subject: "New Password",
+      message: `Hello ${req.body.fullName}, your password is ${investorPass}`,
+    });
 
     const investor = await Investor.create(req.body);
 
