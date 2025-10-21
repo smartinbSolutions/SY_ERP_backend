@@ -6,6 +6,10 @@ const manufatorProductSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "recipe",
     },
+    rawMaterialId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "RawMaterial",
+    },
     Productname: {
       type: String,
     },

@@ -3,6 +3,7 @@ const asyncHandler = require("express-async-handler");
 const menuOrderModel = require("../../models/resturant_management/menuOrderModel");
 const recipeModel = require("../../models/resturant_management/recipeModel");
 const batchModel = require("../../models/resturant_management/batchModel");
+const productModel = require("../../models/resturant_management/manufatorProductModel");
 const { createRawMatrialMovement } = require("../../utils/rawMatrialMovement");
 const { getIo } = require("../../utils/socket");
 
@@ -271,6 +272,8 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
 exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
   const { orderId, productId, companyId } = req.query;
 
+  console.log("➡️ moveOrderToInProgress called with:", req.query);
+
   if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
     return res.status(400).json({
       status: false,
@@ -292,20 +295,24 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
 
     if (!order) throw new Error("Order not found");
 
+    console.log(`🧾 Order fetched: ${order._id}`);
+
     let itemsToProcess = order.orderItems;
 
     if (productId) {
       itemsToProcess = order.orderItems.filter(
         (item) => item.productId._id.toString() === productId
       );
-
-      if (itemsToProcess.length === 0) {
+      if (itemsToProcess.length === 0)
         throw new Error("Product not found in this order");
-      }
     }
+
 
     for (const item of itemsToProcess) {
       const product = item.productId;
+      console.log(
+        `\n➡️ Processing product: ${product._id} (${product.name || "Unnamed"})`
+      );
 
       if (product.RecipeId) {
         const recipe = await recipeModel
@@ -314,9 +321,50 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
           .lean();
 
         if (!recipe) {
-          throw new Error(`Recipe not found for product ${product._id}`);
+          console.log(
+            `⚠️ No recipe found for ${product._id}, using batches directly...`
+          );
+          const availableBatches = await batchModel
+            .find({ rawMaterialId: product._id, leftQuantity: { $gt: 0 } })
+            .sort({ createdAt: 1 });
+
+          let remainingQty = item.quantity;
+
+          for (const batch of availableBatches) {
+            if (remainingQty <= 0) break;
+
+            const deductQty = Math.min(batch.leftQuantity, remainingQty);
+            batch.leftQuantity -= deductQty;
+            remainingQty -= deductQty;
+            await batch.save();
+
+            await createRawMatrialMovement(
+              product._id,
+              order._id,
+              deductQty,
+              batch.leftQuantity,
+              batch.buyingPrice,
+              batch.buyingPrice,
+              "Menu Order Consumption",
+              "out",
+              "MenuOrder",
+              companyId,
+              `Consumed in order ${order._id}`,
+              batch.currency || "",
+              batch.currency || ""
+            );
+          }
+
+          if (remainingQty > 0)
+            console.log(
+              `⚠️ Not enough stock for product ${product._id}. Remaining: ${remainingQty}`
+            );
+
+          item.status = "In Progress";
+          continue;
         }
 
+        // ✅ Consume based on recipe materials
         for (const material of recipe.recipeArray) {
           const requiredQty = material.quantity * item.quantity;
           let remainingQty = requiredQty;
@@ -352,11 +400,17 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
               batch.currency || ""
             );
           }
+
+          if (remainingQty > 0)
+            console.log(
+              `⚠️ Not enough stock for material ${material.rawMatrialId.name}. Remaining: ${remainingQty}`
+            );
         }
       } else {
+        const rawMaterial = await productModel.findById(product._id);
         const availableBatches = await batchModel
           .find({
-            rawMaterialId: product._id,
+            rawMaterialId: rawMaterial.rawMaterialId,
             leftQuantity: { $gt: 0 },
           })
           .sort({ createdAt: 1 });
@@ -387,21 +441,23 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
             batch.currency || ""
           );
         }
+
+        if (remainingQty > 0)
+          console.log(
+            `⚠️ Not enough stock for product ${product._id}. Remaining: ${remainingQty}`
+          );
       }
 
       item.status = "In Progress";
     }
 
-    const allInProgress = order.orderItems.some(
-      (i) => i.status === "In Progress"
-    );
-    if (allInProgress) {
+    if (order.orderItems.some((i) => i.status === "In Progress")) {
       order.orderStatus = "In Progress";
     }
 
     await order.save();
+    console.log(`✅ Order ${order._id} moved to In Progress`);
 
-    // 🔹 Emit socket event for status update
     const io = getIo();
     io.to(order.salePointId?._id.toString()).emit("orderUpdated", {
       eventType: "orderUpdated",
@@ -427,6 +483,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       data: order,
     });
   } catch (error) {
+    console.error("❌ moveOrderToInProgress error:", error.message);
     next(error);
   }
 });
