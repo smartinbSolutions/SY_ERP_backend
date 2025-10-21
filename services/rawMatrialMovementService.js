@@ -5,20 +5,21 @@ const rawMatrialMovement = require("../models/rawMatrialMovementModel");
 // Get all RawMatrial movement
 exports.getAllRawMatrialMovements = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const rawMatrialId = req.query.rawMatrialId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const pageSize = parseInt(req.query.limit) || 0;
+  const pageSize = parseInt(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
   const filterStages = [
-    { $match: { type: "movement", companyId } },
+    { $match: { companyId } },
     {
       $lookup: {
-        from: "RawMaterial",
+        from: "rawmaterials",
         localField: "rawMatrialId",
         foreignField: "_id",
         as: "rawMatrialId",
@@ -27,7 +28,11 @@ exports.getAllRawMatrialMovements = asyncHandler(async (req, res, next) => {
     { $unwind: "$rawMatrialId" },
   ];
 
-  // Add keyword filter if present
+  if (rawMatrialId) {
+    filterStages.push({
+      $match: { "rawMatrialId._id": new mongoose.Types.ObjectId(rawMatrialId) },
+    });
+  }
   if (req.query.keyword) {
     filterStages.push({
       $match: {
@@ -110,7 +115,8 @@ exports.getRawMatrialMovementByID = asyncHandler(async (req, res, next) => {
 
   let movements = [];
   if (id) {
-    movements = await rawMatrialMovement.find(query)
+    movements = await rawMatrialMovement
+      .find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize);

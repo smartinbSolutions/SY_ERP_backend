@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+
 const menuOrderSchema = new mongoose.Schema(
   {
     table: {
@@ -15,13 +16,16 @@ const menuOrderSchema = new mongoose.Schema(
         },
         quantity: { type: Number, required: true },
         unitPrice: { type: Number, required: true },
+        unitPriceCurrency: { type: Number, required: true },
         totalPrice: { type: Number, required: true },
+        totalPriceCurrency: { type: Number, required: true },
         status: String,
         processedBy: String,
         note: String,
       },
     ],
     totalPrice: { type: Number, default: 0 },
+    totalPriceCurrency: { type: Number, default: 0 },
     orderStatus: {
       type: String,
     },
@@ -29,7 +33,6 @@ const menuOrderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "salesPoints",
     },
-
     orderProcessedBy: { type: String },
     companyId: {
       type: String,

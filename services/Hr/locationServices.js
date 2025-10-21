@@ -1,22 +1,22 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
-const groupsModel = require("../../models/Hr/groupsModel");
+const locationModel = require("../../models/Hr/locationModel");
 
-exports.getAllGroups = asyncHandler(async (req, res, next) => {
+exports.getAllLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
   // Pagination
-  const page = parseInt(req.query.page, 10) || 1; 
-  const limit = parseInt(req.query.limit, 10) || 10; 
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await groupsModel.countDocuments({ companyId });
+  const total = await locationModel.countDocuments({ companyId });
 
-  const groups = await groupsModel
+  const locations = await locationModel
     .find({ companyId })
     .skip(skip)
     .limit(limit)
@@ -27,39 +27,40 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    results: groups.length,
-    data: groups,
+    results: locations.length,
+    data: locations,
   });
 });
- 
 
-exports.getOneGroups = asyncHandler(async (req, res, next) => {
+exports.getOneLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
   if (!req.params.id) {
-    return next(new ApiError(`No Groups for this ID: ${req.params.id}`, 404));
+    return next(
+      new ApiError(`No Locations for this ID: ${req.params.id}`, 404)
+    );
   }
-  const groups = await groupsModel.findOne({
+  const locations = await locationModel.findOne({
     _id: req.params.id,
     companyId,
   });
-  res.status(200).json({ status: "success", data: groups });
+  res.status(200).json({ status: "success", data: locations });
 });
 
-exports.createGroups = asyncHandler(async (req, res, next) => {
+exports.createLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
   req.body.companyId = companyId;
-  const groups = await groupsModel.create(req.body);
-  res.status(200).json({ status: "success", data: groups });
+  const locations = await locationModel.create(req.body);
+  res.status(200).json({ status: "success", data: locations });
 });
 
-exports.updateGroups = asyncHandler(async (req, res, next) => {
+exports.updateLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -68,9 +69,9 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   req.body.companyId = companyId;
   if (!id) {
-    return next(new ApiError(`No Groups for this ID: ${id}`, 404));
+    return next(new ApiError(`No Locations for this ID: ${id}`, 404));
   }
-  const groups = await groupsModel.findOneAndUpdate(
+  const locations = await locationModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
     {
@@ -78,10 +79,10 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
     }
   );
 
-  res.status(200).json({ status: "success", data: groups });
+  res.status(200).json({ status: "success", data: locations });
 });
 
-exports.deleteGroups = asyncHandler(async (req, res, next) => {
+exports.deleteLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -89,11 +90,11 @@ exports.deleteGroups = asyncHandler(async (req, res, next) => {
   }
   const { id } = req.params;
   if (!id) {
-    return next(new ApiError(`No Groups for this ID:${id}`, 404));
+    return next(new ApiError(`No Locations for this ID:${id}`, 404));
   }
-  const groups = await groupsModel.findOneAndDelete({
+  const locations = await locationModel.findOneAndDelete({
     _id: id,
     companyId,
   });
-  res.status(200).json({ status: "success", data: groups });
+  res.status(200).json({ status: "success", data: locations });
 });

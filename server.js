@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const morgan = require("morgan");
 const globalError = require("./middlewares/errorMiddleware");
+const { initSocket } = require("./utils/socket");
 // const cron = require("node-cron");
 
 dotenv.config({ path: "config.env" });
@@ -43,6 +44,7 @@ const PORT = process.env.PORT || 8080;
 const server = app.listen(PORT, () => {
   console.log(`app running on port ${PORT}`);
 });
+initSocket(server);
 
 process.on("unhandledRejection", (err) => {
   console.error(`unhandledRejection Errors:${err.name} | ${err.message}`);

@@ -24,7 +24,6 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
     console.log("➡️ Starting Batch creation process...");
     console.log("📦 Incoming Batch Data:", BatchData);
 
-    // ✅ Validate rawMaterialId
     if (!mongoose.Types.ObjectId.isValid(BatchData.rawMaterialId)) {
       console.log("❌ Invalid rawMaterialId:", BatchData.rawMaterialId);
       return res.status(400).json({
@@ -33,7 +32,6 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
       });
     }
 
-    // ✅ Update RawMaterial
     console.log("🔍 Updating raw material with ID:", BatchData.rawMaterialId);
     const rawMaterial = await RawMaterialModel.findOneAndUpdate(
       { _id: BatchData.rawMaterialId, companyId },

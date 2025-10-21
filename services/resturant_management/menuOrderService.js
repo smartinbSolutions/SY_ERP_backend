@@ -4,6 +4,7 @@ const menuOrderModel = require("../../models/resturant_management/menuOrderModel
 const recipeModel = require("../../models/resturant_management/recipeModel");
 const batchModel = require("../../models/resturant_management/batchModel");
 const { createRawMatrialMovement } = require("../../utils/rawMatrialMovement");
+const { getIo } = require("../../utils/socket");
 
 // @desc Create menuOrder
 // @route POST /api/menuOrder
@@ -14,25 +15,50 @@ exports.createmenuOrder = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   req.body.companyId = companyId;
   const menuOrderData = req.body;
 
   try {
     const menuOrder = await menuOrderModel.create(menuOrderData);
+    const io = getIo();
+    const salePointId = menuOrder.salePointId?.toString();
+
+    if (salePointId) {
+      io.to("kitchen").emit("newOrderCreated", {
+        eventType: "newOrderCreated",
+        orderId: menuOrder._id,
+        salePointId,
+        orderStatus: menuOrder.orderStatus,
+        orderData: menuOrder,
+        message: `🆕 New order received from SalePoint ${salePointId}`,
+      });
+
+      io.to(salePointId).emit("orderCreated", {
+        eventType: "orderCreated",
+        orderId: menuOrder._id,
+        salePointId,
+        orderStatus: menuOrder.orderStatus,
+        orderData: menuOrder,
+        message: `🆕 New order has been added from SalePoint ${salePointId}`,
+      });
+    }
 
     res.status(201).json({
-      status: "true",
-      message: "menuOrder inserted",
+      status: true,
+      message: "menuOrder inserted successfully",
       data: menuOrder,
     });
   } catch (error) {
-    console.error(`Error creating menuOrder: ${error.message}`);
+    console.error(`❌ Error creating menuOrder: ${error.message}`);
+
     return res.status(500).json({
       status: false,
       message: error.message,
     });
   }
 });
+
 // @desc Get all menuOrder
 // @route GET /api/menuOrder
 // @access Private
@@ -71,7 +97,8 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
         populate: { path: "salesPointCurrency", model: "Currency" },
       })
       .skip(skip)
-      .limit(pageSize);
+      .limit(pageSize)
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       status: true,
@@ -148,7 +175,6 @@ exports.getOnemenuOrder = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.updatemenuOrder = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -157,11 +183,17 @@ exports.updatemenuOrder = asyncHandler(async (req, res, next) => {
   const updatedData = req.body;
 
   try {
-    const updatedmenuOrder = await menuOrderModel.findOneAndUpdate(
-      { _id: menuOrderId, companyId },
-      updatedData,
-      { new: true, runValidators: true }
-    );
+    // get copy for send notification to front
+    const previousOrder = await menuOrderModel.findById(menuOrderId).lean();
+
+    // update status
+    const updatedmenuOrder = await menuOrderModel
+      .findOneAndUpdate({ _id: menuOrderId, companyId }, updatedData, {
+        new: true,
+        runValidators: true,
+      })
+      .populate("orderItems.productId")
+      .populate("salePointId");
 
     if (!updatedmenuOrder) {
       return res.status(404).json({
@@ -170,8 +202,21 @@ exports.updatemenuOrder = asyncHandler(async (req, res, next) => {
       });
     }
 
+    if (previousOrder.orderStatus !== updatedmenuOrder.orderStatus) {
+      const io = getIo();
+      const salePointRoomId = updatedmenuOrder.salePointId._id?.toString();
+
+      if (salePointRoomId) {
+        io.to(salePointRoomId).emit("orderUpdated", {
+          eventType: "orderUpdated",
+          orderStatus: updatedmenuOrder.orderStatus,
+          salePointId: salePointRoomId,
+        });
+      }
+    }
+
     res.status(200).json({
-      status: "true",
+      status: true,
       message: "menuOrder updated",
       data: updatedmenuOrder,
     });
@@ -243,7 +288,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
   try {
     const order = await menuOrderModel
       .findOne({ _id: orderId, companyId })
-      .populate("orderItems.productId", "_id");
+      .populate("orderItems.productId", "_id RecipeId name");
 
     if (!order) throw new Error("Order not found");
 
@@ -257,7 +302,6 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       if (itemsToProcess.length === 0) {
         throw new Error("Product not found in this order");
       }
-    } else {
     }
 
     for (const item of itemsToProcess) {
@@ -266,7 +310,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       if (product.RecipeId) {
         const recipe = await recipeModel
           .findById(product.RecipeId)
-          .populate("recipeArray.rawMatrialId", "_id")
+          .populate("recipeArray.rawMatrialId", "_id name")
           .lean();
 
         if (!recipe) {
@@ -279,7 +323,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
 
           const availableBatches = await batchModel
             .find({
-              rawMaterialId: material.rawMatrialId,
+              rawMaterialId: material.rawMatrialId._id,
               leftQuantity: { $gt: 0 },
             })
             .sort({ createdAt: 1 });
@@ -293,7 +337,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
             await batch.save();
 
             await createRawMatrialMovement(
-              material.rawMatrialId,
+              material.rawMatrialId._id,
               order._id,
               deductQty,
               batch.leftQuantity,
@@ -308,9 +352,6 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
               batch.currency || ""
             );
           }
-
-          if (remainingQty > 0) {
-          }
         }
       } else {
         const availableBatches = await batchModel
@@ -321,6 +362,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
           .sort({ createdAt: 1 });
 
         let remainingQty = item.quantity;
+
         for (const batch of availableBatches) {
           if (remainingQty <= 0) break;
 
@@ -328,6 +370,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
           batch.leftQuantity -= deductQty;
           remainingQty -= deductQty;
           await batch.save();
+
           await createRawMatrialMovement(
             product._id,
             order._id,
@@ -358,6 +401,24 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
 
     await order.save();
 
+    // 🔹 Emit socket event for status update
+    const io = getIo();
+    io.to(order.salePointId?._id.toString()).emit("orderUpdated", {
+      eventType: "orderUpdated",
+      orderId: order._id,
+      orderStatus: order.orderStatus,
+      updatedProducts: order.orderItems.map((item) => ({
+        productId: item.productId._id,
+        productName: item.productId.name || "",
+        quantity: item.quantity,
+        status: item.status,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        note: item.note || "",
+      })),
+      salePointId: order.salePointId?._id?.toString() || null,
+    });
+
     res.status(200).json({
       status: true,
       message: productId
@@ -366,7 +427,6 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
       data: order,
     });
   } catch (error) {
-    console.log("❌ Error:", error.message);
     next(error);
   }
 });
