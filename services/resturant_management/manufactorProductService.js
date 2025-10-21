@@ -19,7 +19,7 @@ const upload = multer({ storage: multerStorage, fileFilter: multerFilter });
 exports.uploadmanufactorProductImage = upload.single("image");
 
 exports.resizermanufactorProductImage = asyncHandler(async (req, res, next) => {
-  const filename = `manufator-Category-${uuidv4()}-${Date.now()}.png`;
+  const filename = `manufatorProduct-${uuidv4()}-${Date.now()}.png`;
 
   if (req.file) {
     await sharp(req.file.buffer)

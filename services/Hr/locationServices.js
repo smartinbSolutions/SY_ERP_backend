@@ -20,7 +20,8 @@ exports.getAllLocations = asyncHandler(async (req, res, next) => {
     .find({ companyId })
     .skip(skip)
     .limit(limit)
-    .lean();
+    .lean()
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     status: "success",
