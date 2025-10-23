@@ -94,7 +94,7 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
   let totalDebit = 0,
     totalCredit = 0;
 
-  // 🧾 Use aggregation to also get currency info
+  // 🧾 Fetch accounts with currency info
   const accounts = await accountingTreeModel.aggregate([
     {
       $match: {
@@ -118,58 +118,55 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if (!accounts.length) {
-    return res
-      .status(404)
-      .json({ message: "No accounts found for this finalAccount" });
-  }
-
-  const accountIds = accounts.map((acc) => acc._id.toString());
-
   const accountTotals = {};
   const accountsMap = {};
 
-  accounts.forEach((acc) => {
-    accountsMap[acc._id.toString()] = acc;
-    accountTotals[acc._id.toString()] = {
-      id: acc._id.toString(),
-      name: acc.name,
-      code: acc.code,
-      accountType: acc.accountType,
-      parentId: acc.parentId || null,
-      parentCode: acc.parentCode || null,
-      debit: 0,
-      credit: 0,
-      currency: acc.currency || null, // ✅ include currency
-    };
-  });
+  if (accounts.length) {
+    const accountIds = accounts.map((acc) => acc._id.toString());
 
-  const journals = await journalEntryModel
-    .find({
-      companyId,
-      journalDate: {
-        $gte: startDate + "T00:00:00.000Z",
-        $lte: endDate + "T23:59:59.999Z",
-      },
-      "journalAccounts.id": { $in: accountIds },
-    })
-    .lean();
-
-  journals.forEach((journal) => {
-    const journalAccountsFiltered = journal.journalAccounts.filter((ja) =>
-      accountIds.includes(ja.id)
-    );
-
-    journalAccountsFiltered.forEach((ja) => {
-      const accId = ja.id.toString();
-      if (accountTotals[accId]) {
-        accountTotals[accId].debit += ja.accountDebit || 0;
-        accountTotals[accId].credit += ja.accountCredit || 0;
-      }
-      totalDebit += ja.accountDebit || 0;
-      totalCredit += ja.accountCredit || 0;
+    accounts.forEach((acc) => {
+      accountsMap[acc._id.toString()] = acc;
+      accountTotals[acc._id.toString()] = {
+        id: acc._id.toString(),
+        name: acc.name,
+        code: acc.code,
+        accountType: acc.accountType,
+        balanceType: acc.balanceType,
+        parentId: acc.parentId || null,
+        parentCode: acc.parentCode || null,
+        debit: 0,
+        credit: 0,
+        currency: acc.currency || null,
+      };
     });
-  });
+
+    const journals = await journalEntryModel
+      .find({
+        companyId,
+        journalDate: {
+          $gte: startDate + "T00:00:00.000Z",
+          $lte: endDate + "T23:59:59.999Z",
+        },
+        "journalAccounts.id": { $in: accountIds },
+      })
+      .lean();
+
+    journals.forEach((journal) => {
+      const journalAccountsFiltered = journal.journalAccounts.filter((ja) =>
+        accountIds.includes(ja.id)
+      );
+
+      journalAccountsFiltered.forEach((ja) => {
+        const accId = ja.id.toString();
+        if (accountTotals[accId]) {
+          accountTotals[accId].debit += ja.accountDebit || 0;
+          accountTotals[accId].credit += ja.accountCredit || 0;
+        }
+        totalDebit += ja.accountDebit || 0;
+        totalCredit += ja.accountCredit || 0;
+      });
+    });
+  }
 
   // 🧮 Convert totals into array for frontend
   const accountTotalsArray = Object.values(accountTotals);
@@ -178,7 +175,7 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
     status: "success",
     totalCredit,
     totalDebit,
-    accountTotals: accountTotalsArray,
+    accountTotals: accountTotalsArray, // empty if no accounts
   });
 });
 exports.createClosingReports = asyncHandler(async (req, res) => {
