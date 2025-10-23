@@ -173,7 +173,8 @@ exports.getOnemanufactorProduct = asyncHandler(async (req, res, next) => {
       .populate("brand", "name")
       .populate("category", "nameEN")
       .populate("unit", "name")
-      .populate("tax", "name");
+      .populate("tax", "name")
+      .populate("rawMaterialId", "name");
 
     if (!manufactorProduct) {
       return res.status(404).json({
