@@ -13,7 +13,7 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
-    console.log("❌ companyId is missing");
+    console.log("companyId is missing");
     return res.status(400).json({ message: "companyId is required" });
   }
 
@@ -21,18 +21,14 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
   const BatchData = req.body;
 
   try {
-    console.log("➡️ Starting Batch creation process...");
-    console.log("📦 Incoming Batch Data:", BatchData);
-
     if (!mongoose.Types.ObjectId.isValid(BatchData.rawMaterialId)) {
-      console.log("❌ Invalid rawMaterialId:", BatchData.rawMaterialId);
+      console.log("Invalid rawMaterialId:", BatchData.rawMaterialId);
       return res.status(400).json({
         status: false,
         message: "Invalid rawMaterialId",
       });
     }
 
-    console.log("🔍 Updating raw material with ID:", BatchData.rawMaterialId);
     const rawMaterial = await RawMaterialModel.findOneAndUpdate(
       { _id: BatchData.rawMaterialId, companyId },
       { $inc: { quantity: req.body.quantity, cost: req.body.buyingPrice } },
@@ -40,21 +36,16 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
     );
 
     if (!rawMaterial) {
-      console.log("❌ Raw material not found for ID:", BatchData.rawMaterialId);
+      console.log("Raw material not found for ID:", BatchData.rawMaterialId);
       return res.status(404).json({
         status: false,
         message: "Raw Material not found",
       });
     }
 
-    console.log("✅ Raw material updated successfully:", rawMaterial._id);
 
-    // ✅ Create Batch
     const Batch = await BatchModel.create(BatchData);
-    console.log("✅ Batch created successfully:", Batch._id);
 
-    // ✅ Create Raw Material Movement
-    console.log("📊 Creating raw material movement record...");
     const movement = await createRawMatrialMovement(
       rawMaterial._id,
       Batch._id,
@@ -71,17 +62,13 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
       rawMaterial.currency || ""
     );
 
-    console.log("✅ Raw material movement created successfully:", movement._id);
-
-    // ✅ Response
-    console.log("🎉 Batch creation process completed successfully!");
     res.status(201).json({
       status: true,
       message: "Batch inserted successfully",
       data: Batch,
     });
   } catch (error) {
-    console.error("🔥 Error during Batch creation process:", error);
+    console.error("Error during Batch creation process:", error);
     return res.status(500).json({
       status: false,
       message: error.message,

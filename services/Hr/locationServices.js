@@ -9,28 +9,41 @@ exports.getAllLocations = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
+  const query = { companyId };
+
+  if (req.query.keyword) {
+    query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
+  }
+
   // Pagination
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
+  try {
+    const total = await locationModel.countDocuments(query);
 
-  const total = await locationModel.countDocuments({ companyId });
+    const locations = await locationModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .sort({ createdAt: -1 });
 
-  const locations = await locationModel
-    .find({ companyId })
-    .skip(skip)
-    .limit(limit)
-    .lean()
-    .sort({ createdAt: -1 });
-
-  res.status(200).json({
-    status: "success",
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-    results: locations.length,
-    data: locations,
-  });
+    res.status(200).json({
+      status: "success",
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      results: locations.length,
+      data: locations,
+    });
+  } catch (error) {
+    console.error(`Error fetching locations: ${error.message}`);
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
 });
 
 exports.getOneLocations = asyncHandler(async (req, res, next) => {
