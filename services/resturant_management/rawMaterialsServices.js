@@ -55,10 +55,7 @@ exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
 
   let query = { companyId };
   if (req.query.keyword) {
-    query.$or = [
-      { name: { $regex: req.query.keyword, $options: "i" } },
-      { qr: { $regex: req.query.keyword, $options: "i" } },
-    ];
+    query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
   }
 
   const [totalItems, rawMaterials] = await Promise.all([

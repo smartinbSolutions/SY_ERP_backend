@@ -51,6 +51,11 @@ exports.getAllTables = asyncHandler(async (req, res, next) => {
     if (tableNumber) {
       query.tableNumber = tableNumber;
     }
+
+    if (req.query.keyword) {
+      query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
+    }
+
     const totalItems = await tablesModel.countDocuments(query);
     const totalPages = Math.ceil(totalItems / pageSize);
 

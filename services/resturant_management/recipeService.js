@@ -49,16 +49,18 @@ exports.getAllRecipes = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const pageSize = parseInt(req.query.limit) || 10; // عدد العناصر في الصفحة
-  const page = parseInt(req.query.page) || 1; // رقم الصفحة الحالي
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
   try {
     const query = { companyId };
-
-    // حساب العدد الكلي للـ Recipes
     const totalItems = await recipeModel.countDocuments(query);
     const totalPages = Math.ceil(totalItems / pageSize);
+
+    if (req.query.keyword) {
+      query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
+    }
 
     // Fetch Recipes with pagination
     const recipes = await recipeModel
