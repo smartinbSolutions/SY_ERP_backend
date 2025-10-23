@@ -42,7 +42,8 @@ const groupsSchema = new mongoose.Schema(
       bonusRate: String,
     },
     allowedLate: String,
-    payloadDate: String,
+    payloadDateStart: String,
+    payloadDateEnd: String,
 
     companyId: {
       type: String,

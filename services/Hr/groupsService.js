@@ -10,8 +10,8 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
   }
 
   // Pagination
-  const page = parseInt(req.query.page, 10) || 1; 
-  const limit = parseInt(req.query.limit, 10) || 10; 
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
   const total = await groupsModel.countDocuments({ companyId });
@@ -20,6 +20,7 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
     .find({ companyId })
     .skip(skip)
     .limit(limit)
+    .sort({ createdAt: -1 })
     .lean();
 
   res.status(200).json({
@@ -31,7 +32,6 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
     data: groups,
   });
 });
- 
 
 exports.getOneGroups = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;

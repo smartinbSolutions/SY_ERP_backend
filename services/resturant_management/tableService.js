@@ -16,6 +16,8 @@ exports.createTable = asyncHandler(async (req, res, next) => {
     // Create Table with the provided currency
     const table = await tablesModel.create(req.body);
 
+      
+
     // Respond with success message and created Table data
     res.status(201).json({
       status: "true",

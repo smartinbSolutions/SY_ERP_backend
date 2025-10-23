@@ -24,6 +24,7 @@ const menuOrderSchema = new mongoose.Schema(
         note: String,
       },
     ],
+    paid: { type: Boolean },
     totalPrice: { type: Number, default: 0 },
     totalPriceCurrency: { type: Number, default: 0 },
     orderStatus: {
