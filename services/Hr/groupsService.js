@@ -9,15 +9,21 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
+  const query = { companyId };
+
+  if (req.query.keyword) {
+    query.$or = [{ groupName: { $regex: req.query.keyword, $options: "i" } }];
+  }
+
   // Pagination
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await groupsModel.countDocuments({ companyId });
+  const total = await groupsModel.countDocuments(query);
 
   const groups = await groupsModel
-    .find({ companyId })
+    .find(query)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 })
@@ -32,6 +38,7 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
     data: groups,
   });
 });
+
 
 exports.getOneGroups = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
