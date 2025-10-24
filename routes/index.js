@@ -79,6 +79,7 @@ const tableRoute = require("./resturant_management/tablesRoute");
 const hrAuthRout = require("./Hr/hrAuthRoute");
 const groupsRoute = require("./Hr/groupsRoute");
 const locationRoute = require("./Hr/locationRoute");
+const jobRoute = require("./Hr/jobManagementRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -154,6 +155,7 @@ const mountRoutes = (app) => {
   app.use("/api/hrauth", hrAuthRout);
   app.use("/api/groups", groupsRoute);
   app.use("/api/locations", locationRoute);
+  app.use("/api/jobs", jobRoute);
 
   //Payment
   app.use("/api", paytrRouter);
