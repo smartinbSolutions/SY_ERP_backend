@@ -18,7 +18,7 @@ const multerFilter = (req, file, cb) => {
 
 const upload = multer({ storage: multerStorage, fileFilter: multerFilter });
 
-exports.uploadCompanyLogo = upload.single("logo");
+exports.uploadCompanyLogo = upload.single("companyInfo.logo");
 
 exports.resizeCompanyLogo = asyncHandler(async (req, res, next) => {
   if (!req.file) return next();
@@ -59,8 +59,7 @@ exports.getAllJobs = asyncHandler(async (req, res, next) => {
     .find(query)
     .skip(skip)
     .limit(limit)
-    .sort({ createdAt: -1 })
-    .lean();
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     status: "success",
@@ -104,20 +103,45 @@ exports.updateJob = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   const { id } = req.params;
-  req.body.companyId = companyId;
   if (!id) {
     return next(new ApiError(`No Jobs for this ID: ${id}`, 404));
   }
-  const jobs = await jobsModel.findOneAndUpdate(
-    { _id: id, companyId },
-    req.body,
-    {
-      new: true,
+
+  req.body.companyId = companyId;
+
+  if (req.body.companyInfo && typeof req.body.companyInfo === "string") {
+    try {
+      req.body.companyInfo = JSON.parse(req.body.companyInfo);
+    } catch (err) {
+      return next(new ApiError("companyInfo must be a valid object", 400));
     }
+  }
+
+  const updateData = { ...req.body };
+
+  if (req.body.companyInfo && typeof req.body.companyInfo === "object") {
+    for (const key in req.body.companyInfo) {
+      updateData[`companyInfo.${key}`] = req.body.companyInfo[key];
+    }
+    delete updateData.companyInfo; 
+  }
+
+  const updatedJob = await jobsModel.findOneAndUpdate(
+    { _id: id, companyId },
+    { $set: updateData },
+    { new: true }
   );
 
-  res.status(200).json({ status: "success", data: jobs });
+  if (!updatedJob) {
+    return next(new ApiError(`No Jobs found with ID: ${id}`, 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: updatedJob,
+  });
 });
 
 exports.deleteJob = asyncHandler(async (req, res, next) => {

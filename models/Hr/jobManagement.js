@@ -19,12 +19,11 @@ const jobSchema = new mongoose.Schema(
     },
     companyId: String,
   },
-
   { timestamps: true }
 );
 
 const setImageURL = (doc) => {
-  if (doc.companyInfo.logo) {
+  if (doc.companyInfo && doc.companyInfo.logo) {
     const imageUrl = `${process.env.BASE_URL}/jobManagement/${doc.companyInfo.logo}`;
     doc.companyInfo.logo = imageUrl;
   }
@@ -34,7 +33,6 @@ jobSchema.post("init", function (doc) {
   setImageURL(doc);
 });
 
-//Create
 jobSchema.post("save", (doc) => {
   setImageURL(doc);
 });
