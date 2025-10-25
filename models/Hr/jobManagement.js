@@ -10,11 +10,33 @@ const jobSchema = new mongoose.Schema(
     responsibilities: [String],
     qualifications: [String],
     endDate: String,
-    skills: String,
-    companyId : String
+    skills: [String],
+    companyInfo: {
+      name: String,
+      logo: String,
+      location: String,
+      email: String,
+    },
+    companyId: String,
   },
 
   { timestamps: true }
 );
+
+const setImageURL = (doc) => {
+  if (doc.companyInfo.logo) {
+    const imageUrl = `${process.env.BASE_URL}/jobManagement/${doc.companyInfo.logo}`;
+    doc.companyInfo.logo = imageUrl;
+  }
+};
+
+jobSchema.post("init", function (doc) {
+  setImageURL(doc);
+});
+
+//Create
+jobSchema.post("save", (doc) => {
+  setImageURL(doc);
+});
 
 module.exports = mongoose.model("jobs", jobSchema);

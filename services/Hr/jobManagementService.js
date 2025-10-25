@@ -2,6 +2,39 @@ const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const jobsModel = require("../../models/Hr/jobManagement");
+const multer = require("multer");
+const sharp = require("sharp");
+const { v4: uuidv4 } = require("uuid");
+
+const multerStorage = multer.memoryStorage();
+
+const multerFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image")) {
+    cb(null, true);
+  } else {
+    cb(new ApiError("Only images are allowed", 400), false);
+  }
+};
+
+const upload = multer({ storage: multerStorage, fileFilter: multerFilter });
+
+exports.uploadCompanyLogo = upload.single("logo");
+
+exports.resizeCompanyLogo = asyncHandler(async (req, res, next) => {
+  if (!req.file) return next();
+
+  const filename = `company-logo-${uuidv4()}-${Date.now()}.png`;
+
+  await sharp(req.file.buffer)
+    .toFormat("png")
+    .png({ quality: 70 })
+    .toFile(`uploads/jobManagement/${filename}`);
+
+  if (!req.body.companyInfo) req.body.companyInfo = {};
+  req.body.companyInfo.logo = filename;
+
+  next();
+});
 
 exports.getAllJobs = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
