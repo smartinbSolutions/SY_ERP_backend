@@ -43,7 +43,6 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
       });
     }
 
-
     const Batch = await BatchModel.create(BatchData);
 
     const movement = await createRawMatrialMovement(
@@ -102,7 +101,8 @@ exports.getAllBatches = asyncHandler(async (req, res, next) => {
     const batches = await BatchModel.find({ rawMaterialId: id, companyId })
       .populate("stockId")
       .skip(skip)
-      .limit(pageSize);
+      .limit(pageSize)
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       status: true,
