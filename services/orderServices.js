@@ -12,7 +12,7 @@ const { createProductMovement } = require("../utils/productMovement");
 const customersModel = require("../models/customarModel");
 const { createPaymentHistory } = require("./paymentHistoryService");
 
-const paymentModel = require("../models/paymentModel");
+const paymentModel = require("../models/paymentModelOld");
 const posReceiptsModel = require("../models/orderModelFish");
 
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
@@ -383,17 +383,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     await productModel.bulkWrite(validBulkOptions);
   }
 
-  if (!invoiceDraft) await customars.save();
-
-  const history = createInvoiceHistory(
-    companyId,
-    order._id,
-    "create",
-    req.user._id,
-    req.body.orderDate || timeIsoString
-  );
-
-  if (req.body.paid === "paid" && !invoiceDraft) {
+  if (!invoiceDraft) {
     await createPaymentHistory(
       "invoice",
       req.body.orderDate || timeIsoString,
@@ -409,6 +399,19 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       "",
       req.body.currency.currencyCode
     );
+
+    await customars.save();
+  }
+
+  const history = createInvoiceHistory(
+    companyId,
+    order._id,
+    "create",
+    req.user._id,
+    req.body.orderDate || timeIsoString
+  );
+
+  if (req.body.paid === "paid" && !invoiceDraft) {
     await createPaymentHistory(
       "payment",
       req.body.paymentDate || timeIsoString,
@@ -1591,7 +1594,7 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
         try {
           if (financialFundsMap.has(item.fundId)) {
             const fundData = financialFundsMap.get(item.fundId);
-            fundData.allocatedAmount += item.allocatedAmount || 0;
+            fundData.allocatedAmount += item.allocatedAmount - item.change || 0;
           } else {
             financialFundsMap.set(item.fundId, {
               id: item.fundId,
@@ -1600,7 +1603,7 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
               exchangeRate: item.exchangeRate || 0,
               currency: item.currency,
               currencyID: item.currencyID,
-              allocatedAmount: item.allocatedAmount,
+              allocatedAmount: item.allocatedAmount - item.change,
             });
           }
         } catch (err) {
@@ -1651,6 +1654,7 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
     invoiceTax: invoiceTax,
     discountType: "value",
     companyId,
+    description: `This invoice was made from date ${startDate} To ${endDate}`,
   };
   if (cartItems.length === 0) {
     return next(

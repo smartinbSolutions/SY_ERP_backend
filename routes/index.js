@@ -17,7 +17,6 @@ const financialFundsRoute = require("./financialFundsRoute");
 const invoiceHistoryRoute = require("./invoiceHistoryRoute");
 const LabelRout = require("./labelsRout");
 const OrderRout = require("./orderRout");
-const paymentRout = require("./paymentRoute");
 const paymentTypes = require("./paymentTypesRoute");
 const productMovementsRoute = require("./productMovementRoute");
 const rawMaterialMovementRoute = require("./rawMatrialMovementRoute");
@@ -80,6 +79,8 @@ const hrAuthRout = require("./Hr/hrAuthRoute");
 const groupsRoute = require("./Hr/groupsRoute");
 const locationRoute = require("./Hr/locationRoute");
 const jobRoute = require("./Hr/jobManagementRoute");
+const paymentRoute = require("./paymentRoute");
+const paymentRouteOld = require("./paymentRouteOld");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -109,7 +110,8 @@ const mountRoutes = (app) => {
   app.use("/api/stockreconciliation", StockReconciliationRoute);
   app.use("/api/productmovements", productMovementsRoute);
   app.use("/api/invoicehistory", invoiceHistoryRoute);
-  app.use("/api/payment", paymentRout);
+  app.use("/api/payment", paymentRouteOld);
+  app.use("/api/v1/payment", paymentRoute);
   app.use("/api/payment-history", paymentHistoryRout);
   app.use("/api/stock", stockRout);
   app.use("/api/offers", offersRouter);

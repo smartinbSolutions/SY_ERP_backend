@@ -3,7 +3,7 @@ const ApiError = require("../utils/apiError");
 const FinancialFundsModel = require("../models/financialFundsModel");
 const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
 const SalesPointModel = require("../models/salesPointModel");
-const paymentModel = require("../models/paymentModel");
+const paymentModel = require("../models/paymentModelOld");
 
 //@desc Get list of Financial Funds
 //@route GET  /api/financialfunds

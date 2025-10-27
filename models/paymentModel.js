@@ -2,51 +2,49 @@ const mongoose = require("mongoose");
 
 const PaymentSchema = new mongoose.Schema(
   {
-    archives: { type: Boolean, default: false },
-
-    supplierName: {
-      type: String,
-    },
-    supplierId: {
-      type: String,
-    },
-    customerName: {
-      type: String,
-    },
-    customerId: {
-      type: String,
-    },
-    staffName: {
-      type: String,
-    },
-    staffId: {
-      type: String,
-    },
-    partName: String,
-    fundName: String,
-    fundId: String,
-    total: {
+    source: { name: String, id: String },
+    destination: { name: String, id: String },
+    sourceType: String,
+    destinationType: String,
+    totalInPaymentCurrency: {
       type: Number,
       require: true,
+      default: 0,
     },
     totalMainCurrency: {
       type: Number,
       default: 0,
     },
-    exchangeRate: {
+    paymentInDestinationCurrency: String,
+
+    destinationExchangeRate: {
       type: Number,
       default: 1,
     },
-    financialFundsCurrencyCode: String,
-    data: String,
-    ref: String,
-    counter: {
-      type: String,
-      default: 0,
+    destinationCurrencyCode: String,
+    paymentCurrency: {
+      name: String,
+      code: String,
+      id: String,
+      exchangeRate: String,
     },
-    financialFundsName: String,
-    financialFundsId: String,
-    paymentInFundCurrency: String,
+
+    ref: String,
+
+    financailType: String,
+    type: String,
+    paymentType: String,
+
+    date: String,
+    description: String,
+    journalCounter: String,
+    file: String,
+    sync: { type: Boolean, default: false },
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
     payid: [
       {
         id: String,
@@ -61,24 +59,14 @@ const PaymentSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    financailType: String,
-    fundCurrency: String,
-    paymentCurrency: String,
-    type: String,
-    date: String,
-    description: String,
-    journalCounter: String,
-    paymentText: String,
-    file: String,
-    sync: { type: Boolean, default: false },
-    companyId: {
+    counter: {
       type: String,
-      required: true,
-      index: true,
+      default: 0,
     },
     auditing: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+PaymentSchema.index({ counter: 1, companyId: 1 }, { unique: true });
 
-module.exports = mongoose.model("Payment", PaymentSchema);
+module.exports = mongoose.model("Payments", PaymentSchema);

@@ -14,7 +14,7 @@ const refundPosSales = require("../models/refundPosSales");
 const orderModel = require("../models/orderModel");
 const salsePointModel = require("../models/salesPointModel");
 const { createPaymentHistory } = require("./paymentHistoryService");
-const paymentModel = require("../models/paymentModel");
+const paymentModel = require("../models/paymentModelOld");
 const createJournalForPos = require("../utils/creaeteJornalForPos");
 const stockSchema = require("../models/stockModel");
 const reportsFinancialFunds = require("../models/reportsFinancialFunds");
@@ -148,7 +148,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
       nextCounter,
       companyId,
       req.body.paymentDescription,
-      nextCounterPayment
+      counter + nextCounterPayment
     );
     req.body.invoiceSubTotal =
       parseFloat(req.body.invoiceSubTotal) -
