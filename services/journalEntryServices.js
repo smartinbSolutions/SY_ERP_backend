@@ -17,6 +17,7 @@ const { createPaymentHistory } = require("./paymentHistoryService");
 const suppliersModel = require("../models/suppliersModel");
 const financialFundsModel = require("../models/financialFundsModel");
 const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
+const periodicJournalEntriesModel = require("../models/periodicJournalEntriesModel");
 
 //@desc Get Account Transaction
 //@route Get /api/account
@@ -137,6 +138,20 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+  const MONTHS = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
+  ];
   req.body.companyId = companyId;
 
   const nextCounterPayment =
@@ -174,6 +189,62 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     },
   }));
   await AccountModel.bulkWrite(updateOperations);
+
+  for (const item of req.body.journalAccounts) {
+    const date = new Date(req.body.journalDate);
+    const year = date.getFullYear();
+    const monthName = MONTHS[date.getMonth()];
+
+    const monthAmount = (item.MainDebit || 0) - (item.MainCredit || 0);
+
+    const existingPeriodic = await periodicJournalEntriesModel.findOne({
+      accountId: item.id,
+      year,
+      companyId,
+    });
+    console.log(MONTHS[date.getMonth()]);
+
+    if (existingPeriodic) {
+      const existingMonth = existingPeriodic.months.find(
+        (x) => x.month === monthName
+      );
+
+      if (existingMonth) {
+        existingMonth.amount += monthAmount;
+      } else {
+        existingPeriodic.months.push({ month: monthName, amount: monthAmount });
+      }
+
+      existingPeriodic.yearTotal = existingPeriodic.months.reduce(
+        (sum, mo) => sum + (mo.amount || 0),
+        0
+      );
+
+      await existingPeriodic.save();
+    } else {
+      const newPeriodic = new periodicJournalEntriesModel({
+        name: item.name || "",
+        year: year,
+
+        months: [
+          {
+            month: monthName,
+            amount: monthAmount || 0,
+          },
+        ],
+
+        accountId: item.id,
+        companyId,
+        yearTotal: monthAmount || 0,
+        parentId: item.parentId || null,
+        parentCode: item.parentCode || null,
+        code: item.code || "",
+      });
+
+      await newPeriodic.save();
+    }
+  }
+
   res.status(200).json({
     status: "success",
     data: create,
@@ -186,7 +257,20 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  console.log(req.body);
+  const MONTHS = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
+  ];
   req.body.companyId = companyId;
   const nextCounterPayment =
     (await journalModel.countDocuments({ companyId })) + 1;
@@ -288,6 +372,62 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
     },
   }));
   await AccountModel.bulkWrite(updateOperations);
+
+  for (const item of req.body.journalAccounts) {
+    const date = new Date(req.body.journalDate);
+    const year = date.getFullYear();
+    const monthName = MONTHS[date.getMonth()];
+
+    const monthAmount = (item.MainDebit || 0) - (item.MainCredit || 0);
+
+    const existingPeriodic = await periodicJournalEntriesModel.findOne({
+      accountId: item.id,
+      year,
+      companyId,
+    });
+    console.log(MONTHS[date.getMonth()]);
+
+    if (existingPeriodic) {
+      const existingMonth = existingPeriodic.months.find(
+        (x) => x.month === monthName
+      );
+
+      if (existingMonth) {
+        existingMonth.amount += monthAmount;
+      } else {
+        existingPeriodic.months.push({ month: monthName, amount: monthAmount });
+      }
+
+      existingPeriodic.yearTotal = existingPeriodic.months.reduce(
+        (sum, mo) => sum + (mo.amount || 0),
+        0
+      );
+
+      await existingPeriodic.save();
+    } else {
+      const newPeriodic = new periodicJournalEntriesModel({
+        name: item.name || "",
+        year: year,
+
+        months: [
+          {
+            month: monthName,
+            amount: monthAmount || 0,
+          },
+        ],
+
+        accountId: item.id,
+        companyId,
+        yearTotal: monthAmount || 0,
+        parentId: item.parentId || null,
+        parentCode: item.parentCode || null,
+        code: item.code || "",
+      });
+
+      await newPeriodic.save();
+    }
+  }
+
   res.status(200).json({
     status: "success",
     data: create,
