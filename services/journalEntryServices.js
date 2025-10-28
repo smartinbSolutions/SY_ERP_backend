@@ -17,7 +17,7 @@ const { createPaymentHistory } = require("./paymentHistoryService");
 const suppliersModel = require("../models/suppliersModel");
 const financialFundsModel = require("../models/financialFundsModel");
 const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
-const periodicJournalEntriesModel = require("../models/periodicJournalEntriesModel");
+const periodicJournalEntriesModel = require("../models/reports/periodicJournalEntriesModel");
 
 //@desc Get Account Transaction
 //@route Get /api/account
