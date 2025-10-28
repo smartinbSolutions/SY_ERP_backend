@@ -202,7 +202,6 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
       year,
       companyId,
     });
-    console.log(MONTHS[date.getMonth()]);
 
     if (existingPeriodic) {
       const existingMonth = existingPeriodic.months.find(
