@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const budgetModel = require("../../models/reports/budgetModel");
 const accountingTreeModel = require("../../models/accountingTreeModel");
+const periodicJournalEntriesModel = require("../../models/reports/periodicJournalEntriesModel");
 
 exports.createbudgetReport = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
@@ -77,9 +78,16 @@ exports.getOneBudgetReport = asyncHandler(async (req, res, next) => {
     _id: id,
     companyId,
   });
+  console.log(budget);
+
+  const periodicJournal = await periodicJournalEntriesModel.find({
+    companyId,
+    year: budget.date,
+  });
   res.status(201).json({
     status: "success",
     data: budget,
+    periodicJournal,
   });
 });
 
