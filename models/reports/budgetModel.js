@@ -32,6 +32,11 @@ const budgetSchema = new mongoose.Schema(
           nov: { type: Number, default: 0 },
           dec: { type: Number, default: 0 },
         },
+        yearly: {
+          type: Map,
+          of: Number,
+          default: {},
+        },
         parentId: String,
         parentCode: String,
 

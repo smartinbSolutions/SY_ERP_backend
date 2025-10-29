@@ -78,7 +78,6 @@ exports.getOneBudgetReport = asyncHandler(async (req, res, next) => {
     _id: id,
     companyId,
   });
-  console.log(budget);
 
   const periodicJournal = await periodicJournalEntriesModel.find({
     companyId,
@@ -100,7 +99,7 @@ exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const budget = await budgetModel.findOneAndUpdate(
-    { _id: id, companyId, status: "Draft" },
+    { _id: id, companyId },
     req.body,
     { new: true }
   );
