@@ -81,6 +81,7 @@ const locationRoute = require("./Hr/locationRoute");
 const jobRoute = require("./Hr/jobManagementRoute");
 const paymentRoute = require("./paymentRoute");
 const paymentRouteOld = require("./paymentRouteOld");
+const incomeStatementRoute = require("./reports/incomeStatementRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -185,5 +186,6 @@ const mountRoutes = (app) => {
   //Report
   app.use("/api/closingreports", closingReportRoute);
   app.use("/api/budget", budgetRoute);
+  app.use("/api/v1/income-statement", incomeStatementRoute);
 };
 module.exports = mountRoutes;
