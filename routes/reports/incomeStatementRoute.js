@@ -1,9 +1,9 @@
 const express = require("express");
 const {
-  getFinancialReport,
+  getIncomeStatement,
 } = require("../../services/reports/incomeStatementServiices");
 const incomeStatementRoute = express.Router();
 
-incomeStatementRoute.route("/").get(getFinancialReport);
+incomeStatementRoute.route("/").get(getIncomeStatement);
 
 module.exports = incomeStatementRoute;

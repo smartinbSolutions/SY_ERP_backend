@@ -2,116 +2,127 @@ const asyncHandler = require("express-async-handler");
 const accountingTreeModel = require("../../models/accountingTreeModel");
 const journalEntryModel = require("../../models/journalEntryModel");
 
-exports.getFinancialReport = asyncHandler(async (req, res, next) => {
+exports.getIncomeStatement = asyncHandler(async (req, res) => {
   const { companyId, startDate, endDate } = req.query;
 
-  const accounts = await accountingTreeModel.find({ companyId }).lean();
+  const accounts = await accountingTreeModel
+    .find({ companyId })
+    .sort({ code: 1 })
+    .lean();
 
   const accountsMap = {};
   accounts.forEach((acc) => {
+    if (!acc || !acc._id) return;
     accountsMap[acc._id.toString()] = { ...acc, children: [] };
   });
 
   const rootAccounts = [];
   accounts.forEach((acc) => {
-    if (acc.parentId) {
-      const parent = accountsMap[acc.parentId];
-      if (parent) parent.children.push(accountsMap[acc._id.toString()]);
-    } else {
-      rootAccounts.push(accountsMap[acc._id.toString()]);
-    }
+    if (!acc || !acc._id) return;
+
+    rootAccounts.push(accountsMap[acc._id.toString()]);
   });
 
-  const getAccountBalance = async (accountId, isCreditPositive = false) => {
-    const result = await journalEntryModel.aggregate([
-      {
-        $match: {
-          companyId,
-          "journalAccounts.id": accountId.toString(),
-        },
+  const journalEntries = await journalEntryModel.aggregate([
+    {
+      $match: {
+        companyId,
+        ...(startDate && endDate
+          ? {
+              journalDate: {
+                $gte: `${startDate}T00:00:00.000Z`,
+                $lte: `${endDate}T23:59:59.999Z`,
+              },
+            }
+          : {}),
       },
-      { $unwind: "$journalAccounts" },
-      { $match: { "journalAccounts.id": accountId.toString() } },
-      {
-        $group: {
-          _id: null,
-          totalDebit: { $sum: "$journalAccounts.accountDebit" },
-          totalCredit: { $sum: "$journalAccounts.accountCredit" },
-        },
+    },
+    { $unwind: "$journalAccounts" },
+    {
+      $group: {
+        _id: "$journalAccounts.id",
+        totalDebit: { $sum: "$journalAccounts.MainDebit" },
+        totalCredit: { $sum: "$journalAccounts.MainCredit" },
       },
-    ]);
-    if (result.length === 0) return 0;
-    const { totalDebit, totalCredit } = result[0];
-    return isCreditPositive
-      ? totalCredit - totalDebit
-      : totalDebit - totalCredit;
-  };
+    },
+  ]);
 
-  const calculateTreeBalances = async (account, isCreditPositive) => {
-    const balance = await getAccountBalance(account._id, isCreditPositive);
+  const balancesMap = {};
+  journalEntries.forEach((e) => {
+    if (!e || !e._id) return;
+    balancesMap[e._id.toString()] = (e.totalDebit || 0) - (e.totalCredit || 0);
+  });
 
-    let childrenBalances = [];
-    let totalChildrenBalance = 0;
-    for (const child of account.children) {
-      const childResult = await calculateTreeBalances(child, isCreditPositive);
-      childrenBalances.push(childResult);
-      totalChildrenBalance += childResult.totalBalance;
+  const calculateTreeBalances = (account) => {
+    if (!account || !account._id) {
+      return {
+        _id: null,
+        name: "Unknown",
+        balance: 0,
+        totalBalance: 0,
+        parentId: null,
+      };
     }
 
-    const totalBalance = balance + totalChildrenBalance;
+    const balance = balancesMap[account._id.toString()] || 0;
+
+    let finalBalance = balance;
+    if (account.balanceType === "credit") {
+      finalBalance = -finalBalance;
+    }
 
     return {
       _id: account._id,
       code: account.code,
       name: account.name,
-      accountType: account.accountType,
-      finalAccount: account.finalAccount,
+      balanceType: account.balanceType,
       balance,
-      totalBalance,
-      children: childrenBalances,
+      totalBalance: finalBalance,
+      parentId: account.parentId,
+      parentCode: account.parentCode,
     };
   };
 
-  const sections = [
-    "currentAssest",
-    "fixedAsset",
-    "currentLiabilities",
-    "otherCurrentLiability",
-    "equity",
-    "income",
-    "costOfGoodsSold",
-    "expense",
-    "otherExpense",
+  const incomeSections = [
+    "Revenue",
+    "Contra-Revenue",
+    "Cost of Good Sold",
+    "Operating Expenses",
+    "Non Operating Expenses",
+    "Non Operating income",
   ];
 
   const report = {};
 
-  for (const section of sections) {
+  for (const section of incomeSections) {
     const mainAccounts = rootAccounts.filter(
-      (acc) => acc.accountType?.toLowerCase() === section.toLowerCase()
+      (acc) =>
+        acc.accountType &&
+        acc.accountType.toLowerCase() === section.toLowerCase()
     );
 
-    const sectionData = [];
-    for (const acc of mainAccounts) {
-      const data = await calculateTreeBalances(
-        acc,
-        [
-          "income",
-          "equity",
-          "currentLiabilities",
-          "otherCurrentLiability",
-        ].includes(section.toLowerCase())
-      );
-      sectionData.push(data);
-    }
-
+    const sectionData = mainAccounts.map(calculateTreeBalances);
     const sectionTotal = sectionData.reduce(
-      (sum, acc) => sum + acc.totalBalance,
+      (sum, acc) => sum + (acc.totalBalance || 0),
       0
     );
 
     report[section] = { total: sectionTotal, accounts: sectionData };
   }
 
-  res.status(200).json(report);
+  const totalIncome =
+    (report.Revenue?.total || 0) +
+    (report["Contra-Revenue"]?.total || 0) -
+    (report["Cost of Good Sold"]?.total || 0) -
+    (report["Operating Expenses"]?.total || 0) -
+    (report["Non Operating Expenses"]?.total || 0) +
+    (report["Non Operating income"]?.total || 0);
+
+  res.status(200).json({
+    companyId,
+    startDate,
+    endDate,
+    report,
+    netIncome: totalIncome,
+  });
 });
