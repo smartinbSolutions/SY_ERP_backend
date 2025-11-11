@@ -19,6 +19,9 @@ const AccountingTreeSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    accountCategory: {
+      type: String,
+    },
     currency: {
       type: mongoose.Schema.ObjectId,
       ref: "Currency",
