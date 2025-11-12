@@ -151,9 +151,10 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
   let paymentText = "";
   let payment;
   let paymentType = "";
+  if (req.body.type === "WithDraw") req.body.type = "Withdrawal";
   const count = await paymentModel.countDocuments({
     companyId,
-    paymentText: req.body.paymentText,
+    paymentText: req.body.type,
   });
 
   req.body.counter = Number(req.body.counter) + Number(count) + 1;
