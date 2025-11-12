@@ -9,7 +9,7 @@ const AccountingTreeSchema = new mongoose.Schema(
     nameAr: { type: String, default: "" },
     nameTr: { type: String, default: "" },
     code: { type: String, required: true },
-
+    depreciationAccount: String,
     accountType: { type: String },
     detailType: String,
     description: String,

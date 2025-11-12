@@ -1,0 +1,131 @@
+const asyncHandler = require("express-async-handler");
+const accountingTreeModel = require("../../models/accountingTreeModel");
+const journalEntryModel = require("../../models/journalEntryModel");
+
+exports.getBalanceSheetsStatement = asyncHandler(async (req, res) => {
+  const { companyId, startDate, endDate } = req.query;
+
+  const accounts = await accountingTreeModel
+    .find({ companyId })
+    .sort({ code: 1 })
+    .lean();
+
+  const accountsMap = {};
+  accounts.forEach((acc) => {
+    if (!acc || !acc._id) return;
+    accountsMap[acc._id.toString()] = { ...acc, children: [] };
+  });
+
+  const rootAccounts = [];
+  accounts.forEach((acc) => {
+    if (!acc || !acc._id) return;
+
+    rootAccounts.push(accountsMap[acc._id.toString()]);
+  });
+
+  const journalEntries = await journalEntryModel.aggregate([
+    {
+      $match: {
+        companyId,
+        ...(startDate && endDate
+          ? {
+              journalDate: {
+                $gte: `${startDate}T00:00:00.000Z`,
+                $lte: `${endDate}T23:59:59.999Z`,
+              },
+            }
+          : {}),
+      },
+    },
+    { $unwind: "$journalAccounts" },
+    {
+      $group: {
+        _id: "$journalAccounts.id",
+        totalDebit: { $sum: "$journalAccounts.MainDebit" },
+        totalCredit: { $sum: "$journalAccounts.MainCredit" },
+      },
+    },
+  ]);
+
+  const balancesMap = {};
+  journalEntries.forEach((e) => {
+    if (!e || !e._id) return;
+    balancesMap[e._id.toString()] = (e.totalDebit || 0) - (e.totalCredit || 0);
+  });
+
+  const calculateTreeBalances = (account) => {
+    if (!account || !account._id) {
+      return {
+        _id: null,
+        name: "Unknown",
+        balance: 0,
+        totalBalance: 0,
+        parentId: null,
+      };
+    }
+
+    const balance = balancesMap[account._id.toString()] || 0;
+
+    let finalBalance = balance;
+    if (account.balanceType === "credit") {
+      finalBalance = -finalBalance;
+    }
+
+    return {
+      _id: account._id,
+      code: account.code,
+      name: account.name,
+      balanceType: account.balanceType,
+      balance,
+      totalBalance: finalBalance,
+      parentId: account.parentId,
+      parentCode: account.parentCode,
+    };
+  };
+
+  const incomeSections = [
+    "Fixed Assets",
+    "Financial Assets",
+    "Current Asset",
+    "Intercompany and related party assets",
+    "Equity",
+    "Current Liabilities",
+    "Non-Current Liabilities",
+    "Intercompany and related party liabilities",
+  ];
+
+  const report = {};
+
+  for (const section of incomeSections) {
+    const mainAccounts = rootAccounts.filter(
+      (acc) =>
+        acc.accountType &&
+        acc.accountType.toLowerCase() === section.toLowerCase()
+    );
+
+    const sectionData = mainAccounts.map(calculateTreeBalances);
+    const sectionTotal = sectionData.reduce(
+      (sum, acc) => sum + (acc.totalBalance || 0),
+      0
+    );
+
+    report[section] = { total: sectionTotal, accounts: sectionData };
+  }
+
+  res.status(200).json({
+    companyId,
+    startDate,
+    endDate,
+    report,
+    totalAssets:
+      (report["Fixed Assets"]?.total || 0) +
+      (report["Financial Assets"]?.total || 0) +
+      (report["Current Asset"]?.total || 0) +
+      (report["Intercompany and related party assets"]?.total || 0),
+    totalLiabilities:
+      (report["Current Liabilities"]?.total || 0) +
+      (report["Non-Current Liabilities"]?.total || 0) +
+      (report["Intercompany and related party liabilities"]?.total || 0),
+    totalEquity: report["Equity"]?.total || 0,
+  });
+});
