@@ -80,6 +80,7 @@ exports.getBalanceSheetsStatement = asyncHandler(async (req, res) => {
       totalBalance: finalBalance,
       parentId: account.parentId,
       parentCode: account.parentCode,
+      depreciationAccount: account.depreciationAccount,
     };
   };
 
