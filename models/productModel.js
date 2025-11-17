@@ -165,6 +165,15 @@ const productSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    serialNumber: { type: String, default: "" },
+    expirationDate: { type: String, default: Date.now },
+    unitsPrices: [
+      {
+        title: String,
+        price: Number,
+        _id: false,
+      },
+    ],
     addToCart: { type: Number, default: 0 },
     addToFavourites: { type: Number, default: 0 },
     stocks: [
@@ -172,6 +181,8 @@ const productSchema = new mongoose.Schema(
         stockId: String,
         stockName: String,
         productQuantity: Number,
+        minimum: Number,
+        maximum: Number,
         _id: false,
       },
     ],
@@ -208,6 +219,10 @@ const productSchema = new mongoose.Schema(
     ],
     groupID: { type: String },
     importDate: String,
+    supplier: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Supplier",
+    },
     suppliers: [String],
     soldByMonth: Number,
     soldByWeek: Number,
