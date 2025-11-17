@@ -1691,7 +1691,11 @@ exports.findCustomer = asyncHandler(async (req, res, next) => {
     companyId,
   };
 
-  const sales = await orderModel.find(filter).skip(skip).limit(pageSize);
+  const sales = await orderModel
+    .find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize);
 
   const totalItems = await orderModel.countDocuments(filter);
 

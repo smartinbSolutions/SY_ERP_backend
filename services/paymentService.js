@@ -696,15 +696,21 @@ const handleCustomerPayment = async (req, companyId, next) => {
           remainingPayment
         );
         if (paymentAmount === 0) return null;
+        const newTotalRemainderMainCurrency = parseFloat(
+          (sale.totalRemainderMainCurrency - paymentAmount).toFixed(2)
+        );
+
+        const newTotalRemainder = parseFloat(
+          (
+            sale.totalRemainder -
+            paymentAmount * sale.currencyExchangeRate
+          ).toFixed(2)
+        );
+
         const updateObj = {
           $set: {
-            totalRemainderMainCurrency: parseFloat(
-              sale.totalRemainderMainCurrency - paymentAmount
-            ),
-
-            totalRemainder: parseFloat(
-              sale.totalRemainder - paymentAmount * sale.currencyExchangeRate
-            ),
+            totalRemainderMainCurrency: newTotalRemainderMainCurrency,
+            totalRemainder: newTotalRemainder,
           },
           $push: {
             payments: {
@@ -721,8 +727,7 @@ const handleCustomerPayment = async (req, companyId, next) => {
             },
           },
         };
-
-        if (sale.totalRemainderMainCurrency <= paymentAmount) {
+        if (newTotalRemainderMainCurrency <= 0.9) {
           updateObj.$set.paymentsStatus = "paid";
         }
 
@@ -740,6 +745,7 @@ const handleCustomerPayment = async (req, companyId, next) => {
           paymentInvoiceCurrency:
             paymentAmount * (sale.currency.exchangeRate || 1),
         });
+
         return {
           updateOne: {
             filter: { _id: sale._id },
@@ -848,7 +854,7 @@ const handleSalesPayment = async (req, companyId, next) => {
     sales.totalRemainder -= invoicePaymentCurrency;
 
     if (sales.totalRemainderMainCurrency <= 0.9) {
-      sales.paid = "paid";
+      sales.paymentsStatus = "paid";
       sales.totalRemainderMainCurrency = 0;
       sales.totalRemainder = 0;
     }

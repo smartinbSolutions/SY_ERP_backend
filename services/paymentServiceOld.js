@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
 const paymentModel = require("../models/paymentModelOld");
+const paymentModelNew = require("../models/paymentModel");
 const mongoose = require("mongoose");
 const supplerModel = require("../models/suppliersModel");
 const customerModel = require("../models/customarModel");
@@ -1116,21 +1117,23 @@ exports.getOnePayment = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const { id } = req.params;
 
+  const { id } = req.params;
   let query = { companyId };
 
-  const isObjectId = mongoose.Types.ObjectId.isValid(id);
-
-  if (isObjectId) {
-    query = { _id: id };
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    query._id = id;
   } else if (!isNaN(id)) {
-    query = { counter: Number(id) };
+    query.counter = Number(id);
   } else {
-    query = { stringId: id };
+    query.stringId = id;
   }
 
-  const payment = await paymentModel.findOne(query);
+  let payment = await paymentModel.findOne(query);
+
+  if (!payment) {
+    payment = await paymentModelNew.findOne(query);
+  }
 
   if (!payment) {
     return res
@@ -1138,7 +1141,10 @@ exports.getOnePayment = asyncHandler(async (req, res, next) => {
       .json({ status: "fail", message: "Payment not found" });
   }
 
-  res.status(200).json({ status: "success", data: payment });
+  res.status(200).json({
+    status: "success",
+    data: payment,
+  });
 });
 
 exports.deletePayment = asyncHandler(async (req, res, next) => {
