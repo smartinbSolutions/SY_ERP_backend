@@ -64,6 +64,7 @@ exports.getOneStock = asyncHandler(async (req, res, next) => {
   let query = {
     "stocks.stockId": stockId,
     companyId,
+    "stocks.productQuantity": { $gt: 0 },
   };
 
   if (req.query.keyword) {
@@ -75,7 +76,8 @@ exports.getOneStock = asyncHandler(async (req, res, next) => {
 
   const totalProducts = await productModel.countDocuments(query);
   const totalPages = Math.ceil(totalProducts / limit);
-  const products = await productModel.find(query)
+  const products = await productModel
+    .find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -96,7 +98,7 @@ exports.getOneStock = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    results: filteredProducts.length,
+    results: totalProducts,
     totalProducts,
     pages: totalPages,
     data: {
