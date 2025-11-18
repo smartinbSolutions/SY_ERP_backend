@@ -4,12 +4,14 @@ const authService = require("../services/authService");
 const {
   getAllProductsMovements,
   getProductMovementByID,
+  getHighestProductMovment,
 } = require("../services/productMovementServices");
 
 const productMovementsRoute = express.Router();
 
-productMovementsRoute.use(authService.protect);
+// productMovementsRoute.use(authService.protect);
 productMovementsRoute.route("/").get(getAllProductsMovements);
+productMovementsRoute.route("/highest-movenet").get(getHighestProductMovment);
 productMovementsRoute.route("/:id").get(getProductMovementByID);
 
 module.exports = productMovementsRoute;

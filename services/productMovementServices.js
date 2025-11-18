@@ -1,4 +1,3 @@
-const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ProductMovement = require("../models/productMovementModel");
 
@@ -122,5 +121,89 @@ exports.getProductMovementByID = asyncHandler(async (req, res, next) => {
     Pages: totalPages,
     results: movements.length,
     data: movements,
+  });
+});
+
+exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const pageSize = parseInt(req.query.limit) || 10;
+  const sort = req.query.sort;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const match = { companyId };
+
+  if (req.query.startDate && req.query.endDate) {
+    const startDate = new Date(req.query.startDate);
+    const endDate = new Date(req.query.endDate);
+    console.log(endDate);
+
+    if (!isNaN(startDate) && !isNaN(endDate)) {
+      match.createdAt = {
+        $gte: startDate,
+        $lte: endDate,
+      };
+    } else {
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid date range" });
+    }
+  }
+
+  let sortOption = { totalMovements: -1 };
+
+  if (sort === "asc") {
+    sortOption = { totalMovements: 1 };
+  } else if (sort === "desc") {
+    sortOption = { totalMovements: -1 };
+  }
+
+  // Aggregation pipeline
+  const movements = await ProductMovement.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: "$productId",
+        totalMovements: { $sum: 1 },
+      },
+    },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "productInfo",
+      },
+    },
+    { $unwind: "$productInfo" },
+    { $sort: sortOption },
+    { $skip: skip },
+    { $limit: pageSize },
+  ]);
+
+  const totalItems = await ProductMovement.aggregate([
+    { $match: match },
+    { $group: { _id: "$productId" } },
+    { $count: "count" },
+  ]);
+
+  res.status(200).json({
+    status: true,
+    data: movements.map((m) => ({
+      productId: m._id,
+      productName: m.productInfo.name,
+      totalMovements: m.totalMovements,
+    })),
+    pagination: {
+      totalItems: totalItems[0]?.count || 0,
+      totalPages: Math.ceil((totalItems[0]?.count || 0) / pageSize),
+      page,
+      pageSize,
+    },
   });
 });
