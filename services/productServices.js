@@ -650,7 +650,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   const productData = req.body;
 
   productData.slug = slugify(productData.name);
-
+  productData.unitsPrices = JSON.parse(req.body.unitsPrices);
   try {
     // Create product
     const product = await createProductHandler(productData);
@@ -972,6 +972,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 
   const { id } = req.params;
   const productData = req.body;
+  productData.unitsPrices = JSON.parse(req.body.unitsPrices);
 
   // Parse metas if provided
   if (req.body.metas) {
@@ -1041,7 +1042,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
       savedMovement = await createProductMovement(
         id,
         id,
-        totalQuantity + Number(req.body.totalQuantity) - Number(totalQuantity),
+        Number(req.body.totalQuantity),
         Number(req.body.totalQuantity) - Number(totalQuantity),
         0,
         0,
