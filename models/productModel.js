@@ -159,8 +159,14 @@ const productSchema = new mongoose.Schema(
     expirationDate: { type: String, default: Date.now },
     unitsPrices: [
       {
-        title: String,
-        price: Number,
+        name: String,
+        prices: [
+          {
+            title: String,
+            price: Number,
+            _id: false,
+          },
+        ],
         _id: false,
       },
     ],
