@@ -116,16 +116,6 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Unit",
     },
-    variant: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Variant",
-    },
-    value: [String],
-    variant2: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Variant",
-    },
-    value2: [String],
     alarm: { type: Number, default: 0 },
     tax: {
       type: mongoose.Schema.ObjectId,
@@ -254,6 +244,27 @@ const productSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    variants: [
+      {
+        name: { type: String },
+        qr: { type: String },
+        buyingprice: { type: Number },
+        price: { type: Number },
+        taxValue: { type: Number, default: 0 },
+        salePriceWithTax: Number,
+        profitRatio: { type: Number, default: 0 },
+        available: { type: Boolean, default: true },
+        stocks: [
+          {
+            warehouseId: { type: String },
+            warehouseName: { type: String },
+            quantity: { type: Number, default: 0 },
+            _id: false,
+          },
+        ],
+        _id: false,
+      },
+    ],
   },
   {
     timestamps: true,
