@@ -25,7 +25,6 @@ const {
   updateNumber,
   getEcommerceImportProduct,
   updateProductFromExcel,
-  updateAllForNahed,
 } = require("../services/productServices");
 const {
   deleteProductValdiator,
@@ -53,9 +52,8 @@ productRout
   .route("/importEcommerceProduct")
   .get(authService.protect, getEcommerceImportProduct);
 
-productRout
-  .route("/importEcommerceProduct")
-  .post(authService.protect, uploads.single("file"), updateAllForNahed);
+productRout.route("/importEcommerceProduct");
+// .post(authService.protect, uploads.single("file"), updateAllForNahed);
 productRout.route("/productpos").get(getProductPos);
 
 productRout
@@ -68,8 +66,6 @@ productRout
 
 productRout.route("/ecommerce-active-product").get(ecommerceActiveProudct);
 productRout.route("/ecommerce-dashboard-stats").get(ecommerceDashboardStats);
-
-
 
 productRout
   .route("/publish")

@@ -272,7 +272,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   }
   // Product movements
   cartItems.map(async (item) => {
-    const product = await productModel.findOne({ qr: item.qr });
+    const product = await productModel.findOne({ _id: item.id });
 
     if (product && product.type !== "Service") {
       const stockEntryIndex = product.stocks.findIndex(
@@ -282,7 +282,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
         // Update product model
         const updatedProduct = await productModel.findOneAndUpdate(
           {
-            qr: item.qr,
+            _id: item.id,
             "stocks.stockId": stockID,
             companyId,
           },

@@ -290,7 +290,9 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     qr: { $in: productQRCodes },
   });
 
-  const productMap = new Map(products.map((prod) => [prod.qr, prod]));
+  const productMap = new Map(
+    products.map((prod) => [prod._id.toString(), prod])
+  );
   const movementMap = new Map();
 
   for (const item of cartItems) {
@@ -301,9 +303,9 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     )
       continue;
 
-    const existing = movementMap.get(item.qr);
+    const existing = movementMap.get(item.id);
     if (!existing) {
-      movementMap.set(item.qr, { ...item });
+      movementMap.set(item.id, { ...item });
     } else {
       existing.soldQuantity += item.soldQuantity;
     }
@@ -336,12 +338,12 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     cartItems.map(async (item) => {
       if (invoiceDraft) return null;
       if (item.type !== "unTracedproduct" && item.type !== "expense") {
-        const product = productMap.get(item.qr);
+        const product = productMap.get(item.id);
 
         return {
           updateOne: {
             filter: {
-              qr: item.qr,
+              _id: item.id,
               "stocks.stockId": item.stock._id,
             },
             update: {
@@ -649,7 +651,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   // Create product movement records
   await Promise.all(
     Array.from(movementMap.entries()).map(async ([qr, item]) => {
-      const product = await productModel.findOne({ qr });
+      const product = await productModel.findOne({ qr: { $in: [qr] } });
 
       if (product && product.type !== "Service" && item.quantityDiff !== 0) {
         const totalStockQuantity = product.stocks.reduce(

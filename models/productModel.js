@@ -82,13 +82,15 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    qr: {
-      type: String,
-      minlength: [3, "Too short QR code"],
-      maxlength: [30, "Too long QR code"],
-      index: true,
-      require: true,
-    },
+    qr: [
+      {
+        type: String,
+        minlength: [3, "Too short QR code"],
+        maxlength: [30, "Too long QR code"],
+        index: true,
+        require: true,
+      },
+    ],
     sku: {
       type: String,
       default: 0,

@@ -27,7 +27,7 @@ exports.getNotices = asyncHandler(async (req, res) => {
       return totalQuantity <= item.alarm;
     })
     .map((item) => ({
-      qr: item.qr,
+      qr: item.qr?.[0],
       name: item.name,
       id: item._id,
       totalQuantity: item.stocks.reduce(

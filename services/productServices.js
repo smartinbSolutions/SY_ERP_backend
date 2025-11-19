@@ -104,7 +104,14 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
 
     query.$or = [
       { [nameField]: { $regex: req.query.keyword, $options: "i" } },
-      { qr: { $regex: req.query.keyword, $options: "i" } },
+      {
+        qr: {
+          $elemMatch: {
+            $regex: req.query.keyword,
+            $options: "i",
+          },
+        },
+      },
     ];
   }
 
@@ -184,7 +191,7 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: "true",
-    results: product.length,
+    results: totalItems,
     Pages: totalPages,
     data: product,
   });
@@ -209,7 +216,14 @@ exports.getProductPos = asyncHandler(async (req, res, next) => {
   if (req.query.keyword) {
     query.$or = [
       { name: { $regex: req.query.keyword, $options: "i" } },
-      { qr: { $regex: req.query.keyword, $options: "i" } },
+      {
+        qr: {
+          $elemMatch: {
+            $regex: req.query.keyword,
+            $options: "i",
+          },
+        },
+      },
     ];
   }
 
@@ -1164,7 +1178,14 @@ exports.getEcommerceImportProduct = asyncHandler(async (req, res, next) => {
     const keywordRegex = new RegExp(req.query.keyword, "i");
     query.$or = [
       { name: { $regex: keywordRegex } },
-      { qr: { $regex: keywordRegex } },
+      {
+        qr: {
+          $elemMatch: {
+            $regex: req.query.keyword,
+            $options: "i",
+          },
+        },
+      },
       { productNumber: { $regex: keywordRegex } },
     ];
   }
@@ -1231,7 +1252,14 @@ exports.ecommerceActiveProudct = asyncHandler(async (req, res) => {
   if (req.query.keyword) {
     query.$or = [
       { name: { $regex: req.query.keyword, $options: "i" } },
-      { qr: { $regex: req.query.keyword, $options: "i" } },
+      {
+        qr: {
+          $elemMatch: {
+            $regex: req.query.keyword,
+            $options: "i",
+          },
+        },
+      },
     ];
   }
 
@@ -1739,7 +1767,14 @@ exports.getProductBySuppliers = asyncHandler(async (req, res) => {
   if (req.query.keyword) {
     query.$or = [
       { name: { $regex: req.query.keyword, $options: "i" } },
-      { qr: { $regex: req.query.keyword, $options: "i" } },
+      {
+        qr: {
+          $elemMatch: {
+            $regex: req.query.keyword,
+            $options: "i",
+          },
+        },
+      },
     ];
   }
 
@@ -1856,74 +1891,74 @@ exports.getProductBySuppliers = asyncHandler(async (req, res) => {
 
 // This function was created to shorten Nahed's work because she doesn't want to do anything.
 // Take this 1$ and don't tell her that I said this :)
-exports.updateAllForNahed = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+// exports.updateAllForNahed = asyncHandler(async (req, res) => {
+//   const companyId = req.query.companyId;
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
+//   if (!companyId) {
+//     return res.status(400).json({ message: "companyId is required" });
+//   }
 
-  const { buffer } = req.file;
-  let csvData;
+//   const { buffer } = req.file;
+//   let csvData;
 
-  if (
-    req.file.originalname.endsWith(".csv") ||
-    req.file.mimetype === "text/csv"
-  ) {
-    csvData = await csvtojson().fromString(buffer.toString());
-  } else if (
-    req.file.originalname.endsWith(".xlsx") ||
-    req.file.mimetype ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  ) {
-    const workbook = xlsx.read(buffer, { type: "buffer" });
-    const sheet_name_list = workbook.SheetNames;
-    csvData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
-  } else {
-    return res.status(400).json({ error: "Unsupported file type" });
-  }
+//   if (
+//     req.file.originalname.endsWith(".csv") ||
+//     req.file.mimetype === "text/csv"
+//   ) {
+//     csvData = await csvtojson().fromString(buffer.toString());
+//   } else if (
+//     req.file.originalname.endsWith(".xlsx") ||
+//     req.file.mimetype ===
+//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//   ) {
+//     const workbook = xlsx.read(buffer, { type: "buffer" });
+//     const sheet_name_list = workbook.SheetNames;
+//     csvData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
+//   } else {
+//     return res.status(400).json({ error: "Unsupported file type" });
+//   }
 
-  // Sort or process products to ensure consistent productNo assignment
-  let productCounter = 1;
+//   // Sort or process products to ensure consistent productNo assignment
+//   let productCounter = 1;
 
-  // Keep track of updated QRs to avoid duplicates
-  const updatedQRs = new Set();
+//   // Keep track of updated QRs to avoid duplicates
+//   const updatedQRs = new Set();
 
-  for (const item of csvData) {
-    if (!item.qr || updatedQRs.has(item.qr)) continue;
-    updatedQRs.add(item.qr);
+//   for (const item of csvData) {
+//     if (!item.qr || updatedQRs.has(item.qr)) continue;
+//     updatedQRs.add(item.qr);
 
-    let basePrice = parseFloat(item.price);
-    let baseBuyingPrice = parseFloat(item.buyingprice);
-    let tax = parseFloat(item.tax);
+//     let basePrice = parseFloat(item.price);
+//     let baseBuyingPrice = parseFloat(item.buyingprice);
+//     let tax = parseFloat(item.tax);
 
-    if (isNaN(basePrice) || basePrice <= 0) basePrice = 1;
-    if (isNaN(baseBuyingPrice) || baseBuyingPrice <= 0) baseBuyingPrice = 1;
-    if (isNaN(tax) || tax < 0) tax = 0;
+//     if (isNaN(basePrice) || basePrice <= 0) basePrice = 1;
+//     if (isNaN(baseBuyingPrice) || baseBuyingPrice <= 0) baseBuyingPrice = 1;
+//     if (isNaN(tax) || tax < 0) tax = 0;
 
-    const priceWithTax = basePrice * (1 + tax / 100);
-    const buyingPriceWithTax = baseBuyingPrice * (1 + tax / 100);
+//     const priceWithTax = basePrice * (1 + tax / 100);
+//     const buyingPriceWithTax = baseBuyingPrice * (1 + tax / 100);
 
-    const profitRatio =
-      priceWithTax === 0
-        ? 0
-        : ((priceWithTax - buyingPriceWithTax) / priceWithTax) * 100;
+//     const profitRatio =
+//       priceWithTax === 0
+//         ? 0
+//         : ((priceWithTax - buyingPriceWithTax) / priceWithTax) * 100;
 
-    await productModel.findOneAndUpdate(
-      { qr: item.qr, companyId },
-      {
-        productNo: productCounter,
-        buyingprice: buyingPriceWithTax,
-        price: basePrice,
-        taxPrice: priceWithTax,
-        ecommercePrice: priceWithTax,
-        ecommercePriceMainCurrency: priceWithTax,
-        profitRatio: profitRatio,
-      },
-      { new: true }
-    );
+//     await productModel.findOneAndUpdate(
+//       { qr: item.qr, companyId },
+//       {
+//         productNo: productCounter,
+//         buyingprice: buyingPriceWithTax,
+//         price: basePrice,
+//         taxPrice: priceWithTax,
+//         ecommercePrice: priceWithTax,
+//         ecommercePriceMainCurrency: priceWithTax,
+//         profitRatio: profitRatio,
+//       },
+//       { new: true }
+//     );
 
-    productCounter++;
-  }
-  res.json({ success: "Products updated successfully." });
-});
+//     productCounter++;
+//   }
+//   res.json({ success: "Products updated successfully." });
+// });
