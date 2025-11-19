@@ -2,7 +2,6 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const budgetModel = require("../../models/reports/budgetModel");
 const accountingTreeModel = require("../../models/accountingTreeModel");
-const periodicJournalEntriesModel = require("../../models/reports/periodicJournalEntriesModel");
 
 exports.createbudgetReport = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
@@ -22,46 +21,81 @@ exports.createbudgetReport = asyncHandler(async (req, res) => {
 });
 
 exports.getAccountForbudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const { companyId, type } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
+  // Determine final accounts based on type
+  let finalAccounts = [];
+
+  if (type === "pl") {
+    finalAccounts = ["Profit and Loss Account", "Trading Account"];
+  } else if (type === "bs") {
+    finalAccounts = ["Balance Sheet"];
+  } else {
+    return res
+      .status(400)
+      .json({ message: "Invalid or missing type parameter" });
+  }
+
   const accounts = await accountingTreeModel.find({
     companyId,
-    finalAccount: { $in: ["Profit and Loss Account", "Trading Account"] },
+    finalAccount: { $in: finalAccounts },
   });
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
-    message: "accounts Get Success",
+    message: "Accounts fetched successfully",
     data: accounts,
   });
 });
 
 exports.getAllbudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const { companyId, budgetCategory } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
+  // Pagination
   const pageSize = parseInt(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
-  const totalItems = await budgetModel.countDocuments({ companyId });
+  // Build filter object
+  const filter = { companyId };
+
+  if (budgetCategory) {
+    filter.budgetCategory = budgetCategory; // profitLoss | balanceSheet
+  }
+
+  // Count first
+  const totalItems = await budgetModel.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);
+
+  // If no results
+  if (totalItems === 0) {
+    return res.status(200).json({
+      status: "success",
+      message: "No budget records found",
+      totalPages: 0,
+      results: 0,
+      data: [],
+    });
+  }
+
+  // Fetch items
   const budget = await budgetModel
-    .find({
-      companyId,
-    })
+    .find(filter)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageSize);
 
-  res.status(201).json({
+  res.status(200).json({
     status: "success",
-    totalPages: totalPages,
+    totalPages,
     results: totalItems,
     data: budget,
   });
@@ -78,15 +112,9 @@ exports.getOneBudgetReport = asyncHandler(async (req, res, next) => {
     _id: id,
     companyId,
   });
-
-  const periodicJournal = await periodicJournalEntriesModel.find({
-    companyId,
-    year: budget.date,
-  });
   res.status(201).json({
     status: "success",
     data: budget,
-    periodicJournal,
   });
 });
 
@@ -96,18 +124,35 @@ exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   const { id } = req.params;
 
-  const budget = await budgetModel.findOneAndUpdate(
+  // First find the budget
+  const budget = await budgetModel.findOne({ _id: id, companyId });
+
+  if (!budget) {
+    return next(new ApiError(`No budget report found for id ${id}`, 404));
+  }
+
+  // Check status before update
+  if (budget.status !== "draft") {
+    return res.status(400).json({
+      status: "fail",
+      message: "This budget is approved and cannot be updated",
+    });
+  }
+
+  // Now update since it's draft
+  const updatedBudget = await budgetModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
     { new: true }
   );
 
-  if (!budget) {
-    return next(new ApiError(`No budget report for this id ${id}`, 404));
-  }
-  res.status(201).json({ status: "success", data: budget });
+  res.status(200).json({
+    status: "success",
+    data: updatedBudget,
+  });
 });
 
 exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {

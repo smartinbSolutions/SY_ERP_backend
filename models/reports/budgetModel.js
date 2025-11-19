@@ -6,7 +6,12 @@ const budgetSchema = new mongoose.Schema(
     companyId: String,
     employee: String,
     name: String,
-    status: { type: String, default: "Draft" },
+    budgetCategory: {
+      type: String,
+      enum: ["profitLoss", "balanceSheet"],
+      required: true,
+    },
+    status: { type: String, enum: ["draft", "approved"], default: "draft" },
     budgetType: { type: String, default: "Months" },
     account: [
       {
