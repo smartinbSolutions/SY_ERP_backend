@@ -259,13 +259,13 @@ const productSchema = new mongoose.Schema(
         buyingprice: { type: Number },
         price: { type: Number },
         taxValue: { type: Number, default: 0 },
-        salePriceWithTax: Number,
+        salePriceWithTax: { type: Number, default: 0 },
         profitRatio: { type: Number, default: 0 },
         available: { type: Boolean, default: true },
         stocks: [
           {
-            warehouseId: { type: String },
-            warehouseName: { type: String },
+            stockId: { type: String },
+            stockName: { type: String },
             quantity: { type: Number, default: 0 },
             _id: false,
           },
