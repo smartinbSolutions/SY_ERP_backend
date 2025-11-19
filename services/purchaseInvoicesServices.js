@@ -265,8 +265,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   });
 
   // Create a map for quick product lookups by QR code
-  const productMap = new Map(products.map((prod) => [prod.qr, prod]));
-
+  const productMap = new Map(
+    products.map((prod) => [prod._id.toString(), prod])
+  );
   // Prepare and update invoice items with product data
 
   // Handle invoice creation based on 'paid' status
@@ -501,7 +502,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     )
     .map((item) => ({
       updateOne: {
-        filter: { qr: item.qr, "stocks.stockId": item.stock._id, companyId },
+        filter: { _id: item.id, "stocks.stockId": item.stock._id, companyId },
         update: {
           $inc: {
             quantity: +item.quantity,
@@ -519,7 +520,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     .map((item) => ({
       updateOne: {
         filter: {
-          qr: item.qr,
+          _id: item.id,
           "stocks.stockId": { $ne: item.stock._id },
           companyId,
         },
@@ -548,9 +549,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   for (const item of invoicesItem) {
     if (item.type === "unTracedproduct" || item.type === "expense") continue;
 
-    const existing = movementMap.get(item.qr);
+    const existing = movementMap.get(item.id);
     if (!existing) {
-      movementMap.set(item.qr, { ...item });
+      movementMap.set(item.id, { ...item });
     } else {
       existing.quantity += item.quantity;
       existing.orginalBuyingPrice = item.orginalBuyingPrice;
@@ -599,8 +600,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   }
 
   const bulkSupplierPromises = invoicesItem.map(async (item) => {
-    const product = productMap.get(item.qr);
+    const product = productMap.get(item.id);
     const updates = [];
+    console.log(product);
 
     if (product) {
       if (!product.suppliers.includes(supllierObject.id)) {
