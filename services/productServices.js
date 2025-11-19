@@ -664,6 +664,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 
   productData.slug = slugify(productData.name);
   productData.unitsPrices = JSON.parse(req.body.unitsPrices);
+  productData.qr = JSON.parse(req.body.qr);
   try {
     // Create product
     const product = await createProductHandler(productData);
@@ -986,6 +987,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const productData = req.body;
   productData.unitsPrices = JSON.parse(req.body.unitsPrices);
+  productData.qr = JSON.parse(req.body.qr);
 
   // Parse metas if provided
   if (req.body.metas) {
