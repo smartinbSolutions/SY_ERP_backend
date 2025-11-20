@@ -252,6 +252,7 @@ const productSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    variantName: [{ name: String, values: [String] }],
     variants: [
       {
         name: { type: String },
@@ -259,7 +260,7 @@ const productSchema = new mongoose.Schema(
         buyingprice: { type: Number },
         price: { type: Number },
         taxValue: { type: Number, default: 0 },
-        salePriceWithTax: { type: Number, default: 0 },
+        priceTax: { type: Number, default: 0 },
         profitRatio: { type: Number, default: 0 },
         available: { type: Boolean, default: true },
         stocks: [

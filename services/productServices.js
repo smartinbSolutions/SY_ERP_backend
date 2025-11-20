@@ -125,8 +125,12 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
     }
   }
 
-  if (req.query.productType && req.query.productType !== "undefined") {
-    query.type = req.query.productType;
+  if (req.query.productType) {
+    let types = req.query.productType;
+
+    types = types.split(",");
+
+    query.type = { $in: types };
   }
 
   if (req.query.label) {
@@ -224,6 +228,9 @@ exports.getProductPos = asyncHandler(async (req, res, next) => {
           },
         },
       },
+      { "variants.qr": { $regex: req.query.keyword, $options: "i" } },
+
+      { "variants.name": { $regex: req.query.keyword, $options: "i" } },
     ];
   }
 
@@ -557,14 +564,7 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
         as: "brand",
       },
     },
-    {
-      $lookup: {
-        from: "variants",
-        localField: "variant",
-        foreignField: "_id",
-        as: "variant",
-      },
-    },
+
     {
       $lookup: {
         from: "taxes",
@@ -665,6 +665,8 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   productData.slug = slugify(productData.name);
   productData.unitsPrices = JSON.parse(req.body.unitsPrices);
   productData.qr = JSON.parse(req.body.qr);
+  productData.variants = JSON.parse(req.body.variants);
+  productData.variantName = JSON.parse(req.body.variantName);
   try {
     // Create product
     const product = await createProductHandler(productData);
@@ -988,7 +990,8 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   const productData = req.body;
   productData.unitsPrices = JSON.parse(req.body.unitsPrices);
   productData.qr = JSON.parse(req.body.qr);
-
+  productData.variants = JSON.parse(req.body.variants);
+  productData.variantName = JSON.parse(req.body.variantName);
   // Parse metas if provided
   if (req.body.metas) {
     try {
