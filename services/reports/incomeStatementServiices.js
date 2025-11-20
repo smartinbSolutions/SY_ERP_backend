@@ -6,25 +6,37 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
   const { companyId, startDate, endDate } = req.query;
 
   const accounts = await accountingTreeModel
-    .find({ companyId }, { name: 1, code: 1, accountType: 1, balanceType: 1 })
+    .find({ companyId })
     .sort({ code: 1 })
     .lean();
 
-  const accountsMap = new Map(accounts.map((a) => [a._id.toString(), a]));
+  const accountsMap = {};
+  accounts.forEach((acc) => {
+    if (!acc || !acc._id) return;
+    accountsMap[acc._id.toString()] = { ...acc, children: [] };
+  });
 
-  const matchStage = {
-    companyId,
-  };
+  const rootAccounts = [];
+  accounts.forEach((acc) => {
+    if (!acc || !acc._id) return;
 
-  if (startDate && endDate) {
-    matchStage.journalDate = {
-      $gte: new Date(`${startDate}T00:00:00.000Z`),
-      $lte: new Date(`${endDate}T23:59:59.999Z`),
-    };
-  }
+    rootAccounts.push(accountsMap[acc._id.toString()]);
+  });
 
   const journalEntries = await journalEntryModel.aggregate([
-    { $match: matchStage },
+    {
+      $match: {
+        companyId,
+        ...(startDate && endDate
+          ? {
+              journalDate: {
+                $gte: `${startDate}T00:00:00.000Z`,
+                $lte: `${endDate}T23:59:59.999Z`,
+              },
+            }
+          : {}),
+      },
+    },
     { $unwind: "$journalAccounts" },
     {
       $group: {
@@ -35,24 +47,39 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     },
   ]);
 
-  const balancesMap = new Map();
+  const balancesMap = {};
   journalEntries.forEach((e) => {
-    const net = (e.totalDebit || 0) - (e.totalCredit || 0);
-    balancesMap.set(e._id.toString(), net);
+    if (!e || !e._id) return;
+    balancesMap[e._id.toString()] = (e.totalDebit || 0) - (e.totalCredit || 0);
   });
 
-  const calculateBalance = (account) => {
-    const raw = balancesMap.get(account._id.toString()) || 0;
-    const finalBalance = account.balanceType === "credit" ? -raw : raw;
+  const calculateTreeBalances = (account) => {
+    if (!account || !account._id) {
+      return {
+        _id: null,
+        name: "Unknown",
+        balance: 0,
+        totalBalance: 0,
+        parentId: null,
+      };
+    }
+
+    const balance = balancesMap[account._id.toString()] || 0;
+
+    let finalBalance = balance;
+    if (account.balanceType === "credit") {
+      finalBalance = -finalBalance;
+    }
 
     return {
       _id: account._id,
       code: account.code,
       name: account.name,
       balanceType: account.balanceType,
-      balance: raw,
+      balance,
       totalBalance: finalBalance,
-      accountType: account.accountType,
+      parentId: account.parentId,
+      parentCode: account.parentCode,
     };
   };
 
@@ -67,24 +94,23 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
 
   const report = {};
 
-  incomeSections.forEach((section) => {
-    const sectionAccounts = accounts.filter(
+  for (const section of incomeSections) {
+    const mainAccounts = rootAccounts.filter(
       (acc) =>
         acc.accountType &&
         acc.accountType.toLowerCase() === section.toLowerCase()
     );
 
-    const sectionData = sectionAccounts.map(calculateBalance);
+    const sectionData = mainAccounts.map(calculateTreeBalances);
+    const sectionTotal = sectionData.reduce(
+      (sum, acc) => sum + (acc.totalBalance || 0),
+      0
+    );
 
-    const total = sectionData.reduce((sum, a) => sum + a.totalBalance, 0);
+    report[section] = { total: sectionTotal, accounts: sectionData };
+  }
 
-    report[section] = {
-      total,
-      accounts: sectionData,
-    };
-  });
-
-  const netIncome =
+  const totalIncome =
     (report.Revenue?.total || 0) +
     (report["Contra-Revenue"]?.total || 0) -
     (report["Cost of Good Sold"]?.total || 0) -
@@ -97,6 +123,6 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     report,
-    netIncome,
+    netIncome: totalIncome,
   });
 });
