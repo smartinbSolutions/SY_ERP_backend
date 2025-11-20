@@ -89,7 +89,9 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     "Cost of Good Sold",
     "Operating Expenses",
     "Non Operating Expenses",
+    "Non Operating Expenses - Tax",
     "Non Operating income",
+    "Intercompany and related party liabilities",
   ];
 
   const report = {};
@@ -115,7 +117,9 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     (report["Contra-Revenue"]?.total || 0) -
     (report["Cost of Good Sold"]?.total || 0) -
     (report["Operating Expenses"]?.total || 0) -
-    (report["Non Operating Expenses"]?.total || 0) +
+    (report["Non Operating Expenses"]?.total || 0) -
+    (report["Non Operating Expenses - Tax"]?.total || 0) +
+    (report["Intercompany and related party liabilities"]?.total || 0) +
     (report["Non Operating income"]?.total || 0);
 
   res.status(200).json({
