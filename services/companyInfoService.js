@@ -18,6 +18,7 @@ const generatePassword = require("../utils/tools/generatePassword");
 const multerStorage = multer.memoryStorage();
 const bcrypt = require("bcryptjs");
 const linkPanelModel = require("../models/linkPanelModel");
+const sendEmail = require("../utils/sendEmail");
 
 const multerFilter = function (req, file, cb) {
   if (file.mimetype.startsWith("image")) {
@@ -226,6 +227,11 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(employeePass, 12);
     req.body.password = hashedPassword;
     const employee = await employeeModel.create(req.body);
+    await sendEmail({
+      email: req.body.email,
+      subject: "New Password",
+      message: `Hello ${employee.name}, Your password is ${employeePass}`,
+    });
   } else {
     await employeeModel.findOneAndUpdate(
       { email: req.body.email },
