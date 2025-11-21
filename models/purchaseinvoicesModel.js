@@ -43,6 +43,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
         profitRatio: { type: Number },
         showNote: Boolean,
         showDiscount: Boolean,
+        vName: String,
         _id: false,
       },
     ],

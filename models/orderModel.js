@@ -56,6 +56,7 @@ const orderSchema = new mongoose.Schema(
         showDiscount: Boolean,
         buyingpriceMainCurrence: Number,
         linkAccount: String,
+        vName: String,
         _id: false,
       },
     ],
