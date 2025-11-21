@@ -299,6 +299,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     if (
       item.type === "unTracedproduct" ||
       item.type === "expense" ||
+      item.type === "variants" ||
       invoiceDraft
     )
       continue;
@@ -337,7 +338,11 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   const bulkOption = await Promise.all(
     cartItems.map(async (item) => {
       if (invoiceDraft) return null;
-      if (item.type !== "unTracedproduct" && item.type !== "expense") {
+      if (
+        item.type !== "unTracedproduct" &&
+        item.type !== "expense" &&
+        item.type !== "variants"
+      ) {
         const product = productMap.get(item.id);
 
         return {
@@ -348,13 +353,35 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             },
             update: {
               $inc: {
-                quantity: -item.soldQuantity,
                 "stocks.$.productQuantity": -item.soldQuantity,
                 soldByMonth: +item.soldQuantity,
                 soldByWeek: +item.soldQuantity,
                 sold: +item.soldQuantity,
               },
             },
+          },
+        };
+      } else if (item.type === "variants") {
+        return {
+          updateOne: {
+            filter: {
+              _id: item.id,
+              companyId,
+              "variants.qr": item.qr,
+              "variants.stocks.stockId": item.stock._id,
+            },
+            update: {
+              $inc: {
+                "variants.$[v].stocks.$[s].quantity": -item.soldQuantity,
+                soldByMonth: +item.soldQuantity,
+                soldByWeek: +item.soldQuantity,
+                sold: +item.soldQuantity,
+              },
+            },
+            arrayFilters: [
+              { "v.qr": item.qr },
+              { "s.stockId": item.stock._id },
+            ],
           },
         };
       } else if (item.type === "unTracedproduct") {

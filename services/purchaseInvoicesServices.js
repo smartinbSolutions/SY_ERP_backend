@@ -498,20 +498,94 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
   const bulkProductUpdates = invoicesItem
     .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+      (item) =>
+        item.type !== "unTracedproduct" &&
+        item.type !== "expense" &&
+        item.type !== "variants"
     )
     .map((item) => ({
       updateOne: {
         filter: { _id: item.id, "stocks.stockId": item.stock._id, companyId },
         update: {
           $inc: {
-            quantity: +item.quantity,
             "stocks.$.productQuantity": +item.quantity,
           },
           $set: { buyingprice: item.orginalBuyingPrice },
         },
       },
     }));
+
+  const bulkVariantUpdates = invoicesItem
+    .filter((item) => item.type === "variants")
+    .flatMap((item) => {
+      const hasStock = !!item.stock?._id;
+
+      if (!hasStock) {
+        return [
+          {
+            updateOne: {
+              filter: { _id: item.id, companyId, "variants.qr": item.qr },
+              update: {
+                $set: {
+                  "variants.$.buyingprice": item.orginalBuyingPrice,
+                },
+              },
+            },
+          },
+        ];
+      }
+
+      const isNewStock =
+        !item.variantStocks ||
+        !item.variantStocks.some((s) => s.stockId == item.stock._id);
+
+      if (isNewStock) {
+        return [
+          {
+            updateOne: {
+              filter: { _id: item.id, companyId, "variants.qr": item.qr },
+              update: {
+                $push: {
+                  "variants.$.stocks": {
+                    stockId: item.stock._id,
+                    stockName: item.stock.stock,
+                    quantity: item.quantity,
+                  },
+                },
+                $set: {
+                  "variants.$.buyingprice": item.orginalBuyingPrice,
+                },
+              },
+            },
+          },
+        ];
+      }
+
+      return [
+        {
+          updateOne: {
+            filter: {
+              _id: item.id,
+              companyId,
+              "variants.qr": item.qr,
+              "variants.stocks.stockId": item.stock._id,
+            },
+            update: {
+              $inc: {
+                "variants.$[v].stocks.$[s].quantity": +item.quantity,
+              },
+              $set: {
+                "variants.$[v].buyingprice": item.orginalBuyingPrice,
+              },
+            },
+            arrayFilters: [
+              { "v.qr": item.qr },
+              { "s.stockId": item.stock._id },
+            ],
+          },
+        },
+      ];
+    });
 
   const bulkProductInserts = invoicesItem
     .filter(
@@ -542,6 +616,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     await productModel.bulkWrite([
       ...bulkProductUpdates,
       ...bulkProductInserts,
+      ...bulkVariantUpdates,
     ]);
   }
 
@@ -602,7 +677,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const bulkSupplierPromises = invoicesItem.map(async (item) => {
     const product = productMap.get(item.id);
     const updates = [];
-    console.log(product);
 
     if (product) {
       if (!product.suppliers.includes(supllierObject.id)) {
