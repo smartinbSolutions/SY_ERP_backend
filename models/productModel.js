@@ -162,6 +162,7 @@ const productSchema = new mongoose.Schema(
     unitsPrices: [
       {
         name: String,
+        equal: String,
         prices: [
           {
             title: String,

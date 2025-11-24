@@ -730,6 +730,7 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
       (item) =>
         item.type !== "unTracedproduct" &&
         item.type !== "expense" &&
+        item.type !== "variants" &&
         item.quantityDiff !== 0
     )
     .map((item) => ({
