@@ -80,6 +80,8 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
       totalBalance: finalBalance,
       parentId: account.parentId,
       parentCode: account.parentCode,
+      accountCategory: account.accountCategory,
+      accountType: account.accountType,
     };
   };
 
