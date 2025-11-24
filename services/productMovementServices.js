@@ -83,7 +83,7 @@ exports.getProductMovementByID = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
-  const query = { productId: id, companyId };
+  const query = { productId: id || "", companyId };
   const totalItems = await ProductMovement.countDocuments(query);
   const totalPages = Math.ceil(totalItems / pageSize);
   if (req.query.movementType) {

@@ -133,9 +133,9 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
     query.type = { $in: types };
   }
 
-  if (req.query.label) {
-    query.label = req.query.label;
-  }
+  // if (req.query.label) {
+  //   query.label = req.query.label;
+  // }
 
   let sortQuery = {};
   if (req.query.sold) {
