@@ -80,6 +80,8 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
       totalBalance: finalBalance,
       parentId: account.parentId,
       parentCode: account.parentCode,
+      accountCategory: account.accountCategory,
+      accountType: account.accountType,
     };
   };
 
@@ -89,8 +91,10 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     "Cost of Good Sold",
     "Operating Expenses",
     "Non Operating Expenses",
-    "Non Operating Expenses - Tax",
     "Non Operating income",
+    "Non Operating Expenses/income",
+    "Non Operating Expenses - Tax",
+    "Intercompany and related party expenses",
     "Intercompany and related party liabilities",
   ];
 

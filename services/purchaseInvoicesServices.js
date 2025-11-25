@@ -589,7 +589,10 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
   const bulkProductInserts = invoicesItem
     .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+      (item) =>
+        item.type !== "unTracedproduct" &&
+        item.type !== "expense" &&
+        item.type !== "variants"
     )
     .map((item) => ({
       updateOne: {
@@ -823,7 +826,10 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     // Reverting quantities of original items
     originalItems
       .filter(
-        (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+        (item) =>
+          item.type !== "unTracedproduct" &&
+          item.type !== "expense" &&
+          item.type !== "variants"
       )
       .forEach((item) => {
         bulkProductUpdatesOriginal.push({
@@ -843,6 +849,25 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         });
       });
 
+    originalItems
+      .filter((item) => item.type === "variants")
+      .forEach((item) => {
+        bulkProductUpdatesOriginal.push({
+          updateOne: {
+            filter: {
+              qr: item.qr,
+              "variants.stocks.stockId": item.stock._id,
+              companyId,
+            },
+            update: {
+              $inc: {
+                "variants.stocks.$.quantity": -item.quantity,
+              },
+            },
+          },
+        });
+      });
+
     // Applying quantities of updated items
     updatedItems
       .filter(
@@ -850,6 +875,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       )
       .forEach((item) => {
         const filterForUpdate = {
+          type: { $ne: "variants" },
           qr: item.qr,
           "stocks.stockId": item.stock._id,
           companyId,
@@ -890,6 +916,67 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         bulkProductUpdatesNew.push(
           { updateOne: { filter: filterForUpdate, update: updateIfExists } },
           { updateOne: { filter: filterForInsert, update: updateIfMissing } }
+        );
+      });
+
+    updatedItems
+      .filter((item) => item.type === "variants")
+      .forEach((item) => {
+        const filterForUpdateVariant = {
+          "variants.qr": item.qr,
+          "variants.stocks.stockId": item.stock._id,
+          companyId,
+        };
+
+        const updateIfExistsVariant = {
+          $inc: {
+            "variants.$[v].stocks.$[s].quantity": +item.quantity,
+          },
+          $set: {
+            "variants.$[v].buyingprice": item.orginalBuyingPrice,
+          },
+        };
+        const filterForInsertVariant = {
+          qr: item.qr,
+          "variants.qr": item.qr,
+          "variants.stocks.stockId": { $ne: item.stock._id },
+          companyId,
+        };
+
+        const updateIfMissingVariant = {
+          $inc: {
+            "variants.$[v].quantity": +item.quantity,
+          },
+          $set: {
+            "variants.$[v].buyingprice": item.orginalBuyingPrice,
+          },
+          $push: {
+            "variants.$[v].stocks": {
+              stockId: item.stock._id,
+              stockName: item.stock.stock,
+              productQuantity: item.quantity,
+            },
+          },
+        };
+
+        bulkProductUpdatesNew.push(
+          {
+            updateOne: {
+              filter: filterForUpdateVariant,
+              update: updateIfExistsVariant,
+              arrayFilters: [
+                { "v.qr": item.qr },
+                { "s.stockId": item.stock._id },
+              ],
+            },
+          },
+          {
+            updateOne: {
+              filter: filterForInsertVariant,
+              update: updateIfMissingVariant,
+              arrayFilters: [{ "v.qr": item.qr }],
+            },
+          }
         );
       });
 
