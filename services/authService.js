@@ -72,7 +72,7 @@ exports.login = asyncHandler(async (req, res, next) => {
       getDashboardRoles(roles.rolesDashboard, req.body.companyId),
     ]);
 
-    const token = createToken(user._id);
+    const token = createToken(user);
     res.status(200).json({
       status: "true",
       data: user,
@@ -268,7 +268,7 @@ exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
   await user.save();
 
   // 3) If everything ok, send token to client
-  const token = createToken(user._id);
+  const token = createToken(user);
 
   res.status(200).json({ user: user, token });
 });
@@ -290,7 +290,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
     password: hashedResetCode,
   });
 
-  const token = createToken(user._id);
+  const token = createToken(user);
 
   res.status(201).json({ data: user, token });
 });
@@ -340,7 +340,7 @@ exports.googleSignin = asyncHandler(async (req, res, next) => {
         password: hashePassword,
       });
       await newUser.save();
-      const token = createToken(user._id);
+      const token = createToken(user);
       const { password, ...rest } = newUser._doc;
 
       res
@@ -367,7 +367,7 @@ exports.EcommerceLogin = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Incorrect email or password", 401));
   }
   // 3) generate token
-  const token = createToken(user._id);
+  const token = createToken(user);
   // console.log(token)
   // Delete password from response
   delete user._doc.password;
@@ -609,7 +609,7 @@ exports.googleLogin = asyncHandler(async (req, res, next) => {
       user = await UserModel.create({ email, name });
     }
 
-    const token = createToken(user._id);
+    const token = createToken(user);
     res.status(200).json({ message: "login success", user, token: token });
   } catch (error) {
     console.log(error);
@@ -642,7 +642,7 @@ exports.facebookLogin = asyncHandler(async (req, res, next) => {
       user = await UserModel.create({ email, name });
     }
 
-    const token = createToken(user._id);
+    const token = createToken(user);
     res.status(200).json({ message: "login success", user, token });
   } catch (error) {
     console.log(error);

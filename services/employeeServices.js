@@ -91,7 +91,7 @@ exports.getEmployees = asyncHandler(async (req, res) => {
         selectedRoles: companyData?.selectedRoles || null,
       };
     });
-    
+
     res.status(200).json({
       status: "true",
       Pages: totalPages,
@@ -362,7 +362,7 @@ exports.updateEmployeePassword = asyncHandler(async (req, res, next) => {
   }
 
   // Generate Token
-  const token = createToken(user._id);
+  const token = createToken(user);
 
   res.status(200).json({ data: user, token });
 });

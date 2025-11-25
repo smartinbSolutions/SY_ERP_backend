@@ -34,7 +34,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     }
     user.password = undefined;
     const companyData = await companyInfoModel.findById(user.companyId);
-    const token = createToken(user._id);
+    const token = createToken(user);
     res.status(200).json({
       status: "true",
       company: companyData.companyName,

@@ -181,7 +181,7 @@ exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
   }
 
   // Generate Token
-  const token = createToken(user._id);
+  const token = createToken(user);
 
   res.status(200).json({ data: user, token });
 });

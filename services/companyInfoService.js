@@ -19,6 +19,7 @@ const multerStorage = multer.memoryStorage();
 const bcrypt = require("bcryptjs");
 const linkPanelModel = require("../models/linkPanelModel");
 const sendEmail = require("../utils/sendEmail");
+const { default: axios } = require("axios");
 
 const multerFilter = function (req, file, cb) {
   if (file.mimetype.startsWith("image")) {
@@ -227,6 +228,21 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(employeePass, 12);
     req.body.password = hashedPassword;
     const employee = await employeeModel.create(req.body);
+    //Added for the jobs
+    const payload = {
+      email: req.body.email,
+      name: req.body.companyName,
+      password: employeePass,
+    };
+    try {
+      await axios.post(
+        `${process.env.JOBS_URL}api/auth/createEmployee`,
+        payload
+      );
+    } catch (err) {
+      console.error("Failed to sync employee:", err.message);
+    }
+
     await sendEmail({
       email: req.body.email,
       subject: "New Password",
