@@ -6,7 +6,6 @@ const journalEntryModel = require("../../models/journalEntryModel");
 exports.CashFlowReports = asyncHandler(async (req, res) => {
   const { companyId, startDate, endDate } = req.query;
 
-  // جلب الحسابات النقدية
   const cashAccounts = await accountingTreeModel
     .find({
       companyId,
@@ -19,7 +18,6 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     .sort({ code: 1 })
     .lean();
 
-  // جلب باقي الحسابات
   const otherAccounts = await accountingTreeModel
     .find({
       companyId,
@@ -31,11 +29,34 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
           "Current Liabilities",
         ],
       },
+      accountCategory: "operating",
       _id: { $nin: cashAccounts.map((acc) => acc._id) },
     })
     .lean();
-
-  const allAccounts = [...cashAccounts, ...otherAccounts];
+  const fixedAccounts = await accountingTreeModel
+    .find({
+      companyId,
+      accountType: {
+        $in: ["Fixed Assets"],
+      },
+      accountCategory: "investing",
+    })
+    .lean();
+  const financingAccounts = await accountingTreeModel
+    .find({
+      companyId,
+      accountType: {
+        $in: ["Non-Current Liabilities", "Equity", "Current Asset"],
+      },
+      accountCategory: "financing",
+    })
+    .lean();
+  const allAccounts = [
+    ...cashAccounts,
+    ...otherAccounts,
+    ...fixedAccounts,
+    ...financingAccounts,
+  ];
   const accountsMap = {};
   allAccounts.forEach((acc) => {
     accountsMap[acc._id.toString()] = acc;
@@ -43,7 +64,6 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
 
   const targetIds = allAccounts.map((a) => a._id.toString());
 
-  // تجميع الحركات اليومية لكل حساب
   const journalAggregates = await journalEntryModel.aggregate([
     {
       $match: {
@@ -84,19 +104,18 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     return acc.balanceType === "credit" ? -balance : balance;
   };
 
-  // تجهيز تقرير cashAccounts فقط
   const cashReport = cashAccounts.map((acc) => ({
     _id: acc._id,
     name: acc.name,
+    balanceType: acc.balanceType,
     balance: calculateAccountBalance(acc),
   }));
 
-  // تقرير باقي الحسابات حسب النوع
   const otherSections = [
-    "Operating Expenses",
-    "Non Operating Expenses",
     "Current Asset",
     "Current Liabilities",
+    "Operating Expenses",
+    "Non Operating Expenses",
   ];
   const otherReport = {};
 
@@ -112,6 +131,17 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     const sectionTotal = sectionData.reduce((sum, acc) => sum + acc.balance, 0);
     otherReport[section] = { total: sectionTotal, accounts: sectionData };
   });
+  const fixedReport = fixedAccounts.map((acc) => ({
+    _id: acc._id,
+    name: acc.name,
+    balance: calculateAccountBalance(acc),
+  }));
+
+  const investingReport = financingAccounts.map((acc) => ({
+    _id: acc._id,
+    name: acc.name,
+    balance: calculateAccountBalance(acc),
+  }));
 
   res.status(200).json({
     companyId,
@@ -119,5 +149,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     endDate,
     cashReport,
     otherReport,
+    investingReport,
+    fixedReport,
   });
 });
