@@ -6,6 +6,7 @@ const journalEntryModel = require("../../models/journalEntryModel");
 exports.CashFlowReports = asyncHandler(async (req, res) => {
   const { companyId, startDate, endDate } = req.query;
 
+  /* get All Cash Accounts */
   const cashAccounts = await accountingTreeModel
     .find({
       companyId,
@@ -17,8 +18,8 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     })
     .sort({ code: 1 })
     .lean();
-
-  const otherAccounts = await accountingTreeModel
+  /* get operating , investing , financing  Accounts */
+  const operatingAccounts = await accountingTreeModel
     .find({
       companyId,
       accountType: {
@@ -34,7 +35,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     })
     .lean();
 
-  const fixedAccounts = await accountingTreeModel
+  const investingAccounts = await accountingTreeModel
     .find({
       companyId,
       accountType: ["Fixed Assets"],
@@ -50,22 +51,22 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     })
     .lean();
 
+  /* merge Accounts into one Array */
   const allAccounts = [
     ...cashAccounts,
-    ...otherAccounts,
-    ...fixedAccounts,
+    ...operatingAccounts,
+    ...investingAccounts,
     ...financingAccounts,
   ];
-
+  /*get Accounts Ids*/
   const targetIds = allAccounts.map((a) => a._id.toString());
 
   const userStart = `${startDate}T00:00:00.000Z`;
   const userEnd = `${endDate}T23:59:59.999Z`;
-
   const yearStart = `${startDate.split("-")[0]}-01-01T00:00:00.000Z`;
-
   const prevEnd = `${startDate}T00:00:00.000Z`;
 
+  /*get All entries fo the accounts array*/
   async function getPeriodBalances(start, end) {
     const result = await journalEntryModel.aggregate([
       { $match: { companyId } },
@@ -116,46 +117,43 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     previousBalance: calculate(acc, previousBalances),
   }));
 
-  const otherSections = [
+  const operatingTypes = [
     "Current Asset",
     "Current Liabilities",
     "Operating Expenses",
     "Non Operating Expenses",
   ];
 
-  const otherReport = {};
+  const operatingReport = {};
 
-  otherSections.forEach((section) => {
-    const accounts = otherAccounts.filter((a) => a.accountType === section);
-
+  operatingTypes.forEach((section) => {
+    const accounts = operatingAccounts.filter((a) => a.accountType === section);
     const currentData = accounts.map((acc) => ({
       _id: acc._id,
       name: acc.name,
       balance: calculate(acc, selectedBalances),
       previousBalance: calculate(acc, previousBalances),
     }));
-
     const total = currentData.reduce((s, a) => s + a.balance, 0);
     const previousTotal = currentData.reduce(
       (s, a) => s + a.previousBalance,
       0
     );
-
-    otherReport[section] = {
+    operatingReport[section] = {
       total,
       previousTotal,
       accounts: currentData,
     };
   });
 
-  const fixedReport = fixedAccounts.map((acc) => ({
+  const investingReport = investingAccounts.map((acc) => ({
     _id: acc._id,
     name: acc.name,
     balance: calculate(acc, selectedBalances),
     previousBalance: calculate(acc, previousBalances),
   }));
 
-  const investingReport = financingAccounts.map((acc) => ({
+  const financingReport = financingAccounts.map((acc) => ({
     _id: acc._id,
     name: acc.name,
     balance: calculate(acc, selectedBalances),
@@ -172,8 +170,8 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
       endDate: prevEnd,
     },
     cashReport,
-    otherReport,
-    fixedReport,
+    operatingReport,
     investingReport,
+    financingReport,
   });
 });
