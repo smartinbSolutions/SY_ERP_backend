@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const csvtojson = require("csvtojson");
 const xlsx = require("xlsx");
-const { default: mongoose } = require("mongoose");
+const { default: mongoose, Types } = require("mongoose");
 const brandModel = require("../models/brandModel");
 const categoryModel = require("../models/CategoryModel");
 const UnitsModel = require("../models/UnitsModel");
@@ -118,10 +118,10 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
   if (req.query.type === "category" || req.query.type === "brand") {
     query.$and = [];
     if (req.query.type === "category") {
-      query.$and.push({ category: req.query.id });
+      query.$and.push({ category: new Types.ObjectId(req.query.id) });
     }
     if (req.query.type === "brand") {
-      query.$and.push({ brand: req.query.id });
+      query.$and.push({ brand: new Types.ObjectId(req.query.id) });
     }
   }
 
