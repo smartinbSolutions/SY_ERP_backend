@@ -16,6 +16,7 @@ const RefundPurchaseInvoicesModel = require("../models/refundPurchaseInviceModel
 const staffModel = require("../models/Hr/staffModel");
 const salaryHistoryModel = require("../models/Hr/salaryHistoryModel");
 const returnOrderModel = require("../models/returnOrderModel");
+const paymentHistoryModel = require("../models/paymentHistoryModel");
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, callback) {
@@ -180,6 +181,12 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
   req.body.counter = Number(req.body.counter) + Number(count) + 1;
   req.body.paymentInDestinationCurrency = req.body.paymentInFundCurrency;
   switch (req.body.sourceType) {
+    case "fund":
+      const fundPayment = await handleFundPayment(req, companyId, next);
+      return res.status(201).json({
+        message: "Supplier payment created successfully",
+        payment: fundPayment,
+      });
     case "supplier":
       const supplierPayment = await handleSupplierPayment(req, companyId, next);
       return res.status(201).json({
@@ -1235,3 +1242,355 @@ const handleAccountPayment = async (req, companyId, next) => {
     throw err;
   }
 };
+
+exports.deletePayment = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { id } = req.params;
+  const isObjectIdValid = mongoose.Types.ObjectId.isValid(id);
+
+  // If it's a valid ObjectId, create the ObjectId instance for _id and counter comparison
+  let objectId = null;
+  if (isObjectIdValid) {
+    objectId = new mongoose.Types.ObjectId(id);
+  }
+
+  // Now we proceed with deletion logic
+  let payment;
+  if (isObjectIdValid) {
+    // Try to delete by _id or counter if ObjectId is valid
+    payment = await paymentModel.findOneAndDelete({
+      companyId,
+      $or: [{ _id: objectId }],
+    });
+  } else {
+    // If it's not a valid ObjectId, assume it's a string for counter
+    payment = await paymentModel.findOneAndDelete({
+      companyId,
+      $or: [{ counter: id }],
+    });
+  }
+  if (!payment) {
+    return next(new ApiError(`No Payment with this id ${id}`));
+  }
+  if (
+    payment.payid.length > 0 &&
+    payment.supplierId &&
+    payment.type === "purchase"
+  ) {
+    await suppliersModel.findOneAndUpdate(
+      { _id: payment.supplierId, companyId },
+      {
+        $inc: {
+          TotalUnpaid: +payment.totalMainCurrency,
+        },
+      },
+      { new: true }
+    );
+
+    payment.payid.map(async (purchaseId) => {
+      if (!mongoose.Types.ObjectId.isValid(purchaseId.id)) {
+        return;
+      }
+
+      const purchase = await PurchaseInvoicesModel.findOne({
+        _id: purchaseId.id,
+        companyId,
+      });
+      if (purchase) {
+        purchase.paid = "unpaid";
+
+        const removedPayments = purchase.payments.filter((item) => {
+          if (item.paymentID.toString() === payment.id.toString()) {
+            purchase.totalRemainderMainCurrency += item.paymentMainCurrency;
+            purchase.totalRemainder += item.paymentInInvoiceCurrency;
+            return false;
+          }
+          return true;
+        });
+        purchase.payments = removedPayments;
+
+        await purchase.save();
+      }
+    });
+  } else if (payment.payid.length > 0 && payment.customerId) {
+    await customarModel.findOneAndUpdate(
+      { _id: payment.customerId, companyId },
+      {
+        $inc: {
+          TotalUnpaid: +payment.totalMainCurrency,
+        },
+      },
+      { new: true }
+    );
+
+    payment.payid.map(async (salesId) => {
+      if (!mongoose.Types.ObjectId.isValid(salesId.id)) {
+        return;
+      }
+      const sales = await salesrModel.findById(salesId.id);
+
+      if (sales) {
+        sales.paymentsStatus = "unpaid";
+        const removedPayments = sales.payments.filter((item) => {
+          if (item.paymentID.toString() === payment.id.toString()) {
+            sales.totalRemainderMainCurrency += item.paymentMainCurrency;
+            sales.totalRemainder +=
+              item.paymentInInvoiceCurrency || item.payment;
+            return false;
+          }
+          return true;
+        });
+
+        sales.payments = removedPayments;
+        await sales.save();
+      }
+    });
+  } else if (
+    payment.payid.length > 0 &&
+    payment.supplierId &&
+    payment.type === "expense"
+  ) {
+    await suppliersModel.findOneAndUpdate(
+      { _id: payment.supplierId, companyId },
+      {
+        $inc: {
+          TotalUnpaid: +payment.totalMainCurrency,
+        },
+      },
+      { new: true }
+    );
+    payment.payid.map(async (expenseId) => {
+      if (!mongoose.Types.ObjectId.isValid(expenseId.id)) {
+        return;
+      }
+      const expense = await expensesModel.findOne({
+        _id: expenseId.id,
+        companyId,
+      });
+      if (expense) {
+        expense.paymentStatus = "unpaid";
+
+        const removedPayments = expense.payments.filter((item) => {
+          if (item.paymentID.toString() === payment.id.toString()) {
+            expense.totalRemainderMainCurrency += item.paymentMainCurrency;
+            expense.totalRemainder += item.paymentInInvoiceCurrency;
+            return false;
+          }
+          return true;
+        });
+        expense.payments = removedPayments;
+
+        await expense.save();
+      }
+    });
+  } else if (
+    payment.payid.length > 0 &&
+    payment.supplierId &&
+    payment.type === "refund purchase"
+  ) {
+    await suppliersModel.findOneAndUpdate(
+      { _id: payment.supplierId, companyId },
+      {
+        $inc: {
+          TotalUnpaid: -payment.totalMainCurrency,
+        },
+      },
+      { new: true }
+    );
+
+    payment.payid.map(async (purchaseId) => {
+      if (!mongoose.Types.ObjectId.isValid(purchaseId.id)) {
+        return;
+      }
+
+      const purchase = await RefundPurchaseInvoicesModel.findOne({
+        _id: purchaseId.id,
+        companyId,
+      });
+      if (purchase) {
+        purchase.paid = "unpaid";
+
+        const removedPayments = purchase.payments.filter((item) => {
+          if (item.paymentID.toString() === payment.id.toString()) {
+            purchase.totalRemainderMainCurrency += item.paymentMainCurrency;
+            purchase.totalRemainder += item.paymentInInvoiceCurrency;
+            return false;
+          }
+          return true;
+        });
+        purchase.payments = removedPayments;
+
+        await purchase.save();
+      }
+    });
+  } else if (payment.supplierId && payment.type === "supplier") {
+    // Update supplier unpaid total
+    await suppliersModel.findOneAndUpdate(
+      { _id: payment.supplierId, companyId },
+      {
+        $inc: {
+          TotalUnpaid: +payment.totalMainCurrency,
+        },
+      },
+      { new: true }
+    );
+    if (payment.payid.length > 0) {
+      for (const item of payment.payid) {
+        if (!mongoose.Types.ObjectId.isValid(item.id)) continue;
+
+        if (item.invoiceType === "purchase") {
+          const purchase = await PurchaseInvoicesModel.findOne({
+            _id: item.id,
+            companyId,
+          });
+          if (purchase) {
+            purchase.paid = "unpaid";
+
+            const filteredPayments = purchase.payments.filter((p) => {
+              if (p.paymentID.toString() === payment.id.toString()) {
+                purchase.totalRemainderMainCurrency += p.paymentMainCurrency;
+                purchase.totalRemainder +=
+                  p.paymentMainCurrency * purchase?.currency?.exchangeRate;
+                return false; // Remove this payment
+              }
+              return true;
+            });
+
+            purchase.payments = filteredPayments;
+            await purchase.save();
+          }
+        } else if (item.invoiceType === "expense") {
+          const expense = await expensesModel.findOne({
+            _id: item.id,
+            companyId,
+          });
+          if (expense) {
+            expense.paymentStatus = "unpaid";
+
+            const filteredPayments = expense.payments.filter((p) => {
+              if (p.paymentID.toString() === payment.id.toString()) {
+                expense.totalRemainderMainCurrency += p.paymentMainCurrency;
+                expense.totalRemainder +=
+                  p.paymentMainCurrency * expense?.currency?.exchangeRate;
+                return false;
+              }
+              return true;
+            });
+
+            expense.payments = filteredPayments;
+            await expense.save();
+          }
+        }
+      }
+    }
+  }
+  //  else if (payment.staffId && payment.type === "salary") {
+  //   await salaryHistoryModel.findOneAndDelete({
+  //     transactionId: id,
+  //     companyId,
+  //   });
+  // }
+
+  if (payment) {
+    try {
+      if (payment.financailType === "supplier") {
+        await suppliersModel.findOneAndUpdate(
+          { _id: payment.financialFundsId, companyId },
+          { $inc: { TotalUnpaid: payment.paymentInFundCurrency } },
+          { new: true }
+        );
+      } else if (payment.financailType === "customer") {
+        await customarModel.findOneAndUpdate(
+          { _id: payment.financialFundsId, companyId },
+          { $inc: { TotalUnpaid: payment.paymentInFundCurrency } },
+          { new: true }
+        );
+      } else if (payment.financailType === "account") {
+        await accountingTreeModel.findOneAndUpdate(
+          { _id: payment.financialFundsId, companyId },
+          { $inc: { debtor: -payment.paymentInFundCurrency } },
+          { new: true }
+        );
+      } else {
+        const reports = await ReportsFinancialFundsModel.findOne({
+          payment: id,
+          companyId,
+        });
+
+        if (reports.paymentType === "Withdrawal") {
+          await financialFundsModel.findOneAndUpdate(
+            { _id: reports.financialFundId, companyId },
+            { $inc: { fundBalance: reports.amount } },
+            { new: true }
+          );
+        } else {
+          await financialFundsModel.findOneAndUpdate(
+            { _id: reports.financialFundId, companyId },
+            { $inc: { fundBalance: -reports.amount } },
+            { new: true }
+          );
+        }
+
+        await ReportsFinancialFundsModel.findOneAndDelete({ payment: id });
+      }
+      await paymentHistoryModel.deleteMany({
+        idPaymet: payment.id,
+        companyId,
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  }
+  res.status(200).json({ message: "deleted", data: payment });
+});
+
+exports.deletePaymentTransferFund = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { id } = req.params;
+
+  const payment = await paymentModel.findOne({ _id: id, companyId });
+  if (!payment) {
+    return next(new ApiError(`no Payment: ${id}`, 404));
+  }
+
+  const fundReports = await ReportsFinancialFundsModel.find({
+    ref: id,
+    companyId,
+  });
+
+  if (!fundReports || fundReports.length < 2) {
+    return next(new ApiError(`no Fund Reports`, 400));
+  }
+
+  const updates = fundReports.map((report) => {
+    return FinancialFundsModel.findOneAndUpdate(
+      { _id: report.financialFundId, companyId },
+      {
+        $inc: {
+          fundBalance:
+            report.type === "Withdrawal transfer"
+              ? report.amount
+              : -report.amount,
+        },
+      },
+      { new: true }
+    );
+  });
+
+  await Promise.all(updates);
+  await ReportsFinancialFundsModel.deleteMany({ ref: id, companyId });
+
+  await paymentModel.findOneAndDelete({ _id: id, companyId });
+
+  res.status(200).json({ status: "success", data: payment });
+});

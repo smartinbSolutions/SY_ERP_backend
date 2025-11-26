@@ -146,19 +146,55 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     };
   });
 
-  const investingReport = investingAccounts.map((acc) => ({
-    _id: acc._id,
-    name: acc.name,
-    balance: calculate(acc, selectedBalances),
-    previousBalance: calculate(acc, previousBalances),
-  }));
+  const investingTypes = ["Fixed Assets"];
+  const investingReport = {};
 
-  const financingReport = financingAccounts.map((acc) => ({
-    _id: acc._id,
-    name: acc.name,
-    balance: calculate(acc, selectedBalances),
-    previousBalance: calculate(acc, previousBalances),
-  }));
+  investingTypes.forEach((section) => {
+    const accounts = investingAccounts.filter((a) => a.accountType === section);
+    const currentData = accounts.map((acc) => ({
+      _id: acc._id,
+      name: acc.name,
+      balance: calculate(acc, selectedBalances),
+      previousBalance: calculate(acc, previousBalances),
+    }));
+
+    const total = currentData.reduce((s, a) => s + a.balance, 0);
+    const previousTotal = currentData.reduce(
+      (s, a) => s + a.previousBalance,
+      0
+    );
+
+    investingReport[section] = {
+      total,
+      previousTotal,
+      accounts: currentData,
+    };
+  });
+
+  const financingTypes = ["Non-Current Liabilities", "Equity", "Current Asset"];
+  const financingReport = {};
+
+  financingTypes.forEach((section) => {
+    const accounts = financingAccounts.filter((a) => a.accountType === section);
+    const currentData = accounts.map((acc) => ({
+      _id: acc._id,
+      name: acc.name,
+      balance: calculate(acc, selectedBalances),
+      previousBalance: calculate(acc, previousBalances),
+    }));
+
+    const total = currentData.reduce((s, a) => s + a.balance, 0);
+    const previousTotal = currentData.reduce(
+      (s, a) => s + a.previousBalance,
+      0
+    );
+
+    financingReport[section] = {
+      total,
+      previousTotal,
+      accounts: currentData,
+    };
+  });
 
   res.status(200).json({
     selectedPeriod: {
