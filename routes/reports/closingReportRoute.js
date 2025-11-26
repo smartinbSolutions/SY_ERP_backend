@@ -1,9 +1,11 @@
 const express = require("express");
-const { getClosingReports } = require("../../services/reports/closingReportServices");
+const {
+  getClosingReports,
+} = require("../../services/reports/closingReportServices");
 const closingReportRoute = express.Router();
+const authService = require("../../services/authService");
 
-closingReportRoute
-  .route("/")
-  .get(getClosingReports)
+closingReportRoute.use(authService.protect);
+closingReportRoute.route("/").get(getClosingReports);
 
-  module.exports = closingReportRoute;
+module.exports = closingReportRoute;
