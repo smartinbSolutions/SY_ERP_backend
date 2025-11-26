@@ -33,82 +33,87 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
       _id: { $nin: cashAccounts.map((acc) => acc._id) },
     })
     .lean();
+
   const fixedAccounts = await accountingTreeModel
     .find({
       companyId,
-      accountType: {
-        $in: ["Fixed Assets"],
-      },
+      accountType: ["Fixed Assets"],
       accountCategory: "investing",
     })
     .lean();
+
   const financingAccounts = await accountingTreeModel
     .find({
       companyId,
-      accountType: {
-        $in: ["Non-Current Liabilities", "Equity", "Current Asset"],
-      },
+      accountType: ["Non-Current Liabilities", "Equity", "Current Asset"],
       accountCategory: "financing",
     })
     .lean();
+
   const allAccounts = [
     ...cashAccounts,
     ...otherAccounts,
     ...fixedAccounts,
     ...financingAccounts,
   ];
-  const accountsMap = {};
-  allAccounts.forEach((acc) => {
-    accountsMap[acc._id.toString()] = acc;
-  });
 
   const targetIds = allAccounts.map((a) => a._id.toString());
 
-  const journalAggregates = await journalEntryModel.aggregate([
-    {
-      $match: {
-        companyId,
-        ...(startDate && endDate
-          ? {
-              journalDate: {
-                $gte: `${startDate}T00:00:00.000Z`,
-                $lte: `${endDate}T23:59:59.999Z`,
-              },
-            }
-          : {}),
-      },
-    },
-    { $unwind: "$journalAccounts" },
-    {
-      $match: {
-        "journalAccounts.id": { $in: targetIds },
-      },
-    },
-    {
-      $group: {
-        _id: "$journalAccounts.id",
-        totalDebit: { $sum: "$journalAccounts.MainDebit" },
-        totalCredit: { $sum: "$journalAccounts.MainCredit" },
-      },
-    },
-  ]);
+  const userStart = `${startDate}T00:00:00.000Z`;
+  const userEnd = `${endDate}T23:59:59.999Z`;
 
-  const balancesMap = {};
-  journalAggregates.forEach((entry) => {
-    balancesMap[entry._id.toString()] =
-      (entry.totalDebit || 0) - (entry.totalCredit || 0);
-  });
+  const yearStart = `${startDate.split("-")[0]}-01-01T00:00:00.000Z`;
 
-  const calculateAccountBalance = (acc) => {
-    const balance = balancesMap[acc._id.toString()] || 0;
-    return acc.balanceType === "credit" ? -balance : balance;
+  const prevEnd = `${startDate}T00:00:00.000Z`;
+
+  async function getPeriodBalances(start, end) {
+    const result = await journalEntryModel.aggregate([
+      { $match: { companyId } },
+
+      {
+        $match: {
+          journalDate: {
+            $gte: start,
+            $lte: end,
+          },
+        },
+      },
+      { $unwind: "$journalAccounts" },
+      {
+        $match: {
+          "journalAccounts.id": { $in: targetIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$journalAccounts.id",
+          totalDebit: { $sum: "$journalAccounts.MainDebit" },
+          totalCredit: { $sum: "$journalAccounts.MainCredit" },
+        },
+      },
+    ]);
+
+    const map = {};
+    result.forEach((r) => {
+      map[r._id] = (r.totalDebit || 0) - (r.totalCredit || 0);
+    });
+
+    return map;
+  }
+
+  const selectedBalances = await getPeriodBalances(userStart, userEnd);
+  const previousBalances = await getPeriodBalances(yearStart, prevEnd);
+
+  const calculate = (acc, map) => {
+    const bal = map[acc._id.toString()] || 0;
+    return acc.balanceType === "credit" ? -bal : bal;
   };
 
   const cashReport = cashAccounts.map((acc) => ({
     _id: acc._id,
     name: acc.name,
-    balanceType: acc.balanceType,
-    balance: calculateAccountBalance(acc),
+    balance: calculate(acc, selectedBalances),
+    previousBalance: calculate(acc, previousBalances),
   }));
 
   const otherSections = [
@@ -117,39 +122,58 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     "Operating Expenses",
     "Non Operating Expenses",
   ];
+
   const otherReport = {};
 
   otherSections.forEach((section) => {
-    const sectionAccounts = otherAccounts.filter(
-      (acc) => acc.accountType === section
-    );
-    const sectionData = sectionAccounts.map((acc) => ({
+    const accounts = otherAccounts.filter((a) => a.accountType === section);
+
+    const currentData = accounts.map((acc) => ({
       _id: acc._id,
       name: acc.name,
-      balance: calculateAccountBalance(acc),
+      balance: calculate(acc, selectedBalances),
+      previousBalance: calculate(acc, previousBalances),
     }));
-    const sectionTotal = sectionData.reduce((sum, acc) => sum + acc.balance, 0);
-    otherReport[section] = { total: sectionTotal, accounts: sectionData };
+
+    const total = currentData.reduce((s, a) => s + a.balance, 0);
+    const previousTotal = currentData.reduce(
+      (s, a) => s + a.previousBalance,
+      0
+    );
+
+    otherReport[section] = {
+      total,
+      previousTotal,
+      accounts: currentData,
+    };
   });
+
   const fixedReport = fixedAccounts.map((acc) => ({
     _id: acc._id,
     name: acc.name,
-    balance: calculateAccountBalance(acc),
+    balance: calculate(acc, selectedBalances),
+    previousBalance: calculate(acc, previousBalances),
   }));
 
   const investingReport = financingAccounts.map((acc) => ({
     _id: acc._id,
     name: acc.name,
-    balance: calculateAccountBalance(acc),
+    balance: calculate(acc, selectedBalances),
+    previousBalance: calculate(acc, previousBalances),
   }));
 
   res.status(200).json({
-    companyId,
-    startDate,
-    endDate,
+    selectedPeriod: {
+      startDate,
+      endDate,
+    },
+    previousPeriod: {
+      startDate: yearStart,
+      endDate: prevEnd,
+    },
     cashReport,
     otherReport,
-    investingReport,
     fixedReport,
+    investingReport,
   });
 });
