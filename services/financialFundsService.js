@@ -3,7 +3,7 @@ const ApiError = require("../utils/apiError");
 const FinancialFundsModel = require("../models/financialFundsModel");
 const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
 const SalesPointModel = require("../models/salesPointModel");
-const paymentModel = require("../models/paymentModelOld");
+const paymentModel = require("../models/paymentModel");
 
 //@desc Get list of Financial Funds
 //@route GET  /api/financialfunds
@@ -302,6 +302,7 @@ exports.transfer = asyncHandler(async (req, res, next) => {
     totalMainCurrency,
     refCounter,
     fundCurrency,
+    toCurrencyInfo,
   } = req.body;
   const dateAndTime = `${req.body.date}T${formattedDate}Z`;
   req.body.date = dateAndTime;
@@ -332,24 +333,43 @@ exports.transfer = asyncHandler(async (req, res, next) => {
     })) + 1;
 
   const payment = await paymentModel.create({
-    total: fundFromAmount,
-    financialFundsCurrencyCode: fromFundCurrencyCode,
-    exchangeRate,
-    date: req.body.date,
-    counter: Number(req.body.counter) + Number(counter),
-    financialFundsName: fundNamefrom,
-    paymentInFundCurrency: fundFromAmount,
-    paymentCurrency: fromFundCurrencyCode,
-    type: "Transfer",
-    totalMainCurrency: totalMainCurrency,
-    financialFundsId: id,
-    journalCounter: req.body.journalCounter,
     companyId,
-    fundName: fundNameto,
-    fundId: fund,
+
+    source: {
+      id: fund,
+      name: fundNameto,
+    },
+    sourceType: "fund",
+
+    destination: {
+      id: id,
+      name: fundNamefrom,
+    },
+    destinationType: "fund",
+
+    totalInPaymentCurrency: fundToAmount,
+    totalMainCurrency: totalMainCurrency,
+    paymentInDestinationCurrency: fundFromAmount,
+
+    paymentCurrency: {
+      name: toCurrencyInfo.currencyName,
+      code: fundCurrency,
+      id: toCurrencyInfo._id,
+      exchangeRate: toCurrencyInfo.exchangeRate,
+    },
+
+    destinationCurrencyCode: fromFundCurrencyCode,
+    destinationExchangeRate: req.body.fromFundExchangeRate,
+
+    type: "Transfer",
+    paymentType: "Transfer",
+
     paymentText: "Transfer",
-    fundCurrency,
-    description: description,
+    description,
+    date: req.body.date,
+
+    counter: Number(req.body.counter) + Number(counter),
+    journalCounter: req.body.journalCounter,
   });
 
   await financialFund.save();

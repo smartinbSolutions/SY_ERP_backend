@@ -17,6 +17,7 @@ const staffModel = require("../models/Hr/staffModel");
 const salaryHistoryModel = require("../models/Hr/salaryHistoryModel");
 const returnOrderModel = require("../models/returnOrderModel");
 const paymentHistoryModel = require("../models/paymentHistoryModel");
+const { default: mongoose } = require("mongoose");
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, callback) {
@@ -184,7 +185,7 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
     case "fund":
       const fundPayment = await handleFundPayment(req, companyId, next);
       return res.status(201).json({
-        message: "Supplier payment created successfully",
+        message: "Fund payment created successfully",
         payment: fundPayment,
       });
     case "supplier":
@@ -416,14 +417,13 @@ const handleSupplierPayment = async (req, companyId, next) => {
     if (bulkExpenseUpdates.length)
       await expensesModel.bulkWrite(bulkExpenseUpdates);
 
-    // ====== سجل الدفعة ======
     await createPaymentHistory(
       "payment",
       date,
       totalMainCurrency,
       paymentInFundCurrency,
       "supplier",
-      destination?.id,
+      req.body.source.id,
       0,
       companyId,
       description,
@@ -1216,337 +1216,341 @@ const handleSalaryPayment = async (req, companyId, next) => {
 
 const handleAccountPayment = async (req, companyId, next) => {
   try {
-    if (req.body.isWithDraw === true) {
-      financialFunds.fundBalance -=
-        Number(req.body.totalMainCurrency) * req.body.exchangeRate;
-      paymentText = "Withdrawal";
-    } else {
-      financialFunds.fundBalance +=
-        Number(req.body.totalMainCurrency) * req.body.exchangeRate;
-      paymentText = "Deposit";
-    }
-    req.body.paymentText = paymentText;
+    const {
+      source,
+      totalMainCurrency,
+      totalInPaymentCurrency,
+      paymentInFundCurrency,
+      exchangeRate,
+      date,
+      description,
+      destination,
+      paymentCurrency,
+      destinationCurrencyCode,
+      destinationType,
+    } = req.body;
     payment = await paymentModel.create(req.body);
-    // await financailSource(
-    //   destinationType,
-    //   destination,
-    //   companyId,
-    //   req.body,
-    //   next,
-    //   paymentInFundCurrency,
-    //   payment._id,
-    //   req
-    // );
+    await financailSource(
+      destinationType,
+      destination,
+      companyId,
+      req.body,
+      next,
+      paymentInFundCurrency,
+      payment._id,
+      req
+    );
     return payment;
   } catch (err) {
     throw err;
   }
 };
 
-exports.deletePayment = asyncHandler(async (req, res, next) => {
+exports.getPayment = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const filters = req.query?.filters ? JSON.parse(req.query.filters) : {};
+  const pageSize = parseInt(req.query.limit) || 0;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  let query = { companyId };
+
+  // Filter by payment type
+  if (req.query.type) {
+    query.type = req.query.type;
+  }
+
+  // Date filter
+  if (filters?.startDate || filters?.endDate) {
+    query.date = {};
+    if (filters.startDate) query.date.$gte = filters.startDate;
+    if (filters.endDate) query.date.$lte = filters.endDate;
+  }
+
+  // Payment Status
+  if (filters.paymentStatus) query.status = filters.paymentStatus;
+
+  // Employee filter
+  if (filters.employee) query.employee = filters.employee;
+
+  // Tags filter
+  if (filters?.tags?.length) {
+    const tagIds = filters.tags.map((tag) => tag.id);
+    query["tags.id"] = { $in: tagIds };
+  }
+
+  // Business Partners filter
+  if (filters?.businessPartners) {
+    query["customer.name"] = {
+      $regex: filters.businessPartners,
+      $options: "i",
+    };
+  }
+
+  // Keyword search
+  if (req.query.keyword) {
+    const keyword = req.query.keyword;
+    query.$or = [
+      { counter: { $regex: keyword, $options: "i" } },
+      { invoiceName: { $regex: keyword, $options: "i" } },
+      { customerName: { $regex: keyword, $options: "i" } },
+      { supplierName: { $regex: keyword, $options: "i" } },
+    ];
+  }
+
+  // Query the database
+  const paymentsQuery = paymentModel.find(query).sort({ date: -1 }).lean();
+  if (pageSize > 0) paymentsQuery.skip(skip).limit(pageSize);
+
+  const [payments, totalItems] = await Promise.all([
+    paymentsQuery,
+    paymentModel.countDocuments(query),
+  ]);
+
+  const totalPages = pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1;
+
+  if (!payments) {
+    return next(new ApiError("Not found any Payment here", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    totalPages,
+    results: payments.length,
+    data: payments,
+  });
+});
+
+exports.getOnePayment = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
+  const { id } = req.params;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
+  // Build query based on ID type
+  const buildQuery = (id) => {
+    const query = { companyId };
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else if (!isNaN(id)) {
+      query.counter = Number(id);
+    } else {
+      query.stringId = id;
+    }
+    return query;
+  };
+
+  const query = buildQuery(id);
+
+  // Search in primary model
+  let payment = await paymentModel.findOne(query).lean();
+
+  // Fallback to new model if not found
+  if (!payment) {
+    payment = await paymentModelNew.findOne(query).lean();
+  }
+
+  if (!payment) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Payment not found",
+    });
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: payment,
+  });
+});
+
+exports.deletePayment = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is required" });
+
   const { id } = req.params;
   const isObjectIdValid = mongoose.Types.ObjectId.isValid(id);
+  const query = isObjectIdValid ? { _id: id } : { counter: id };
 
-  // If it's a valid ObjectId, create the ObjectId instance for _id and counter comparison
-  let objectId = null;
-  if (isObjectIdValid) {
-    objectId = new mongoose.Types.ObjectId(id);
-  }
+  const payment = await paymentModel.findOneAndDelete({ companyId, ...query });
+  if (!payment) return next(new Error(`No Payment found with id ${id}`));
 
-  // Now we proceed with deletion logic
-  let payment;
-  if (isObjectIdValid) {
-    // Try to delete by _id or counter if ObjectId is valid
-    payment = await paymentModel.findOneAndDelete({
+  const updateSupplier = async (amount) => {
+    if (!payment.supplierId) return;
+    await suppliersModel.findByIdAndUpdate(payment.source.id, {
+      $inc: { TotalUnpaid: amount },
+    });
+  };
+
+  const updateCustomer = async (amount) => {
+    if (!payment) return;
+    await customarModel.findByIdAndUpdate(payment.source.id, {
+      $inc: { TotalUnpaid: amount },
+    });
+  };
+
+  const updateAccount = async (amount) => {
+    if (!payment.accountId) return;
+
+    const isDeposit = payment.paymentType === "Deposit";
+
+    await accountingTreeModel.findByIdAndUpdate(payment.accountId, {
+      $inc: {
+        debtor: isDeposit ? amount : -amount,
+        creditor: isDeposit ? -amount : amount,
+      },
+    });
+  };
+
+  const updateFund = async (amount) => {
+    if (!payment.financialFundId) return;
+    await financialFundsModel.findByIdAndUpdate(payment.source.id, {
+      $inc: { fundBalance: amount },
+    });
+    await ReportsFinancialFundsModel.deleteMany({
+      payment: payment._id,
       companyId,
-      $or: [{ _id: objectId }],
     });
-  } else {
-    // If it's not a valid ObjectId, assume it's a string for counter
-    payment = await paymentModel.findOneAndDelete({
-      companyId,
-      $or: [{ counter: id }],
-    });
-  }
-  if (!payment) {
-    return next(new ApiError(`No Payment with this id ${id}`));
-  }
-  if (
-    payment.payid.length > 0 &&
-    payment.supplierId &&
-    payment.type === "purchase"
-  ) {
-    await suppliersModel.findOneAndUpdate(
-      { _id: payment.supplierId, companyId },
-      {
-        $inc: {
-          TotalUnpaid: +payment.totalMainCurrency,
-        },
-      },
-      { new: true }
-    );
+  };
 
-    payment.payid.map(async (purchaseId) => {
-      if (!mongoose.Types.ObjectId.isValid(purchaseId.id)) {
-        return;
-      }
+  if (payment.payid && payment.payid.length > 0) {
+    for (const item of payment.payid) {
+      if (!mongoose.Types.ObjectId.isValid(item.id)) continue;
 
-      const purchase = await PurchaseInvoicesModel.findOne({
-        _id: purchaseId.id,
-        companyId,
-      });
-      if (purchase) {
-        purchase.paid = "unpaid";
-
-        const removedPayments = purchase.payments.filter((item) => {
-          if (item.paymentID.toString() === payment.id.toString()) {
-            purchase.totalRemainderMainCurrency += item.paymentMainCurrency;
-            purchase.totalRemainder += item.paymentInInvoiceCurrency;
-            return false;
-          }
-          return true;
-        });
-        purchase.payments = removedPayments;
-
-        await purchase.save();
-      }
-    });
-  } else if (payment.payid.length > 0 && payment.customerId) {
-    await customarModel.findOneAndUpdate(
-      { _id: payment.customerId, companyId },
-      {
-        $inc: {
-          TotalUnpaid: +payment.totalMainCurrency,
-        },
-      },
-      { new: true }
-    );
-
-    payment.payid.map(async (salesId) => {
-      if (!mongoose.Types.ObjectId.isValid(salesId.id)) {
-        return;
-      }
-      const sales = await salesrModel.findById(salesId.id);
-
-      if (sales) {
-        sales.paymentsStatus = "unpaid";
-        const removedPayments = sales.payments.filter((item) => {
-          if (item.paymentID.toString() === payment.id.toString()) {
-            sales.totalRemainderMainCurrency += item.paymentMainCurrency;
-            sales.totalRemainder +=
-              item.paymentInInvoiceCurrency || item.payment;
-            return false;
-          }
-          return true;
-        });
-
-        sales.payments = removedPayments;
-        await sales.save();
-      }
-    });
-  } else if (
-    payment.payid.length > 0 &&
-    payment.supplierId &&
-    payment.type === "expense"
-  ) {
-    await suppliersModel.findOneAndUpdate(
-      { _id: payment.supplierId, companyId },
-      {
-        $inc: {
-          TotalUnpaid: +payment.totalMainCurrency,
-        },
-      },
-      { new: true }
-    );
-    payment.payid.map(async (expenseId) => {
-      if (!mongoose.Types.ObjectId.isValid(expenseId.id)) {
-        return;
-      }
-      const expense = await expensesModel.findOne({
-        _id: expenseId.id,
-        companyId,
-      });
-      if (expense) {
-        expense.paymentStatus = "unpaid";
-
-        const removedPayments = expense.payments.filter((item) => {
-          if (item.paymentID.toString() === payment.id.toString()) {
-            expense.totalRemainderMainCurrency += item.paymentMainCurrency;
-            expense.totalRemainder += item.paymentInInvoiceCurrency;
-            return false;
-          }
-          return true;
-        });
-        expense.payments = removedPayments;
-
-        await expense.save();
-      }
-    });
-  } else if (
-    payment.payid.length > 0 &&
-    payment.supplierId &&
-    payment.type === "refund purchase"
-  ) {
-    await suppliersModel.findOneAndUpdate(
-      { _id: payment.supplierId, companyId },
-      {
-        $inc: {
-          TotalUnpaid: -payment.totalMainCurrency,
-        },
-      },
-      { new: true }
-    );
-
-    payment.payid.map(async (purchaseId) => {
-      if (!mongoose.Types.ObjectId.isValid(purchaseId.id)) {
-        return;
-      }
-
-      const purchase = await RefundPurchaseInvoicesModel.findOne({
-        _id: purchaseId.id,
-        companyId,
-      });
-      if (purchase) {
-        purchase.paid = "unpaid";
-
-        const removedPayments = purchase.payments.filter((item) => {
-          if (item.paymentID.toString() === payment.id.toString()) {
-            purchase.totalRemainderMainCurrency += item.paymentMainCurrency;
-            purchase.totalRemainder += item.paymentInInvoiceCurrency;
-            return false;
-          }
-          return true;
-        });
-        purchase.payments = removedPayments;
-
-        await purchase.save();
-      }
-    });
-  } else if (payment.supplierId && payment.type === "supplier") {
-    // Update supplier unpaid total
-    await suppliersModel.findOneAndUpdate(
-      { _id: payment.supplierId, companyId },
-      {
-        $inc: {
-          TotalUnpaid: +payment.totalMainCurrency,
-        },
-      },
-      { new: true }
-    );
-    if (payment.payid.length > 0) {
-      for (const item of payment.payid) {
-        if (!mongoose.Types.ObjectId.isValid(item.id)) continue;
-
-        if (item.invoiceType === "purchase") {
-          const purchase = await PurchaseInvoicesModel.findOne({
-            _id: item.id,
-            companyId,
-          });
+      switch (item.sourceType) {
+        case "purchase":
+          const purchase = await purchaseinvoicesModel.findById(item.id);
           if (purchase) {
             purchase.paid = "unpaid";
-
-            const filteredPayments = purchase.payments.filter((p) => {
-              if (p.paymentID.toString() === payment.id.toString()) {
-                purchase.totalRemainderMainCurrency += p.paymentMainCurrency;
-                purchase.totalRemainder +=
-                  p.paymentMainCurrency * purchase?.currency?.exchangeRate;
-                return false; // Remove this payment
-              }
-              return true;
-            });
-
-            purchase.payments = filteredPayments;
+            purchase.totalRemainderMainCurrency +=
+              item.paymentMainCurrency || 0;
+            purchase.totalRemainder += item.paymentInInvoiceCurrency || 0;
+            purchase.payments = purchase.payments.filter(
+              (p) => p.paymentID.toString() !== payment._id.toString()
+            );
             await purchase.save();
           }
-        } else if (item.invoiceType === "expense") {
-          const expense = await expensesModel.findOne({
-            _id: item.id,
-            companyId,
-          });
+          break;
+
+        case "expense":
+          const expense = await expensesModel.findById(item.id);
           if (expense) {
             expense.paymentStatus = "unpaid";
-
-            const filteredPayments = expense.payments.filter((p) => {
-              if (p.paymentID.toString() === payment.id.toString()) {
-                expense.totalRemainderMainCurrency += p.paymentMainCurrency;
-                expense.totalRemainder +=
-                  p.paymentMainCurrency * expense?.currency?.exchangeRate;
-                return false;
-              }
-              return true;
-            });
-
-            expense.payments = filteredPayments;
+            expense.totalRemainderMainCurrency += item.paymentMainCurrency || 0;
+            expense.totalRemainder += item.paymentInInvoiceCurrency || 0;
+            expense.payments = expense.payments.filter(
+              (p) => p.paymentID.toString() !== payment._id.toString()
+            );
             await expense.save();
           }
-        }
+          break;
+
+        case "refundPurchase":
+          const refundPurchase = await RefundPurchaseInvoicesModel.findById(
+            item.id
+          );
+          if (refundPurchase) {
+            refundPurchase.paid = "unpaid";
+            refundPurchase.totalRemainderMainCurrency +=
+              item.paymentMainCurrency || 0;
+            refundPurchase.totalRemainder += item.paymentInInvoiceCurrency || 0;
+            refundPurchase.payments = refundPurchase.payments.filter(
+              (p) => p.paymentID.toString() !== payment._id.toString()
+            );
+            await refundPurchase.save();
+          }
+          break;
+
+        case "sales":
+          const sale = await salesrModel.findById(item.id);
+          if (sale) {
+            sale.paymentsStatus = "unpaid";
+            sale.totalRemainderMainCurrency += item.paymentMainCurrency || 0;
+            sale.totalRemainder += item.paymentInInvoiceCurrency || 0;
+            sale.payments = sale.payments.filter(
+              (p) => p.paymentID.toString() !== payment._id.toString()
+            );
+            await sale.save();
+          }
+          break;
+        case "refundSales":
+          const refundSale = await returnOrderModel.findById(item.id);
+          if (refundSale) {
+            refundSale.paid = "unpaid";
+            refundSale.totalRemainderMainCurrency +=
+              item.paymentMainCurrency || 0;
+            refundSale.totalRemainder += item.paymentInInvoiceCurrency || 0;
+            refundSale.payments = refundSale.payments.filter(
+              (p) => p.paymentID.toString() !== payment._id.toString()
+            );
+            await refundSale.save();
+          }
+          break;
       }
     }
-  }
-  //  else if (payment.staffId && payment.type === "salary") {
-  //   await salaryHistoryModel.findOneAndDelete({
-  //     transactionId: id,
-  //     companyId,
-  //   });
-  // }
+  } else {
+    const type = payment.sourceType;
+    const paymentAmount =
+      payment.paymentType === "Deposit"
+        ? payment.paymentInDestinationCurrency
+        : -payment.paymentInDestinationCurrency;
+    switch (type) {
+      case "supplier":
+        await updateSupplier(-paymentAmount);
+        break;
 
-  if (payment) {
-    try {
-      if (payment.financailType === "supplier") {
-        await suppliersModel.findOneAndUpdate(
-          { _id: payment.financialFundsId, companyId },
-          { $inc: { TotalUnpaid: payment.paymentInFundCurrency } },
-          { new: true }
-        );
-      } else if (payment.financailType === "customer") {
-        await customarModel.findOneAndUpdate(
-          { _id: payment.financialFundsId, companyId },
-          { $inc: { TotalUnpaid: payment.paymentInFundCurrency } },
-          { new: true }
-        );
-      } else if (payment.financailType === "account") {
-        await accountingTreeModel.findOneAndUpdate(
-          { _id: payment.financialFundsId, companyId },
-          { $inc: { debtor: -payment.paymentInFundCurrency } },
-          { new: true }
-        );
-      } else {
-        const reports = await ReportsFinancialFundsModel.findOne({
-          payment: id,
-          companyId,
-        });
+      case "customer":
+        await updateCustomer(paymentAmount);
+        break;
 
-        if (reports.paymentType === "Withdrawal") {
-          await financialFundsModel.findOneAndUpdate(
-            { _id: reports.financialFundId, companyId },
-            { $inc: { fundBalance: reports.amount } },
-            { new: true }
-          );
-        } else {
-          await financialFundsModel.findOneAndUpdate(
-            { _id: reports.financialFundId, companyId },
-            { $inc: { fundBalance: -reports.amount } },
-            { new: true }
-          );
-        }
-
-        await ReportsFinancialFundsModel.findOneAndDelete({ payment: id });
-      }
-      await paymentHistoryModel.deleteMany({
-        idPaymet: payment.id,
-        companyId,
-      });
-    } catch (e) {
-      console.log(e);
+      case "account":
+        await updateAccount(paymentAmount);
+        break;
     }
   }
-  res.status(200).json({ message: "deleted", data: payment });
+
+  switch (payment.destinationType) {
+    case "supplier":
+      await updateSupplier(
+        payment.paymentType === "Deposit"
+          ? -payment.paymentInDestinationCurrency
+          : payment.paymentInDestinationCurrency
+      );
+      break;
+    case "customer":
+      await updateCustomer(
+        payment.paymentType === "Deposit"
+          ? payment.paymentInDestinationCurrency
+          : -payment.paymentInDestinationCurrency
+      );
+      break;
+    case "account":
+      await updateAccount(
+        payment.paymentType === "Deposit"
+          ? payment.paymentInDestinationCurrency
+          : -payment.paymentInDestinationCurrency
+      );
+      break;
+    case "fund":
+      await updateFund(
+        payment.paymentType === "Deposit"
+          ? payment.paymentInDestinationCurrency
+          : -payment.paymentInDestinationCurrency
+      );
+      break;
+  }
+
+  await paymentHistoryModel.deleteMany({ idPaymet: payment._id, companyId });
+
+  res
+    .status(200)
+    .json({ message: "Payment deleted successfully", data: payment });
 });
 
 exports.deletePaymentTransferFund = asyncHandler(async (req, res, next) => {
@@ -1573,7 +1577,7 @@ exports.deletePaymentTransferFund = asyncHandler(async (req, res, next) => {
   }
 
   const updates = fundReports.map((report) => {
-    return FinancialFundsModel.findOneAndUpdate(
+    return financialFundsModel.findOneAndUpdate(
       { _id: report.financialFundId, companyId },
       {
         $inc: {
