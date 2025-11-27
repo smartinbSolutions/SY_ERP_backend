@@ -606,7 +606,7 @@ const handleRefundPurchasePayment = async (req, companyId, next) => {
       refundPurchase.totalRemainder = 0;
     }
 
-    supplier.TotalUnpaid -= paymentAmount;
+    // supplier.TotalUnpaid -= paymentAmount;
 
     refundPurchase.payments.push({
       payment: paymentInFundCurrency || paymentAmount,
@@ -976,7 +976,7 @@ const handleRefundSalesPayment = async (req, companyId, next) => {
       sales.totalRemainder = 0;
     }
 
-    customar.TotalUnpaid -= paymentAmount;
+    // customar.TotalUnpaid -= paymentAmount;
 
     sales.payments.push({
       payment: paymentInFundCurrency || paymentAmount,
@@ -1382,7 +1382,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
   if (!payment) return next(new Error(`No Payment found with id ${id}`));
 
   const updateSupplier = async (amount) => {
-    if (!payment.supplierId) return;
+    if (!payment) return;
     await suppliersModel.findByIdAndUpdate(payment.source.id, {
       $inc: { TotalUnpaid: amount },
     });
@@ -1396,7 +1396,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
   };
 
   const updateAccount = async (amount) => {
-    if (!payment.accountId) return;
+    if (!payment) return;
 
     const isDeposit = payment.paymentType === "Deposit";
 
@@ -1409,7 +1409,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
   };
 
   const updateFund = async (amount) => {
-    if (!payment.financialFundId) return;
+    if (!payment) return;
     await financialFundsModel.findByIdAndUpdate(payment.source.id, {
       $inc: { fundBalance: amount },
     });
