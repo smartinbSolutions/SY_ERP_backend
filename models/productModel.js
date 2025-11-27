@@ -150,6 +150,10 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: "Additional Info",
     },
+    mostLiklySupplier: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Supplier",
+    },
     customAttributes: [
       {
         key: String,
@@ -157,7 +161,7 @@ const productSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    serialNumber: { type: String, default: "" },
+    serialNumbers: [{ type: String, default: "" }],
     expirationDate: { type: String, default: Date.now },
     unitsPrices: [
       {
@@ -218,11 +222,6 @@ const productSchema = new mongoose.Schema(
     ],
     groupID: { type: String },
     importDate: String,
-    supplier: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Supplier",
-    },
-    suppliers: [String],
     soldByMonth: Number,
     soldByWeek: Number,
     haveGift: Boolean,
