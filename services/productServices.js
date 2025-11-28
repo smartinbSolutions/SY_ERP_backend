@@ -115,14 +115,18 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
     ];
   }
 
-  if (req.query.type === "category" || req.query.type === "brand") {
-    query.$and = [];
-    if (req.query.type === "category") {
-      query.$and.push({ category: new Types.ObjectId(req.query.id) });
-    }
-    if (req.query.type === "brand") {
-      query.$and.push({ brand: new Types.ObjectId(req.query.id) });
-    }
+  query.$and = query.$and || [];
+
+  if (req.query.categoryId) {
+    query.$and.push({ category: new Types.ObjectId(req.query.categoryId) });
+  }
+
+  if (req.query.brandId) {
+    query.$and.push({ brand: new Types.ObjectId(req.query.brandId) });
+  }
+
+  if (req.query.unitId) {
+    query.$and.push({ unit: new Types.ObjectId(req.query.unitId) });
   }
 
   if (req.query.productType) {
@@ -1800,6 +1804,95 @@ exports.getProductBySuppliers = asyncHandler(async (req, res) => {
     results: totalItems,
     Pages: totalPages,
     data: products,
+  });
+});
+
+// @desc Update bulk products
+// @route PUT /api/product/bulk-update
+// @access Private
+exports.bulkUpdate = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const updates = req.body;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ message: "Invalid or empty data array" });
+  }
+
+  let totalUpdatedProducts = 0;
+  let totalLogs = 0;
+
+  for (const item of updates) {
+    const product = await productModel.findOne({
+      _id: item.productId,
+      companyId,
+    });
+
+    if (!product) continue;
+
+    const originalUnits = product.unitsPrices || [];
+    const newUnits = item.unitsPrices || [];
+
+    let productChanged = false;
+
+    for (const updatedUnit of newUnits) {
+      // Find the original unit by name
+      const origUnit = originalUnits.find((u) => u.name === updatedUnit.name);
+      if (!origUnit) continue;
+
+      for (const updatedPrice of updatedUnit.prices) {
+        const origPriceObj = origUnit.prices.find(
+          (p) => p.title === updatedPrice.title
+        );
+        if (!origPriceObj) continue;
+
+        if (origPriceObj.price !== updatedPrice.price) {
+          productChanged = true;
+
+          // Update original price
+          origPriceObj.price = updatedPrice.price;
+
+          // Update main product fields if applicable
+          if (updatedPrice.title === "buyingprice") {
+            product.buyingprice = updatedPrice.price;
+          }
+          if (updatedPrice.title === "taxPrice") {
+            product.taxPrice = updatedPrice.price;
+          }
+
+          // Create log entry
+          await createProductMovement(
+            product._id,
+            null,
+            0,
+            0,
+            updatedPrice.price,
+            origPriceObj.price,
+            "price",
+            "edit",
+            "bulk-update",
+            companyId,
+            `Unit "${origUnit.name}" price "${updatedPrice.title}" updated`,
+            product.currency,
+            product.currency
+          );
+        }
+      }
+    }
+
+    if (productChanged) {
+      product.unitsPrices = originalUnits;
+      await product.save();
+    }
+  }
+
+  res.status(200).json({
+    status: "success",
+    updatedProducts: totalUpdatedProducts,
+    logsCreated: totalLogs,
   });
 });
 

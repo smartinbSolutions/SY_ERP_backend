@@ -25,6 +25,7 @@ const {
   updateNumber,
   getEcommerceImportProduct,
   updateProductFromExcel,
+  bulkUpdate,
 } = require("../services/productServices");
 const {
   deleteProductValdiator,
@@ -81,6 +82,7 @@ productRout
   .put(authService.protect, setEcommerceProductSponsored)
   .get(getEcommerceProductSponsored);
 productRout.route("/getallproduct").get(getAllProdcuts);
+productRout.route("/bulk-update").put(bulkUpdate);
 
 productRout
   .route("/:id")
