@@ -1896,6 +1896,39 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.bulkUpdateProductInfo = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const updates = req.body;
+  console.log(updates);
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  // تجهيز bulk operations
+  const bulkOps = updates.map((item) => {
+    const updateFields = { ...item };
+    delete updateFields.productId;
+
+    return {
+      updateOne: {
+        filter: { _id: item.productId, companyId },
+        update: { $set: updateFields },
+        upsert: false,
+      },
+    };
+  });
+
+  if (bulkOps.length > 0) {
+    await productModel.bulkWrite(bulkOps);
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: `${bulkOps.length} products updated successfully`,
+  });
+});
+
 // const resetSold = asyncHandler(async (databaseName, field) => {
 //   if (!["soldByMonth", "soldByWeek"].includes(field)) {
 //     throw new Error("Invalid field to reset");
