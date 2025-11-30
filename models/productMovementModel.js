@@ -8,6 +8,8 @@ const ProductMovementSchema = new mongoose.Schema(
       required: true,
     },
     reference: mongoose.Schema.ObjectId,
+    sellingPrice: { type: Number, default: 0 },
+    buyingPrice: { type: Number, default: 0 },
     quantity: {
       type: Number,
       default: 0,

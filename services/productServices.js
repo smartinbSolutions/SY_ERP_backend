@@ -691,7 +691,9 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
         "movement",
         "in",
         "create",
-        companyId
+        companyId,
+        req.body.taxPrice,
+        req.body.buyingprice
       );
     }
 
@@ -708,7 +710,9 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
       companyId,
       "",
       findCureency.currencyCode,
-      findCureency.currencyCode
+      findCureency.currencyCode,
+      product.taxPrice,
+      product.buyingprice
     );
     // Respond with success message and data
     res.status(201).json({

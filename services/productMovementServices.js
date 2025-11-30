@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const ProductMovement = require("../models/productMovementModel");
+const { default: mongoose } = require("mongoose");
 
 // Get all products movement
 exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
@@ -205,5 +206,50 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
       page,
       pageSize,
     },
+  });
+});
+
+exports.getSalesReports = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const movement = await ProductMovement.aggregate([
+    {
+      $match: {
+        productId: new mongoose.Types.ObjectId(id),
+        companyId: companyId,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalBuying: {
+          $sum: {
+            $cond: [{ $eq: ["$movementType", "in"] }, "$buyingPrice", 0],
+          },
+        },
+        totalSelling: {
+          $sum: {
+            $cond: [
+              { $eq: ["$movementType", "out"] },
+              { $multiply: ["$sellingPrice", "$quantity"] },
+              0,
+            ],
+          },
+        },
+      },
+    },
+    { $project: { _id: 0 } },
+  ]);
+
+  console.log(movement);
+
+  res.status(200).json({
+    status: "success",
+    data: movement[0] || { totalBuying: 0, totalSelling: 0 },
   });
 });

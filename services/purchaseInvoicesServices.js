@@ -656,7 +656,12 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "movement",
           "in",
           "purchase",
-          companyId
+          companyId,
+          "",
+          "",
+          "",
+          0,
+          item.orginalBuyingPrice
         );
 
         if (item.orginalBuyingPrice !== product.buyingprice) {
@@ -670,7 +675,12 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "price",
             "in",
             "purchase",
-            companyId
+            companyId,
+            "",
+            "",
+            "",
+            0,
+            item.orginalBuyingPrice
           );
         }
       })
@@ -1310,7 +1320,12 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           "movement",
           "in",
           "purchase",
-          companyId
+          companyId,
+          "",
+          "",
+          "",
+          0,
+          item.orginalBuyingPrice
         );
 
         // price change movement if needed
@@ -1328,7 +1343,12 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
             "price",
             "in",
             "purchase",
-            companyId
+            companyId,
+            "",
+            "",
+            "",
+            0,
+            item.orginalBuyingPrice
           );
         }
       })
@@ -1672,7 +1692,12 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         "movement",
         "out",
         "refund purchase",
-        companyId
+        companyId,
+        "",
+        "",
+        "",
+        0,
+        item.orginalBuyingPrice
       );
 
       if (item.orginalBuyingPrice !== product.buyingprice) {
@@ -1686,7 +1711,12 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "price", //type
           "in", //movementType
           "refund purchase", //source
-          companyId //dbName
+          companyId, //dbName,
+          "",
+          "",
+          "",
+          0,
+          item.orginalBuyingPrice
         );
       }
     })
@@ -1973,7 +2003,12 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "movement",
             "out",
             "purchase cancelled",
-            companyId
+            companyId,
+            "",
+            "",
+            "",
+            0,
+            item.orginalBuyingPrice
           );
         } catch (error) {
           console.error(`Error processing product ${item.qr}:`, error);

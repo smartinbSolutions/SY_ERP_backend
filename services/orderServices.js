@@ -330,7 +330,12 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         "movement",
         "out",
         "Sales Invoice",
-        companyId
+        companyId,
+        "",
+        "",
+        "",
+        item.sellingPrice,
+        item.orginalBuyingPrice
       );
     })
   );
@@ -696,7 +701,12 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
           "movement",
           "out",
           "Sales Invoice",
-          companyId
+          companyId,
+          "",
+          "",
+          "",
+          item.sellingPrice,
+          item.orginalBuyingPrice
         );
       }
     })
@@ -1105,7 +1115,12 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
             "movement",
             "in",
             "Refund Sales Invoice",
-            companyId
+            companyId,
+            "",
+            "",
+            "",
+            item.sellingPrice,
+            item.orginalBuyingPrice
           );
         }
       })
@@ -1454,7 +1469,12 @@ exports.canceledOrder = asyncHandler(async (req, res, next) => {
             "movement",
             "in",
             "refund Sales",
-            companyId
+            companyId,
+            "",
+            "",
+            "",
+            product.taxPrice,
+            product.buyingprice
           );
         })
       );

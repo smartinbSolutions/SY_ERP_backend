@@ -311,7 +311,12 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
           "movement",
           "out",
           "POS Receipt",
-          companyId
+          companyId,
+          "",
+          "",
+          "",
+          item.taxValue / item.soldQuantity + item.sellingPrice,
+          item.buyingpriceMainCurrence
         );
       }
     }
@@ -629,7 +634,12 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
       "movement",
       "in",
       "Edit Sales",
-      companyId
+      companyId,
+      "",
+      "",
+      "",
+      item.sellingPrice + item.taxValue / item.soldQuantity,
+      item.buyingpriceMainCurrence
     );
   });
 
@@ -950,7 +960,9 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
             "movement",
             "in",
             "cancel",
-            companyId
+            companyId,
+            item.taxValue + item.totalWithoutTax,
+            item.buyingpriceMainCurrence
           );
           await product.save();
         }
