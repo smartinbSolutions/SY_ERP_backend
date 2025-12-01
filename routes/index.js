@@ -84,6 +84,7 @@ const paymentRouteOld = require("./paymentRouteOld");
 const incomeStatementRoute = require("./reports/incomeStatementRoute");
 const balanceSheetsStatementRoute = require("./reports/balanceSheetsStatementRoute");
 const cashFlowRoute = require("./reports/cashFlowRoute");
+const ShortageRoute = require("./ShortageRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -132,6 +133,8 @@ const mountRoutes = (app) => {
   app.use("/api/assetcategory", assetCategoryRoute);
   app.use("/api/finalasset", finalAsset);
   app.use("/api/assetcard", assetCardRoute);
+
+  app.use("/api/shortage", ShortageRoute);
 
   //Ecommerce routes
   app.use("/api/users", E_userRoute);
