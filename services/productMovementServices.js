@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const ProductMovement = require("../models/productMovementModel");
 const { default: mongoose } = require("mongoose");
+const productModel = require("../models/productModel");
 
 // Get all products movement
 exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
@@ -211,45 +212,100 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
 
 exports.getSalesReports = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const idType = req.query.type || "product";
+  const { startDate, endDate } = req.query;
   const { id } = req.params;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const movement = await ProductMovement.aggregate([
-    {
-      $match: {
-        productId: new mongoose.Types.ObjectId(id),
-        companyId: companyId,
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalBuying: {
-          $sum: {
-            $cond: [{ $eq: ["$movementType", "in"] }, "$buyingPrice", 0],
-          },
-        },
-        totalSelling: {
-          $sum: {
-            $cond: [
-              { $eq: ["$movementType", "out"] },
-              { $multiply: ["$sellingPrice", "$quantity"] },
-              0,
-            ],
-          },
-        },
-      },
-    },
-    { $project: { _id: 0 } },
-  ]);
+  let matchStage = { companyId };
+  if (startDate && endDate) {
+    matchStage.createdAt = {
+      $gte: new Date(startDate + "T00:00:00.000Z"),
+      $lte: new Date(endDate + "T23:59:59.999Z"),
+    };
+  }
+  let groupStage = {};
+  let projectStage = {};
 
-  console.log(movement);
+  if (idType === "product") {
+    matchStage.productId = new mongoose.Types.ObjectId(id);
+
+    groupStage = {
+      _id: "$productId",
+      totalBuying: {
+        $sum: {
+          $cond: [{ $eq: ["$movementType", "in"] }, "$buyingPrice", 0],
+        },
+      },
+      totalSelling: {
+        $sum: {
+          $cond: [
+            { $eq: ["$movementType", "out"] },
+            { $multiply: ["$sellingPrice", "$quantity"] },
+            0,
+          ],
+        },
+      },
+    };
+
+    projectStage = {
+      _id: 0,
+      productId: "$_id",
+      totalBuying: 1,
+      totalSelling: 1,
+    };
+  } else if (idType === "category") {
+    const products = await productModel.find(
+      { category: id, companyId },
+      { _id: 1, name: 1 }
+    );
+
+    const ids = products.map((p) => p._id);
+    if (ids.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        data: [],
+      });
+    }
+
+    matchStage.productId = { $in: ids };
+    groupStage = {
+      _id: "$productId",
+      totalBuying: {
+        $sum: {
+          $cond: [{ $eq: ["$movementType", "in"] }, "$buyingPrice", 0],
+        },
+      },
+      totalSelling: {
+        $sum: {
+          $cond: [
+            { $eq: ["$movementType", "out"] },
+            { $multiply: ["$sellingPrice", "$quantity"] },
+            0,
+          ],
+        },
+      },
+    };
+
+    projectStage = {
+      _id: 0,
+      productId: "$_id",
+      totalBuying: 1,
+      totalSelling: 1,
+    };
+  }
+
+  const movement = await ProductMovement.aggregate([
+    { $match: matchStage },
+    { $group: groupStage },
+    { $project: projectStage },
+  ]);
 
   res.status(200).json({
     status: "success",
-    data: movement[0] || { totalBuying: 0, totalSelling: 0 },
+    data: movement,
   });
 });
