@@ -27,6 +27,8 @@ const {
   updateProductFromExcel,
   bulkUpdate,
   bulkUpdateProductInfo,
+  getNullQrProduct,
+  generateBarCode,
 } = require("../services/productServices");
 const {
   deleteProductValdiator,
@@ -48,6 +50,11 @@ productRout
   .route("/")
   .get(getProduct)
   .post(authService.protect, uploadProductImage, resizerImage, createProduct);
+
+productRout
+  .route("/nanqr")
+  .get(authService.protect, getNullQrProduct)
+  .put(generateBarCode);
 
 productRout.route("/productLazy").get(getLezyProduct);
 productRout

@@ -664,6 +664,10 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   }
   req.body.companyId = companyId;
 
+  req.body.counter = await productModel
+    .countDocuments({ companyId })
+    .then((count) => count + 1);
+
   const productData = req.body;
 
   productData.slug = slugify(productData.name);
@@ -1929,6 +1933,87 @@ exports.bulkUpdateProductInfo = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: `${bulkOps.length} products updated successfully`,
+  });
+});
+
+exports.getNullQrProduct = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  const products = await productModel.find({
+    companyId,
+    type: { $ne: "variant" },
+    $or: [{ qr: { $exists: false } }, { qr: { $size: 0 } }],
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: products,
+  });
+});
+
+exports.generateBarCode = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const { qrFormat, ids } = req.body;
+
+  if (!companyId) return next(new ApiError("companyId is required", 400));
+
+  const products = await productModel
+    .find({
+      companyId,
+      _id: { $in: ids },
+    })
+    .lean();
+
+  if (!products.length)
+    return next(new ApiError("No products found for these ids", 404));
+
+  const updates = [];
+  const newQrs = [];
+  try {
+    for (const product of products) {
+      const counter = Number(product.counter);
+
+      const generatedQr = qrFormat + "" + counter;
+
+      const exists = await productModel.findOne({
+        companyId,
+        qr: generatedQr,
+        _id: { $ne: product._id },
+      });
+
+      if (exists) {
+        return next(
+          new ApiError(
+            `QR ${generatedQr} already exists for product ${exists.name}`,
+            400
+          )
+        );
+      }
+
+      newQrs.push({ id: product._id, qr: generatedQr });
+
+      updates.push({
+        updateOne: {
+          filter: { _id: product._id, companyId },
+          update: {
+            $addToSet: { qr: generatedQr },
+          },
+        },
+      });
+    }
+
+    await productModel.bulkWrite(updates);
+  } catch (e) {
+    console.log(e);
+  }
+  res.status(200).json({
+    status: "success",
+    message: "QR codes generated successfully",
+    data: newQrs,
   });
 });
 

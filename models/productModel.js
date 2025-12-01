@@ -153,6 +153,7 @@ const productSchema = new mongoose.Schema(
     mostLiklySupplier: {
       type: mongoose.Schema.ObjectId,
       ref: "Supplier",
+      default: null,
     },
     customAttributes: [
       {
@@ -278,6 +279,7 @@ const productSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    counter: String,
   },
   {
     timestamps: true,
@@ -323,6 +325,7 @@ productSchema.pre("save", async function (next) {
 // productSchema.post("find", function (docs) {
 //   docs.forEach(setImageURL);
 // });
+productSchema.index({ counter: 1, companyId: 1 }, { unique: true });
 
 productSchema.virtual("review", {
   ref: "Review",
