@@ -210,7 +210,7 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
   });
 });
 
-exports.getSalesReports = asyncHandler(async (req, res, next) => {
+exports.getSalesReports = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
   const idType = req.query.type || "product";
   const { startDate, endDate } = req.query;
@@ -221,25 +221,39 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
   }
 
   let matchStage = { companyId };
+
+  // Date filter
   if (startDate && endDate) {
     matchStage.createdAt = {
       $gte: new Date(startDate + "T00:00:00.000Z"),
       $lte: new Date(endDate + "T23:59:59.999Z"),
     };
   }
+
   let groupStage = {};
   let projectStage = {};
 
   if (idType === "product") {
     matchStage.productId = new mongoose.Types.ObjectId(id);
 
+    const product = await productModel.findById(id).lean();
+    const productName = product?.name || "";
+
     groupStage = {
       _id: "$productId",
+
+      // Total buying value = price × quantity
       totalBuying: {
         $sum: {
-          $cond: [{ $eq: ["$movementType", "in"] }, "$buyingPrice", 0],
+          $cond: [
+            { $eq: ["$movementType", "in"] },
+            { $multiply: ["$buyingPrice", "$quantity"] },
+            0,
+          ],
         },
       },
+
+      // Total selling value
       totalSelling: {
         $sum: {
           $cond: [
@@ -249,21 +263,50 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
           ],
         },
       },
+
+      // Total quantities in/out
+      totalQuantityIn: {
+        $sum: {
+          $cond: [{ $eq: ["$movementType", "in"] }, "$quantity", 0],
+        },
+      },
+      totalQuantityOut: {
+        $sum: {
+          $cond: [{ $eq: ["$movementType", "out"] }, "$quantity", 0],
+        },
+      },
     };
 
     projectStage = {
       _id: 0,
       productId: "$_id",
+      productName: productName,
+
       totalBuying: 1,
       totalSelling: 1,
+      totalQuantityIn: 1,
+      totalQuantityOut: 1,
+
+      // ⭐ NEW: average buying price
+      averageBuying: {
+        $cond: [
+          { $eq: ["$totalQuantityIn", 0] },
+          0,
+          { $divide: ["$totalBuying", "$totalQuantityIn"] },
+        ],
+      },
     };
-  } else if (idType === "category") {
+  }
+
+  // Category Mode
+  else if (idType === "category") {
     const products = await productModel.find(
       { category: id, companyId },
       { _id: 1, name: 1 }
     );
 
     const ids = products.map((p) => p._id);
+
     if (ids.length === 0) {
       return res.status(200).json({
         status: "success",
@@ -272,13 +315,20 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
     }
 
     matchStage.productId = { $in: ids };
+
     groupStage = {
       _id: "$productId",
+
       totalBuying: {
         $sum: {
-          $cond: [{ $eq: ["$movementType", "in"] }, "$buyingPrice", 0],
+          $cond: [
+            { $eq: ["$movementType", "in"] },
+            { $multiply: ["$buyingPrice", "$quantity"] },
+            0,
+          ],
         },
       },
+
       totalSelling: {
         $sum: {
           $cond: [
@@ -288,6 +338,18 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
           ],
         },
       },
+
+      totalQuantityIn: {
+        $sum: {
+          $cond: [{ $eq: ["$movementType", "in"] }, "$quantity", 0],
+        },
+      },
+
+      totalQuantityOut: {
+        $sum: {
+          $cond: [{ $eq: ["$movementType", "out"] }, "$quantity", 0],
+        },
+      },
     };
 
     projectStage = {
@@ -295,6 +357,17 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
       productId: "$_id",
       totalBuying: 1,
       totalSelling: 1,
+      totalQuantityIn: 1,
+      totalQuantityOut: 1,
+
+      // ⭐ NEW: average buying price
+      averageBuying: {
+        $cond: [
+          { $eq: ["$totalQuantityIn", 0] },
+          0,
+          { $divide: ["$totalBuying", "$totalQuantityIn"] },
+        ],
+      },
     };
   }
 
