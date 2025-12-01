@@ -1903,7 +1903,6 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
 exports.bulkUpdateProductInfo = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const updates = req.body;
-  console.log(updates);
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
