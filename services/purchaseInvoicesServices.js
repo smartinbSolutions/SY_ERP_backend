@@ -14,6 +14,7 @@ const paymentHistoryModel = require("../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
 const multer = require("multer");
+const ShortageModel = require("../models/ShortageModel");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -742,6 +743,13 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     req.user._id,
     req.body.date
   );
+
+  if (req.body.selectedId.length > 0) {
+    await ShortageModel.updateMany(
+      { _id: { $in: req.body.selectedId } },
+      { status: "done" }
+    );
+  }
   res.status(201).json({
     status: "success",
     message: "Invoice created successfully",

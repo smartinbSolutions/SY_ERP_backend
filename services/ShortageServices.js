@@ -37,6 +37,7 @@ exports.getAllShortage = asyncHandler(async (req, res, next) => {
 
   const totalPages = Math.ceil(totalItems / pageSize);
   const shortages = await ShortageModel.find(query)
+    .sort({ status: -1 })
     .skip(skip)
     .limit(pageSize)
     .populate({

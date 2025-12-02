@@ -7,6 +7,7 @@ const ApiError = require("../utils/apiError");
 const productModel = require("../models/productModel");
 const stockTransferModel = require("../models/stockTransfer");
 const productMovementModel = require("../models/productMovementModel");
+const ShortageModel = require("../models/ShortageModel");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -310,6 +311,13 @@ exports.transformQuantity = asyncHandler(async (req, res, next) => {
 
   // Execute bulk update operations
   await productModel.bulkWrite(bulkOps);
+
+  if (req.body.selectedId.length > 0) {
+    await ShortageModel.updateMany(
+      { _id: { $in: req.body.selectedId } },
+      { status: "done" }
+    );
+  }
   res.status(200).json({
     status: "success",
     message: "Transfer successful",
