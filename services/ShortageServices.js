@@ -39,6 +39,26 @@ exports.getAllShortage = asyncHandler(async (req, res, next) => {
   const shortages = await ShortageModel.find(query)
     .skip(skip)
     .limit(pageSize)
-    .populate("productId", "name qr -_id ");
+    .populate({
+      path: "productId",
+      select: "name qr stocks unit buyingprice tax currency",
+      populate: [
+        {
+          path: "unit",
+          model: "Unit",
+          select: "name code",
+        },
+        {
+          path: "tax",
+          model: "Tax",
+          select: "name tax",
+        },
+        {
+          path: "currency",
+          model: "Currency",
+          select: "name exchangeRate",
+        },
+      ],
+    });
   res.status(200).json({ totalPages, results: totalItems, shortages });
 });

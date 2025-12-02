@@ -245,7 +245,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     currency;
   supllierObject = req.body.supllierObject
     ? JSON.parse(req.body.supllierObject)
-    : "";
+    : req.body.supllierObject;
   taxDetails = req.body.taxDetails ? JSON.parse(req.body.taxDetails) : "";
   invoicesItem = req.body.invoicesItems
     ? JSON.parse(req.body.invoicesItems)
@@ -692,9 +692,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     const updates = [];
 
     if (product) {
-      if (!product.suppliers.includes(supllierObject.id)) {
-        product.suppliers.push(supllierObject.id);
-        updates.push(product.save());
+      if (!product.suppliers?.includes(supllierObject.id)) {
+        // product.suppliers.push(supllierObject.id);
+        // updates.push(product.save());
       }
     } else if (item.type === "unTracedproduct") {
       await unTracedproductLogModel.create({
