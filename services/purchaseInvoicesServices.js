@@ -744,7 +744,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     req.body.date
   );
 
-  if (req.body.selectedId.length > 0) {
+  if (req.body?.selectedId?.length > 0) {
     await ShortageModel.updateMany(
       { _id: { $in: req.body.selectedId } },
       { status: "done" }

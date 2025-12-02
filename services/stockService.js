@@ -312,7 +312,7 @@ exports.transformQuantity = asyncHandler(async (req, res, next) => {
   // Execute bulk update operations
   await productModel.bulkWrite(bulkOps);
 
-  if (req.body.selectedId.length > 0) {
+  if (req.body?.selectedId?.length > 0) {
     await ShortageModel.updateMany(
       { _id: { $in: req.body.selectedId } },
       { status: "done" }
