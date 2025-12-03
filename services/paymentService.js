@@ -1246,6 +1246,59 @@ const handleAccountPayment = async (req, companyId, next) => {
   }
 };
 
+const handleFundPayment = async (req, companyId, next) => {
+  try {
+    const {
+      source,
+      totalMainCurrency,
+      totalInPaymentCurrency,
+      paymentInFundCurrency,
+      exchangeRate,
+      date,
+      description,
+      destination,
+      paymentCurrency,
+      destinationCurrencyCode,
+      destinationType,
+    } = req.body;
+    const financialFunds = await financialFundsModel.findOneAndUpdate(
+      {
+        _id: source.id,
+        companyId,
+      },
+      { $inc: { fundBalance: -totalInPaymentCurrency } },
+      { new: true }
+    );
+    payment = await paymentModel.create(req.body);
+
+    await ReportsFinancialFundsModel.create({
+      date: date,
+      amount: paymentInFundCurrency,
+      ref: payment._id,
+      type: "Withdrawal",
+      financialFundId: source.id,
+      financialFundRest: financialFunds.fundBalance,
+      exchangeRate: exchangeRate,
+      paymentType: "Withdrawal",
+      payment: payment._id,
+      description: description,
+      companyId,
+    });
+    await financailSource(
+      destinationType,
+      destination,
+      companyId,
+      req.body,
+      next,
+      paymentInFundCurrency,
+      payment._id,
+      req
+    );
+    return payment;
+  } catch (err) {
+    throw err;
+  }
+};
 exports.getPayment = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   if (!companyId) {
@@ -1258,11 +1311,6 @@ exports.getPayment = asyncHandler(async (req, res, next) => {
   const skip = (page - 1) * pageSize;
 
   let query = { companyId };
-
-  // Filter by payment type
-  if (req.query.type) {
-    query.type = req.query.type;
-  }
 
   // Date filter
   if (filters?.startDate || filters?.endDate) {
