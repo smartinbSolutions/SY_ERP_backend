@@ -174,10 +174,17 @@ exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {
   }
   res.status(201).json({ status: "success", data: budget });
 });
+function metaGet(meta, key) {
+  return meta instanceof Map ? meta.get(key) : meta[key];
+}
+
+function metaSet(meta, key, value) {
+  return meta instanceof Map ? meta.set(key, value) : (meta[key] = value);
+}
 
 exports.relocateBudget = asyncHandler(async (req, res) => {
   const { budgetId, accountId, type, from, to, employee, note } = req.body;
-  console.log(req.body);
+
   const budget = await budgetModel.findById(budgetId);
   if (!budget) throw new Error("Budget not found");
 
@@ -186,51 +193,53 @@ exports.relocateBudget = asyncHandler(async (req, res) => {
 
   let meta;
 
-  // ----------------------------------------
-  // SELECT META BASED ON TYPE
-  // ----------------------------------------
   if (type === "monthly") meta = acc.monthlyMeta;
   else if (type === "quarterly") meta = acc.quarterlyMeta;
   else meta = acc.yearlyMeta;
 
-  // ----------------------------------------
+  // -------------------------------
   // ENSURE FROM EXISTS
-  // ----------------------------------------
-  if (!meta[from.period]) {
-    meta[from.period] = {
+  // -------------------------------
+  let fromMeta = metaGet(meta, from.period);
+
+  if (!fromMeta) {
+    fromMeta = {
       relocatedFrom: false,
       relocatedTo: false,
       amountFrom: 0,
       amountTo: 0,
       netChange: 0,
     };
+    metaSet(meta, from.period, fromMeta);
   }
 
-  // prevent duplicate relocation
-  if (meta[from.period].relocatedFrom)
+  if (fromMeta.relocatedFrom)
     throw new Error("This period was already relocated from");
 
-  // ----------------------------------------
+  // -------------------------------
   // VALIDATE AMOUNT
-  // ----------------------------------------
+  // -------------------------------
   const totalTo = to.reduce((s, t) => s + t.amount, 0);
   if (totalTo !== from.amount)
     throw new Error("Distribution does not match FROM amount");
 
-  // ----------------------------------------
+  // -------------------------------
   // UPDATE FROM PERIOD
-  // ----------------------------------------
-  meta[from.period].relocatedFrom = true;
-  meta[from.period].amountFrom += from.amount;
-  meta[from.period].netChange =
-    meta[from.period].amountTo - meta[from.period].amountFrom;
+  // -------------------------------
+  fromMeta.relocatedFrom = true;
+  fromMeta.amountFrom += from.amount;
+  fromMeta.netChange = fromMeta.amountTo - fromMeta.amountFrom;
 
-  // ----------------------------------------
+  metaSet(meta, from.period, fromMeta);
+
+  // -------------------------------
   // UPDATE TO PERIODS
-  // ----------------------------------------
+  // -------------------------------
   to.forEach((t) => {
-    if (!meta[t.period]) {
-      meta[t.period] = {
+    let toMeta = metaGet(meta, t.period);
+
+    if (!toMeta) {
+      toMeta = {
         relocatedFrom: false,
         relocatedTo: false,
         amountFrom: 0,
@@ -239,15 +248,16 @@ exports.relocateBudget = asyncHandler(async (req, res) => {
       };
     }
 
-    meta[t.period].relocatedTo = true;
-    meta[t.period].amountTo += t.amount;
-    meta[t.period].netChange =
-      meta[t.period].amountTo - meta[t.period].amountFrom;
+    toMeta.relocatedTo = true;
+    toMeta.amountTo += t.amount;
+    toMeta.netChange = toMeta.amountTo - toMeta.amountFrom;
+
+    metaSet(meta, t.period, toMeta);
   });
 
-  // ----------------------------------------
+  // -------------------------------
   // LOG MOVEMENT
-  // ----------------------------------------
+  // -------------------------------
   budget.movementLogs.push({
     accountId,
     fromPeriod: from.period,
@@ -261,11 +271,7 @@ exports.relocateBudget = asyncHandler(async (req, res) => {
     date: new Date(),
   });
 
-  // ----------------------------------------
-  // SAVE
-  // ----------------------------------------
   budget.markModified("account");
-
   await budget.save();
 
   res.json({
