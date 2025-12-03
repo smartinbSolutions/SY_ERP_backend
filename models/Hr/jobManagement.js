@@ -6,7 +6,7 @@ const jobSchema = new mongoose.Schema(
     type: String,
     location: String,
     description: String,
-    expectedSalary: Number,
+    expectedSalary: String,
     responsibilities: [String],
     qualifications: [String],
     endDate: String,

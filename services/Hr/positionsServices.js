@@ -39,11 +39,23 @@ exports.createPositions = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  req.body.companyId = companyId;
-  const positions = await positionsModel.create(req.body);
-  res.status(200).json({ status: "success", data: positions });
-});
 
+  const positionData = {
+    name: req.body.name,
+    nameAR: req.body.nameAR,
+    nameTR: req.body.nameTR,
+    description: req.body.description,
+    departmentId: req.body.departmentId,
+    parentPositions: req.body.parentPositions || null,
+    children: req.body.children || [],
+    sync: req.body.sync || false,
+    companyId: companyId,
+  };
+
+  const position = await positionsModel.create(positionData);
+
+  res.status(200).json({ status: "success", data: position });
+});
 exports.updatePositions = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 

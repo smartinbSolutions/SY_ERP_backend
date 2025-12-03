@@ -6,6 +6,11 @@ const positionsSchema = new mongoose.Schema(
     nameAR: String,
     nameTR: String,
     description: String,
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "departments",
+      required: true,
+    },
     parentPositions: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Positions",

@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const branchesSchema = new mongoose.Schema(
   {
     name: String,
+    nameAR: String,
+    nameTR: String,
     location: String,
     email: String,
     companyId: {

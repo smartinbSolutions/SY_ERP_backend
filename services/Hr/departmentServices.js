@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
-const branchesModel = require("../../models/Hr/branchesModel");
+const departmentModel = require("../../models/Hr/departmentModel");
 
 /////////
-exports.getAllBranches = asyncHandler(async (req, res, next) => {
+exports.getAllDepartments = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,9 +21,9 @@ exports.getAllBranches = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await branchesModel.countDocuments(query);
+  const total = await departmentModel.countDocuments(query);
 
-  const branch = await branchesModel
+  const department = await departmentModel
     .find(query)
     .skip(skip)
     .limit(limit)
@@ -35,54 +35,51 @@ exports.getAllBranches = asyncHandler(async (req, res, next) => {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    results: branch.length,
-    data: branch,
+    results: department.length,
+    data: department,
   });
 });
 
 ////////
-exports.getOneBranch = asyncHandler(async (req, res, next) => {
+exports.getOneDepartment = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
   if (!req.params.id) {
-    return next(new ApiError(`No Branch for this ID: ${req.params.id}`, 404));
+    return next(
+      new ApiError(`No Department for this ID: ${req.params.id}`, 404)
+    );
   }
-  const branch = await branchesModel.findOne({
+  const department = await departmentModel.findOne({
     _id: req.params.id,
     companyId,
   });
-  res.status(200).json({ status: "success", data: branch });
+  res.status(200).json({ status: "success", data: department });
 });
 
 /////////
-exports.createBranch = asyncHandler(async (req, res, next) => {
+exports.createDepartment = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const branchData = {
+  const department = await departmentModel.create({
     name: req.body.name,
-    nameAR: req.body.nameAR,
-    nameTR: req.body.nameTR,
-    location: req.body.location,
-    email: req.body.email,
+    code: req.body.code,
+    managerId: req.body.managerId,
+    description: req.body.description,
     companyId: companyId,
-  };
+  });
 
-  // إنشاء الفرع
-  const branch = await branchesModel.create(branchData);
-
-  // الرد بالفرع الجديد
-  res.status(200).json({ status: "success", data: branch });
+  res.status(200).json({ status: "success", data: department });
 });
 
 //////
-exports.updateBranch = asyncHandler(async (req, res, next) => {
+exports.updateDepartment = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -91,9 +88,9 @@ exports.updateBranch = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   req.body.companyId = companyId;
   if (!id) {
-    return next(new ApiError(`No Branch for this ID: ${id}`, 404));
+    return next(new ApiError(`No Department for this ID: ${id}`, 404));
   }
-  const branch = await branchesModel.findOneAndUpdate(
+  const department = await departmentModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
     {
@@ -101,11 +98,11 @@ exports.updateBranch = asyncHandler(async (req, res, next) => {
     }
   );
 
-  res.status(200).json({ status: "success", data: branch });
+  res.status(200).json({ status: "success", data: department });
 });
 
 ////////
-exports.deleteBranch = asyncHandler(async (req, res, next) => {
+exports.deleteDepartment = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
@@ -117,20 +114,20 @@ exports.deleteBranch = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`Provide id to delete`, 400));
   }
 
-  const branch = await branchesModel.findOneAndDelete({
+  const department = await departmentModel.findOneAndDelete({
     _id: id,
     companyId,
   });
 
-  if (!branch) {
+  if (!department) {
     res
       .status(404)
-      .json({ status: "fail", message: `No Branch found for ID: ${id}` });
+      .json({ status: "fail", message: `No Department found for ID: ${id}` });
   }
 
   res.status(200).json({
     status: "success",
-    data: branch,
+    data: department,
     message: "Deleted successfully",
   });
 });
