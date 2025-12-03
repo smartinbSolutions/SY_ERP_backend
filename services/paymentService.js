@@ -1319,6 +1319,11 @@ exports.getPayment = asyncHandler(async (req, res, next) => {
     if (filters.endDate) query.date.$lte = filters.endDate;
   }
 
+  // Filter by payment type
+  if (req.query.type) {
+    query.paymentType = req.query.type;
+  }
+
   // Payment Status
   if (filters.paymentStatus) query.status = filters.paymentStatus;
 
