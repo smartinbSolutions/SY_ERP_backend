@@ -5,7 +5,17 @@ const branchesSchema = new mongoose.Schema(
     name: String,
     nameAR: String,
     nameTR: String,
-    location: String,
+    location: {
+      name: String,
+      latitude: {
+        type: Number,
+        required: true,
+      },
+      longitude: {
+        type: Number,
+        required: true,
+      },
+    },
     email: String,
     companyId: {
       type: String,
