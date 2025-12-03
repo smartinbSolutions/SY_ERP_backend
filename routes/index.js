@@ -85,6 +85,7 @@ const incomeStatementRoute = require("./reports/incomeStatementRoute");
 const balanceSheetsStatementRoute = require("./reports/balanceSheetsStatementRoute");
 const cashFlowRoute = require("./reports/cashFlowRoute");
 const ShortageRoute = require("./ShortageRoute");
+const branchRoute = require("./Hr/branchesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -164,6 +165,7 @@ const mountRoutes = (app) => {
   app.use("/api/groups", groupsRoute);
   app.use("/api/locations", locationRoute);
   app.use("/api/jobs", jobRoute);
+  app.use("/api/branch", branchRoute);
 
   //Payment
   app.use("/api", paytrRouter);
