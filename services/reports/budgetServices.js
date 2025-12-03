@@ -174,3 +174,102 @@ exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {
   }
   res.status(201).json({ status: "success", data: budget });
 });
+
+exports.relocateBudget = asyncHandler(async (req, res) => {
+  const { budgetId, accountId, type, from, to, employee, note } = req.body;
+  console.log(req.body);
+  const budget = await budgetModel.findById(budgetId);
+  if (!budget) throw new Error("Budget not found");
+
+  const acc = budget.account.find((a) => a.accountId.toString() === accountId);
+  if (!acc) throw new Error("Account not found");
+
+  let meta;
+
+  // ----------------------------------------
+  // SELECT META BASED ON TYPE
+  // ----------------------------------------
+  if (type === "monthly") meta = acc.monthlyMeta;
+  else if (type === "quarterly") meta = acc.quarterlyMeta;
+  else meta = acc.yearlyMeta;
+
+  // ----------------------------------------
+  // ENSURE FROM EXISTS
+  // ----------------------------------------
+  if (!meta[from.period]) {
+    meta[from.period] = {
+      relocatedFrom: false,
+      relocatedTo: false,
+      amountFrom: 0,
+      amountTo: 0,
+      netChange: 0,
+    };
+  }
+
+  // prevent duplicate relocation
+  if (meta[from.period].relocatedFrom)
+    throw new Error("This period was already relocated from");
+
+  // ----------------------------------------
+  // VALIDATE AMOUNT
+  // ----------------------------------------
+  const totalTo = to.reduce((s, t) => s + t.amount, 0);
+  if (totalTo !== from.amount)
+    throw new Error("Distribution does not match FROM amount");
+
+  // ----------------------------------------
+  // UPDATE FROM PERIOD
+  // ----------------------------------------
+  meta[from.period].relocatedFrom = true;
+  meta[from.period].amountFrom += from.amount;
+  meta[from.period].netChange =
+    meta[from.period].amountTo - meta[from.period].amountFrom;
+
+  // ----------------------------------------
+  // UPDATE TO PERIODS
+  // ----------------------------------------
+  to.forEach((t) => {
+    if (!meta[t.period]) {
+      meta[t.period] = {
+        relocatedFrom: false,
+        relocatedTo: false,
+        amountFrom: 0,
+        amountTo: 0,
+        netChange: 0,
+      };
+    }
+
+    meta[t.period].relocatedTo = true;
+    meta[t.period].amountTo += t.amount;
+    meta[t.period].netChange =
+      meta[t.period].amountTo - meta[t.period].amountFrom;
+  });
+
+  // ----------------------------------------
+  // LOG MOVEMENT
+  // ----------------------------------------
+  budget.movementLogs.push({
+    accountId,
+    fromPeriod: from.period,
+    toPeriod: to.map((t) => ({
+      period: t.period,
+      amount: t.amount,
+    })),
+    amount: from.amount,
+    employee,
+    note,
+    date: new Date(),
+  });
+
+  // ----------------------------------------
+  // SAVE
+  // ----------------------------------------
+  budget.markModified("account");
+
+  await budget.save();
+
+  res.json({
+    success: true,
+    message: "Budget relocated successfully",
+  });
+});

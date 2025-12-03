@@ -94,8 +94,9 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     "Non Operating income",
     "Non Operating Expenses/income",
     "Non Operating Expenses - Tax",
+    "Intercompany and related party income and expense",
     "Intercompany and related party expenses",
-    "Intercompany and related party liabilities",
+    "Intercompany and related party income",
   ];
 
   const report = {};
