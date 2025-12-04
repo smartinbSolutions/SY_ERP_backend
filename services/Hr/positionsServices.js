@@ -21,15 +21,25 @@ exports.getOnePositions = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  if (!req.params.id) {
-    return next(
-      new ApiError(`No Positions for this ID: ${req.params.id}`, 404)
-    );
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Position ID format",
+    });
   }
   const positions = await positionsModel.findOne({
     _id: req.params.id,
     companyId,
   });
+  if (!positions) {
+    return res.status(404).json({
+      status: false,
+      message: "Position not found",
+    });
+  }
+
   res.status(200).json({ status: "success", data: positions });
 });
 
@@ -62,10 +72,15 @@ exports.updatePositions = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const { id } = req.params;
   req.body.companyId = companyId;
-  if (!id) {
-    return next(new ApiError(`No Positions for this ID: ${id}`, 404));
+
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Position ID format",
+    });
   }
   const positions = await positionsModel.findOneAndUpdate(
     { _id: id, companyId },
@@ -74,6 +89,13 @@ exports.updatePositions = asyncHandler(async (req, res, next) => {
       new: true,
     }
   );
+
+  if (!positions) {
+    return res.status(404).json({
+      status: false,
+      message: "Position not found",
+    });
+  }
 
   res.status(200).json({ status: "success", data: positions });
 });
@@ -85,12 +107,26 @@ exports.deletePositions = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   const { id } = req.params;
-  if (!id) {
-    return next(new ApiError(`No Positions for this ID:${id}`, 404));
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Position ID format",
+    });
   }
   const positions = await positionsModel.findOneAndDelete({
     _id: id,
     companyId,
   });
-  res.status(200).json({ status: "success", data: positions });
+
+  if (!positions) {
+    res.status(404).json({ status: "fail", message: `Position not found` });
+  }
+
+  res
+    .status(200)
+    .json({
+      status: "success",
+      data: positions,
+      message: "Deleted successfully",
+    });
 });

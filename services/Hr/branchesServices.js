@@ -47,13 +47,25 @@ exports.getOneBranch = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  if (!req.params.id) {
-    return next(new ApiError(`No Branch for this ID: ${req.params.id}`, 404));
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Branch ID format",
+    });
   }
   const branch = await branchesModel.findOne({
     _id: req.params.id,
     companyId,
   });
+
+  if (!branch) {
+    res
+      .status(404)
+      .json({ status: "fail", message: `No Branch found for ID: ${id}` });
+  }
+
   res.status(200).json({ status: "success", data: branch });
 });
 
@@ -88,10 +100,14 @@ exports.updateBranch = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const { id } = req.params;
   req.body.companyId = companyId;
-  if (!id) {
-    return next(new ApiError(`No Branch for this ID: ${id}`, 404));
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Branch ID format",
+    });
   }
   const branch = await branchesModel.findOneAndUpdate(
     { _id: id, companyId },
@@ -100,6 +116,12 @@ exports.updateBranch = asyncHandler(async (req, res, next) => {
       new: true,
     }
   );
+
+  if (!branch) {
+    res
+      .status(404)
+      .json({ status: "fail", message: `No Branch found for ID: ${id}` });
+  }
 
   res.status(200).json({ status: "success", data: branch });
 });
@@ -113,8 +135,12 @@ exports.deleteBranch = asyncHandler(async (req, res, next) => {
   }
 
   const { id } = req.params;
-  if (!id) {
-    return next(new ApiError(`Provide id to delete`, 400));
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Branch ID format",
+    });
   }
 
   const branch = await branchesModel.findOneAndDelete({

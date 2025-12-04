@@ -47,15 +47,22 @@ exports.getOneDepartment = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  if (!req.params.id) {
-    return next(
-      new ApiError(`No Department for this ID: ${req.params.id}`, 404)
-    );
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Department ID format",
+    });
   }
   const department = await departmentModel.findOne({
     _id: req.params.id,
     companyId,
   });
+
+  if (!department) {
+    res.status(404).json({ status: "fail", message: "Department not found" });
+  }
   res.status(200).json({ status: "success", data: department });
 });
 
@@ -69,6 +76,8 @@ exports.createDepartment = asyncHandler(async (req, res, next) => {
 
   const department = await departmentModel.create({
     name: req.body.name,
+    nameAR: req.body.nameAR,
+    nameTR: req.body.nameTR,
     code: req.body.code,
     managerId: req.body.managerId,
     description: req.body.description,
@@ -85,10 +94,14 @@ exports.updateDepartment = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const { id } = req.params;
   req.body.companyId = companyId;
-  if (!id) {
-    return next(new ApiError(`No Department for this ID: ${id}`, 404));
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid Department ID format",
+    });
   }
   const department = await departmentModel.findOneAndUpdate(
     { _id: id, companyId },
@@ -97,6 +110,10 @@ exports.updateDepartment = asyncHandler(async (req, res, next) => {
       new: true,
     }
   );
+
+  if (!department) {
+    res.status(404).json({ status: "fail", message: "Department not found" });
+  }
 
   res.status(200).json({ status: "success", data: department });
 });
@@ -120,9 +137,7 @@ exports.deleteDepartment = asyncHandler(async (req, res, next) => {
   });
 
   if (!department) {
-    res
-      .status(404)
-      .json({ status: "fail", message: `No Department found for ID: ${id}` });
+    res.status(404).json({ status: "fail", message: "Department not found" });
   }
 
   res.status(200).json({
