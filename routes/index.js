@@ -87,6 +87,7 @@ const cashFlowRoute = require("./reports/cashFlowRoute");
 const ShortageRoute = require("./ShortageRoute");
 const branchRoute = require("./Hr/branchesRoute");
 const departmentRoute = require("./Hr/departmentRoute");
+const jobGradesRoute = require("./Hr/jobGradesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -168,6 +169,7 @@ const mountRoutes = (app) => {
   app.use("/api/jobs", jobRoute);
   app.use("/api/branch", branchRoute);
   app.use("/api/department", departmentRoute);
+  app.use("/api/job-grades", jobGradesRoute);
 
   //Payment
   app.use("/api", paytrRouter);

@@ -11,11 +11,17 @@ const positionsSchema = new mongoose.Schema(
       ref: "departments",
       required: true,
     },
+    jobgradeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "jobgrades",
+      required: true,
+    },
     parentPositions: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Positions",
       default: null,
     },
+
     children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Positions" }],
     sync: { type: Boolean, default: false },
     companyId: {
