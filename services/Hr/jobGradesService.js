@@ -3,7 +3,6 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const jobGradesModel = require("../../models/Hr/jobGradesModel");
 
-
 // ===============================
 //        GET ALL GRADES
 // ===============================
@@ -14,15 +13,32 @@ exports.getAllGrades = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const grades = await jobGradesModel.find({ companyId }).lean();
+  const query = { companyId };
+  if (req.query.keyword) {
+    query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
+  }
 
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const total = await jobGradesModel.countDocuments(query);
+
+  const grades = await jobGradesModel
+    .find(query)
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 })
+    .lean();
   res.status(200).json({
     status: "success",
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
     results: grades.length,
     data: grades,
   });
 });
-
 
 // ===============================
 //        GET ONE GRADE
@@ -54,7 +70,6 @@ exports.getOneGrade = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", data: grade });
 });
 
-
 // ===============================
 //        CREATE GRADE
 // ===============================
@@ -85,7 +100,6 @@ exports.createGrades = asyncHandler(async (req, res, next) => {
     data: grade,
   });
 });
-
 
 // ===============================
 //        UPDATE GRADE
@@ -125,7 +139,6 @@ exports.updateGrades = asyncHandler(async (req, res, next) => {
     data: grade,
   });
 });
-
 
 // ===============================
 //        DELETE GRADE
