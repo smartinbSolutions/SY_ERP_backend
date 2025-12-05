@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const budgetModel = require("../../models/reports/budgetModel");
 const accountingTreeModel = require("../../models/accountingTreeModel");
+const journalEntryModel = require("../../models/journalEntryModel");
 
 exports.createbudgetReport = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
@@ -277,5 +278,131 @@ exports.relocateBudget = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: "Budget relocated successfully",
+  });
+});
+
+exports.getMonthJornal = asyncHandler(async (req, res) => {
+  const { companyId, year } = req.query;
+  const budgetId = req.params.id;
+
+  if (!companyId || !year) {
+    return res.status(400).json({ message: "companyId and year are required" });
+  }
+
+  const budgetAccount = await budgetModel.findOne({
+    _id: budgetId,
+    companyId,
+  });
+
+  if (!budgetAccount) {
+    return res
+      .status(404)
+      .json({ message: "Budget not found Pls Chack Your ID" });
+  }
+
+  const journalEntries = await journalEntryModel.aggregate([
+    {
+      $addFields: {
+        journalDateObj: { $toDate: "$journalDate" },
+      },
+    },
+
+    {
+      $match: {
+        companyId,
+        journalDateObj: {
+          $gte: new Date(`${year}-01-01T00:00:00.000Z`),
+          $lte: new Date(`${year}-12-31T23:59:59.999Z`),
+        },
+      },
+    },
+    { $unwind: "$journalAccounts" },
+
+    {
+      $addFields: {
+        month: { $month: "$journalDateObj" },
+      },
+    },
+
+    {
+      $group: {
+        _id: {
+          accountId: "$journalAccounts.id",
+          month: "$month",
+        },
+        totalDebit: { $sum: "$journalAccounts.MainDebit" },
+        totalCredit: { $sum: "$journalAccounts.MainCredit" },
+      },
+    },
+  ]);
+
+  const formatted = {};
+
+  journalEntries.forEach((entry) => {
+    const { accountId, month } = entry._id;
+
+    if (!formatted[accountId]) {
+      formatted[accountId] = {
+        jan: 0,
+        feb: 0,
+        mar: 0,
+        apr: 0,
+        may: 0,
+        jun: 0,
+        jul: 0,
+        aug: 0,
+        sep: 0,
+        oct: 0,
+        nov: 0,
+        dec: 0,
+      };
+    }
+
+    const monthNames = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
+
+    const mName = monthNames[month - 1];
+
+    formatted[accountId][mName] += entry.totalDebit - entry.totalCredit;
+  });
+
+  const result = budgetAccount.account.map((acc) => {
+    return {
+      accountId: acc.accountId,
+      name: acc.name,
+      budgetMonthly: acc.monthly,
+      actualMonthly: formatted[acc.accountId] || {
+        jan: 0,
+        feb: 0,
+        mar: 0,
+        apr: 0,
+        may: 0,
+        jun: 0,
+        jul: 0,
+        aug: 0,
+        sep: 0,
+        oct: 0,
+        nov: 0,
+        dec: 0,
+      },
+    };
+  });
+
+  return res.json({
+    year,
+    budgetId,
+    data: result,
   });
 });
