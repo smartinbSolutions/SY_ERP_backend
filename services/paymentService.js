@@ -67,11 +67,11 @@ const financailSource = async (
     if (req.body.isWithDraw === true) {
       fund -= paymentInFundCurrency;
       amount += data.totalMainCurrency;
+      console.log("70");
     } else {
       fund += paymentInFundCurrency;
       amount -= data.totalMainCurrency;
     }
-    console.log(destinationType);
 
     if (destinationType === "supplier") {
       await suppliersModel.findOneAndUpdate(
@@ -116,13 +116,10 @@ const financailSource = async (
         req.body.destinationCurrencyCode
       );
     } else if (destinationType === "account") {
-      await accountingTreeModel.findOneAndUpdate(
-        { _id: destination.id, companyId },
-        {
-          $inc: { debtor: amount },
-        },
-        { new: true }
-      );
+      const account = await accountingTreeModel.findOne({
+        _id: destination.id,
+        companyId,
+      });
     } else if (destinationType === "fund") {
       const financialFunds = await financialFundsModel.findOneAndUpdate(
         { _id: destination.id, companyId },
@@ -1229,6 +1226,7 @@ const handleAccountPayment = async (req, companyId, next) => {
       destinationCurrencyCode,
       destinationType,
     } = req.body;
+
     payment = await paymentModel.create(req.body);
     await financailSource(
       destinationType,
