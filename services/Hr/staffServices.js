@@ -69,9 +69,9 @@ exports.getStaff = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const pageSize = req.query.limit || 10;
+  const limit = req.query.limit || 10;
   const page = parseInt(req.query.page) || 1;
-  const skip = (page - 1) * pageSize;
+  const skip = (page - 1) * limit;
 
   let query = { companyId };
   if (req.query.keyword) {
@@ -83,16 +83,18 @@ exports.getStaff = asyncHandler(async (req, res, next) => {
   }
   const totalItems = await StaffsModel.countDocuments(query);
 
-  const totalPages = Math.ceil(totalItems / pageSize);
+  const totalPages = Math.ceil(totalItems / limit);
   const staffs = await StaffsModel.find(query)
     .skip(skip)
-    .limit(pageSize)
+    .limit(limit)
     .populate("currency")
     .populate("position");
 
   res.status(200).json({
     status: "success",
     results: totalItems,
+    page,
+    limit,
     totalPages: totalPages,
     data: staffs,
   });

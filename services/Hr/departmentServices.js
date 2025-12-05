@@ -80,6 +80,7 @@ exports.createDepartment = asyncHandler(async (req, res, next) => {
     nameTR: req.body.nameTR,
     code: req.body.code,
     managerId: req.body.managerId,
+    parent: req.body.parent,
     description: req.body.description,
     companyId: companyId,
   });

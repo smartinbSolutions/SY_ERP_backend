@@ -6,14 +6,14 @@ const DepartmentSchema = new mongoose.Schema(
     nameAR: String,
     nameTR: String,
     code: String,
-    // branchId: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "Branch",
-    //   default: null,
-    // },
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
+      default: null,
+    },
+    parent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "departments",
       default: null,
     },
     description: String,

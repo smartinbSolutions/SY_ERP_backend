@@ -56,6 +56,7 @@ exports.createPositions = asyncHandler(async (req, res, next) => {
     nameTR: req.body.nameTR,
     description: req.body.description,
     departmentId: req.body.departmentId,
+    jobgradeId: req.body.jobgradeId,
     parentPositions: req.body.parentPositions || null,
     children: req.body.children || [],
     sync: req.body.sync || false,
@@ -122,11 +123,9 @@ exports.deletePositions = asyncHandler(async (req, res, next) => {
     res.status(404).json({ status: "fail", message: `Position not found` });
   }
 
-  res
-    .status(200)
-    .json({
-      status: "success",
-      data: positions,
-      message: "Deleted successfully",
-    });
+  res.status(200).json({
+    status: "success",
+    data: positions,
+    message: "Deleted successfully",
+  });
 });
