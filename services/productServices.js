@@ -696,8 +696,11 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
         "in",
         "create",
         companyId,
-        req.body.taxPrice,
-        req.body.buyingprice
+        "",
+        "",
+        "",
+        req.body.buyingprice,
+        req.body.taxPrice
       );
     }
 
@@ -715,8 +718,11 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
       "",
       findCureency.currencyCode,
       findCureency.currencyCode,
-      product.taxPrice,
-      product.buyingprice
+      "",
+      "",
+      "",
+      product.buyingprice,
+      product.taxPrice
     );
     // Respond with success message and data
     res.status(201).json({
@@ -1079,7 +1085,12 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
         "movement",
         "edit",
         "update",
-        companyId
+        companyId,
+        "",
+        "",
+        "",
+        product.buyingprice,
+        product.taxPrice
       );
     }
 
@@ -1098,7 +1109,11 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
         companyId,
         "",
         findCurrency ? findCurrency.currencyCode : "N/A",
-        existingProduct.currency ? existingProduct.currency.currencyCode : "N/A"
+        existingProduct.currency
+          ? existingProduct.currency.currencyCode
+          : "N/A",
+        existingProduct.buyingprice,
+        existingProduct.taxPrice
       );
     }
 
@@ -1164,7 +1179,12 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
       "movement",
       movementType,
       "archive",
-      companyId
+      companyId,
+      "",
+      "",
+      "",
+      product.buyingprice,
+      product.taxPrice
     );
 
     res.status(200).json({
@@ -1885,7 +1905,9 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
             companyId,
             `Unit "${origUnit.name}" price "${updatedPrice.title}" updated`,
             product.currency,
-            product.currency
+            product.currency,
+            updatedPrice.buyingprice,
+            updatedPrice.taxPrice
           );
         }
       }

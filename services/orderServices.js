@@ -334,8 +334,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         "",
         "",
         "",
-        item.sellingPrice,
-        item.orginalBuyingPrice
+        item.orginalBuyingPrice,
+        item.sellingPrice
       );
     })
   );
@@ -705,8 +705,8 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          item.sellingPrice,
-          item.orginalBuyingPrice
+          item.orginalBuyingPrice,
+          item.sellingPrice
         );
       }
     })
@@ -1119,8 +1119,8 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            item.sellingPrice,
-            item.orginalBuyingPrice
+            item.orginalBuyingPrice,
+            item.sellingPrice
           );
         }
       })
@@ -1473,8 +1473,8 @@ exports.canceledOrder = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            product.taxPrice,
-            product.buyingprice
+            product.buyingprice,
+            product.taxPrice
           );
         })
       );

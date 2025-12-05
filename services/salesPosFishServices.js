@@ -315,8 +315,8 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          item.taxValue / item.soldQuantity + item.sellingPrice,
-          item.buyingpriceMainCurrence
+          item.buyingpriceMainCurrence,
+          item.taxValue / item.soldQuantity + item.sellingPrice
         );
       }
     }

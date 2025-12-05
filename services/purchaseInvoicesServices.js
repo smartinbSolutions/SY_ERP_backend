@@ -661,8 +661,8 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          0,
-          item.orginalBuyingPrice
+          item.orginalBuyingPrice,
+          0
         );
 
         if (item.orginalBuyingPrice !== product.buyingprice) {
@@ -680,8 +680,8 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            0,
-            item.orginalBuyingPrice
+            item.orginalBuyingPrice,
+            0
           );
         }
       })
@@ -1332,8 +1332,8 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          0,
-          item.orginalBuyingPrice
+          item.orginalBuyingPrice,
+          0
         );
 
         // price change movement if needed
@@ -1355,8 +1355,8 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            0,
-            item.orginalBuyingPrice
+            item.orginalBuyingPrice,
+            0
           );
         }
       })
@@ -1704,8 +1704,8 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         "",
         "",
         "",
-        0,
-        item.orginalBuyingPrice
+        item.orginalBuyingPrice,
+        0
       );
 
       if (item.orginalBuyingPrice !== product.buyingprice) {
@@ -1723,8 +1723,8 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          0,
-          item.orginalBuyingPrice
+          item.orginalBuyingPrice,
+          0
         );
       }
     })
@@ -2015,8 +2015,8 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            0,
-            item.orginalBuyingPrice
+            item.orginalBuyingPrice,
+            0
           );
         } catch (error) {
           console.error(`Error processing product ${item.qr}:`, error);
