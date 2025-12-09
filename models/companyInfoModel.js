@@ -51,6 +51,7 @@ const companyIfnoSchema = new mongoose.Schema(
       receiptPos: { type: String, default: "RP" },
       posRefund: { type: String, default: "RPF" },
     },
+    jobsCompanyId: { type: String, default: "" },
     models: [{ type: String }],
   },
   { timestamps: true }
