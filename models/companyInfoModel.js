@@ -51,6 +51,7 @@ const companyIfnoSchema = new mongoose.Schema(
       receiptPos: { type: String, default: "RP" },
       posRefund: { type: String, default: "RPF" },
     },
+    models: [{ type: String }],
   },
   { timestamps: true }
 );
