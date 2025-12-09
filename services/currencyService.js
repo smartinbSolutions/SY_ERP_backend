@@ -4,6 +4,7 @@ const currencyModel = require("../models/currencyModel");
 const ApiError = require("../utils/apiError");
 const FinancialFundsModel = require("../models/financialFundsModel");
 const productModel = require("../models/productModel");
+const currencyLogModel = require("../models/currencyLogModel");
 
 // @desc Get list of Currency
 // @route GEt /api/currency
@@ -32,6 +33,7 @@ exports.createCurrency = asyncHandler(async (req, res, next) => {
   req.body.companyId = companyId;
 
   const currency = await currencyModel.create(req.body);
+
   res.status(200).json({
     status: "true",
     message: "Currency Inserted",
@@ -79,6 +81,14 @@ exports.updataCurrency = asyncHandler(async (req, res, next) => {
       req.body,
       { new: true }
     );
+    await currencyLogModel.create({
+      currencyId: req.params.id,
+      oldRate: req.body.oldRate,
+      newRate: req.body.exchangeRate,
+      changeType: req.body.changeType,
+      updatedBy: req.user.name,
+      companyId,
+    });
     if (!currency) {
       return next(
         new ApiError(`No currency for this id ${req.params.id}`, 404)

@@ -88,6 +88,7 @@ const ShortageRoute = require("./ShortageRoute");
 const branchRoute = require("./Hr/branchesRoute");
 const departmentRoute = require("./Hr/departmentRoute");
 const jobGradesRoute = require("./Hr/jobGradesRoute");
+const currencyLogRoute = require("./currencyLogRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -108,6 +109,7 @@ const mountRoutes = (app) => {
   app.use("/api/auth", authRoute);
   app.use("/api/orders", OrderRout);
   app.use("/api/currency", currencyRoute);
+  app.use("/api/v1/currencylog", currencyLogRoute);
   app.use("/api/financialfunds", financialFundsRoute);
   app.use("/api/expenses", expensesRoute);
   app.use("/api/productinvoices", PurchaseInvoices);
