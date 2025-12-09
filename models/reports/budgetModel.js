@@ -37,6 +37,8 @@ const budgetSchema = new mongoose.Schema(
       {
         accountId: String,
         fromPeriod: String,
+        fromName: String,
+        fromCode: String,
         toPeriod: [],
         amount: Number,
         date: { type: Date, default: Date.now },

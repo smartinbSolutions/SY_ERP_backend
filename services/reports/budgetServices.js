@@ -259,9 +259,12 @@ exports.relocateBudget = asyncHandler(async (req, res) => {
   // -------------------------------
   // LOG MOVEMENT
   // -------------------------------
+
   budget.movementLogs.push({
     accountId,
     fromPeriod: from.period,
+    fromName: from.fromName,
+    fromCode: from.fromCode,
     toPeriod: to.map((t) => ({
       period: t.period,
       amount: t.amount,
