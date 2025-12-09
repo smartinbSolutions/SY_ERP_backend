@@ -514,14 +514,14 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
     // Fetch product and movements concurrently
     const product = await productModel
       .findOne(query)
-      .populate({ path: "alternateProducts" })
+
       .populate({ path: "category", populate: { path: "parentCategory" } })
       .populate({ path: "brand", select: "name _id" })
       .populate({ path: "unit", select: "name code _id" })
       .populate({ path: "tax", select: "tax _id" })
       .populate({ path: "label", select: "name _id" })
-      .populate({ path: "currency" })
-      .populate({ path: "review", options: { limit: 10 } });
+      .populate({ path: "currency" });
+    // .populate({ path: "review", options: { limit: 10 } });
 
     const movements = await productMovementModel
       .find({
@@ -545,11 +545,11 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
       return res.status(404).json({ message: "Product not found" });
     }
     // Fetch stock count from Parasut API
-    if (product?.parasutID.length > 5) {
-      const parasutProduct = await getParasutOneProduct(product?.parasutID);
+    // if (product?.parasutID.length > 5) {
+    //   const parasutProduct = await getParasutOneProduct(product?.parasutID);
 
-      product.quantity = parasutProduct?.data?.attributes?.stock_count || 0;
-    }
+    //   product.quantity = parasutProduct?.data?.attributes?.stock_count || 0;
+    // }
     const setImageURL = (doc) => {
       if (doc.image) {
         doc.image = `${process.env.BASE_URL}/product/${doc.image}`;
