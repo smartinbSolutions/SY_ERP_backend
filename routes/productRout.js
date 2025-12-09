@@ -7,24 +7,11 @@ const {
   uploadProductImage,
   resizerImage,
   addProduct,
-  deActiveProductQuantity,
   archiveProduct,
-  getLezyProduct,
   getProductPos,
-  updateEcommerceProducts,
-  setEcommerceProductPublish,
-  updateEcommerceProductDeActive,
-  ecommerceActiveProudct,
-  setEcommerceProductFeatured,
-  setEcommerceProductSponsored,
-  getEcommerceProductSponsored,
-  getEcommerceProductFeatured,
-  ecommerceDashboardStats,
   getProductBySuppliers,
   getAllProdcuts,
-  updateNumber,
-  getEcommerceImportProduct,
-  updateProductFromExcel,
+
   bulkUpdate,
   bulkUpdateProductInfo,
   getNullQrProduct,
@@ -41,6 +28,19 @@ const storage = multer.memoryStorage();
 const uploads = multer({ storage: storage });
 
 const authService = require("../services/authService");
+const {
+  getLezyProduct,
+  getEcommerceImportProduct,
+  updateEcommerceProductDeActive,
+  updateEcommerceProducts,
+  ecommerceActiveProudct,
+  ecommerceDashboardStats,
+  setEcommerceProductPublish,
+  setEcommerceProductFeatured,
+  getEcommerceProductFeatured,
+  setEcommerceProductSponsored,
+  getEcommerceProductSponsored,
+} = require("../services/ecommerce/ecommerceProductService");
 
 const productRout = express.Router();
 

@@ -6,14 +6,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       require: true,
     },
-    nameAR: {
-      type: String,
-      default: "name AR",
-    },
-    nameTR: {
-      type: String,
-      default: "name TR",
-    },
+
     latinName: String,
     slug: {
       type: String,
@@ -23,65 +16,27 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: "Normal",
     },
-    shortDescription: {
-      type: String,
-      default: "Product short description",
-    },
-    shortDescriptionAR: {
-      type: String,
-      default: " short Description AR",
-    },
-    shortDescriptionTR: {
-      type: String,
-      default: " short Description TR",
-    },
+
     description: {
       type: String,
       default: "Product description",
     },
-    descriptionAR: {
-      type: String,
-      default: "Product description AR",
-    },
-    descriptionTR: {
-      type: String,
-      default: "Product description TR",
-    },
+
     sold: {
       type: Number,
       default: 0,
     },
-    density: String,
     quantity: { type: Number, default: 0 },
     price: {
       type: Number,
       default: 0,
     },
-    ecommercePrice: {
-      type: Number,
-      default: 0,
-    },
-    ecommercePriceMainCurrency: {
-      type: Number,
-      default: 0,
-    },
-    ecommercePriceBeforeTax: {
-      type: Number,
-      default: 0,
-    },
-    ecommercePriceAftereDiscount: {
-      type: Number,
-      default: 0,
-    },
+
     buyingprice: {
       type: Number,
       default: 0,
     },
 
-    priceAftereDiscount: {
-      type: Number,
-      default: 0,
-    },
     qr: [
       {
         type: String,
@@ -98,13 +53,6 @@ const productSchema = new mongoose.Schema(
     image: {
       type: String,
     },
-    imagesArray: [
-      {
-        image: String,
-        isCover: { type: Boolean, default: false },
-        _id: false,
-      },
-    ],
 
     brand: {
       type: mongoose.Schema.ObjectId,
@@ -127,7 +75,6 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Labels",
     },
-    taxPrice: { type: Number, default: 0 },
     archives: {
       type: String,
       enum: ["true", "false"],
@@ -138,14 +85,7 @@ const productSchema = new mongoose.Schema(
       ref: "Currency",
     },
     profitRatio: { type: Number, default: 5 },
-    ratingsAverage: {
-      type: Number,
-      default: 0,
-    },
-    ratingsQuantity: {
-      type: Number,
-      default: 0,
-    },
+
     AdditionalInfo: {
       type: String,
       default: "Additional Info",
@@ -194,63 +134,15 @@ const productSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    ecommerceActive: { type: Boolean, default: false },
-    publish: { type: Boolean, default: false },
-    featured: { type: Boolean, default: false },
-    sponsored: { type: Boolean, default: false },
-    height: {
-      type: Number,
-      default: 0,
-    },
-    width: {
-      type: Number,
-      default: 0,
-    },
-    weight: {
-      type: Number,
-      default: 0,
-    },
-    length: {
-      type: Number,
-      default: 0,
-    },
-    shippingCompany: {
-      type: mongoose.Schema.ObjectId,
-      ref: "ShippingCompany",
-    },
-    alternateProducts: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "product",
-        _id: false,
-      },
-    ],
+
     groupID: { type: String },
-    importDate: String,
+
     soldByMonth: Number,
     soldByWeek: Number,
     haveGift: Boolean,
     soldToWinGift: Number,
     haveCost: { type: Boolean, default: true },
-    metas: {
-      title: {
-        en: { type: String, default: "" },
-        ar: { type: String, default: "" },
-        tr: { type: String, default: "" },
-      },
-      description: {
-        en: { type: String, default: "" },
-        ar: { type: String, default: "" },
-        tr: { type: String, default: "" },
-      },
-      keywords: {
-        en: { type: [String], default: [] },
-        ar: { type: [String], default: [] },
-        tr: { type: [String], default: [] },
-      },
-    },
-    parasutID: { type: String, default: "" },
-    productNo: { type: Number, default: 0 },
+
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,
@@ -288,22 +180,6 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-// Pre-save hook to assign productNo
-productSchema.pre("save", async function (next) {
-  if (!this.productNo) {
-    try {
-      const lastProduct = await this.constructor
-        .findOne({}, { productNo: 1 })
-        .sort({ productNo: -1 });
-
-      this.productNo = lastProduct ? lastProduct.productNo + 1 : 1;
-    } catch (err) {
-      return next(err);
-    }
-  }
-  next();
-});
-
 // const setImageURL = (doc) => {
 //   if (doc.image) {
 //     const imageUrl = `${process.env.BASE_URL}/product/${doc.image}`;
@@ -326,11 +202,5 @@ productSchema.pre("save", async function (next) {
 //   docs.forEach(setImageURL);
 // });
 productSchema.index({ counter: 1, companyId: 1 }, { unique: true });
-
-productSchema.virtual("review", {
-  ref: "Review",
-  foreignField: "product",
-  localField: "_id",
-});
 
 module.exports = mongoose.model("product", productSchema);
