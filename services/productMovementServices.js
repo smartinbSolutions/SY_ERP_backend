@@ -382,3 +382,76 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
     data: movement,
   });
 });
+
+exports.getProductCostLedger = asyncHandler(async (req, res) => {
+  const { companyId } = req.query;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const movements = await ProductMovement.find({
+    companyId,
+    productId: id,
+    type: "movement",
+  })
+    .sort({ createdAt: 1 })
+    .populate("productId", "name")
+    .lean();
+
+  let qty = 0;
+  let avgCost = 0;
+  let value = 0;
+
+  const result = [];
+
+  for (const mv of movements) {
+    if (mv.movementType === "in" || mv.movementType === "edit") {
+      const newQty = Number(mv.quantity) || 0;
+      const newPrice = Number(mv.buyingPrice) || 0;
+
+      if (qty + newQty > 0) {
+        avgCost = (qty * avgCost + newQty * newPrice) / (qty + newQty);
+      }
+
+      qty += newQty;
+      value = qty * avgCost;
+    }
+
+    if (mv.movementType === "out") {
+      const outQty = Number(mv.quantity) || 0;
+
+      if (outQty > qty) {
+        throw new Error("Not enough stock");
+      }
+
+      qty -= outQty;
+      value = qty * avgCost;
+    }
+
+    // add detailed log for this movement
+    result.push({
+      name: mv.productId.name,
+      movementId: mv._id,
+      movementType: mv.movementType,
+      qtyAfter: qty,
+      avgCostAfter: Number(avgCost),
+      valueAfter: Number(value),
+      buyingPrice: Number(mv.buyingPrice),
+      date: mv.createdAt,
+      source: mv.source,
+      qty: mv.quantity,
+    });
+  }
+
+  res.json({
+    status: "success",
+    data: {
+      finalQty: qty,
+      finalAvgCost: Number(avgCost),
+      finalValue: Number(value),
+      movements: result,
+    },
+  });
+});
