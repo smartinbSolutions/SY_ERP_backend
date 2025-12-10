@@ -464,3 +464,114 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
     },
   });
 });
+
+exports.getProductMovementReport = asyncHandler(async (req, res) => {
+  const { companyId, startDate, endDate, id, category } = req.query;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  let productFilter = { companyId };
+
+  if (id) productFilter._id = id;
+  if (category) productFilter.category = category;
+
+  const products = await productModel.find(productFilter).lean();
+
+  if (!products.length) {
+    return res.json({ status: "success", data: [] });
+  }
+
+  const productIds = products.map((p) => p._id);
+
+  let movementFilter = {
+    companyId,
+    productId: { $in: productIds },
+    type: "movement",
+  };
+
+  if (startDate && endDate) {
+    movementFilter.createdAt = {
+      $gte: new Date(startDate + "T00:00:00.000Z"),
+      $lte: new Date(endDate + "T23:59:59.999Z"),
+    };
+  }
+
+  const movements = await ProductMovement.find(movementFilter)
+    .sort({ createdAt: 1 })
+    .populate("productId", "name")
+    .lean();
+
+  const lastBuyMap = {};
+  const lastSellMap = {};
+
+  const lastBuys = await ProductMovement.aggregate([
+    {
+      $match: {
+        companyId,
+        productId: { $in: productIds },
+        movementType: "in",
+      },
+    },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: "$productId",
+        lastBuyingPrice: { $first: "$buyingPrice" },
+      },
+    },
+  ]);
+
+  const lastSells = await ProductMovement.aggregate([
+    {
+      $match: {
+        companyId,
+        productId: { $in: productIds },
+        movementType: "out",
+      },
+    },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: "$productId",
+        lastSellingPrice: { $first: "$sellingPrice" },
+      },
+    },
+  ]);
+
+  lastBuys.forEach((x) => (lastBuyMap[x._id] = x.lastBuyingPrice));
+  lastSells.forEach((x) => (lastSellMap[x._id] = x.lastSellingPrice));
+
+  const qtyMap = {};
+  const result = [];
+
+  for (const mv of movements) {
+    const pid = mv.productId._id;
+
+    if (!qtyMap[pid]) qtyMap[pid] = 0;
+
+    if (mv.movementType === "in") qtyMap[pid] += Number(mv.quantity || 0);
+    if (mv.movementType === "out") qtyMap[pid] -= Number(mv.quantity || 0);
+
+    result.push({
+      productId: pid,
+      name: mv.productId.name,
+      movementId: mv._id,
+      movementType: mv.movementType,
+      qty: mv.quantity,
+      runningQty: qtyMap[pid],
+      buyingPrice: mv.buyingPrice,
+      sellingPrice: mv.sellingPrice,
+      lastBuyingPrice: lastBuyMap[pid] || 0,
+      lastSellingPrice: lastSellMap[pid] || 0,
+      date: mv.createdAt,
+      source: mv.source,
+    });
+  }
+
+  res.json({
+    status: "success",
+    data: result,
+  });
+});
