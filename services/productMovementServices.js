@@ -386,20 +386,29 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
 exports.getProductCostLedger = asyncHandler(async (req, res) => {
   const { companyId } = req.query;
   const { id } = req.params;
+  const { startDate, endDate } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const movements = await ProductMovement.find({
+  let filters = {
     companyId,
     productId: id,
     type: "movement",
-  })
+  };
+
+  if (startDate && endDate) {
+    filters.createdAt = {
+      $gte: new Date(startDate + "T00:00:00.000Z"),
+      $lte: new Date(endDate + "T23:59:59.999Z"),
+    };
+  }
+
+  const movements = await ProductMovement.find(filters)
     .sort({ createdAt: 1 })
     .populate("productId", "name")
     .lean();
-
   let qty = 0;
   let avgCost = 0;
   let value = 0;
