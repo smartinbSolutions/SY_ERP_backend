@@ -12,7 +12,7 @@ const {
 const authService = require("../../services/authService");
 
 const budgetRoute = express.Router();
-// budgetRoute.use(authService.protect);
+budgetRoute.use(authService.protect);
 budgetRoute.route("/").get(getAccountForbudgetReport).post(createbudgetReport);
 budgetRoute.route("/budget").get(getAllbudgetReport);
 budgetRoute.route("/relocateBudget").patch(relocateBudget);
