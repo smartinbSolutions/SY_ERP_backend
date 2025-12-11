@@ -79,8 +79,7 @@ exports.createBranch = asyncHandler(async (req, res, next) => {
 
   const branchData = {
     name: req.body.name,
-    nameAR: req.body.nameAR,
-    nameTR: req.body.nameTR,
+    AlternativeName: req.body.AlternativeName,
     location: req.body.location,
     email: req.body.email,
     companyId: companyId,

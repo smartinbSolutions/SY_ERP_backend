@@ -3,8 +3,7 @@ const mongoose = require("mongoose");
 const branchesSchema = new mongoose.Schema(
   {
     name: String,
-    nameAR: String,
-    nameTR: String,
+    AlternativeName: String,
     location: {
       name: String,
       latitude: {

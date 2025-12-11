@@ -4,15 +4,26 @@ const ApiError = require("../../utils/apiError");
 const positionsModel = require("../../models/Hr/positionsModel");
 
 exports.getAllPositions = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const { companyId, branchId, departmentId } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const positions = await positionsModel.find({ companyId }).lean();
-  res
-    .status(200)
-    .json({ status: "success", results: positions.length, data: positions });
+
+  // base filter
+  let filter = { companyId };
+
+  // optional filters
+  if (branchId) filter.branchId = branchId;
+  if (departmentId) filter.departmentId = departmentId;
+
+  const positions = await positionsModel.find(filter).populate("departmentId");
+
+  res.status(200).json({
+    status: "success",
+    results: positions.length,
+    data: positions,
+  });
 });
 
 exports.getOnePositions = asyncHandler(async (req, res, next) => {
@@ -52,11 +63,11 @@ exports.createPositions = asyncHandler(async (req, res, next) => {
 
   const positionData = {
     name: req.body.name,
-    nameAR: req.body.nameAR,
-    nameTR: req.body.nameTR,
+    AlternativeName: req.body.AlternativeName,
     description: req.body.description,
     departmentId: req.body.departmentId,
     jobgradeId: req.body.jobgradeId,
+    branchId: req.body.branchId,
     parentPositions: req.body.parentPositions || null,
     children: req.body.children || [],
     sync: req.body.sync || false,

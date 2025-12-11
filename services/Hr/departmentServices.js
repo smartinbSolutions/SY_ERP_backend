@@ -6,14 +6,28 @@ const departmentModel = require("../../models/Hr/departmentModel");
 /////////
 exports.getAllDepartments = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  const branchId = req.query.branchId;
+  const keyword = req.query.keyword;
+
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const query = { companyId };
+  // base query
+  let query = { companyId };
 
-  if (req.query.keyword) {
-    query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
+  // filter by branchId (optional)
+  if (branchId) {
+    query.branchId = branchId;
+  }
+
+  // keyword search
+  if (keyword) {
+    query.$or = [
+      { name: { $regex: keyword, $options: "i" } },
+      { nameAR: { $regex: keyword, $options: "i" } },
+      { nameTR: { $regex: keyword, $options: "i" } },
+    ];
   }
 
   // Pagination
@@ -23,20 +37,20 @@ exports.getAllDepartments = asyncHandler(async (req, res, next) => {
 
   const total = await departmentModel.countDocuments(query);
 
-  const department = await departmentModel
+  const departments = await departmentModel
     .find(query)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 })
-    .lean();
+    .populate("branchId");
 
   res.status(200).json({
     status: "success",
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    results: department.length,
-    data: department,
+    results: departments.length,
+    data: departments,
   });
 });
 
@@ -76,11 +90,12 @@ exports.createDepartment = asyncHandler(async (req, res, next) => {
 
   const department = await departmentModel.create({
     name: req.body.name,
-    nameAR: req.body.nameAR,
-    nameTR: req.body.nameTR,
+    AlternativeName: req.body.AlternativeName,
     code: req.body.code,
     managerId: req.body.managerId,
     parent: req.body.parent,
+    isLocal: req.body.isLocal,
+    branchId: req.body.branchId,
     description: req.body.description,
     companyId: companyId,
   });

@@ -11,7 +11,15 @@ const StaffSchema = new mongoose.Schema({
   latinName: String,
   phoneNumber: String,
   salary: Number,
-  profileImage: String, 
+  profileImage: String,
+  branch: {
+    type: mongoose.Schema.ObjectId,
+    ref: "branches",
+  },
+  roleId: {
+    type: mongoose.Schema.ObjectId,
+    ref: "Roles",
+  },
   position: { type: mongoose.Schema.ObjectId, ref: "Positions" },
   groupId: {
     type: mongoose.Schema.Types.ObjectId,

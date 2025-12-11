@@ -3,8 +3,7 @@ const mongoose = require("mongoose");
 const jobGradesSchema = new mongoose.Schema(
   {
     name: String,
-    nameAR: String,
-    nameTR: String,
+    AlternativeName: String,
     description: String,
     levelNumber: String,
     salary: {

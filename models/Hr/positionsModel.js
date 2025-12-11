@@ -3,13 +3,11 @@ const mongoose = require("mongoose");
 const positionsSchema = new mongoose.Schema(
   {
     name: String,
-    nameAR: String,
-    nameTR: String,
+    AlternativeName: String,
     description: String,
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "departments",
-      required: true,
     },
     jobgradeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -21,7 +19,6 @@ const positionsSchema = new mongoose.Schema(
       ref: "Positions",
       default: null,
     },
-
     children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Positions" }],
     sync: { type: Boolean, default: false },
     companyId: {

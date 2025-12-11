@@ -3,17 +3,17 @@ const mongoose = require("mongoose");
 const DepartmentSchema = new mongoose.Schema(
   {
     name: String,
-    nameAR: String,
-    nameTR: String,
+    AlternativeName: String,
     code: String,
-    managerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
-      default: null,
-    },
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "departments",
+      default: null,
+    },
+    isLocal: Boolean,
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "branches",
       default: null,
     },
     description: String,

@@ -82,8 +82,7 @@ exports.createGrades = asyncHandler(async (req, res, next) => {
 
   const gradeData = {
     name: req.body.name,
-    nameAR: req.body.nameAR,
-    nameTR: req.body.nameTR,
+    AlternativeName: req.body.AlternativeName,
     description: req.body.description,
     levelNumber: req.body.levelNumber,
     salary: {
