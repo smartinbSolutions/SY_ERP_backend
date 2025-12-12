@@ -1,23 +1,39 @@
 const mongoose = require("mongoose");
 
-const discountSchema = new mongoose.Schema(
+const DiscountSchema = new mongoose.Schema(
   {
-    discountName: {
+    type: {
       type: String,
-      require: [true, "Discount name is require"],
+      enum: ["product", "category", "brand", "cart", "coupon"],
+      required: true,
     },
+
     discountType: {
       type: String,
-      enum: ["Currency", "Percentages"],
-      default: ["Currency"],
-      require: [true, "Discount type is require"],
+      enum: ["percentage", "fixed"],
+      required: true,
     },
-    quantity: {
-      type: Number,
-      require: [true, "Discount quantity is require"],
-      minlength: [1, "The quantity number is too short"],
+
+    value: { type: Number, required: true },
+
+    products: [{ type: mongoose.Schema.Types.ObjectId, ref: "product" }],
+
+    categories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
+
+    brands: [{ type: mongoose.Schema.Types.ObjectId, ref: "brand" }],
+
+    couponCode: {
+      type: String,
+      index: true,
+      sparse: true,
     },
-    sync: { type: Boolean, default: false },
+    minPurchase: Number,
+
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+
+    isActive: { type: Boolean, default: true },
+
     companyId: {
       type: String,
       required: true,
@@ -27,4 +43,4 @@ const discountSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Discount", discountSchema);
+module.exports = mongoose.model("Discount", DiscountSchema);
