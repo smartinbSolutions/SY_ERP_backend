@@ -32,7 +32,18 @@ exports.createCurrency = asyncHandler(async (req, res, next) => {
 
   req.body.companyId = companyId;
 
+  // 1️⃣ Create the currency
   const currency = await currencyModel.create(req.body);
+
+  // 2️⃣ Create initial log entry
+  await currencyLogModel.create({
+    currencyId: currency._id,
+    oldRate: null, // or 0 if you prefer
+    newRate: req.body.exchangeRate, // initial rate
+    changeType: "initial",
+    updatedBy: req.user?.name || "system",
+    companyId,
+  });
 
   res.status(200).json({
     status: "true",
