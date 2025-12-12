@@ -584,10 +584,12 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 
   const { id } = req.params;
   const productData = req.body;
-  productData.unitsPrices = JSON.parse(req.body.unitsPrices);
   productData.qr = JSON.parse(req.body.qr);
-  productData.variants = JSON.parse(req.body.variants);
-  productData.variantName = JSON.parse(req.body.variantName);
+  if (req.body.type !== "Service") {
+    productData.unitsPrices = JSON.parse(req.body.unitsPrices);
+    productData.variants = JSON.parse(req.body.variants);
+    productData.variantName = JSON.parse(req.body.variantName);
+  }
   // Parse metas if provided
   if (req.body.metas) {
     try {
