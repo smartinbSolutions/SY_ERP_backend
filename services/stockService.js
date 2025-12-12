@@ -522,6 +522,7 @@ exports.getStocksProducts = asyncHandler(async (req, res, next) => {
 
   if (req.query.categoryId) query.category = req.query.categoryId;
   if (req.query.brandId) query.brand = req.query.brandId;
+  if (req.query.unitId) query.unit = req.query.unitId;
 
   // if (pricingMethod) {
   //   query["unitsPrices.prices.title"] = pricingMethod;
