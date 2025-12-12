@@ -421,10 +421,12 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   const productData = req.body;
 
   productData.slug = slugify(productData.name);
-  productData.unitsPrices = JSON.parse(req.body.unitsPrices);
   productData.qr = JSON.parse(req.body.qr);
-  productData.variants = JSON.parse(req.body.variants);
-  productData.variantName = JSON.parse(req.body.variantName);
+  if (req.body.type !== "Service") {
+    productData.unitsPrices = JSON.parse(req.body.unitsPrices);
+    productData.variants = JSON.parse(req.body.variants);
+    productData.variantName = JSON.parse(req.body.variantName);
+  }
   try {
     // Create product
     const product = await createProductHandler(productData);
