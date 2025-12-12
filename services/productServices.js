@@ -1059,43 +1059,53 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
     if (!product) continue;
 
     const originalUnits = product.unitsPrices || [];
-    const newUnits = item.unitsPrices || [];
+
+    // ✅ FIX: extract updatedUnits correctly
+    const newUnits = Array.isArray(item.unitsPrices)
+      ? item.unitsPrices
+      : item.unitsPrices?.updatedUnits || [];
+
+    if (!Array.isArray(newUnits)) {
+      console.error("Invalid unitsPrices payload:", item.unitsPrices);
+      continue;
+    }
 
     let productChanged = false;
 
     for (const updatedUnit of newUnits) {
-      // Find the original unit by name
-      const origUnit = originalUnits.find((u) => u.name === updatedUnit.name);
+      const origUnit = originalUnits.find(
+        (u) => u.unitId?.toString() === updatedUnit.unitId?.toString()
+      );
       if (!origUnit) continue;
 
-      for (const updatedPrice of updatedUnit.prices) {
+      for (const updatedPrice of updatedUnit.prices || []) {
         const origPriceObj = origUnit.prices.find(
           (p) => p.title === updatedPrice.title
         );
         if (!origPriceObj) continue;
 
         if (origPriceObj.price !== updatedPrice.price) {
+          const oldPrice = origPriceObj.price;
+          const newPrice = updatedPrice.price;
+
           productChanged = true;
+          origPriceObj.price = newPrice;
 
-          // Update original price
-          origPriceObj.price = updatedPrice.price;
-
-          // Update main product fields if applicable
+          // Sync main product fields
           if (updatedPrice.title === "buyingprice") {
-            product.buyingprice = updatedPrice.price;
+            product.buyingprice = newPrice;
           }
-          if (updatedPrice.title === "taxPrice") {
-            product.taxPrice = updatedPrice.price;
+          if (updatedPrice.title === "price") {
+            product.price = newPrice;
           }
 
-          // Create log entry
           await createProductMovement(
             product._id,
             null,
             0,
             0,
-            updatedPrice.price,
-            origPriceObj.price,
+            newPrice,
+            oldPrice,
             "price",
             "edit",
             "bulk-update",
@@ -1103,9 +1113,11 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
             `Unit "${origUnit.name}" price "${updatedPrice.title}" updated`,
             product.currency,
             product.currency,
-            updatedPrice.buyingprice,
-            updatedPrice.taxPrice
+            product.buyingprice,
+            product.price
           );
+
+          totalLogs++;
         }
       }
     }
@@ -1113,6 +1125,7 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
     if (productChanged) {
       product.unitsPrices = originalUnits;
       await product.save();
+      totalUpdatedProducts++;
     }
   }
 

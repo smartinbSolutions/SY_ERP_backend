@@ -85,7 +85,6 @@ const productSchema = new mongoose.Schema(
       ref: "Currency",
     },
     profitRatio: { type: Number, default: 5 },
-
     AdditionalInfo: {
       type: String,
       default: "Additional Info",
