@@ -9,6 +9,7 @@ const {
   changeBalance,
   getOneAccountingTree,
   getAccountingTreeForExport,
+  getAccountingTreeFromJournals,
 } = require("../services/accountingTreeServices");
 const authService = require("../services/authService");
 const multer = require("multer");
@@ -25,9 +26,13 @@ accountingTreeRouter
   .post(createAccountingTree);
 
 accountingTreeRouter.route("/tree").get(getAccountingTreeNoBalance);
+accountingTreeRouter
+  .route("/treefromjournals")
+  .get(getAccountingTreeFromJournals);
 
 accountingTreeRouter
-  .route("/import").get(getAccountingTreeForExport)
+  .route("/import")
+  .get(getAccountingTreeForExport)
   .post(upload.single("file"), importAccountingTree);
 
 accountingTreeRouter

@@ -4,6 +4,7 @@ const AccountingTree = require("../models/accountingTreeModel");
 const ApiError = require("../utils/apiError");
 const xlsx = require("xlsx");
 const currencySchema = require("../models/currencyModel");
+const journalEntryModel = require("../models/journalEntryModel");
 
 exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -60,6 +61,118 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
 
     const treeData = buildTree(accounts);
     res.status(200).json({ status: "success", data: treeData });
+  } catch (error) {
+    next(error);
+  }
+});
+
+exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  try {
+    // 1️⃣ Fetch chart of accounts
+    const accounts = await AccountingTree.aggregate([
+      { $match: { companyId } },
+      {
+        $addFields: {
+          numericCode: {
+            $convert: {
+              input: "$code",
+              to: "double",
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+      },
+      { $sort: { numericCode: 1 } },
+      {
+        $lookup: {
+          from: "currencies",
+          localField: "currency",
+          foreignField: "_id",
+          as: "currency",
+        },
+      },
+      { $unwind: { path: "$currency", preserveNullAndEmptyArrays: true } },
+    ]);
+
+    // 2️⃣ Remove all filters — fetch ALL journals for this company
+    const match = { companyId };
+
+    // 3️⃣ Aggregate journal totals grouped by account ID (as string)
+    const journalSums = await journalEntryModel.aggregate([
+      { $match: match },
+      { $unwind: "$journalAccounts" },
+      {
+        $group: {
+          _id: { $toString: "$journalAccounts.id" }, // normalize IDs
+          totalDebit: { $sum: "$journalAccounts.MainDebit" },
+          totalCredit: { $sum: "$journalAccounts.MainCredit" },
+        },
+      },
+    ]);
+
+    // 4️⃣ Create balance map
+    const balanceMap = {};
+    for (const j of journalSums) {
+      balanceMap[j._id] = {
+        totalDebit: j.totalDebit || 0,
+        totalCredit: j.totalCredit || 0,
+        balance: (j.totalDebit || 0) - (j.totalCredit || 0),
+      };
+    }
+
+    // 5️⃣ Build the tree and attach balances
+    const buildTree = (data, parentCode = null) =>
+      data
+        .filter((acc) => acc.parentCode === parentCode)
+        .map((acc) => {
+          const children = buildTree(data, acc.code);
+          const bal = balanceMap[acc._id.toString()] || {
+            totalDebit: 0,
+            totalCredit: 0,
+            balance: 0,
+          };
+
+          const normalizedBalance =
+            acc.balanceType === "credit" ? -bal.balance : bal.balance;
+
+          return {
+            ...acc,
+            totalDebit: bal.totalDebit,
+            totalCredit: bal.totalCredit,
+            balance: normalizedBalance,
+            children: children.length > 0 ? children : [],
+          };
+        });
+
+    const treeData = buildTree(accounts);
+
+    // 6️⃣ Global totals
+    const totalDebit = Object.values(balanceMap).reduce(
+      (sum, v) => sum + v.totalDebit,
+      0
+    );
+    const totalCredit = Object.values(balanceMap).reduce(
+      (sum, v) => sum + v.totalCredit,
+      0
+    );
+
+    res.status(200).json({
+      status: "success",
+      companyId,
+      totals: {
+        totalDebit,
+        totalCredit,
+        totalBalance: totalDebit - totalCredit,
+      },
+      data: treeData,
+    });
   } catch (error) {
     next(error);
   }
@@ -215,7 +328,6 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
     item.companyId = companyId;
   }
   try {
-
     // Insert Tree into the database
     const insertedTree = await AccountingTree.insertMany(csvData, {
       ordered: false,

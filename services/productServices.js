@@ -422,10 +422,14 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 
   productData.slug = slugify(productData.name);
   productData.qr = JSON.parse(req.body.qr);
+  productData.serialNumbers = JSON.parse(req.body.serialNumbers);
   if (req.body.type !== "Service") {
     productData.unitsPrices = JSON.parse(req.body.unitsPrices);
     productData.variants = JSON.parse(req.body.variants);
     productData.variantName = JSON.parse(req.body.variantName);
+  }
+  if (req.body.customAttributes) {
+    productData.customAttributes = JSON.parse(req.body.customAttributes);
   }
   try {
     // Create product
@@ -585,10 +589,14 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const productData = req.body;
   productData.qr = JSON.parse(req.body.qr);
+  productData.serialNumbers = JSON.parse(req.body.serialNumbers);
   if (req.body.type !== "Service") {
     productData.unitsPrices = JSON.parse(req.body.unitsPrices);
     productData.variants = JSON.parse(req.body.variants);
     productData.variantName = JSON.parse(req.body.variantName);
+  }
+  if (req.body.customAttributes) {
+    productData.customAttributes = JSON.parse(req.body.customAttributes);
   }
   // Parse metas if provided
   if (req.body.metas) {

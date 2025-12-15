@@ -159,11 +159,11 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
       journalAccountsFiltered.forEach((ja) => {
         const accId = ja.id.toString();
         if (accountTotals[accId]) {
-          accountTotals[accId].debit += ja.accountDebit || 0;
-          accountTotals[accId].credit += ja.accountCredit || 0;
+          accountTotals[accId].debit += ja.MainDebit || 0;
+          accountTotals[accId].credit += ja.MainCredit || 0;
         }
-        totalDebit += ja.accountDebit || 0;
-        totalCredit += ja.accountCredit || 0;
+        totalDebit += ja.MainDebit || 0;
+        totalCredit += ja.MainCredit || 0;
       });
     });
   }
