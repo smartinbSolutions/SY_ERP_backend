@@ -14,10 +14,9 @@ exports.getRoleDashboard = asyncHandler(async (req, res, next) => {
 });
 
 //get roles on array of ids
-exports.getDashboardRoles = async (ids, companyId) => {
+exports.getDashboardRoles = async (ids) => {
   const dashboardRoles = await RoleDashboardModel.find({
     _id: { $in: ids },
-    
   }).select("-_id title");
 
   const titles = dashboardRoles.map((role) => role.title);

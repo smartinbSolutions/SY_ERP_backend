@@ -652,8 +652,8 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           newPurchaseInvoice._id,
           totalStockQuantity + item.quantity,
           item.quantity,
-          0,
-          0,
+          item.orginalBuyingPrice,
+          product.buyingprice,
           "movement",
           "in",
           "purchase",
@@ -661,7 +661,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          item.orginalBuyingPrice,
+          item.costBuyingPrice,
           0
         );
 
@@ -680,7 +680,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            item.orginalBuyingPrice,
+            item.costBuyingPrice,
             0
           );
         }
@@ -1323,8 +1323,8 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           newPurchaseInvoice._id,
           totalStockQuantity,
           diff,
-          0,
-          0,
+          item.orginalBuyingPrice,
+          product.buyingprice,
           "movement",
           "in",
           "purchase",
@@ -1332,7 +1332,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          item.orginalBuyingPrice,
+          item.costBuyingPrice,
           0
         );
 
@@ -1355,7 +1355,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            item.orginalBuyingPrice,
+            item.costBuyingPrice,
             0
           );
         }

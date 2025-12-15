@@ -384,13 +384,16 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
 });
 
 exports.getProductCostLedger = asyncHandler(async (req, res) => {
-  const { companyId } = req.query;
+  const { companyId, startDate, endDate, page = 1, limit = 20 } = req.query;
   const { id } = req.params;
-  const { startDate, endDate } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
+  const currentPage = Number(page);
+  const pageLimit = Number(limit);
+  const skip = (currentPage - 1) * pageLimit;
 
   let filters = {
     companyId,
@@ -406,16 +409,19 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
   }
 
   const movements = await ProductMovement.find(filters)
-    .sort({ createdAt: 1 })
+    .sort({ createdAt: -1 })
     .populate("productId", "name")
     .lean();
+
+  const movementsForCalc = [...movements].reverse();
+
   let qty = 0;
   let avgCost = 0;
   let value = 0;
 
-  const result = [];
+  const calculatedMap = new Map();
 
-  for (const mv of movements) {
+  for (const mv of movementsForCalc) {
     if (mv.movementType === "in" || mv.movementType === "edit") {
       const newQty = Number(mv.quantity) || 0;
       const newPrice = Number(mv.buyingPrice) || 0;
@@ -439,28 +445,46 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       value = qty * avgCost;
     }
 
-    // add detailed log for this movement
-    result.push({
+    calculatedMap.set(mv._id.toString(), {
+      qtyAfter: qty,
+      avgCostAfter: Number(avgCost.toFixed(4)),
+      valueAfter: Number(value.toFixed(2)),
+    });
+  }
+
+  const calculated = movements.map((mv) => {
+    const calc = calculatedMap.get(mv._id.toString());
+
+    return {
       name: mv.productId.name,
       movementId: mv._id,
       movementType: mv.movementType,
-      qtyAfter: qty,
-      avgCostAfter: Number(avgCost),
-      valueAfter: Number(value),
+      newQuantity: calc.qtyAfter,
+      avgCostAfter: calc.avgCostAfter,
+      valueAfter: calc.valueAfter,
       buyingPrice: Number(mv.buyingPrice),
       date: mv.createdAt,
       source: mv.source,
-      qty: mv.quantity,
-    });
-  }
+      quantity: mv.quantity,
+    };
+  });
+
+  // 🔹 Pagination
+  const paginatedMovements = calculated.slice(skip, skip + pageLimit);
 
   res.json({
     status: "success",
     data: {
       finalQty: qty,
-      finalAvgCost: Number(avgCost),
-      finalValue: Number(value),
-      movements: result,
+      finalAvgCost: Number(avgCost.toFixed(4)),
+      finalValue: Number(value.toFixed(2)),
+      movements: paginatedMovements,
+      pagination: {
+        page: currentPage,
+        limit: pageLimit,
+        total: calculated.length,
+        totalPages: Math.ceil(calculated.length / pageLimit),
+      },
     },
   });
 });

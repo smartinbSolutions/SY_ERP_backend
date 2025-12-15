@@ -69,7 +69,7 @@ exports.login = asyncHandler(async (req, res, next) => {
       companyId: req.body.companyId,
     });
     const [dashRoleName] = await Promise.all([
-      getDashboardRoles(roles.rolesDashboard, req.body.companyId),
+      getDashboardRoles(roles.rolesDashboard),
     ]);
 
     const token = createToken(user);
