@@ -447,8 +447,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
 
     calculatedMap.set(mv._id.toString(), {
       qtyAfter: qty,
-      avgCostAfter: Number(avgCost.toFixed(4)),
-      valueAfter: Number(value.toFixed(2)),
+      avgCostAfter: Number(avgCost),
+      valueAfter: Number(value),
     });
   }
 
@@ -466,6 +466,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       date: mv.createdAt,
       source: mv.source,
       quantity: mv.quantity,
+      reference: mv.reference,
+      source: mv.source,
     };
   });
 
@@ -476,8 +478,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
     status: "success",
     data: {
       finalQty: qty,
-      finalAvgCost: Number(avgCost.toFixed(4)),
-      finalValue: Number(value.toFixed(2)),
+      finalAvgCost: Number(avgCost),
+      finalValue: Number(value),
       movements: paginatedMovements,
       pagination: {
         page: currentPage,
