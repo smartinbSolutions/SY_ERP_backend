@@ -113,16 +113,16 @@ exports.uploadFileAndImagejournal = uploadMixOfFiles([
 ]);
 
 exports.processFilesAndImagesjournal = asyncHandler(async (req, res, next) => {
-  if (req.files.filesArray) {
-    req.body.filesArray = [];
+  // ✅ Always initialize
+  req.body.filesArray = [];
 
+  // ✅ Only process if files exist
+  if (req.files && Array.isArray(req.files.filesArray)) {
     req.files.filesArray.forEach((file) => {
       const fileName = `file-${uuidv4()}-${Date.now()}-${file.originalname}`;
       const filePath = `uploads/journal/${fileName}`;
 
-      // Save the file to disk
       require("fs").writeFileSync(filePath, file.buffer);
-
       req.body.filesArray.push(fileName);
     });
   }
@@ -159,7 +159,9 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   const accountingTreePayment =
     (await journalModel.countDocuments({ companyId })) + 1;
 
-  req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
+  if (typeof req.body.journalAccounts === "string") {
+    req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
+  }
   req.body.counter = Number(req.body.counter) + nextCounterPayment;
 
   req.body.journalRefNum = accountingTreePayment;
@@ -175,7 +177,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
   req.body.journalDate = isoDate;
-
+  req.body.filesArray = req.body.filesArray || [];
   const create = await journalModel.create(req.body);
   const updateOperations = req.body.journalAccounts.map((item) => ({
     updateOne: {
