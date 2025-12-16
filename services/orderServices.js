@@ -354,7 +354,6 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
         const soldQty = item.soldQuantity;
 
-        // 1️⃣ الكمية الحالية قبل البيع
         const oldQty = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity,
           0
@@ -364,7 +363,6 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           throw new Error("Insufficient stock");
         }
 
-        // 2️⃣ استهلاك batches (FIFO)
         let qtyToSell = soldQty;
         let totalCost = 0;
 
@@ -393,10 +391,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           throw new Error("Not enough batch stock");
         }
 
-        // 3️⃣ حساب متوسط كلفة البيع
         const soldAvgCost = totalCost / soldQty;
 
-        // 4️⃣ حساب متوسط الكلفة الجديد للمنتج
         const oldAvgCost = product.costBuyingPrice || 0;
         const remainingQty = oldQty - soldQty;
 
@@ -404,10 +400,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           remainingQty > 0
             ? (oldQty * oldAvgCost - soldQty * soldAvgCost) / remainingQty
             : 0;
-        console.log("soldAvgCost", soldAvgCost);
-        console.log(newAvgCost);
 
-        // 5️⃣ تحديث المنتج والمستودع
         return {
           updateOne: {
             filter: {
