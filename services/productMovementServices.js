@@ -411,9 +411,11 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
   const movements = await ProductMovement.find(filters)
     .sort({ createdAt: -1 })
     .populate("productId", "name")
+    .populate("reference", "counter")
     .lean();
 
   const movementsForCalc = [...movements].reverse();
+  console.log(movements);
 
   let qty = 0;
   let avgCost = 0;
@@ -436,6 +438,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
 
     if (mv.movementType === "out") {
       const outQty = Number(mv.quantity) || 0;
+      const soldAvgCost = mv.buyingPrice;
+      avgCost = (qty * avgCost - outQty * soldAvgCost) / (qty - outQty);
 
       if (outQty > qty) {
         throw new Error("Not enough stock");
@@ -468,6 +472,7 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       quantity: mv.quantity,
       reference: mv.reference,
       source: mv.source,
+      sellingPrice: mv.sellingPrice,
     };
   });
 

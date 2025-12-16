@@ -285,10 +285,10 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     .filter(
       (item) => item.type !== "unTracedproduct" && item.type !== "expense"
     )
-    .map((item) => item.qr);
+    .map((item) => item.id);
 
   const products = await productModel.find({
-    qr: { $in: productQRCodes },
+    _id: { $in: productQRCodes },
   });
 
   const productMap = new Map(
@@ -313,31 +313,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     }
   }
   await Promise.all(
-    Array.from(movementMap.entries()).map(async ([qr, item]) => {
-      const product = productMap.get(qr);
-
-      const totalStockQuantity = product.stocks.reduce(
-        (total, stock) => total + stock.productQuantity,
-        0
-      );
-
-      await createProductMovement(
-        product._id,
-        order.id,
-        totalStockQuantity - item.soldQuantity,
-        item.soldQuantity,
-        0,
-        0,
-        "movement",
-        "out",
-        "Sales Invoice",
-        companyId,
-        "",
-        "",
-        "",
-        item.orginalBuyingPrice,
-        item.sellingPrice
-      );
+    Array.from(movementMap.entries()).map(async ([id, item]) => {
+      const product = productMap.get(id);
     })
   );
 
@@ -365,6 +342,12 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
         let qtyToSell = soldQty;
         let totalCost = 0;
+        let buyingPrice = 0;
+        const totalStockQuantity = product.stocks.reduce(
+          (total, stock) => total + stock.productQuantity,
+          0
+        );
+        const fifoMovements = [];
 
         const batches = await prodcutBatchModel
           .find({
@@ -385,12 +368,38 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
           totalCost += used * batch.buyingprice;
           qtyToSell -= used;
+          buyingPrice = batch.buyingprice;
+
+          fifoMovements.push({
+            quantity: used,
+            buyingPrice: batch.buyingprice,
+            batchId: batch._id,
+          });
         }
 
         if (qtyToSell > 0) {
           throw new Error("Not enough batch stock");
         }
 
+        for (const fm of fifoMovements) {
+          await createProductMovement(
+            product._id,
+            order.id,
+            totalStockQuantity - fm.quantity,
+            fm.quantity,
+            0,
+            0,
+            "movement",
+            "out",
+            "Sales Invoice",
+            companyId,
+            "",
+            "",
+            "",
+            fm.buyingPrice,
+            item.sellingPrice
+          );
+        }
         const soldAvgCost = totalCost / soldQty;
 
         const oldAvgCost = product.costBuyingPrice || 0;

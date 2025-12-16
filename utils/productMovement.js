@@ -36,6 +36,12 @@ const createProductMovement = async (
       companyId,
       buyingPrice,
       sellingPrice,
+      referenceModel:
+        source === "Sales Invoice"
+          ? "Sales"
+          : source === "purchase"
+          ? "PurchaseInvoices"
+          : null,
     });
     const savedMovement = await newMovement.save();
 

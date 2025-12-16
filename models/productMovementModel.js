@@ -7,7 +7,7 @@ const ProductMovementSchema = new mongoose.Schema(
       ref: "product",
       required: true,
     },
-    reference: mongoose.Schema.ObjectId,
+    reference: { type: mongoose.Schema.ObjectId, refPath: "referenceModel" },
     sellingPrice: { type: Number, default: 0 },
     buyingPrice: { type: Number, default: 0 },
     quantity: {
@@ -33,8 +33,11 @@ const ProductMovementSchema = new mongoose.Schema(
     type: String,
     source: {
       type: String,
-      default: "",
+      enum: ["purchase", "Sales Invoice", "create", "edit"],
       required: true,
+    },
+    referenceModel: {
+      type: String,
     },
     oldCurrency: String,
     newCurrency: String,
