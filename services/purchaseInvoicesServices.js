@@ -691,7 +691,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           quantity: item.quantity,
           buyingprice: item.orginalBuyingPrice,
           sourceId: newPurchaseInvoice._id,
-          costBuyingPrice: item.costBuyingPrice,
+          costBuyingPrice: item.oldCostBuyingPrice,
           totalStockQuantity: totalStockQuantity + item.quantity,
         });
         if (item.orginalBuyingPrice !== product.buyingprice) {

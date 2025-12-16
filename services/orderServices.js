@@ -396,7 +396,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            fm.buyingPrice,
+            fm.costBuyingPrice,
             item.sellingPrice
           );
         }
