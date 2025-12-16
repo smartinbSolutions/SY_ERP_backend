@@ -374,6 +374,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             quantity: used,
             buyingPrice: batch.buyingprice,
             batchId: batch._id,
+            costBuyingPrice: batch.costBuyingPrice,
           });
         }
 
