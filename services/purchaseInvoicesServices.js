@@ -681,7 +681,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           "",
-          item.costBuyingPrice,
+          item.oldCostBuyingPrice,
           0
         );
         await addStock({
@@ -709,7 +709,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "",
             "",
             "",
-            item.costBuyingPrice,
+            item.oldCostBuyingPrice,
             0
           );
         }
