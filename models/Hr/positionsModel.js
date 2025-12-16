@@ -19,6 +19,10 @@ const positionsSchema = new mongoose.Schema(
       ref: "Positions",
       default: null,
     },
+    salary: {
+      min: String,
+      max: String,
+    },
     children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Positions" }],
     sync: { type: Boolean, default: false },
     companyId: {

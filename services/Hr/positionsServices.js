@@ -68,6 +68,7 @@ exports.createPositions = asyncHandler(async (req, res, next) => {
     departmentId: req.body.departmentId,
     jobgradeId: req.body.jobgradeId,
     branchId: req.body.branchId,
+    salary: req.body.salary,
     parentPositions: req.body.parentPositions || null,
     children: req.body.children || [],
     sync: req.body.sync || false,

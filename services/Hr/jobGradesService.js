@@ -85,10 +85,6 @@ exports.createGrades = asyncHandler(async (req, res, next) => {
     AlternativeName: req.body.AlternativeName,
     description: req.body.description,
     levelNumber: req.body.levelNumber,
-    salary: {
-      min: req.body.salary?.min,
-      max: req.body.salary?.max,
-    },
     companyId: companyId,
   };
 

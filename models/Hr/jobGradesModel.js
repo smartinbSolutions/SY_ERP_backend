@@ -6,10 +6,6 @@ const jobGradesSchema = new mongoose.Schema(
     AlternativeName: String,
     description: String,
     levelNumber: String,
-    salary: {
-      min: String,
-      max: String,
-    },
     companyId: String,
   },
   { timestamps: true }
