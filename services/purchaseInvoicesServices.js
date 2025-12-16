@@ -260,9 +260,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     companyId,
   });
 
-  const productQRCodes = invoicesItem.map((item) => item.qr);
+  const productQRCodes = invoicesItem.map((item) => item.id);
   const products = await productModel.find({
-    qr: { $in: productQRCodes },
+    _id: productQRCodes,
     companyId,
   });
 
@@ -658,8 +658,8 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   }
   if (!invoiceDraft) {
     await Promise.all(
-      Array.from(movementMap.entries()).map(async ([qr, item]) => {
-        const product = productMap.get(qr);
+      Array.from(movementMap.entries()).map(async ([id, item]) => {
+        const product = productMap.get(id);
         if (!product) return;
 
         const totalStockQuantity = product.stocks.reduce(
