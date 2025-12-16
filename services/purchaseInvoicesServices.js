@@ -15,6 +15,7 @@ const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
 const multer = require("multer");
 const ShortageModel = require("../models/ShortageModel");
+const { addStock } = require("./productBatchServices");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -322,7 +323,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       companyId,
     });
     // Use Promise.all for parallel database operations
-
     const payment = await PaymentModel.create({
       supplierId: supllierObject.id,
       supplierName: supllierObject.name,
@@ -504,17 +504,37 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         item.type !== "expense" &&
         item.type !== "variants"
     )
-    .map((item) => ({
-      updateOne: {
-        filter: { _id: item.id, "stocks.stockId": item.stock._id, companyId },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": +item.quantity,
+    .map((item) => {
+      const product = productMap.get(item.id);
+      if (!product) return null;
+
+      const oldQty = product.stocks.reduce(
+        (total, stock) => total + stock.productQuantity,
+        0
+      );
+
+      const oldCost = product.costBuyingPrice || 0;
+      const newQty = item.quantity;
+      const newCost = item.oldCostBuyingPrice || 0;
+
+      const newAvgCost =
+        (oldQty * oldCost + newQty * newCost) / (oldQty + newQty);
+      console.log(newAvgCost);
+      return {
+        updateOne: {
+          filter: { _id: item.id, "stocks.stockId": item.stock._id, companyId },
+          update: {
+            $inc: {
+              "stocks.$.productQuantity": +item.quantity,
+            },
+            $set: {
+              buyingprice: item.orginalBuyingPrice,
+              costBuyingPrice: newAvgCost,
+            },
           },
-          $set: { buyingprice: item.orginalBuyingPrice },
         },
-      },
-    }));
+      };
+    });
 
   const bulkVariantUpdates = invoicesItem
     .filter((item) => item.type === "variants")
@@ -664,7 +684,16 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           item.costBuyingPrice,
           0
         );
-
+        await addStock({
+          productId: item.id,
+          companyId,
+          stockId: item.stock._id,
+          quantity: item.quantity,
+          buyingprice: item.orginalBuyingPrice,
+          sourceId: newPurchaseInvoice._id,
+          costBuyingPrice: item.costBuyingPrice,
+          totalStockQuantity: totalStockQuantity + item.quantity,
+        });
         if (item.orginalBuyingPrice !== product.buyingprice) {
           await createProductMovement(
             product._id,

@@ -36,6 +36,10 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    costBuyingPrice: {
+      type: Number,
+      default: 0,
+    },
 
     qr: [
       {

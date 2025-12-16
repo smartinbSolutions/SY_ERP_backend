@@ -24,6 +24,7 @@ const suppliersModel = require("../models/suppliersModel");
 const accountingTreeModel = require("../models/accountingTreeModel");
 const companyInfoModel = require("../models/companyInfoModel");
 const { generateCounter } = require("../utils/counterFormat");
+const prodcutBatchModel = require("../models/prodcutBatchModel");
 
 const financailSource = async (
   taker,
@@ -349,7 +350,64 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         item.type !== "variants"
       ) {
         const product = productMap.get(item.id);
+        if (!product) return null;
 
+        const soldQty = item.soldQuantity;
+
+        // 1️⃣ الكمية الحالية قبل البيع
+        const oldQty = product.stocks.reduce(
+          (total, stock) => total + stock.productQuantity,
+          0
+        );
+
+        if (soldQty > oldQty) {
+          throw new Error("Insufficient stock");
+        }
+
+        // 2️⃣ استهلاك batches (FIFO)
+        let qtyToSell = soldQty;
+        let totalCost = 0;
+
+        const batches = await prodcutBatchModel
+          .find({
+            productId: item.id,
+            companyId,
+            stockId: item.stock._id,
+            quantity: { $gt: 0 },
+          })
+          .sort({ createdAt: 1 });
+
+        for (const batch of batches) {
+          if (qtyToSell <= 0) break;
+
+          const used = Math.min(batch.quantity, qtyToSell);
+
+          batch.quantity -= used;
+          await batch.save();
+
+          totalCost += used * batch.buyingprice;
+          qtyToSell -= used;
+        }
+
+        if (qtyToSell > 0) {
+          throw new Error("Not enough batch stock");
+        }
+
+        // 3️⃣ حساب متوسط كلفة البيع
+        const soldAvgCost = totalCost / soldQty;
+
+        // 4️⃣ حساب متوسط الكلفة الجديد للمنتج
+        const oldAvgCost = product.costBuyingPrice || 0;
+        const remainingQty = oldQty - soldQty;
+
+        const newAvgCost =
+          remainingQty > 0
+            ? (oldQty * oldAvgCost - soldQty * soldAvgCost) / remainingQty
+            : 0;
+        console.log("soldAvgCost", soldAvgCost);
+        console.log(newAvgCost);
+
+        // 5️⃣ تحديث المنتج والمستودع
         return {
           updateOne: {
             filter: {
@@ -358,10 +416,13 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             },
             update: {
               $inc: {
-                "stocks.$.productQuantity": -item.soldQuantity,
-                soldByMonth: +item.soldQuantity,
-                soldByWeek: +item.soldQuantity,
-                sold: +item.soldQuantity,
+                "stocks.$.productQuantity": -soldQty,
+                soldByMonth: soldQty,
+                soldByWeek: soldQty,
+                sold: soldQty,
+              },
+              $set: {
+                costBuyingPrice: Number(newAvgCost.toFixed(4)),
               },
             },
           },

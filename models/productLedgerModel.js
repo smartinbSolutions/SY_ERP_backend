@@ -1,0 +1,45 @@
+// models/inventoryLedgerModel.js
+const mongoose = require("mongoose");
+
+const productLedgerSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "product",
+      required: true,
+    },
+
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    stockId: String,
+
+    type: {
+      type: String,
+      enum: ["in", "out"],
+      required: true,
+    },
+
+    quantity: Number,
+    cost: Number,
+    costBuyingPrice: Number,
+    batchId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "ProductBatch",
+    },
+
+    referenceType: {
+      type: String, // sale, purchase, adjustment
+    },
+
+    referenceId: {
+      type: mongoose.Schema.ObjectId,
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("ProductLedger", productLedgerSchema);
