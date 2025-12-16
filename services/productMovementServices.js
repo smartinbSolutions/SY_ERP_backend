@@ -143,7 +143,6 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
   if (req.query.startDate && req.query.endDate) {
     const startDate = new Date(req.query.startDate);
     const endDate = new Date(req.query.endDate);
-    console.log(endDate);
 
     if (!isNaN(startDate) && !isNaN(endDate)) {
       match.createdAt = {
@@ -415,7 +414,6 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
     .lean();
 
   const movementsForCalc = [...movements].reverse();
-  console.log(movements);
 
   let qty = 0;
   let avgCost = 0;
