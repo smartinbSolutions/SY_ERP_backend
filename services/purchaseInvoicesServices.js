@@ -519,7 +519,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       const newAvgCost =
         (oldQty * oldCost + newQty * newCost) / (oldQty + newQty);
-      console.log(newAvgCost);
+      req.body.prodcutCost = newAvgCost;
       return {
         updateOne: {
           filter: { _id: item.id, "stocks.stockId": item.stock._id, companyId },
@@ -682,7 +682,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           item.oldCostBuyingPrice,
-          0
+          0,
+          item.stock._id,
+          req.body.prodcutCost
         );
         await addStock({
           productId: item.id,
@@ -710,7 +712,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "",
             "",
             item.oldCostBuyingPrice,
-            0
+            0,
+            item.stock._id,
+            req.body.prodcutCost
           );
         }
       })
@@ -1362,7 +1366,9 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           "",
           "",
           item.costBuyingPrice,
-          0
+          0,
+          item.stock._id,
+          product.costBuyingPrice
         );
 
         // price change movement if needed
@@ -1385,7 +1391,9 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
             "",
             "",
             item.costBuyingPrice,
-            0
+            0,
+            item.stock._id,
+            product.costBuyingPrice
           );
         }
       })
@@ -1734,7 +1742,9 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         "",
         "",
         item.orginalBuyingPrice,
-        0
+        0,
+        item.stock._id,
+        product.costBuyingPrice
       );
 
       if (item.orginalBuyingPrice !== product.buyingprice) {
@@ -1753,7 +1763,9 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           item.orginalBuyingPrice,
-          0
+          0,
+          item.stock._id,
+          product.costBuyingPrice
         );
       }
     })
@@ -2045,7 +2057,9 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
             "",
             "",
             item.orginalBuyingPrice,
-            0
+            0,
+            item.stock._id,
+            product.costBuyingPrice
           );
         } catch (error) {
           console.error(`Error processing product ${item.qr}:`, error);

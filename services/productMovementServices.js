@@ -237,6 +237,7 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
 
     const product = await productModel.findById(id).lean();
     const productName = product?.name || "";
+    const costBuyingPrice = product?.costBuyingPrice || "";
 
     groupStage = {
       _id: "$productId",
@@ -287,13 +288,7 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
       totalQuantityOut: 1,
 
       // ⭐ NEW: average buying price
-      averageBuying: {
-        $cond: [
-          { $eq: ["$totalQuantityIn", 0] },
-          0,
-          { $divide: ["$totalBuying", "$totalQuantityIn"] },
-        ],
-      },
+      averageBuying: costBuyingPrice,
     };
   }
 

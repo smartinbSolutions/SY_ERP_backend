@@ -10,6 +10,7 @@ const ProductMovementSchema = new mongoose.Schema(
     reference: { type: mongoose.Schema.ObjectId, refPath: "referenceModel" },
     sellingPrice: { type: Number, default: 0 },
     buyingPrice: { type: Number, default: 0 },
+    stockId: String,
     quantity: {
       type: Number,
       default: 0,
@@ -43,6 +44,7 @@ const ProductMovementSchema = new mongoose.Schema(
     newCurrency: String,
     desc: String,
     sync: { type: Boolean, default: false },
+    costBuyingPrice: Number,
     companyId: {
       type: String,
       required: true,
