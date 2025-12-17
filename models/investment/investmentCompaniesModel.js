@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const investmentCompaniesSchema = new mongoose.Schema(
   {
-    name: String,
+    companyName: String,
     email: String,
     description: String,
     industry: String,
@@ -15,6 +15,14 @@ const investmentCompaniesSchema = new mongoose.Schema(
     logo: String,
     website: String,
     status: String,
+    symbol: String,
+    bankQR: [
+      {
+        name: { type: String, default: "" },
+        accountNumber: { type: String, default: "" },
+        qrCode: { type: String, default: "" },
+      },
+    ],
     foundersArray: [
       {
         investorId: { type: mongoose.Schema.Types.ObjectId, ref: "investors" },

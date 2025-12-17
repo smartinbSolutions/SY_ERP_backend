@@ -67,9 +67,9 @@ const efaturaRoute = require("./efatura/efaturaRoute");
 const assetCategoryRoute = require("./assetCategoryRoute");
 const finalAsset = require("./finalAssetRoute");
 const assetCardRoute = require("./assetCardRoute");
-const investorRoute = require("./investorRoute");
-const investmentCompaniesRoute = require("./investmentCompaniesRoute");
-const investorSharesRoute = require("./investorSharesRoute");
+const investorRoute = require("./investment/investorRoute");
+const investmentCompaniesRoute = require("./investment/investmentCompaniesRoute");
+const investorSharesRoute = require("./investment/investorSharesRoute");
 const reconciliationRoute = require("./reconciliationRoute");
 const closingReportRoute = require("./reports/closingReportRoute");
 const budgetRoute = require("./reports/budgetRoute");
@@ -89,6 +89,7 @@ const branchRoute = require("./Hr/branchesRoute");
 const departmentRoute = require("./Hr/departmentRoute");
 const jobGradesRoute = require("./Hr/jobGradesRoute");
 const currencyLogRoute = require("./currencyLogRoute");
+const sharePurchaseRequestRoute = require("./investment/sharePurchaseRequestRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -195,6 +196,7 @@ const mountRoutes = (app) => {
   app.use("/api/investor", investorRoute);
   app.use("/api/investmentCompanies", investmentCompaniesRoute);
   app.use("/api/investorShares", investorSharesRoute);
+  app.use("/api/sharePurchaseRequest", sharePurchaseRequestRoute);
 
   //Report
   app.use("/api/closingreports", closingReportRoute);

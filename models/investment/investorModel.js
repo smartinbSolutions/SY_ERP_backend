@@ -30,6 +30,7 @@ const investorSchema = new mongoose.Schema(
     isFounder: { type: Boolean, default: false },
     ownedShares: { type: Number, default: 0 },
     companyId: String,
+    active: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

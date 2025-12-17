@@ -1,14 +1,14 @@
 const asyncHandler = require("express-async-handler");
-const Investor = require("../models/investorModel");
-const shareTransactionSchema = require("../models/investorSharesModel");
+const Investor = require("../../models/investment/investorModel");
+const shareTransactionSchema = require("../../models/investment/investorSharesModel");
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const bcrypt = require("bcryptjs");
-const investmentCompaniesModel = require("../models/investmentCompaniesModel");
+const investmentCompaniesModel = require("../../models/investment/investmentCompaniesModel");
 const multer = require("multer");
 const fs = require("fs");
-const generatePassword = require("../utils/tools/generatePassword");
-const sendEmail = require("../utils/sendEmail");
+const generatePassword = require("../../utils/tools/generatePassword");
+const sendEmail = require("../../utils/sendEmail");
 
 //for creating
 const storage = multer.memoryStorage();

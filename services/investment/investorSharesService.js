@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const InvestorShares = require("../models/investorSharesModel");
-const investmentCompanies = require("../models/investmentCompaniesModel");
+const InvestorShares = require("../../models/investment/investorSharesModel");
+const investmentCompanies = require("../../models/investment/investmentCompaniesModel");
 
 // @desc Create investorShares
 // @route POST /api/investorShares

@@ -1,25 +1,51 @@
 const asyncHandler = require("express-async-handler");
-const investmentCompanies = require("../models/investmentCompaniesModel");
-const Investor = require("../models/investorModel");
-const shareTransactionSchema = require("../models/investorSharesModel");
+const investmentCompanies = require("../../models/investment/investmentCompaniesModel");
+const Investor = require("../../models/investment/investorModel");
+const shareTransactionSchema = require("../../models/investment/investorSharesModel");
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
-const { uploadSingleImage } = require("../middlewares/uploadingImage");
+const { uploadSingleImage } = require("../../middlewares/uploadingImage");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 
 exports.uploadInvestmentCompaniesImage = uploadSingleImage("logo");
+
+exports.uploadInvestmentCompaniesImages = upload.fields([
+  { name: "logo", maxCount: 1 },
+  { name: "bankQR", maxCount: 10 },
+]);
 
 // Image processing
 exports.resizeInvestmentCompaniesImages = asyncHandler(
   async (req, res, next) => {
-    const filename = `investmentCompanies-${uuidv4()}-${Date.now()}.webp`;
-    if (req.file) {
-      await sharp(req.file.buffer)
+    // LOGO
+    if (req.files?.logo?.[0]) {
+      const logoFilename = `investmentCompanies-${uuidv4()}-${Date.now()}.webp`;
+
+      await sharp(req.files.logo[0].buffer)
         .toFormat("webp")
         .webp({ quality: 70 })
-        .toFile(`uploads/investmentCompanies/${filename}`);
+        .toFile(`uploads/investmentCompanies/${logoFilename}`);
 
-      // Save image into db
-      req.body.logo = filename;
+      req.body.logo = logoFilename;
+    }
+
+    // BANK QR
+    if (req.files?.bankQR?.length) {
+      req.body.bankQR = req.body.bankQR || [];
+
+      for (let i = 0; i < req.files.bankQR.length; i++) {
+        const file = req.files.bankQR[i];
+        const filename = `bankQR-${uuidv4()}-${Date.now()}.webp`;
+
+        await sharp(file.buffer)
+          .toFormat("webp")
+          .webp({ quality: 70 })
+          .toFile(`uploads/investmentCompanies/${filename}`);
+
+        if (!req.body.bankQR[i]) req.body.bankQR[i] = {};
+        req.body.bankQR[i].qrCode = filename;
+      }
     }
 
     next();
@@ -140,6 +166,8 @@ exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
           availableShares: req.body.availableShares,
           sharePrice: req.body.sharePrice,
           foundersArray: req.body.foundersArray,
+          bankQR: req.body.bankQR,
+          logo: req.body.logo,
         },
         {
           new: true,

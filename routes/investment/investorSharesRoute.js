@@ -5,9 +5,11 @@ const {
   getAllinvestorShares,
   getOneInvestorShares,
   updateInvestorSharesModel,
-} = require("../services/investorSharesService");
-const authService = require("../services/authService");
-const { updateInvestorShares } = require("../services/investorService");
+} = require("../../services/investment/investorSharesService");
+const authService = require("../../services/authService");
+const {
+  updateInvestorShares,
+} = require("../../services/investment/investorService");
 
 const investorSharesRoute = express.Router();
 investorSharesRoute.use(authService.protect);

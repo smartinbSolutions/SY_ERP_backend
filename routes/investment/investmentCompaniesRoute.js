@@ -7,15 +7,16 @@ const {
   deleteInvestmentCompanies,
   resizeInvestmentCompaniesImages,
   uploadInvestmentCompaniesImage,
-} = require("../services/investmentCompaniesService");
-const authService = require("../services/authService");
+  uploadInvestmentCompaniesImages,
+} = require("../../services/investment/investmentCompaniesService");
+const authService = require("../../services/authService");
 
 const investmentCompaniesRoute = express.Router();
-investmentCompaniesRoute.use(authService.protect);
 
 investmentCompaniesRoute
   .route("/")
   .post(
+    authService.protect,
     uploadInvestmentCompaniesImage,
     resizeInvestmentCompaniesImages,
     createInvestmentCompanies
@@ -24,11 +25,12 @@ investmentCompaniesRoute
 investmentCompaniesRoute
   .route("/:id")
   .put(
-    uploadInvestmentCompaniesImage,
+    authService.protect,
+    uploadInvestmentCompaniesImages,
     resizeInvestmentCompaniesImages,
     updateInvestmentCompanies
   )
   .get(getOneInvestmentCompanies)
-  .delete(deleteInvestmentCompanies);
+  .delete(authService.protect, deleteInvestmentCompanies);
 
 module.exports = investmentCompaniesRoute;
