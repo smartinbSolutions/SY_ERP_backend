@@ -329,7 +329,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         const product = productMap.get(item.id);
         if (!product) return null;
 
-        const soldQty = item.soldQuantity;
+        const soldQty = Number(item.soldQuantity);
 
         const oldQty = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity,
@@ -341,12 +341,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         }
 
         let qtyToSell = soldQty;
-        let totalCost = 0;
-        let buyingPrice = 0;
-        const totalStockQuantity = product.stocks.reduce(
-          (total, stock) => total + stock.productQuantity,
-          0
-        );
+        const totalStockQuantity = oldQty;
         const fifoMovements = [];
 
         const batches = await prodcutBatchModel
@@ -358,23 +353,22 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           })
           .sort({ createdAt: 1 });
 
+        // البيع من الباتشات
         for (const batch of batches) {
           if (qtyToSell <= 0) break;
 
-          const used = Math.min(batch.quantity, qtyToSell);
+          const usedQty = Math.min(batch.quantity, qtyToSell);
 
-          batch.quantity -= used;
+          batch.quantity -= usedQty;
           await batch.save();
 
-          totalCost += used * batch.buyingprice;
-          qtyToSell -= used;
-          buyingPrice = batch.buyingprice;
+          qtyToSell -= usedQty;
 
           fifoMovements.push({
-            quantity: used,
+            quantity: usedQty,
             buyingPrice: batch.buyingprice,
-            batchId: batch._id,
             costBuyingPrice: batch.costBuyingPrice,
+            batchId: batch._id,
           });
         }
 
@@ -382,6 +376,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           throw new Error("Not enough batch stock");
         }
 
+        // إنشاء الحركات (Product Movements)
         for (const fm of fifoMovements) {
           await createProductMovement(
             product._id,
@@ -398,19 +393,36 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             "",
             "",
             fm.costBuyingPrice,
-            item.sellingPrice
+            item.sellingPrice,
+            item.stock._id,
+            product.costBuyingPrice
           );
         }
-        const soldAvgCost = totalCost / soldQty;
 
-        const oldAvgCost = product.costBuyingPrice || 0;
-        const remainingQty = oldQty - soldQty;
+        // ============================
+        // حساب متوسط التكلفة الجديد
+        // ============================
+        const remainingBatches = await prodcutBatchModel.find({
+          productId: item.id,
+          companyId,
+          stockId: item.stock._id,
+          quantity: { $gt: 0 },
+        });
+
+        let remainingTotalQty = 0;
+        let remainingTotalCost = 0;
+
+        for (const batch of remainingBatches) {
+          remainingTotalQty += batch.quantity;
+          remainingTotalCost += batch.quantity * batch.buyingprice;
+        }
 
         const newAvgCost =
-          remainingQty > 0
-            ? (oldQty * oldAvgCost - soldQty * soldAvgCost) / remainingQty
+          remainingTotalQty > 0
+            ? Number((remainingTotalCost / remainingTotalQty).toFixed(6))
             : 0;
 
+        // تحديث المنتج
         return {
           updateOne: {
             filter: {
@@ -425,7 +437,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
                 sold: soldQty,
               },
               $set: {
-                costBuyingPrice: Number(newAvgCost.toFixed(4)),
+                costBuyingPrice: newAvgCost,
               },
             },
           },
@@ -770,7 +782,9 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
           "",
           "",
           item.orginalBuyingPrice,
-          item.sellingPrice
+          item.sellingPrice,
+          item.stock._id,
+          product.costBuyingPrice
         );
       }
     })
@@ -1184,7 +1198,9 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
             "",
             "",
             item.orginalBuyingPrice,
-            item.sellingPrice
+            item.sellingPrice,
+            item.stock._id,
+            product.costBuyingPrice
           );
         }
       })
@@ -1538,7 +1554,9 @@ exports.canceledOrder = asyncHandler(async (req, res, next) => {
             "",
             "",
             product.buyingprice,
-            product.taxPrice
+            product.taxPrice,
+            item.stock._id,
+            product.costBuyingPrice
           );
         })
       );
