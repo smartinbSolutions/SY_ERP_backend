@@ -455,210 +455,166 @@ exports.getOneTransferStock = asyncHandler(async (req, res, next) => {
   res.status(200).json({ statusbar: "success", data: transfer });
 });
 
-const getLastPrice = async ({
-  companyId,
-  productId,
-  type,
-  startDate,
-  endDate,
-}) => {
-  let query = { companyId, productId };
-  if (type === "buying") {
-    query.buyingPrice = { $gt: 0 };
-  } else if (type === "selling") {
-    query.sellingPrice = { $gt: 0 };
-  }
-
-  if (startDate || endDate) {
-    query.createdAt = {};
-    if (startDate) query.createdAt.$gte = new Date(startDate);
-    if (endDate) query.createdAt.$lte = new Date(endDate);
-  }
-
-  const result = await productMovementModel
-    .findOne(query)
-    .sort({ createdAt: -1 })
-    .lean();
-
-  if (!result) return null;
-
-  return type === "buying" ? result.buyingPrice : result.sellingPrice;
-};
-
 exports.getStocksProducts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+  const { companyId, stockId } = req.query;
+
+  if (!companyId || !stockId) {
+    return res
+      .status(400)
+      .json({ message: "companyId is required OR StockID" });
   }
-
-  const stockId = req.query.stockId;
-
-  let singleStock = null;
-  let allStocks = [];
-
-  if (stockId) {
-    singleStock = await StockModel.findOne({ _id: stockId, companyId });
-    if (!singleStock) {
-      return next(new ApiError(`No stock found for id ${stockId}`, 404));
-    }
-  } else {
-    allStocks = await StockModel.find({ companyId });
-  }
-
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-
-  const pricingMethod = req.query.pricingMethod;
-  const calculate = req.query.calculate === "true";
-
-  let query = { companyId };
-
-  if (stockId) {
-    query.stocks = { $elemMatch: { stockId, productQuantity: { $gt: 0 } } };
-  } else {
-    query.stocks = { $elemMatch: { productQuantity: { $gt: 0 } } };
-  }
-
-  if (req.query.categoryId) query.category = req.query.categoryId;
-  if (req.query.brandId) query.brand = req.query.brandId;
-  if (req.query.unitId) query.unit = req.query.unitId;
-
-  // if (pricingMethod) {
-  //   query["unitsPrices.prices.title"] = pricingMethod;
-  // }
-
-  if (req.query.keyword) {
-    query.$or = [
-      { name: { $regex: req.query.keyword, $options: "i" } },
-      { qr: { $regex: req.query.keyword, $options: "i" } },
-    ];
-  }
-
-  const totalProducts = await productModel.countDocuments(query);
-  const totalPages = Math.ceil(totalProducts / limit);
-
-  let products = await productModel
-    .find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .populate("unit")
-    .populate("currency");
-
-  let filteredProducts = products
-    .map((product) => {
-      let filteredStocks = product.stocks.filter(
-        (s) => Number(s.productQuantity) > 0
-      );
-
-      if (stockId) {
-        filteredStocks = filteredStocks.filter(
-          (s) => s.stockId.toString() === stockId
-        );
-      }
-
-      const firstUnit = product.unitsPrices?.[0] || null;
-
-      return {
-        ...product._doc,
-        stocks: filteredStocks,
-        unitsPrices: firstUnit ? [firstUnit] : [],
-      };
-    })
-    .filter((product) => product.stocks.length > 0);
-
-  let totalForMethod = 0;
-
-  const lastPriceType = req.query.lastPriceType;
-  const startDate = req.query.startDate;
-  const endDate = req.query.endDate;
-
-  // Step 1: Fetch global lastPrice
-  if (lastPriceType === "buying" || lastPriceType === "selling") {
-    filteredProducts = await Promise.all(
-      filteredProducts.map(async (product) => {
-        const lastPrice = await getLastPrice({
-          companyId,
-          productId: product._id,
-          type: lastPriceType,
-          startDate,
-          endDate,
-        });
-
-        return {
-          ...product,
-          lastPrice: lastPrice || 0,
-        };
-      })
-    );
-
-    // Step 2: Calculate total for global price
-    if (calculate) {
-      filteredProducts = filteredProducts.map((product) => {
-        const qty = product.stocks.reduce(
-          (acc, s) => acc + Number(s.productQuantity || 0),
-          0
-        );
-
-        const totalProductPrice = (product.lastPrice || 0) * qty;
-        totalForMethod += totalProductPrice;
-
-        return {
-          ...product,
-          totalLastPrice: totalProductPrice,
-        };
-      });
-    }
-  }
-
-  // Step 3: Calculate totals for unit-based pricing methods
-  if (calculate && pricingMethod) {
-    filteredProducts = filteredProducts.map((product) => {
-      const unit = product.unitsPrices[0];
-      if (!unit) return product;
-
-      const priceObj = unit?.prices?.find((p) => p.title === pricingMethod);
-      const methodPrice = priceObj ? Number(priceObj.price) : 0;
-
-      const qty = product.stocks.reduce(
-        (acc, s) => acc + Number(s.productQuantity || 0),
-        0
-      );
-
-      const totalProductPrice = methodPrice * qty;
-      totalForMethod += totalProductPrice;
-
-      return {
-        ...product,
-        unitsPrices: [
-          {
-            ...unit,
-            unitPrice: methodPrice,
-            totalUnitPrice: totalProductPrice,
-          },
-        ],
-      };
-    });
-  }
-
-  const responseData = {
-    status: "success",
-    results: totalProducts,
-    totalProducts,
-    pages: totalPages,
-    data: {
-      products: filteredProducts,
-      totalMethodPrice: calculate ? totalForMethod : undefined,
-      pricingMethod,
-    },
+  const { startDate, endDate } = req.query;
+  // Date filter
+  const matchStage = {
+    type: "movement",
+    companyId,
+    stockId,
   };
 
-  if (stockId) {
-    responseData.data.stock = singleStock;
-  } else {
-    responseData.data.stocks = allStocks;
+  if (startDate && endDate) {
+    matchStage.createdAt = {
+      $gte: new Date(startDate + "T00:00:00.000Z"),
+      $lte: new Date(endDate + "T23:59:59.999Z"),
+    };
   }
+  const {
+    sellingPriceMin,
+    sellingPriceMax,
+    buyingPriceMin,
+    buyingPriceMax,
+    costMin,
+    costMax,
+    unitPriceMin,
+    unitPriceMax,
+  } = req.query;
+  const movements = await productMovementModel.aggregate([
+    { $match: matchStage },
 
-  res.status(200).json(responseData);
+    // =====================
+    // Lookup product
+    // =====================
+    {
+      $lookup: {
+        from: "products",
+        localField: "productId",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: "$product" },
+
+    // =====================
+    // Project الأساسي
+    // =====================
+    {
+      $project: {
+        _id: 1,
+        movementId: "$_id",
+        createdAt: 1,
+        quantity: 1,
+        buyingPrice: 1,
+        sellingPrice: 1,
+
+        productId: "$product._id",
+        productName: "$product.name",
+        productCost: "$product.costBuyingPrice",
+        unitsPrices: "$product.unitsPrices",
+      },
+    },
+
+    // =====================
+    // تفريغ أسعار الوحدات
+    // =====================
+    {
+      $addFields: {
+        flatUnitPrices: {
+          $reduce: {
+            input: "$unitsPrices",
+            initialValue: [],
+            in: {
+              $concatArrays: [
+                "$$value",
+                {
+                  $map: {
+                    input: "$$this.prices",
+                    as: "p",
+                    in: "$$p.price",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+
+    // =====================
+    // فلترة الأسعار
+    // =====================
+    {
+      $match: {
+        ...(sellingPriceMin || sellingPriceMax
+          ? {
+              sellingPrice: {
+                ...(sellingPriceMin && {
+                  $gte: Number(sellingPriceMin),
+                }),
+                ...(sellingPriceMax && {
+                  $lte: Number(sellingPriceMax),
+                }),
+              },
+            }
+          : {}),
+
+        ...(buyingPriceMin || buyingPriceMax
+          ? {
+              buyingPrice: {
+                ...(buyingPriceMin && {
+                  $gte: Number(buyingPriceMin),
+                }),
+                ...(buyingPriceMax && {
+                  $lte: Number(buyingPriceMax),
+                }),
+              },
+            }
+          : {}),
+
+        ...(costMin || costMax
+          ? {
+              productCost: {
+                ...(costMin && { $gte: Number(costMin) }),
+                ...(costMax && { $lte: Number(costMax) }),
+              },
+            }
+          : {}),
+
+        ...(unitPriceMin || unitPriceMax
+          ? {
+              flatUnitPrices: {
+                $elemMatch: {
+                  ...(unitPriceMin && {
+                    $gte: Number(unitPriceMin),
+                  }),
+                  ...(unitPriceMax && {
+                    $lte: Number(unitPriceMax),
+                  }),
+                },
+              },
+            }
+          : {}),
+      },
+    },
+
+    // =====================
+    // Pagination
+    // =====================
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+  ]);
+
+  res.json(movements);
 });
