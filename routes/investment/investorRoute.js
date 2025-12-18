@@ -13,6 +13,8 @@ const {
 const {
   investorLogin,
   investorRegister,
+  investorLogout,
+  protectInvestor,
 } = require("../../services/investment/investorAuthService");
 
 const investorRoute = express.Router();
@@ -23,6 +25,7 @@ investorRoute
   .get(getAllInvestors);
 
 investorRoute.route("/auth/login").post(investorLogin);
+investorRoute.route("/auth/logout").post(protectInvestor, investorLogout);
 investorRoute.route("/auth/register").post(investorRegister);
 
 investorRoute

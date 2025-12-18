@@ -31,6 +31,8 @@ const investorSchema = new mongoose.Schema(
     ownedShares: { type: Number, default: 0 },
     companyId: String,
     active: { type: Boolean, default: true },
+    activeSessionId: { type: String, default: null },
+    sessionStartedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
