@@ -14,32 +14,21 @@ const {
   investorLogin,
   investorRegister,
 } = require("../../services/investment/investorAuthService");
-const authService = require("../../services/authService");
 
 const investorRoute = express.Router();
 
 investorRoute
   .route("/")
-  .post(
-    authService.protect,
-    uploadInvestorImages,
-    resizeInvestorImages,
-    createInvestor
-  )
-  .get(authService.protect, getAllInvestors);
+  .post(uploadInvestorImages, resizeInvestorImages, createInvestor)
+  .get(getAllInvestors);
 
 investorRoute.route("/auth/login").post(investorLogin);
 investorRoute.route("/auth/register").post(investorRegister);
 
 investorRoute
   .route("/:id")
-  .put(
-    authService.protect,
-    uploadInvestorImagesDisk,
-    processInvestorFiles,
-    updateInvestor
-  )
-  .get(authService.protect, getOneInvestor)
-  .delete(authService.protect, deleteInvestor);
+  .put(uploadInvestorImagesDisk, processInvestorFiles, updateInvestor)
+  .get(getOneInvestor)
+  .delete(deleteInvestor);
 
 module.exports = investorRoute;

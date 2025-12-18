@@ -490,16 +490,8 @@ exports.processInvestorFiles = asyncHandler(async (req, res, next) => {
 // @route PUT /api/investor/:id
 // @access Private
 exports.updateInvestor = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
   try {
-    const existingInvestor = await Investor.findOne({
-      _id: req.params.id,
-      companyId,
-    });
+    const existingInvestor = await Investor.findById(req.params.id);
 
     if (!existingInvestor) {
       return res.status(404).json({
