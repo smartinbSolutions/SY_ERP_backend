@@ -110,21 +110,10 @@ exports.getAllinvestorShares = asyncHandler(async (req, res, next) => {
 // @route GET /api/investorShares/:id
 // @access Private
 exports.getOneInvestorShares = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
   try {
-    const investorShare = await InvestorShares.findById(req.params.id);
-
-    if (!investorShare) {
-      return res.status(404).json({
-        status: false,
-        message: "investorShares not found",
-      });
-    }
+    const investorShare = await InvestorShares.find({
+      investorId: req.params.id,
+    });
 
     res.status(200).json({
       status: true,

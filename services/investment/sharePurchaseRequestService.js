@@ -34,6 +34,54 @@ exports.createPurchaseRequest = asyncHandler(async (req, res, next) => {
 // @desc Get all purchase requests
 // @route GET /api/purchaseRequests
 // @access Private
+exports.getAllInvestorPurchaseRequest = asyncHandler(async (req, res, next) => {
+  const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
+
+  try {
+    let query = { investorId: req.params.id };
+    const skip = (page - 1) * limit;
+
+    const [requests, total] = await Promise.all([
+      sharePurchaseRequestModel
+        .find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(Number(limit))
+        .populate({
+          path: "investorId",
+          select: "_id fullName phoneNumber",
+        }),
+
+      sharePurchaseRequestModel.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      status: true,
+      message: "success",
+      pagination: {
+        totalItems: total,
+        totalPages,
+        currentPage: Number(page),
+        itemsPerPage: Number(limit),
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      data: requests,
+    });
+  } catch (error) {
+    console.error(`Error fetching purchase requests: ${error.message}`);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
+  }
+});
+
+// @desc Get all purchase requests
+// @route GET /api/purchaseRequests
+// @access Private
 exports.getAllPurchaseRequest = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 

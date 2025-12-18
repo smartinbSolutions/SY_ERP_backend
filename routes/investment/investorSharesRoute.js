@@ -12,17 +12,16 @@ const {
 } = require("../../services/investment/investorService");
 
 const investorSharesRoute = express.Router();
-investorSharesRoute.use(authService.protect);
 
 investorSharesRoute
   .route("/")
-  .post(createinvestorShares)
+  .post(authService.protect, createinvestorShares)
   .get(getAllinvestorShares);
 investorSharesRoute
   .route("/:id")
-  .put(updateInvestorSharesModel)
+  .put(authService.protect, updateInvestorSharesModel)
   .get(getOneInvestorShares)
-  .delete(deleteInvestorShares);
+  .delete(authService.protect, deleteInvestorShares);
 
 investorSharesRoute.route("/shares/:id").put(updateInvestorShares);
 
