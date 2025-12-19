@@ -438,8 +438,8 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     if (productData.type !== "Service") {
       await createProductMovement({
         productId: product._id,
-        newQuantity: req.body.totalQuantity,
-        quantity: req.body.totalQuantity,
+        newQuantity: 0,
+        quantity: 0,
         movementType: "in",
         source: "Create",
         companyId,
