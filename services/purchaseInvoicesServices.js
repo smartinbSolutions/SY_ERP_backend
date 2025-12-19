@@ -667,25 +667,17 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           0
         );
 
-        await createProductMovement(
-          product._id,
-          newPurchaseInvoice._id,
-          totalStockQuantity + item.quantity,
-          item.quantity,
-          item.orginalBuyingPrice,
-          product.buyingprice,
-          "movement",
-          "in",
-          "purchase",
+        await createProductMovement({
+          productId: product._id,
+          reference: newPurchaseInvoice._id,
+          newQuantity: totalStockQuantity + item.quantity,
+          quantity: item.quantity,
+          movementType: "in",
+          source: "Purchase Invoice",
           companyId,
-          "",
-          "",
-          "",
-          item.oldCostBuyingPrice,
-          0,
-          item.stock._id,
-          req.body.prodcutCost
-        );
+          enterPrice: item.oldCostBuyingPrice,
+          stockId: item.stock._id,
+        });
         await addStock({
           productId: item.id,
           companyId,
@@ -696,27 +688,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           costBuyingPrice: item.oldCostBuyingPrice,
           totalStockQuantity: totalStockQuantity + item.quantity,
         });
-        if (item.orginalBuyingPrice !== product.buyingprice) {
-          await createProductMovement(
-            product._id,
-            newPurchaseInvoice._id,
-            0,
-            0,
-            item.orginalBuyingPrice,
-            product.buyingprice,
-            "price",
-            "in",
-            "purchase",
-            companyId,
-            "",
-            "",
-            "",
-            item.oldCostBuyingPrice,
-            0,
-            item.stock._id,
-            req.body.prodcutCost
-          );
-        }
       })
     );
   }

@@ -434,52 +434,19 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
   try {
     // Create product
     const product = await createProductHandler(productData);
-    const findCureency = await currencyModel.findOne({
-      _id: req.body.currency,
-      companyId,
-    });
-
     // Update stocks with product ID
     if (productData.type !== "Service") {
-      await createProductMovement(
-        product._id,
-        product._id,
-        req.body.totalQuantity,
-        req.body.totalQuantity,
-        0,
-        0,
-        "movement",
-        "in",
-        "create",
+      await createProductMovement({
+        productId: product._id,
+        newQuantity: req.body.totalQuantity,
+        quantity: req.body.totalQuantity,
+        movementType: "in",
+        source: "Create",
         companyId,
-        "",
-        "",
-        "",
-        req.body.buyingprice,
-        req.body.taxPrice
-      );
+        enterPrice: req.body.buyingprice,
+      });
     }
 
-    await createProductMovement(
-      product._id,
-      product._id,
-      0,
-      0,
-      product.buyingprice,
-      product.buyingprice,
-      "price",
-      "in",
-      "create",
-      companyId,
-      "",
-      findCureency.currencyCode,
-      findCureency.currencyCode,
-      "",
-      "",
-      "",
-      product.buyingprice,
-      product.taxPrice
-    );
     // Respond with success message and data
     res.status(201).json({
       status: "true",
@@ -513,10 +480,6 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
       ? { _id: id, companyId }
       : { slug: id, companyId };
 
-    const pageSize = parseInt(req.query.limit) || 10;
-    const page = parseInt(req.query.page) || 1;
-
-    const skip = (page - 1) * pageSize;
     // Fetch product and movements concurrently
     const product = await productModel
       .findOne(query)
@@ -528,23 +491,6 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
       .populate({ path: "label", select: "name _id" })
       .populate({ path: "currency" });
     // .populate({ path: "review", options: { limit: 10 } });
-
-    const movements = await productMovementModel
-      .find({
-        productId: product._id,
-        type: req.query.type,
-        companyId,
-      })
-      .skip(skip)
-      .limit(pageSize)
-      .sort({ createdAt: -1 });
-
-    const totalMovements = await productMovementModel.countDocuments({
-      productId: product._id,
-      type: req.query.type,
-      companyId,
-    });
-    const totalPages = Math.ceil(totalMovements / pageSize);
 
     // Check if product exists
     if (!product) {
@@ -568,9 +514,7 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
     };
 
     setImageURL(product);
-    res
-      .status(200)
-      .json({ data: product, movements: movements, totalPages: totalPages });
+    res.status(200).json({ data: product });
   } catch (error) {
     next(error);
   }
@@ -662,48 +606,48 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     let savedMovement;
 
     // Record product movement if quantity changed
-    if (req.body.totalQuantity && quantityChanged) {
-      savedMovement = await createProductMovement(
-        id,
-        id,
-        Number(req.body.totalQuantity),
-        Number(req.body.totalQuantity) - Number(totalQuantity),
-        0,
-        0,
-        "movement",
-        "edit",
-        "update",
-        companyId,
-        "",
-        "",
-        "",
-        product.buyingprice,
-        product.taxPrice
-      );
-    }
+    // if (req.body.totalQuantity && quantityChanged) {
+    //   savedMovement = await createProductMovement(
+    //     id,
+    //     id,
+    //     Number(req.body.totalQuantity),
+    //     Number(req.body.totalQuantity) - Number(totalQuantity),
+    //     0,
+    //     0,
+    //     "movement",
+    //     "edit",
+    //     "update",
+    //     companyId,
+    //     "",
+    //     "",
+    //     "",
+    //     product.buyingprice,
+    //     product.taxPrice
+    //   );
+    // }
 
-    // Record product movement if buying price changed
-    if (req.body.buyingprice && priceChanged) {
-      savedMovement = await createProductMovement(
-        id,
-        id,
-        0,
-        0,
-        req.body.buyingprice,
-        existingProduct.buyingprice,
-        "price",
-        "edit",
-        "update",
-        companyId,
-        "",
-        findCurrency ? findCurrency.currencyCode : "N/A",
-        existingProduct.currency
-          ? existingProduct.currency.currencyCode
-          : "N/A",
-        existingProduct.buyingprice,
-        existingProduct.taxPrice
-      );
-    }
+    // // Record product movement if buying price changed
+    // if (req.body.buyingprice && priceChanged) {
+    //   savedMovement = await createProductMovement(
+    //     id,
+    //     id,
+    //     0,
+    //     0,
+    //     req.body.buyingprice,
+    //     existingProduct.buyingprice,
+    //     "price",
+    //     "edit",
+    //     "update",
+    //     companyId,
+    //     "",
+    //     findCurrency ? findCurrency.currencyCode : "N/A",
+    //     existingProduct.currency
+    //       ? existingProduct.currency.currencyCode
+    //       : "N/A",
+    //     existingProduct.buyingprice,
+    //     existingProduct.taxPrice
+    //   );
+    // }
 
     // Update stocks if provided
     if (productData.stocks) {

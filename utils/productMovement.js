@@ -2,50 +2,39 @@ const mongoose = require("mongoose");
 const ProductMovementSchema = require("../models/productMovementModel");
 const ApiError = require("./apiError");
 
-const createProductMovement = async (
+const createProductMovement = async ({
   productId,
   reference,
   newQuantity,
   quantity,
-  newPrice,
-  oldPrice,
-  type,
+
   movementType,
   source,
   companyId,
   desc,
-  newCurrency,
-  oldCurrency,
-  buyingPrice,
-  sellingPrice,
+  enterPrice,
+  outPrice,
   stockId,
-  costBuyingPrice
-) => {
+}) => {
   try {
     const newMovement = new ProductMovementSchema({
       productId,
       reference,
       quantity,
       newQuantity,
-      newPrice,
-      oldPrice,
-      type,
       movementType,
       source,
       desc,
-      newCurrency,
-      oldCurrency,
       companyId,
-      buyingPrice,
-      sellingPrice,
+      enterPrice: enterPrice,
+      outPrice: outPrice,
       referenceModel:
         source === "Sales Invoice"
           ? "Sales"
-          : source === "purchase"
+          : source === "Purchase Invoice"
           ? "PurchaseInvoices"
           : null,
       stockId,
-      costBuyingPrice,
     });
     const savedMovement = await newMovement.save();
 

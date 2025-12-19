@@ -9,9 +9,8 @@ const ProductMovementSchema = new mongoose.Schema(
     },
     reference: { type: mongoose.Schema.ObjectId, refPath: "referenceModel" },
     referenceModel: { type: String },
-    sellingPrice: { type: Number, default: 0 },
-    buyingPrice: { type: Number, default: 0 },
-    costBuyingPrice: Number,
+    outPrice: { type: Number, default: 0 },
+    enterPrice: { type: Number, default: 0 },
     stockId: String,
     quantity: {
       type: Number,

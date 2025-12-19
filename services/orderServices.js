@@ -378,25 +378,17 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
         // إنشاء الحركات (Product Movements)
         for (const fm of fifoMovements) {
-          await createProductMovement(
-            product._id,
-            order.id,
-            totalStockQuantity - fm.quantity,
-            fm.quantity,
-            0,
-            0,
-            "movement",
-            "out",
-            "Sales Invoice",
+          await createProductMovement({
+            productId: product._id,
+            reference: order.id,
+            newQuantity: totalStockQuantity - fm.quantity,
+            quantity: fm.quantity,
+            movementType: "out",
+            source: "Sales Invoice",
             companyId,
-            "",
-            "",
-            "",
-            fm.costBuyingPrice,
-            item.sellingPrice,
-            item.stock._id,
-            product.costBuyingPrice
-          );
+            outPrice: fm.buyingPrice,
+            stockId: item.stock._id,
+          });
         }
 
         // ============================
@@ -767,25 +759,17 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
           0
         );
 
-        await createProductMovement(
-          product._id,
-          id,
-          totalStockQuantity - item.quantityDiff,
-          item.quantityDiff,
-          0,
-          0,
-          "movement",
-          "out",
-          "Sales Invoice",
+        await createProductMovement({
+          productId: product._id,
+          reference: id,
+          newQuantity: totalStockQuantity - item.quantityDiff,
+          quantity: item.quantityDiff,
+          movementType: "out",
+          source: "Sales Invoice",
           companyId,
-          "",
-          "",
-          "",
-          item.orginalBuyingPrice,
-          item.sellingPrice,
-          item.stock._id,
-          product.costBuyingPrice
-        );
+          outPrice: product.buyingPrice,
+          stockId: item.stock._id,
+        });
       }
     })
   );
@@ -1182,26 +1166,18 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
             (total, stock) => total + stock.productQuantity,
             0
           );
-
-          await createProductMovement(
-            product._id,
-            order._id,
-            totalStockQuantity,
-            item.quantityDiff,
-            0,
-            0,
-            "movement",
-            "in",
-            "Refund Sales Invoice",
-            companyId,
-            "",
-            "",
-            "",
-            item.orginalBuyingPrice,
-            item.sellingPrice,
-            item.stock._id,
-            product.costBuyingPrice
-          );
+          //
+          // await createProductMovement({
+          //   productId: product._id,
+          //   reference: order.id,
+          //   newQuantity: totalStockQuantity - fm.quantity,
+          //   quantity: fm.quantity,
+          //   movementType: "out",
+          //   source: "Sales Invoice",
+          //   companyId,
+          //   outPrice: fm.buyingPrice,
+          //   stockId: item.stock._id,
+          // });
         }
       })
     );

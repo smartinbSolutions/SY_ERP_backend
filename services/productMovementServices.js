@@ -91,9 +91,7 @@ exports.getProductMovementByID = asyncHandler(async (req, res, next) => {
   if (req.query.movementType) {
     query.movementType = req.query.movementType;
   }
-  if (req.query.source) {
-    query.source = { $regex: req.query.source, $options: "i" };
-  }
+
   if (req.query.startDate && req.query.endDate) {
     const startDate = new Date(req.query.startDate);
     const endDate = new Date(req.query.endDate);
@@ -392,7 +390,6 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
   let filters = {
     companyId,
     productId: id,
-    type: "movement",
   };
 
   if (startDate && endDate) {
@@ -417,9 +414,9 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
   const calculatedMap = new Map();
 
   for (const mv of movementsForCalc) {
-    if (mv.movementType === "in" || mv.movementType === "edit") {
+    if (mv.movementType === "in") {
       const newQty = Number(mv.quantity) || 0;
-      const newPrice = Number(mv.buyingPrice) || 0;
+      const newPrice = Number(mv.enterPrice) || 0;
 
       if (qty + newQty > 0) {
         avgCost = (qty * avgCost + newQty * newPrice) / (qty + newQty);
@@ -431,7 +428,7 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
 
     if (mv.movementType === "out") {
       const outQty = Number(mv.quantity) || 0;
-      const soldAvgCost = mv.buyingPrice;
+      const soldAvgCost = mv.outPrice;
       avgCost = (qty * avgCost - outQty * soldAvgCost) / (qty - outQty);
 
       if (outQty > qty) {
@@ -459,13 +456,13 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       newQuantity: calc.qtyAfter,
       avgCostAfter: calc.avgCostAfter,
       valueAfter: calc.valueAfter,
-      buyingPrice: Number(mv.buyingPrice),
+      enterPrice: Number(mv.enterPrice),
       date: mv.createdAt,
       source: mv.source,
       quantity: mv.quantity,
       reference: mv.reference,
       source: mv.source,
-      sellingPrice: mv.sellingPrice,
+      outPrice: mv.outPrice,
     };
   });
 
