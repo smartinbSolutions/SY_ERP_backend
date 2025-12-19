@@ -82,60 +82,79 @@ exports.getAllInvestorPurchaseRequest = asyncHandler(async (req, res, next) => {
 // @desc Get all purchase requests
 // @route GET /api/purchaseRequests
 // @access Private
-exports.getAllPurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+exports.getAllPurchaseRequest = asyncHandler(async (req, res) => {
+  const {
+    companyId,
+    page = 1,
+    limit = 10,
+    sort = "-createdAt",
+    type,
+    keyword,
+  } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const { page = 1, limit = 10, sort = "-createdAt", type } = req.query;
+  const skip = (page - 1) * limit;
 
-  try {
-    const query = { companyId };
+  const matchStage = {
+    companyId,
+    ...(type && { type }),
+  };
 
-    if (type) {
-      query.type = type;
-    }
+  const searchStage =
+    keyword && keyword.trim()
+      ? {
+          $or: [
+            { "investor.fullName": { $regex: keyword, $options: "i" } },
+            { paymentStatus: { $regex: keyword, $options: "i" } },
+            { type: { $regex: keyword, $options: "i" } },
+          ],
+        }
+      : {};
 
-    const skip = (page - 1) * limit;
+  const pipeline = [
+    { $match: matchStage },
 
-    const [requests, total] = await Promise.all([
-      sharePurchaseRequestModel
-        .find(query)
-        .sort(sort)
-        .skip(skip)
-        .limit(Number(limit))
-        .populate({
-          path: "investorId",
-          select: "_id fullName phoneNumber",
-        }),
-
-      sharePurchaseRequestModel.countDocuments(query),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-
-    res.status(200).json({
-      status: true,
-      message: "success",
-      pagination: {
-        totalItems: total,
-        totalPages,
-        currentPage: Number(page),
-        itemsPerPage: Number(limit),
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+    {
+      $lookup: {
+        from: "investors",
+        localField: "investorId",
+        foreignField: "_id",
+        as: "investor",
       },
-      data: requests,
-    });
-  } catch (error) {
-    console.error(`Error fetching purchase requests: ${error.message}`);
-    return res.status(500).json({
-      status: false,
-      message: "Internal server error",
-    });
-  }
+    },
+    { $unwind: "$investor" },
+
+    { $match: searchStage },
+
+    {
+      $sort: sort.startsWith("-") ? { createdAt: -1 } : { createdAt: 1 },
+    },
+
+    { $skip: skip },
+    { $limit: Number(limit) },
+  ];
+
+  const [data, total] = await Promise.all([
+    sharePurchaseRequestModel.aggregate(pipeline),
+    sharePurchaseRequestModel.countDocuments(matchStage),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  res.status(200).json({
+    status: true,
+    message: "success",
+    pagination: {
+      totalItems: total,
+      totalPages,
+      currentPage: Number(page),
+      itemsPerPage: Number(limit),
+    },
+    data,
+  });
 });
 
 // @desc Get one purchase request
