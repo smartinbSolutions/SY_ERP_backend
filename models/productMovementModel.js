@@ -8,8 +8,10 @@ const ProductMovementSchema = new mongoose.Schema(
       required: true,
     },
     reference: { type: mongoose.Schema.ObjectId, refPath: "referenceModel" },
+    referenceModel: { type: String },
     sellingPrice: { type: Number, default: 0 },
     buyingPrice: { type: Number, default: 0 },
+    costBuyingPrice: Number,
     stockId: String,
     quantity: {
       type: Number,
@@ -19,32 +21,23 @@ const ProductMovementSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    oldPrice: {
-      type: Number,
-      default: 0,
-    },
-    newPrice: {
-      type: Number,
-      default: 0,
-    },
     movementType: {
       type: String,
-      enum: ["in", "out", "edit"],
+      enum: ["in", "out"],
     },
-    type: String,
     source: {
       type: String,
-      enum: ["purchase", "Sales Invoice", "create", "edit"],
+      enum: [
+        "Create",
+        "Purchase Invoice",
+        "Sales Invoice",
+        "Stock reconciliation",
+        "Stock Transfer",
+      ],
       required: true,
     },
-    referenceModel: {
-      type: String,
-    },
-    oldCurrency: String,
-    newCurrency: String,
     desc: String,
     sync: { type: Boolean, default: false },
-    costBuyingPrice: Number,
     companyId: {
       type: String,
       required: true,
