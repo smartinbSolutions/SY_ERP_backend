@@ -168,7 +168,6 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
     .populate({ path: "brand", select: "name _id" })
     .populate({ path: "unit", select: "name code  _id" })
     .populate({ path: "tax" })
-    .populate({ path: "label", select: "name  _id" })
     .populate({
       path: "currency",
       select: "currencyCode currencyName exchangeRate is_primary  _id",
@@ -488,7 +487,6 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
       .populate({ path: "brand", select: "name _id" })
       .populate({ path: "unit", select: "name code _id" })
       .populate({ path: "tax", select: "tax _id" })
-      .populate({ path: "label", select: "name _id" })
       .populate({ path: "currency" });
     // .populate({ path: "review", options: { limit: 10 } });
 

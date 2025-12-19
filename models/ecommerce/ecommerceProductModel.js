@@ -62,6 +62,8 @@ const ecommerceProductModel = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    addToCart: { type: Number, default: 0 },
+    addToFavourites: { type: Number, default: 0 },
     ecommerceActive: { type: Boolean, default: false },
     publish: { type: Boolean, default: false },
     featured: { type: Boolean, default: false },

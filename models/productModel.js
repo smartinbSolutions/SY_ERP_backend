@@ -2,11 +2,13 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
   {
+    /* =========================
+       BASIC INFORMATION
+    ========================== */
     name: {
       type: String,
       require: true,
     },
-
     latinName: String,
     slug: {
       type: String,
@@ -16,31 +18,29 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: "Normal",
     },
-
     description: {
       type: String,
       default: "Product description",
     },
+    image: String,
 
-    sold: {
-      type: Number,
-      default: 0,
-    },
+    /* =========================
+       PRICING & QUANTITY
+    ========================== */
     quantity: { type: Number, default: 0 },
-    price: {
-      type: Number,
-      default: 0,
-    },
+    price: { type: Number, default: 0 },
+    buyingprice: { type: Number, default: 0 },
+    costBuyingPrice: { type: Number, default: 0 },
+    profitRatio: { type: Number, default: 5 },
+    haveCost: { type: Boolean, default: true },
 
-    buyingprice: {
-      type: Number,
+    /* =========================
+       IDENTIFIERS
+    ========================== */
+    sku: {
+      type: String,
       default: 0,
     },
-    costBuyingPrice: {
-      type: Number,
-      default: 0,
-    },
-
     qr: [
       {
         type: String,
@@ -50,14 +50,11 @@ const productSchema = new mongoose.Schema(
         require: true,
       },
     ],
-    sku: {
-      type: String,
-      default: 0,
-    },
-    image: {
-      type: String,
-    },
+    counter: String,
 
+    /* =========================
+       RELATIONS
+    ========================== */
     brand: {
       type: mongoose.Schema.ObjectId,
       ref: "brand",
@@ -70,43 +67,38 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "Unit",
     },
-    alarm: { type: Number, default: 0 },
     tax: {
       type: mongoose.Schema.ObjectId,
       ref: "Tax",
     },
-    label: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Labels",
-    },
-    archives: {
-      type: String,
-      enum: ["true", "false"],
-      default: "false",
-    },
     currency: {
       type: mongoose.Schema.ObjectId,
       ref: "Currency",
-    },
-    profitRatio: { type: Number, default: 5 },
-    AdditionalInfo: {
-      type: String,
-      default: "Additional Info",
     },
     mostLiklySupplier: {
       type: mongoose.Schema.ObjectId,
       ref: "Supplier",
       default: null,
     },
-    customAttributes: [
+
+    /* =========================
+       STOCK & ALERTS
+    ========================== */
+    alarm: { type: Number, default: 0 },
+    stocks: [
       {
-        key: String,
-        value: String,
+        stockId: String,
+        stockName: String,
+        productQuantity: Number,
+        minimum: String,
+        maximum: String,
         _id: false,
       },
     ],
-    serialNumbers: [{ type: String, default: "" }],
-    expirationDate: { type: String, default: Date.now },
+
+    /* =========================
+       UNIT PRICES
+    ========================== */
     unitsPrices: [
       {
         name: String,
@@ -125,48 +117,25 @@ const productSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    addToCart: { type: Number, default: 0 },
-    addToFavourites: { type: Number, default: 0 },
-    stocks: [
-      {
-        stockId: String,
-        stockName: String,
-        productQuantity: Number,
-        minimum: String,
-        maximum: String,
-        _id: false,
-      },
-    ],
 
-    groupID: { type: String },
-
-    soldByMonth: Number,
-    soldByWeek: Number,
-    haveGift: Boolean,
-    soldToWinGift: Number,
-    haveCost: { type: Boolean, default: true },
-
-    sync: { type: Boolean, default: false },
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
-    },
+    /* =========================
+       VARIANTS
+    ========================== */
     variantName: [{ name: String, values: [String] }],
     variants: [
       {
-        name: { type: String },
-        qr: { type: String },
-        buyingprice: { type: Number },
-        price: { type: Number },
+        name: String,
+        qr: String,
+        buyingprice: Number,
+        price: Number,
         taxValue: { type: Number, default: 0 },
         priceTax: { type: Number, default: 0 },
         profitRatio: { type: Number, default: 0 },
         available: { type: Boolean, default: true },
         stocks: [
           {
-            stockId: { type: String },
-            stockName: { type: String },
+            stockId: String,
+            stockName: String,
             quantity: { type: Number, default: 0 },
             _id: false,
           },
@@ -174,7 +143,38 @@ const productSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    counter: String,
+
+    /* =========================
+       ADDITIONAL DATA
+    ========================== */
+    AdditionalInfo: {
+      type: String,
+      default: "Additional Info",
+    },
+    customAttributes: [
+      {
+        key: String,
+        value: String,
+        _id: false,
+      },
+    ],
+    serialNumbers: [{ type: String, default: "" }],
+    expirationDate: { type: String, default: Date.now },
+
+    /* =========================
+       SYSTEM FIELDS
+    ========================== */
+    archives: {
+      type: String,
+      enum: ["true", "false"],
+      default: "false",
+    },
+    sync: { type: Boolean, default: false },
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -183,27 +183,9 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-// const setImageURL = (doc) => {
-//   if (doc.image) {
-//     const imageUrl = `${process.env.BASE_URL}/product/${doc.image}`;
-//     doc.image = imageUrl;
-//   }
-
-//   if (doc.imagesArray) {
-//     const imageList = doc.imagesArray.map(
-//       (image) => `${process.env.BASE_URL}/product/${image.image}`
-//     );
-//     doc.imagesArray = imageList;
-//   }
-// };
-
-// productSchema.post("save", (doc) => {
-//   setImageURL(doc);
-// });
-
-// productSchema.post("find", function (docs) {
-//   docs.forEach(setImageURL);
-// });
+/* =========================
+   INDEXES
+========================== */
 productSchema.index({ counter: 1, companyId: 1 }, { unique: true });
 
 module.exports = mongoose.model("product", productSchema);
