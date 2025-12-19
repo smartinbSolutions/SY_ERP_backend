@@ -90,6 +90,7 @@ const departmentRoute = require("./Hr/departmentRoute");
 const jobGradesRoute = require("./Hr/jobGradesRoute");
 const currencyLogRoute = require("./currencyLogRoute");
 const sharePurchaseRequestRoute = require("./investment/sharePurchaseRequestRoute");
+const productBatchRoute = require("./productBatchRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -141,6 +142,7 @@ const mountRoutes = (app) => {
   app.use("/api/assetcard", assetCardRoute);
 
   app.use("/api/shortage", ShortageRoute);
+  app.use("/api/v1/product-batches", productBatchRoute);
 
   //Ecommerce routes
   app.use("/api/users", E_userRoute);

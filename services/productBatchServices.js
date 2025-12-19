@@ -1,6 +1,7 @@
 const prodcutBatchModel = require("../models/prodcutBatchModel");
 const productLedgerModel = require("../models/productLedgerModel");
-const productModel = require("../models/productModel");
+const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 
 exports.addStock = async function addStock({
   productId,
@@ -10,14 +11,13 @@ exports.addStock = async function addStock({
   buyingprice,
   sourceId,
   costBuyingPrice,
-  totalStockQuantity,
 }) {
   const batch = await prodcutBatchModel.create({
     productId,
     companyId,
     stockId,
     quantity,
-    remaining: totalStockQuantity,
+    remaining: quantity,
     buyingprice,
     sourceId,
     costBuyingPrice,
@@ -38,3 +38,78 @@ exports.addStock = async function addStock({
 
   return batch;
 };
+
+exports.getAllProductBatch = asyncHandler(async (req, res) => {
+  const { companyId, page = 1, limit = 10 } = req.query;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const currentPage = Number(page);
+  const pageLimit = Number(limit);
+  const skip = (currentPage - 1) * pageLimit;
+
+  const filters = {
+    companyId,
+    productId: new mongoose.Types.ObjectId(id),
+  };
+
+  const [data, totalItems] = await Promise.all([
+    prodcutBatchModel.aggregate([
+      { $match: filters },
+      {
+        $lookup: {
+          from: "stocks",
+          localField: "stockId",
+          foreignField: "_id",
+          as: "stock",
+        },
+      },
+      {
+        $unwind: {
+          path: "$stock",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      { $sort: { createdAt: 1 } },
+
+      {
+        $setWindowFields: {
+          sortBy: { createdAt: 1 },
+          output: {
+            cumulativeQuantity: {
+              $sum: "$quantity",
+              window: {
+                documents: ["unbounded", "current"],
+              },
+            },
+            remainingTotalQuantity: {
+              $sum: "$remaining",
+              window: {
+                documents: ["unbounded", "current"],
+              },
+            },
+          },
+        },
+      },
+
+      { $sort: { createdAt: -1 } },
+
+      { $skip: skip },
+      { $limit: pageLimit },
+    ]),
+
+    prodcutBatchModel.countDocuments(filters),
+  ]);
+
+  const totalPages = Math.ceil(totalItems / pageLimit);
+
+  res.status(200).json({
+    status: true,
+    results: totalItems,
+    pages: totalPages,
+    data,
+  });
+});

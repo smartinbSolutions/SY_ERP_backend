@@ -349,7 +349,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             productId: item.id,
             companyId,
             stockId: item.stock._id,
-            quantity: { $gt: 0 },
+            remaining: { $gt: 0 },
           })
           .sort({ createdAt: 1 });
 
@@ -357,9 +357,9 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         for (const batch of batches) {
           if (qtyToSell <= 0) break;
 
-          const usedQty = Math.min(batch.quantity, qtyToSell);
+          const usedQty = Math.min(batch.remaining, qtyToSell);
 
-          batch.quantity -= usedQty;
+          batch.remaining -= usedQty;
           await batch.save();
 
           qtyToSell -= usedQty;
@@ -388,6 +388,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             companyId,
             outPrice: fm.buyingPrice,
             stockId: item.stock._id,
+            sellingPrice: item.sellingPrice,
           });
         }
 
@@ -406,12 +407,12 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
         for (const batch of remainingBatches) {
           remainingTotalQty += batch.quantity;
-          remainingTotalCost += batch.quantity * batch.buyingprice;
+          remainingTotalCost += batch.quantity * batch.costBuyingPrice;
         }
 
         const newAvgCost =
           remainingTotalQty > 0
-            ? Number((remainingTotalCost / remainingTotalQty).toFixed(6))
+            ? Number(remainingTotalCost / remainingTotalQty)
             : 0;
 
         // تحديث المنتج

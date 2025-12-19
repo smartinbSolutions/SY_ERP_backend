@@ -15,7 +15,7 @@ const productLedgerSchema = new mongoose.Schema(
       index: true,
     },
 
-    stockId: String,
+    stockId: { type: mongoose.Schema.ObjectId, ref: "Stock" },
 
     type: {
       type: String,

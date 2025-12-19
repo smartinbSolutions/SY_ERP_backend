@@ -403,6 +403,7 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .populate("productId", "name")
     .populate("reference", "counter")
+    .populate("stockId", "name")
     .lean();
 
   const movementsForCalc = [...movements].reverse();
@@ -463,6 +464,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       reference: mv.reference,
       source: mv.source,
       outPrice: mv.outPrice,
+      sellingPrice: mv.sellingPrice,
+      stockId: mv.stockId,
     };
   });
 

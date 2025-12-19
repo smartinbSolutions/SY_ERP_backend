@@ -11,7 +11,7 @@ const ProductMovementSchema = new mongoose.Schema(
     referenceModel: { type: String },
     outPrice: { type: Number, default: 0 },
     enterPrice: { type: Number, default: 0 },
-    stockId: String,
+    stockId: { type: mongoose.Schema.ObjectId, ref: "Stock" },
     quantity: {
       type: Number,
       default: 0,
@@ -37,6 +37,7 @@ const ProductMovementSchema = new mongoose.Schema(
     },
     desc: String,
     sync: { type: Boolean, default: false },
+    sellingPrice: String,
     companyId: {
       type: String,
       required: true,

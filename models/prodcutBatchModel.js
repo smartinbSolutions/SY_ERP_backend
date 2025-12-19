@@ -15,9 +15,7 @@ const ProductBatchSchema = new mongoose.Schema(
       index: true,
     },
 
-    stockId: {
-      type: String,
-    },
+    stockId: { type: mongoose.Schema.ObjectId, ref: "Stock" },
 
     quantity: {
       type: Number,
