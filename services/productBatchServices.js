@@ -3,7 +3,7 @@ const productLedgerModel = require("../models/productLedgerModel");
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 
-exports.addStock = async function addStock({
+exports.createProductBatch = async function createProductBatch({
   productId,
   companyId,
   stockId,
