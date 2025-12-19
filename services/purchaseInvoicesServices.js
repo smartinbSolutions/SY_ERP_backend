@@ -686,7 +686,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           buyingprice: item.orginalBuyingPrice,
           sourceId: newPurchaseInvoice._id,
           costBuyingPrice: item.oldCostBuyingPrice,
-          totalStockQuantity: totalStockQuantity + item.quantity,
         });
       })
     );
