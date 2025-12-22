@@ -8,6 +8,8 @@ const {
   resizeInvestmentCompaniesImages,
   uploadInvestmentCompaniesImage,
   uploadInvestmentCompaniesImages,
+  deleteCompanyBank,
+  updateCompanyBank,
 } = require("../../services/investment/investmentCompaniesService");
 const authService = require("../../services/authService");
 
@@ -22,6 +24,17 @@ investmentCompaniesRoute
     createInvestmentCompanies
   )
   .get(getAllInvestmentCompaniess);
+
+investmentCompaniesRoute
+  .route("/:id/bank-qr/:bankQRId")
+  .put(
+    authService.protect,
+    uploadInvestmentCompaniesImages,
+    resizeInvestmentCompaniesImages,
+    updateCompanyBank
+  )
+  .delete(authService.protect, deleteCompanyBank);
+
 investmentCompaniesRoute
   .route("/:id")
   .put(

@@ -6,13 +6,16 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const { uploadSingleImage } = require("../../middlewares/uploadingImage");
 const multer = require("multer");
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+});
 
 exports.uploadInvestmentCompaniesImage = uploadSingleImage("logo");
 
 exports.uploadInvestmentCompaniesImages = upload.fields([
   { name: "logo", maxCount: 1 },
-  { name: "bankQR", maxCount: 10 },
+  { name: "bankQR", maxCount: 1 },
 ]);
 
 // Image processing
@@ -31,21 +34,15 @@ exports.resizeInvestmentCompaniesImages = asyncHandler(
     }
 
     // BANK QR
-    if (req.files?.bankQR?.length) {
-      req.body.bankQR = req.body.bankQR || [];
+    if (req.files?.bankQR?.[0]) {
+      const bankQRFilename = `bankQR-${uuidv4()}-${Date.now()}.webp`;
 
-      for (let i = 0; i < req.files.bankQR.length; i++) {
-        const file = req.files.bankQR[i];
-        const filename = `bankQR-${uuidv4()}-${Date.now()}.webp`;
+      await sharp(req.files.bankQR[0].buffer)
+        .toFormat("webp")
+        .webp({ quality: 70 })
+        .toFile(`uploads/investmentCompanies/${bankQRFilename}`);
 
-        await sharp(file.buffer)
-          .toFormat("webp")
-          .webp({ quality: 70 })
-          .toFile(`uploads/investmentCompanies/${filename}`);
-
-        if (!req.body.bankQR[i]) req.body.bankQR[i] = {};
-        req.body.bankQR[i].qrCode = filename;
-      }
+      req.body.qrCode = bankQRFilename;
     }
 
     next();
@@ -256,6 +253,92 @@ exports.deleteInvestmentCompanies = asyncHandler(async (req, res, next) => {
     return res.status(500).json({
       status: false,
       message: error.message,
+    });
+  }
+});
+
+exports.deleteCompanyBank = asyncHandler(async (req, res) => {
+  const { companyId } = req.query;
+  const { id, bankQRId } = req.params;
+
+  if (!companyId || !bankQRId) {
+    return res.status(400).json({
+      status: false,
+      message: "companyId and bankQRId are required",
+    });
+  }
+
+  const updatedCompany = await investmentCompanies.findOneAndUpdate(
+    {
+      _id: id,
+      companyId,
+    },
+    {
+      $pull: {
+        bankQR: { _id: bankQRId },
+      },
+    },
+    { new: true }
+  );
+
+  if (!updatedCompany) {
+    return res.status(404).json({
+      status: false,
+      message: "Investment company or Bank QR not found",
+    });
+  }
+
+  res.status(200).json({
+    status: true,
+    message: "Bank QR deleted successfully",
+  });
+});
+
+exports.updateCompanyBank = asyncHandler(async (req, res) => {
+  const { id, bankQRId } = req.params;
+  const { companyId } = req.query;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  try {
+    const update = {
+      ...(req.body.name && { "bankQR.$.name": req.body.name }),
+      ...(req.body.accountNumber && {
+        "bankQR.$.accountNumber": req.body.accountNumber,
+      }),
+      ...(req.body.qrCode && {
+        "bankQR.$.qrCode": req.body.qrCode,
+      }),
+    };
+
+    const updatedCompany = await investmentCompanies.findOneAndUpdate(
+      {
+        _id: id,
+        companyId,
+        "bankQR._id": bankQRId,
+      },
+      { $set: update },
+      { new: true }
+    );
+
+    if (!updatedCompany) {
+      return res.status(404).json({
+        status: false,
+        message: "Bank account not found",
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Bank account updated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: false,
+      message: "Error while updating",
     });
   }
 });
