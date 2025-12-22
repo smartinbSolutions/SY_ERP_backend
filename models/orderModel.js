@@ -58,6 +58,7 @@ const orderSchema = new mongoose.Schema(
         linkAccount: String,
         vName: String,
         _id: false,
+        costBuyingPrice: String,
       },
     ],
     customer: {
@@ -86,6 +87,7 @@ const orderSchema = new mongoose.Schema(
         convertedBuyingPrice: Number,
         sellingPrice: Number,
         unit: String,
+        costBuyingPrice: Number,
         tax: {
           _id: String,
           tax: Number,

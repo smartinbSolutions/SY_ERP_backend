@@ -25,6 +25,7 @@ const accountingTreeModel = require("../models/accountingTreeModel");
 const companyInfoModel = require("../models/companyInfoModel");
 const { generateCounter } = require("../utils/counterFormat");
 const prodcutBatchModel = require("../models/prodcutBatchModel");
+const { createProductBatch } = require("./productBatchServices");
 
 const financailSource = async (
   taker,
@@ -353,7 +354,6 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           })
           .sort({ createdAt: 1 });
 
-        // البيع من الباتشات
         for (const batch of batches) {
           if (qtyToSell <= 0) break;
 
@@ -375,6 +375,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         if (qtyToSell > 0) {
           throw new Error("Not enough batch stock");
         }
+        let soldTotalQty = 0;
+        let soldTotalCost = 0;
 
         // إنشاء الحركات (Product Movements)
         for (const fm of fifoMovements) {
@@ -390,11 +392,10 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             stockId: item.stock._id,
             sellingPrice: item.sellingPrice,
           });
+          soldTotalQty += fm.quantity;
+          soldTotalCost += fm.quantity * fm.costBuyingPrice;
         }
 
-        // ============================
-        // حساب متوسط التكلفة الجديد
-        // ============================
         const remainingBatches = await prodcutBatchModel.find({
           productId: item.id,
           companyId,
@@ -409,10 +410,12 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           remainingTotalQty += batch.quantity;
           remainingTotalCost += batch.quantity * batch.costBuyingPrice;
         }
+        const oldAvgCost = product.costBuyingPrice;
+        const remainingQty = oldQty - soldQty;
 
         const newAvgCost =
           remainingTotalQty > 0
-            ? Number(remainingTotalCost / remainingTotalQty)
+            ? (oldQty * oldAvgCost - soldTotalCost) / remainingQty
             : 0;
 
         // تحديث المنتج
@@ -1125,21 +1128,53 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
 
     const order = await returnOrderModel.create(req.body);
 
-    const bulkUpdateOptions = req.body.invoicesItems
-      .filter(
-        (item) => item.type !== "unTracedproduct" && item.type !== "expense"
-      )
-      .map((item) => ({
+    const bulkUpdateOptions = [];
+
+    for (const item of req.body.invoicesItems) {
+      if (item.type === "unTracedproduct" || item.type === "expense") continue;
+
+      const product = await productModel.findOne({
+        _id: item.id,
+        "stocks.stockId": item.stock._id,
+      });
+
+      if (!product) continue;
+
+      const returnedQty = Number(item.soldQuantity);
+      const returnedCost = Number(item.orginalBuyingPrice);
+
+      const oldQty = product.stocks.reduce(
+        (total, stock) => total + stock.productQuantity,
+        0
+      );
+
+      const oldAvgCost = product.costBuyingPrice;
+
+      const newQty = oldQty + returnedQty;
+
+      const newAvgCost =
+        newQty > 0
+          ? (oldQty * oldAvgCost + returnedQty * returnedCost) / newQty
+          : oldAvgCost;
+
+      bulkUpdateOptions.push({
         updateOne: {
-          filter: { qr: item.qr, "stocks.stockId": item.stock._id },
+          filter: {
+            _id: item.id,
+            "stocks.stockId": item.stock._id,
+          },
           update: {
             $inc: {
-              quantity: +item.soldQuantity,
-              "stocks.$.productQuantity": +item.soldQuantity,
+              quantity: returnedQty,
+              "stocks.$.productQuantity": returnedQty,
+            },
+            $set: {
+              costBuyingPrice: Number(newAvgCost),
             },
           },
         },
-      }));
+      });
+    }
 
     await productModel.bulkWrite(bulkUpdateOptions);
     await returnOrderModel.bulkWrite(bulkUpdateOptions);
@@ -1150,35 +1185,66 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
       if (item.type === "unTracedproduct" || item.type === "expense") return;
 
       const diff = item.soldQuantity - originalItems[index].soldQuantity;
-      if (!movementMap.has(item.qr)) {
-        movementMap.set(item.qr, { ...item, quantityDiff: diff });
+      if (!movementMap.has(item.id)) {
+        movementMap.set(item.id, { ...item, quantityDiff: diff });
       } else {
-        const existing = movementMap.get(item.qr);
+        const existing = movementMap.get(item.id);
         existing.quantityDiff += diff;
       }
     });
 
     await Promise.all(
-      Array.from(movementMap.entries()).map(async ([qr, item]) => {
-        const product = await productModel.findOne({ qr, companyId });
+      Array.from(movementMap.entries()).map(async ([id, item]) => {
+        const product = await productModel.findOne({ _id: id, companyId });
+        console.log(item);
 
         if (product && product.type !== "Service") {
           const totalStockQuantity = product.stocks.reduce(
             (total, stock) => total + stock.productQuantity,
             0
           );
-          //
-          // await createProductMovement({
-          //   productId: product._id,
-          //   reference: order.id,
-          //   newQuantity: totalStockQuantity - fm.quantity,
-          //   quantity: fm.quantity,
-          //   movementType: "out",
-          //   source: "Sales Invoice",
+
+          // await createProductMovement(
+          //   product._id,
+          //   order._id,
+          //   totalStockQuantity,
+          //   item.quantityDiff,
+          //   0,
+          //   0,
+          //   "movement",
+          //   "in",
+          //   "Refund Sales Invoice",
           //   companyId,
-          //   outPrice: fm.buyingPrice,
-          //   stockId: item.stock._id,
-          // });
+          //   "",
+          //   "",
+          //   "",
+          //   item.orginalBuyingPrice,
+          //   item.sellingPrice,
+          //   item.stock._id,
+          //   product.costBuyingPrice
+          // );
+          await createProductMovement({
+            productId: product._id,
+            reference: order._id,
+            newQuantity: totalStockQuantity,
+            quantity: item.soldQuantity,
+            movementType: "in",
+            source: "Refund Sales Invoice",
+            companyId,
+            enterPrice: item.orginalBuyingPrice,
+            stockId: item.stock._id,
+          });
+
+          await createProductBatch({
+            productId: product.id,
+            companyId,
+            stockId: item.stock._id,
+            quantity: item.soldQuantity,
+            buyingprice: item.orginalBuyingPrice,
+            sourceId: order._id,
+            costBuyingPrice: item.costBuyingPrice,
+            referenceType: "Sales Refund",
+          });
         }
       })
     );
