@@ -15,7 +15,7 @@ const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
 const multer = require("multer");
 const ShortageModel = require("../models/ShortageModel");
-const { addStock } = require("./productBatchServices");
+const { createProductBatch } = require("./productBatchServices");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -678,7 +678,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           enterPrice: item.oldCostBuyingPrice,
           stockId: item.stock._id,
         });
-        await addStock({
+        await createProductBatch({
           productId: item.id,
           companyId,
           stockId: item.stock._id,
@@ -686,7 +686,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           buyingprice: item.orginalBuyingPrice,
           sourceId: newPurchaseInvoice._id,
           costBuyingPrice: item.oldCostBuyingPrice,
-          totalStockQuantity: totalStockQuantity + item.quantity,
+          referenceType: "purchase",
         });
       })
     );

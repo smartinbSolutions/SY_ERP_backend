@@ -3,7 +3,7 @@ const productLedgerModel = require("../models/productLedgerModel");
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 
-exports.addStock = async function addStock({
+exports.createProductBatch = async function createProductBatch({
   productId,
   companyId,
   stockId,
@@ -11,6 +11,7 @@ exports.addStock = async function addStock({
   buyingprice,
   sourceId,
   costBuyingPrice,
+  referenceType,
 }) {
   const batch = await prodcutBatchModel.create({
     productId,
@@ -21,6 +22,7 @@ exports.addStock = async function addStock({
     buyingprice,
     sourceId,
     costBuyingPrice,
+    sourceType: referenceType,
   });
 
   await productLedgerModel.create({
@@ -31,7 +33,7 @@ exports.addStock = async function addStock({
     quantity,
     cost: quantity * buyingprice,
     batchId: batch._id,
-    referenceType: "purchase",
+    referenceType,
     referenceId: sourceId,
     costBuyingPrice,
   });
