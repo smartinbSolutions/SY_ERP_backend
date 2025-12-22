@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const stockReconcilSchema = new mongoose.Schema(
   {
     title: String,
+    counter: String,
     reconcilingDate: String,
     items: [
       {

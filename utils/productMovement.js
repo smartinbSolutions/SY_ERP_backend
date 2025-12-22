@@ -7,7 +7,6 @@ const createProductMovement = async ({
   reference,
   newQuantity,
   quantity,
-
   movementType,
   source,
   companyId,
@@ -34,6 +33,10 @@ const createProductMovement = async ({
           ? "Sales"
           : source === "Purchase Invoice"
           ? "PurchaseInvoices"
+          : source === "Stock reconciliation"
+          ? "Reconciliation"
+          : source === "Stock Transfer"
+          ? "StockTransfer"
           : null,
       stockId,
       sellingPrice,

@@ -193,27 +193,27 @@ exports.deleteStock = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc put list product
-// @route put /api/stock/transfer
-// @access Private
+// @desc    Transfer product quantities between stocks
+// @route   PUT /api/stock/transfer
+// @access  Private
 exports.transformQuantity = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
+  // Validate companyId
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
   req.body.companyId = companyId;
-  const { fromStockId, toStockId, products } = req.body;
 
-  // Fetch the stocks
+  const { fromStockId, toStockId, products, counter } = req.body;
+
+  // Fetch both stocks
   const stocks = await StockModel.find({
     _id: { $in: [fromStockId, toStockId] },
     companyId,
   });
-  const fromStock = stocks.find(
-    (stock) => stock._id.toString() === fromStockId
-  );
-  const toStock = stocks.find((stock) => stock._id.toString() === toStockId);
+  const fromStock = stocks.find((s) => s._id.toString() === fromStockId);
+  const toStock = stocks.find((s) => s._id.toString() === toStockId);
 
   if (!fromStock || !toStock) {
     return res.status(404).json({ message: "Stock not found" });
@@ -228,28 +228,37 @@ exports.transformQuantity = asyncHandler(async (req, res, next) => {
         .json({ message: "Product quantity cannot be less than 0" });
     }
   }
-  req.body.counter =
+
+  // Generate transfer counter
+  const nextCounterForTransfer =
     (await stockTransferModel.countDocuments({ companyId })) + 1;
-  // Create the stock transfer operation
-  const transferStock = await stockTransferModel.create(req.body);
+
+  // Create the stock transfer record
+  const transferStock = await stockTransferModel.create({
+    ...req.body,
+    counter: Number(counter) + nextCounterForTransfer,
+  });
   const transferId = transferStock._id;
 
-  // Update stock quantities in product model
+  // Prepare bulk operations for product updates
   const bulkOps = [];
+
   for (const product of products) {
     const { productId, productQuantity } = product;
     const quantity = parseInt(productQuantity, 10);
 
-    // Find the product and check if the stocks already contain fromStockId and toStockId
     const productDoc = await productModel.findById(productId);
+
+    // Check if fromStock and toStock exist in the product
     const fromStockExists = productDoc.stocks.some(
       (stock) => stock.stockId.toString() === fromStockId
     );
     const toStockExists = productDoc.stocks.some(
       (stock) => stock.stockId.toString() === toStockId
     );
+
+    // Deduct quantity from fromStock
     if (fromStockExists) {
-      // Decrease quantity from the fromStock
       bulkOps.push({
         updateOne: {
           filter: { _id: productId, "stocks.stockId": fromStockId },
@@ -261,37 +270,17 @@ exports.transformQuantity = asyncHandler(async (req, res, next) => {
         message: `Stock ID ${fromStockId} not found in product ${productId}`,
       });
     }
+
+    // Add quantity to toStock
     if (toStockExists) {
-      // Increase quantity to the toStock
       bulkOps.push({
         updateOne: {
           filter: { _id: productId, "stocks.stockId": toStockId },
           update: { $inc: { "stocks.$.productQuantity": quantity } },
         },
       });
-
-      // Safely calculate the total quantity of the product (sum of all stocks)
-      const totalProductQuantity = productDoc.stocks.reduce((sum, stock) => {
-        const quantity = parseInt(stock.productQuantity, 10); // Ensure it's a number
-        return sum + (isNaN(quantity) ? 0 : quantity); // Add only valid numbers
-      }, 0);
-
-      // Track the product movement to the destination stock
-      await createProductMovement(
-        productId, // productId
-        transferId, // reference
-        totalProductQuantity, // newQuantity
-        quantity, // quantity
-        0, // newPrice
-        0, // oldPrice
-        "movement", // type
-        "in", // movementType
-        "stockTransfer", // source
-        companyId, // databaseName
-        `${fromStock.name} -> ${toStock.name}` // desc
-      );
     } else {
-      // If the toStockId does not exist in stocks array, add it
+      // If toStock doesn't exist, add it
       bulkOps.push({
         updateOne: {
           filter: { _id: productId, companyId },
@@ -307,17 +296,51 @@ exports.transformQuantity = asyncHandler(async (req, res, next) => {
         },
       });
     }
+
+    // Calculate total quantity across all stocks for movement record
+    const totalProductQuantity = productDoc.stocks.reduce((sum, stock) => {
+      const qty = parseInt(stock.productQuantity, 10);
+      return sum + (isNaN(qty) ? 0 : qty);
+    }, 0);
+
+    // Create OUT movement from fromStock
+    await createProductMovement({
+      productId,
+      reference: transferId,
+      newQuantity: totalProductQuantity,
+      quantity,
+      movementType: "out",
+      source: "Stock Transfer",
+      companyId,
+      desc: `${fromStock.name} -> ${toStock.name}`,
+      stockId: fromStockId,
+    });
+
+    // Create IN movement to toStock
+    await createProductMovement({
+      productId,
+      reference: transferId,
+      newQuantity: totalProductQuantity,
+      quantity,
+      movementType: "in",
+      source: "Stock Transfer",
+      companyId,
+      desc: `${fromStock.name} -> ${toStock.name}`,
+      stockId: toStockId,
+    });
   }
 
-  // Execute bulk update operations
+  // Execute bulk updates
   await productModel.bulkWrite(bulkOps);
 
+  // Update shortages if any selected
   if (req.body?.selectedId?.length > 0) {
     await ShortageModel.updateMany(
       { _id: { $in: req.body.selectedId } },
       { status: "done" }
     );
   }
+
   res.status(200).json({
     status: "success",
     message: "Transfer successful",
