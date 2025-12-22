@@ -457,31 +457,20 @@ exports.processInvestorFiles = asyncHandler(async (req, res, next) => {
 
   req.body.attachments = [];
 
-  await Promise.all(
-    req.files.map(async (file, i) => {
-      const isImage = file.mimetype.startsWith("image/");
-      const outputPath = file.path;
+  req.files.forEach((file, i) => {
+    const key =
+      req.body[`${file.fieldname}_key`] ||
+      file.fieldname.replace(/^attachment_\d+/, "attachment");
 
-      // Convert only images (PDFs are fine)
-      if (isImage) {
-        await sharp(outputPath)
-          .toFormat("webp")
-          .webp({ quality: 70 })
-          .toFile(outputPath);
-      }
-
-      const key = req.body[`attachment_${i}_key`] || file.fieldname;
-
-      if (file.fieldname === "profileImage" && isImage) {
-        req.body.profileImage = file.filename;
-      } else {
-        req.body.attachments.push({
-          key,
-          fileUrl: file.filename,
-        });
-      }
-    })
-  );
+    if (file.fieldname === "profileImage") {
+      req.body.profileImage = file.filename;
+    } else {
+      req.body.attachments.push({
+        key,
+        fileUrl: file.filename,
+      });
+    }
+  });
 
   next();
 });

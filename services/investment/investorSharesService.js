@@ -111,18 +111,31 @@ exports.getAllinvestorShares = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.getOneInvestorShares = asyncHandler(async (req, res, next) => {
   try {
-    const investorShare = await InvestorShares.find({
+    const pageSize = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * pageSize;
+
+    const query = {
       investorId: req.params.id,
-    });
+    };
+
+    const totalItems = await InvestorShares.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    const investorShares = await InvestorShares.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
 
     res.status(200).json({
       status: true,
-      message: "success",
-      data: investorShare,
+      totalPages,
+      results: totalItems,
+      data: investorShares,
     });
   } catch (error) {
     console.error(`Error fetching investorShares: ${error.message}`);
-    return res.status(500).json({
+    res.status(500).json({
       status: false,
       message: error.message,
     });
