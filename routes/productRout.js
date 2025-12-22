@@ -6,7 +6,6 @@ const {
   updateProduct,
   uploadProductImage,
   resizerImage,
-  addProduct,
   archiveProduct,
   getProductPos,
   getProductBySuppliers,
@@ -16,6 +15,7 @@ const {
   bulkUpdateProductInfo,
   getNullQrProduct,
   generateBarCode,
+  importProduct,
 } = require("../services/productServices");
 const {
   deleteProductValdiator,
@@ -44,7 +44,7 @@ const {
 
 const productRout = express.Router();
 
-productRout.post("/add", uploads.single("file"), addProduct);
+productRout.post("/add", uploads.single("file"), importProduct);
 
 productRout
   .route("/")

@@ -458,163 +458,75 @@ exports.getOneTransferStock = asyncHandler(async (req, res, next) => {
 exports.getStocksProducts = asyncHandler(async (req, res, next) => {
   const { companyId, stockId } = req.query;
 
-  if (!companyId || !stockId) {
-    return res
-      .status(400)
-      .json({ message: "companyId is required OR StockID" });
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
   }
+
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-  const { startDate, endDate } = req.query;
-  // Date filter
+
+  const {
+    startDate,
+    endDate,
+    lastEnterPrice,
+    lastOutPrice,
+    avg,
+    mostPrice,
+    lowPrice,
+  } = req.query;
+
   const matchStage = {
-    type: "movement",
     companyId,
     stockId,
   };
 
-  if (startDate && endDate) {
-    matchStage.createdAt = {
-      $gte: new Date(startDate + "T00:00:00.000Z"),
-      $lte: new Date(endDate + "T23:59:59.999Z"),
-    };
+  if (startDate || endDate) {
+    matchStage.createdAt = {};
+    if (startDate) {
+      matchStage.createdAt.$gte = new Date(startDate + "T00:00:00.000Z");
+    }
+    if (endDate) {
+      matchStage.createdAt.$lte = new Date(endDate + "T23:59:59.999Z");
+    }
   }
-  const {
-    sellingPriceMin,
-    sellingPriceMax,
-    buyingPriceMin,
-    buyingPriceMax,
-    costMin,
-    costMax,
-    unitPriceMin,
-    unitPriceMax,
-  } = req.query;
-  const movements = await productMovementModel.aggregate([
-    { $match: matchStage },
 
-    // =====================
-    // Lookup product
-    // =====================
-    {
-      $lookup: {
-        from: "products",
-        localField: "productId",
-        foreignField: "_id",
-        as: "product",
-      },
-    },
-    { $unwind: "$product" },
+  if (lastEnterPrice) {
+    matchStage.type = "in";
+    matchStage.enterPrice = Number(lastEnterPrice);
+  }
 
-    // =====================
-    // Project الأساسي
-    // =====================
-    {
-      $project: {
-        _id: 1,
-        movementId: "$_id",
-        createdAt: 1,
-        quantity: 1,
-        buyingPrice: 1,
-        sellingPrice: 1,
+  if (lastOutPrice) {
+    matchStage.type = "out";
+    matchStage.outPrice = Number(lastOutPrice);
+  }
 
-        productId: "$product._id",
-        productName: "$product.name",
-        productCost: "$product.costBuyingPrice",
-        unitsPrices: "$product.unitsPrices",
-      },
-    },
+  if (avg) {
+    matchStage.avgPrice = { $gte: Number(avg) };
+  }
 
-    // =====================
-    // تفريغ أسعار الوحدات
-    // =====================
-    {
-      $addFields: {
-        flatUnitPrices: {
-          $reduce: {
-            input: "$unitsPrices",
-            initialValue: [],
-            in: {
-              $concatArrays: [
-                "$$value",
-                {
-                  $map: {
-                    input: "$$this.prices",
-                    as: "p",
-                    in: "$$p.price",
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
-    },
+  if (mostPrice) {
+    matchStage.price = { $lte: Number(mostPrice) };
+  }
 
-    // =====================
-    // فلترة الأسعار
-    // =====================
-    {
-      $match: {
-        ...(sellingPriceMin || sellingPriceMax
-          ? {
-              sellingPrice: {
-                ...(sellingPriceMin && {
-                  $gte: Number(sellingPriceMin),
-                }),
-                ...(sellingPriceMax && {
-                  $lte: Number(sellingPriceMax),
-                }),
-              },
-            }
-          : {}),
+  if (lowPrice) {
+    matchStage.price = { $gte: Number(lowPrice) };
+  }
 
-        ...(buyingPriceMin || buyingPriceMax
-          ? {
-              buyingPrice: {
-                ...(buyingPriceMin && {
-                  $gte: Number(buyingPriceMin),
-                }),
-                ...(buyingPriceMax && {
-                  $lte: Number(buyingPriceMax),
-                }),
-              },
-            }
-          : {}),
+  const movements = await productMovementModel
+    .find(matchStage)
+    .populate("productId", "name")
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 });
 
-        ...(costMin || costMax
-          ? {
-              productCost: {
-                ...(costMin && { $gte: Number(costMin) }),
-                ...(costMax && { $lte: Number(costMax) }),
-              },
-            }
-          : {}),
+  const total = await productMovementModel.countDocuments(matchStage);
 
-        ...(unitPriceMin || unitPriceMax
-          ? {
-              flatUnitPrices: {
-                $elemMatch: {
-                  ...(unitPriceMin && {
-                    $gte: Number(unitPriceMin),
-                  }),
-                  ...(unitPriceMax && {
-                    $lte: Number(unitPriceMax),
-                  }),
-                },
-              },
-            }
-          : {}),
-      },
-    },
-
-    // =====================
-    // Pagination
-    // =====================
-    { $sort: { createdAt: -1 } },
-    { $skip: skip },
-    { $limit: limit },
-  ]);
-
-  res.json(movements);
+  res.json({
+    data: movements,
+    page,
+    limit,
+    total,
+    pages: Math.ceil(total / limit),
+  });
 });

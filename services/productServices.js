@@ -731,18 +731,16 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
 // @desc import products from Excel
 // @route add /api/add
 // @access Private
-exports.addProduct = asyncHandler(async (req, res) => {
+exports.importProduct = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
-
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
   try {
     const { buffer } = req.file;
-    let csvData;
+    let csvData = [];
 
-    // Check the file type based on the file extension or content type
     if (
       req.file.originalname.endsWith(".csv") ||
       req.file.mimetype === "text/csv"
@@ -754,31 +752,57 @@ exports.addProduct = asyncHandler(async (req, res) => {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ) {
       const workbook = xlsx.read(buffer, { type: "buffer" });
-      const sheet_name_list = workbook.SheetNames;
-      csvData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
+      const sheetName = workbook.SheetNames[0];
+      csvData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
     } else {
       return res.status(400).json({ error: "Unsupported file type" });
     }
 
-    // let totalBuyingPrice = 0;
-    for (const item of csvData) {
-      // Find IDs for currency, category, unit, and brand
-      const currency = await currencyModel.findOne({
-        currencyName: item.currency,
-        companyId,
-      });
-      const category = await categoryModel.findOne({ name: item.category });
-      const unit = await UnitsModel.findOne({ name: item.unit });
-      const brand = await brandModel.findOne({ name: item.brand });
-      const tax = await taxModel.findOne({ tax: item.tax });
+    const [currencies, categories, units, brands, taxes, stocks] =
+      await Promise.all([
+        currencyModel.find({ companyId }),
+        categoryModel.find({ companyId }),
+        UnitsModel.find({ companyId }),
+        brandModel.find({ companyId }),
+        taxModel.find({ companyId }),
+        stockModel.find({ companyId }),
+      ]);
 
-      const finalPrice = item.price;
-      item.taxPrice = finalPrice;
+    const currencyMap = new Map(currencies.map((c) => [c.currencyName, c._id]));
+    const categoryMap = new Map(categories.map((c) => [c.name, c._id]));
+    const unitMap = new Map(units.map((u) => [u.name, u._id]));
+    const brandMap = new Map(brands.map((b) => [b.name, b._id]));
+    const taxMap = new Map(taxes.map((t) => [String(t.tax), t._id]));
+    const stockMap = new Map(stocks.map((s) => [s.name, s]));
 
-      item.profitRatio = ((item.price - item.buyingprice) / item.price) * 100;
+    const preparedProducts = [];
 
-      // Handle stocks (e.g., Stock 1, Stock 2, etc.)
-      const stocks = [];
+    for (const row of csvData) {
+      const qrArray =
+        row.qr !== undefined && row.qr !== null
+          ? String(row.qr)
+              .split(",")
+              .map((q) => q.trim())
+              .filter(Boolean)
+          : [];
+
+      const customAttributes = [];
+      for (const key of Object.keys(row)) {
+        if (key.startsWith("attr_")) {
+          const k = key.replace("attr_", "").trim();
+          const v = row[key];
+          if (k && v !== undefined && v !== "") {
+            customAttributes.push({
+              key: k,
+              value: String(v),
+            });
+          }
+        }
+      }
+
+      const stocksArr = [];
+      let totalQuantity = 0;
+
       const excludedKeys = [
         "name",
         "qr",
@@ -790,65 +814,116 @@ exports.addProduct = asyncHandler(async (req, res) => {
         "unit",
         "brand",
         "alarm",
-        "taxPrice",
-        "profitRatio",
         "description",
+        "supplier",
+        "origin",
+        "active",
       ];
-      for (const key of Object.keys(item)) {
-        if (!excludedKeys.includes(key)) {
-          const stockName = key;
-          const stockQuantity = item[key] || 0; // Ensure it's always 0 if undefined or empty
 
-          // Find the stock ID dynamically by stock name
-          const stock = await stockModel.findOne({ name: stockName });
+      for (const key of Object.keys(row)) {
+        if (!excludedKeys.includes(key) && !key.startsWith("unitPrice_")) {
+          const stock = stockMap.get(key);
+          const qty = Number(row[key]) || 0;
 
-          if (stock) {
-            stocks.push({
-              stockId: stock._id,
+          if (stock && qty > 0) {
+            stocksArr.push({
+              stockId: String(stock._id),
               stockName: stock.name,
-              productQuantity: stockQuantity,
+              productQuantity: qty,
             });
-          } else {
-            console.warn(`Stock with name "${stockName}" not found.`);
+            totalQuantity += qty;
           }
         }
       }
 
-      item.stocks = stocks;
+      const unitsPrices = [];
 
-      // Assign IDs
-      item.currency = currency?._id;
-      item.category = category?._id;
-      item.unit = unit?._id;
-      item.brand = brand?._id;
-      item.tax = tax?._id;
-      item.companyId = companyId;
+      for (let i = 1; i <= 4; i++) {
+        const unitName = row[`unitPrice_${i}_name`];
+        const equal = Number(row[`unitPrice_${i}_equal`]) || 0;
+        const unitId2 = unitMap.get(unitName);
+
+        if (!unitName || equal <= 0 || !unitId2) continue;
+
+        const prices = [];
+        [
+          "buyingprice",
+          "price",
+          "semiWholesalePrice",
+          "distributionPrice",
+          "wholesalePrice",
+          "importPrice",
+          "exportPrice",
+        ].forEach((p) => {
+          const v = Number(row[`unitPrice_${i}_${p}`]) || 0;
+          if (v > 0) prices.push({ title: p, price: v });
+        });
+
+        if (prices.length) {
+          unitsPrices.push({
+            name: unitName,
+            equal: String(equal),
+            unitId: unitId2,
+            prices,
+          });
+        }
+      }
+
+      const price = Number(row.price) || 0;
+      const buyingprice = Number(row.buyingprice) || 0;
+      const profitRatio = price > 0 ? ((price - buyingprice) / price) * 100 : 0;
+
+      preparedProducts.push({
+        name: row.name,
+        description: row.description || "Product description",
+
+        price,
+        buyingprice,
+        profitRatio,
+        quantity: totalQuantity,
+        alarm: Number(row.alarm) || 0,
+
+        qr: qrArray,
+        customAttributes,
+
+        stocks: stocksArr,
+        unitsPrices,
+
+        currency: currencyMap.get(row.currency),
+        category: categoryMap.get(row.category),
+        unit: unitMap.get(row.unit),
+        brand: brandMap.get(row.brand),
+        tax: taxMap.get(String(row.tax || 0)),
+
+        companyId,
+      });
     }
 
-    // Save to MongoDB
     const duplicateQRs = [];
+
     try {
-      const insertedProducts = await productModel.insertMany(csvData, {
-        ordered: false,
-      });
+      await productModel.insertMany(preparedProducts, { ordered: false });
     } catch (error) {
       if (error.code === 11000) {
-        error.writeErrors.forEach((writeError) => {
-          const duplicateQR = writeError.err.op.qr;
-          duplicateQRs.push(duplicateQR);
-          console.log(`Duplicate QR: ${duplicateQR}`);
+        error.writeErrors.forEach((e) => {
+          duplicateQRs.push(e.err.op.qr);
         });
       } else {
         throw error;
       }
     }
 
-    res.json({ success: "Success", duplicateQRs });
+    res.json({
+      success: true,
+      inserted: preparedProducts.length,
+      duplicateQRs,
+    });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", details: error.message });
+    res.status(500).json({
+      error: "Internal Server Error",
+      details: error.message,
+    });
   }
 });
 
