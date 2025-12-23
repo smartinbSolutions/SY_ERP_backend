@@ -509,7 +509,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       if (!product) return null;
 
       const oldQty = product.stocks.reduce(
-        (total, stock) => total + stock.productQuantity,
+        (total, stock) => total + stock.productQuantity || 0,
         0
       );
 
@@ -519,6 +519,11 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       const newAvgCost =
         (oldQty * oldCost + newQty * newCost) / (oldQty + newQty);
+      console.log("oldQty", oldQty);
+      console.log("oldCost", oldCost);
+      console.log("newQty", newQty);
+      console.log("newCost", newCost);
+
       req.body.prodcutCost = newAvgCost;
       return {
         updateOne: {
@@ -663,9 +668,11 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         if (!product) return;
 
         const totalStockQuantity = product.stocks.reduce(
-          (total, stock) => total + stock.productQuantity,
+          (total, stock) => total + stock.productQuantity || 0,
           0
         );
+        console.log(item.quantity);
+        console.log("totalStockQuantity", totalStockQuantity);
 
         await createProductMovement({
           productId: product._id,
@@ -677,6 +684,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
           enterPrice: item.oldCostBuyingPrice,
           stockId: item.stock._id,
+          buyingPrice: item.orginalBuyingPrice,
         });
         await createProductBatch({
           productId: item.id,

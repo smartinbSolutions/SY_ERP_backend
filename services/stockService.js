@@ -8,6 +8,7 @@ const productModel = require("../models/productModel");
 const stockTransferModel = require("../models/stockTransfer");
 const productMovementModel = require("../models/productMovementModel");
 const ShortageModel = require("../models/ShortageModel");
+const { default: mongoose } = require("mongoose");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -478,78 +479,150 @@ exports.getOneTransferStock = asyncHandler(async (req, res, next) => {
   res.status(200).json({ statusbar: "success", data: transfer });
 });
 
-exports.getStocksProducts = asyncHandler(async (req, res, next) => {
-  const { companyId, stockId } = req.query;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
-
+exports.getStocksProducts = asyncHandler(async (req, res) => {
   const {
-    startDate,
-    endDate,
-    lastEnterPrice,
-    lastOutPrice,
-    avg,
-    mostPrice,
-    lowPrice,
-  } = req.query;
-
-  const matchStage = {
     companyId,
     stockId,
-  };
+    startDate,
+    endDate,
+    category,
+    page = 1,
+    limit = 20,
+  } = req.query;
 
-  if (startDate || endDate) {
-    matchStage.createdAt = {};
-    if (startDate) {
-      matchStage.createdAt.$gte = new Date(startDate + "T00:00:00.000Z");
-    }
-    if (endDate) {
-      matchStage.createdAt.$lte = new Date(endDate + "T23:59:59.999Z");
-    }
-  }
+  const pageNumber = parseInt(page);
+  const pageLimit = parseInt(limit);
 
-  if (lastEnterPrice) {
-    matchStage.type = "in";
-    matchStage.enterPrice = Number(lastEnterPrice);
-  }
+  const matchProduct = { companyId };
+  if (category) matchProduct.category = category;
 
-  if (lastOutPrice) {
-    matchStage.type = "out";
-    matchStage.outPrice = Number(lastOutPrice);
-  }
+  const productsWithStats = await productModel.aggregate([
+    { $match: matchProduct },
 
-  if (avg) {
-    matchStage.avgPrice = { $gte: Number(avg) };
-  }
+    {
+      $lookup: {
+        from: "categories",
+        localField: "category",
+        foreignField: "_id",
+        as: "categoryInfo",
+      },
+    },
+    { $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $addFields: {
+        categoryInfo: {
+          _id: "$categoryInfo._id",
+          name: "$categoryInfo.name",
+        },
+      },
+    },
 
-  if (mostPrice) {
-    matchStage.price = { $lte: Number(mostPrice) };
-  }
+    {
+      $lookup: {
+        from: "productmovements",
+        let: { productId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$productId", "$$productId"] },
+                  ...(stockId
+                    ? [
+                        {
+                          $eq: [
+                            "$stockId",
+                            new mongoose.Types.ObjectId(stockId),
+                          ],
+                        },
+                      ]
+                    : []),
+                  ...(startDate
+                    ? [
+                        {
+                          $gte: [
+                            "$createdAt",
+                            new Date(startDate + "T00:00:00.000Z"),
+                          ],
+                        },
+                      ]
+                    : []),
+                  ...(endDate
+                    ? [
+                        {
+                          $lte: [
+                            "$createdAt",
+                            new Date(endDate + "T23:59:59.999Z"),
+                          ],
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: { productId: "$productId", stockId: "$stockId" },
+              totalQuantity: { $sum: { $toDouble: "$quantity" } },
+              totalCost: {
+                $sum: {
+                  $multiply: [
+                    { $toDouble: "$enterPrice" },
+                    { $toDouble: "$quantity" },
+                  ],
+                },
+              },
+              sumPrices: { $sum: { $toDouble: "$enterPrice" } },
+              countPrices: { $sum: 1 },
+            },
+          },
+          {
+            $project: {
+              stockId: "$_id.stockId",
+              totalQuantity: 1,
+              totalCost: 1,
+              averagePrice: { $divide: ["$sumPrices", "$countPrices"] },
+            },
+          },
+        ],
+        as: "movements",
+      },
+    },
 
-  if (lowPrice) {
-    matchStage.price = { $gte: Number(lowPrice) };
-  }
+    { $unwind: "$movements" },
 
-  const movements = await productMovementModel
-    .find(matchStage)
-    .populate("productId", "name")
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
+    {
+      $addFields: {
+        totalQuantity: "$movements.totalQuantity",
+        averageBuyingPrice: {
+          $cond: [
+            { $eq: ["$movements.totalQuantity", 0] },
+            0,
+            { $divide: ["$movements.totalCost", "$movements.totalQuantity"] },
+          ],
+        },
+        averageEnterPrice: "$movements.averagePrice",
+        stockId: "$movements.stockId",
+      },
+    },
 
-  const total = await productMovementModel.countDocuments(matchStage);
+    { $match: { totalQuantity: { $gt: 0 } } },
+
+    { $project: { movements: 0 } },
+
+    { $skip: (pageNumber - 1) * pageLimit },
+    { $limit: pageLimit },
+  ]);
+
+  const totalProducts = await productModel.countDocuments(matchProduct);
+  const totalPages = Math.ceil(totalProducts / pageLimit);
 
   res.json({
-    data: movements,
-    page,
-    limit,
-    total,
-    pages: Math.ceil(total / limit),
+    data: productsWithStats,
+    pages: pageNumber,
+    limit: pageLimit,
+    totalProducts,
+    totalPages,
   });
 });

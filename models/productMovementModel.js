@@ -39,6 +39,7 @@ const ProductMovementSchema = new mongoose.Schema(
     desc: String,
     sync: { type: Boolean, default: false },
     sellingPrice: String,
+    buyingPrice: String,
     companyId: {
       type: String,
       required: true,
