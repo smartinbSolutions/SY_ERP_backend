@@ -245,7 +245,12 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
         $sum: {
           $cond: [
             { $eq: ["$movementType", "in"] },
-            { $multiply: ["$buyingPrice", "$quantity"] },
+            {
+              $multiply: [
+                { $toDouble: { $ifNull: ["$buyingPrice", 0] } },
+                { $toDouble: { $ifNull: ["$quantity", 0] } },
+              ],
+            },
             0,
           ],
         },
@@ -256,12 +261,16 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
         $sum: {
           $cond: [
             { $eq: ["$movementType", "out"] },
-            { $multiply: ["$sellingPrice", "$quantity"] },
+            {
+              $multiply: [
+                { $toDouble: { $ifNull: ["$sellingPrice", 0] } },
+                { $toDouble: { $ifNull: ["$quantity", 0] } },
+              ],
+            },
             0,
           ],
         },
       },
-
       // Total quantities in/out
       totalQuantityIn: {
         $sum: {
@@ -315,17 +324,28 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
         $sum: {
           $cond: [
             { $eq: ["$movementType", "in"] },
-            { $multiply: ["$buyingPrice", "$quantity"] },
+            {
+              $multiply: [
+                { $toDouble: { $ifNull: ["$buyingPrice", 0] } },
+                { $toDouble: { $ifNull: ["$quantity", 0] } },
+              ],
+            },
             0,
           ],
         },
       },
 
+      // Total selling value
       totalSelling: {
         $sum: {
           $cond: [
             { $eq: ["$movementType", "out"] },
-            { $multiply: ["$sellingPrice", "$quantity"] },
+            {
+              $multiply: [
+                { $toDouble: { $ifNull: ["$sellingPrice", 0] } },
+                { $toDouble: { $ifNull: ["$quantity", 0] } },
+              ],
+            },
             0,
           ],
         },
@@ -347,6 +367,7 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
     projectStage = {
       _id: 0,
       productId: "$_id",
+      productName: "$product.name",
       totalBuying: 1,
       totalSelling: 1,
       totalQuantityIn: 1,
@@ -366,6 +387,15 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
   const movement = await ProductMovement.aggregate([
     { $match: matchStage },
     { $group: groupStage },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: "$product" },
     { $project: projectStage },
   ]);
 
