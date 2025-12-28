@@ -16,7 +16,9 @@ const createProductMovement = async ({
   stockId,
   sellingPrice,
   buyingPrice,
+  exchangeRate,
 }) => {
+  console.log("exchangeRate", exchangeRate);
   try {
     const newMovement = new ProductMovementSchema({
       productId,
@@ -29,6 +31,7 @@ const createProductMovement = async ({
       companyId,
       enterPrice: enterPrice,
       outPrice: outPrice,
+      exchangeRate,
       referenceModel:
         source === "Sales Invoice"
           ? "Sales"

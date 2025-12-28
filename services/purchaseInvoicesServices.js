@@ -519,10 +519,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       const newAvgCost =
         (oldQty * oldCost + newQty * newCost) / (oldQty + newQty);
-      console.log("oldQty", oldQty);
-      console.log("oldCost", oldCost);
-      console.log("newQty", newQty);
-      console.log("newCost", newCost);
 
       req.body.prodcutCost = newAvgCost;
       return {
@@ -671,8 +667,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           (total, stock) => total + stock.productQuantity || 0,
           0
         );
-        console.log(item.quantity);
-        console.log("totalStockQuantity", totalStockQuantity);
 
         await createProductMovement({
           productId: product._id,
@@ -685,6 +679,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           enterPrice: item.oldCostBuyingPrice,
           stockId: item.stock._id,
           buyingPrice: item.orginalBuyingPrice,
+          exchangeRate: item.exchangeRate,
         });
         await createProductBatch({
           productId: item.id,
@@ -694,6 +689,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           buyingprice: item.orginalBuyingPrice,
           sourceId: newPurchaseInvoice._id,
           costBuyingPrice: item.oldCostBuyingPrice,
+          exchangeRate: item.exchangeRate,
           referenceType: "purchase",
         });
       })

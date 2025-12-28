@@ -333,7 +333,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         const soldQty = Number(item.soldQuantity);
 
         const oldQty = product.stocks.reduce(
-          (total, stock) => total + stock.productQuantity,
+          (total, stock) => total + (stock.productQuantity || 0),
           0
         );
 
@@ -377,7 +377,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         }
         let soldTotalQty = 0;
         let soldTotalCost = 0;
-
+        console.log("item", item);
         // إنشاء الحركات (Product Movements)
         for (const fm of fifoMovements) {
           await createProductMovement({
@@ -388,9 +388,10 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             movementType: "out",
             source: "Sales Invoice",
             companyId,
-            outPrice: fm.buyingPrice,
+            outPrice: fm.costBuyingPrice,
             stockId: item.stock._id,
             sellingPrice: item.sellingPrice,
+            exchangeRate: item.exchangeRate,
           });
           soldTotalQty += fm.quantity;
           soldTotalCost += fm.quantity * fm.costBuyingPrice;

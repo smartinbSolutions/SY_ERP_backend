@@ -29,6 +29,7 @@ const ProductBatchSchema = new mongoose.Schema(
       type: Number,
     },
     costBuyingPrice: Number,
+    exchangeRate: { type: Number, default: 1 },
     sourceType: {
       type: String,
       default: "purchase",

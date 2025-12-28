@@ -67,7 +67,7 @@ exports.createStockReconciliation = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: "companyId is required" });
       }
 
-      const { stockID, stockName, items, counter } = req.body;
+      const { stockID, stockName, items, counter, title, isClosed } = req.body;
       if (!stockID || !items?.length) {
         return res.status(400).json({ message: "Invalid reconciliation data" });
       }
@@ -81,6 +81,8 @@ exports.createStockReconciliation = asyncHandler(async (req, res) => {
         [
           {
             companyId,
+            title,
+            isClosed,
             stockID,
             stockName,
             reconcilingDate: new Date(),
@@ -145,7 +147,7 @@ exports.createStockReconciliation = asyncHandler(async (req, res) => {
             {
               productId: item.productId,
               reference: reconciliation._id,
-              newQuantity: item.realCount + item.difference,
+              newQuantity: item.recordCount + item.difference,
               quantity: item.difference,
               movementType: item.movementType,
               source: "Stock reconciliation",
@@ -324,91 +326,212 @@ exports.findReconciliationReport = asyncHandler(async (req, res, next) => {
 // @desc    Get one reconciliation report by ID
 // @route   GET /api/stockReconciliation/:id/edit
 // @access  Private
-exports.updataOneReconciliationReport = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
+  await runWithRetry(async () => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
+    try {
+      const companyId = req.query.companyId;
+      const reconciliationId = req.params.id;
 
-  // Retrieve the existing reconciliation report to compare previous data
-  const existingReconcileReport = await reconciliationModel.findOne({
-    _id: req.params.id,
-    companyId,
-  });
-  if (!existingReconcileReport) {
-    return next(
-      new ApiError(
-        `No reconciliation report found for id ${req.params.id}`,
-        404
-      )
-    );
-  }
+      if (!companyId) {
+        return res.status(400).json({ message: "companyId is required" });
+      }
 
-  // Update the reconciliation report with the new data
-  const reconcileReport = await reconciliationModel.findOneAndUpdate(
-    { _id: req.params.id, companyId },
-    req.body,
-    { new: true }
-  );
+      /* ===============================
+         1️⃣ Load existing reconciliation
+         =============================== */
+      const oldReconciliation = await reconciliationModel
+        .findOne({ _id: reconciliationId, companyId })
+        .session(session);
 
-  if (!reconcileReport) {
-    return next(
-      new ApiError(`No reconcileReport found for id ${req.params.id}`, 404)
-    );
-  }
+      if (!oldReconciliation) {
+        return res.status(404).json({ message: "Reconciliation not found" });
+      }
 
-  // Perform bulk update for product quantities in the stock
-  const bulkOption2 = reconcileReport.items
-    .filter((item) => item.reconciled)
-    .map((item) => ({
-      updateOne: {
-        filter: {
-          qr: item.productBarcode,
-          "stocks.stockId": reconcileReport.stockID,
-          companyId,
-        },
-        update: {
-          $set: {
-            "stocks.$.productQuantity": item.realCount,
-            price: item.sellingPrice,
-            profitRatio: item.profitRatio,
-            taxPrice: item.sellingPriceWithTax,
-            makedReconciled: item.reconciled,
+      const { items, stockID, stockName } = req.body;
+
+      /* ===============================
+         2️⃣ Detect newly reconciled items
+         =============================== */
+      const previouslyReconciled = new Set(
+        oldReconciliation.items
+          .filter((i) => i.reconciled)
+          .map((i) => String(i.productId))
+      );
+
+      const newlyReconciledItems = items.filter(
+        (item) =>
+          item.reconciled &&
+          item.difference &&
+          !previouslyReconciled.has(String(item.productId))
+      );
+
+      /* ===============================
+         3️⃣ Apply stock quantity updates
+         =============================== */
+      const bulkOps = [];
+
+      for (const item of newlyReconciledItems) {
+        bulkOps.push({
+          updateOne: {
+            filter: {
+              _id: item.productId,
+              companyId,
+              "stocks.stockId": stockID,
+            },
+            update: {
+              $inc: {
+                "stocks.$.productQuantity": item.difference,
+              },
+              $set: {
+                "stocks.$.stockName": stockName,
+              },
+            },
           },
-        },
-      },
-    }));
-  await productModel.bulkWrite(bulkOption2);
+        });
+      }
 
-  // Calculate currency diffs for active products value update
-  for (const item of req.body.items) {
-    if (item.reconciled && !item.makedReconciled) {
-      const product = await productModel.findById(item.productId);
+      if (bulkOps.length) {
+        const result = await productModel.bulkWrite(bulkOps, { session });
 
-      const totalStockQuantity = product.stocks.reduce(
-        (total, stock) => total + stock.productQuantity,
-        0
+        if (result.matchedCount !== bulkOps.length) {
+          throw new Error("Some products do not exist in the selected stock");
+        }
+      }
+
+      /* ===============================
+         4️⃣ Movements & FIFO handling
+         =============================== */
+      for (const item of newlyReconciledItems) {
+        const product = await productModel
+          .findById(item.productId)
+          .session(session);
+
+        if (!product) throw new Error("Product not found");
+        console.log(item);
+        /* ===== INCREASE STOCK ===== */
+        if (item.difference > 0) {
+          await createProductMovement(
+            {
+              productId: item.productId,
+              reference: reconciliationId,
+              newQuantity: item.recordCount + item.difference,
+              quantity: item.difference,
+              movementType: item.movementType,
+              source: "Stock reconciliation",
+              companyId,
+              enterPrice: product.costBuyingPrice,
+              stockId: stockID,
+            },
+            session
+          );
+
+          await createProductBatch(
+            {
+              productId: item.productId,
+              companyId,
+              stockId: stockID,
+              quantity: item.difference,
+              buyingprice: product.costBuyingPrice,
+              sourceId: reconciliationId,
+              costBuyingPrice: product.costBuyingPrice,
+              referenceType: "Stock Reconciliation",
+            },
+            session
+          );
+        } else {
+          /* ===== DECREASE STOCK (FIFO) ===== */
+          let qtyToDeduct = Math.abs(item.difference);
+
+          const batches = await prodcutBatchModel
+            .find({
+              productId: item.productId,
+              companyId,
+              stockId: stockID,
+              remaining: { $gt: 0 },
+            })
+            .sort({ createdAt: 1 })
+            .session(session);
+
+          for (const batch of batches) {
+            if (qtyToDeduct <= 0) break;
+
+            const usedQty = Math.min(batch.remaining, qtyToDeduct);
+            batch.remaining -= usedQty;
+            await batch.save({ session });
+
+            qtyToDeduct -= usedQty;
+
+            await createProductMovement(
+              {
+                productId: item.productId,
+                reference: reconciliationId,
+                newQuantity: item.recordCount + item.difference,
+                quantity: usedQty,
+                movementType: item.movementType,
+                source: "Stock reconciliation",
+                companyId,
+                outPrice: batch.costBuyingPrice,
+                stockId: stockID,
+              },
+              session
+            );
+          }
+
+          if (qtyToDeduct > 0) {
+            throw new Error("Not enough stock for FIFO deduction");
+          }
+
+          /* ===== Recalculate Avg Cost ===== */
+          const remainingBatches = await prodcutBatchModel
+            .find({
+              productId: item.productId,
+              companyId,
+              stockId: stockID,
+              remaining: { $gt: 0 },
+            })
+            .session(session);
+
+          let totalQty = 0;
+          let totalCost = 0;
+
+          for (const batch of remainingBatches) {
+            totalQty += batch.remaining;
+            totalCost += batch.remaining * batch.costBuyingPrice;
+          }
+
+          const newAvgCost = totalQty ? totalCost / totalQty : 0;
+
+          await productModel.updateOne(
+            { _id: item.productId },
+            { $set: { costBuyingPrice: newAvgCost } },
+            { session }
+          );
+        }
+      }
+
+      /* ===============================
+         5️⃣ Update reconciliation document
+         =============================== */
+      const updatedReconciliation = await reconciliationModel.findOneAndUpdate(
+        { _id: reconciliationId, companyId },
+        req.body,
+        { new: true, session }
       );
 
-      await createProductMovement(
-        item.productId, //productId
-        req.params.id, //reference
-        totalStockQuantity,
-        item.difference, //quantity
-        0, //newPrice
-        0, //oldPrice
-        "movement", //type
-        "edit", //movementType
-        "reconcile", //source
-        companyId //dbName
-      );
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        success: true,
+        data: updatedReconciliation,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
-  }
-
-  res.status(200).json({
-    status: "success",
-    message: "Reconciliation report updated",
-    data: reconcileReport,
   });
 });

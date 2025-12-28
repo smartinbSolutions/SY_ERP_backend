@@ -474,6 +474,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       qtyAfter: qty,
       avgCostAfter: Number(avgCost),
       valueAfter: Number(value),
+      avgCostAfterMainCurrency: Number(avgCost / mv.exchangeRate),
+      valueAfterMainCurrency: Number(value / mv.exchangeRate),
     });
   }
 
@@ -487,6 +489,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       newQuantity: calc.qtyAfter,
       avgCostAfter: calc.avgCostAfter,
       valueAfter: calc.valueAfter,
+      avgCostAfterMainCurrency: calc.avgCostAfterMainCurrency,
+      valueAfterMainCurrency: calc.valueAfterMainCurrency,
       enterPrice: Number(mv.enterPrice),
       date: mv.createdAt,
       source: mv.source,
@@ -495,6 +499,7 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       source: mv.source,
       outPrice: mv.outPrice,
       sellingPrice: mv.sellingPrice,
+      exchangeRate: mv.exchangeRate,
       stockId: mv.stockId,
     };
   });
