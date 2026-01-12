@@ -624,7 +624,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
         },
         update: {
-          $inc: { quantity: +item.quantity },
           $set: { buyingprice: item.orginalBuyingPrice },
           $push: {
             stocks: {
@@ -861,13 +860,12 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         bulkProductUpdatesOriginal.push({
           updateOne: {
             filter: {
-              qr: item.qr,
+              _id: item.id,
               "stocks.stockId": item.stock._id,
               companyId,
             },
             update: {
               $inc: {
-                quantity: -item.quantity,
                 "stocks.$.productQuantity": -item.quantity,
               },
             },
@@ -902,14 +900,13 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       .forEach((item) => {
         const filterForUpdate = {
           type: { $ne: "variants" },
-          qr: item.qr,
+          _id: item.id,
           "stocks.stockId": item.stock._id,
           companyId,
         };
 
         const updateIfExists = {
           $inc: {
-            quantity: +item.quantity,
             "stocks.$.productQuantity": +item.quantity,
           },
           $set: {
@@ -918,7 +915,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         };
 
         const filterForInsert = {
-          qr: item.qr,
+          _id: item.id,
           "stocks.stockId": { $ne: item.stock._id },
           companyId,
         };
@@ -1279,12 +1276,14 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
   }
 
   if (!invoiceDraft) {
-    const productQRCodes = invoicesItem.map((item) => item.qr);
+    const productQRCodes = invoicesItem.map((item) => item.id);
     const products = await productModel.find({
-      qr: { $in: productQRCodes },
+      _id: productQRCodes,
       companyId,
     });
-    const productMap = new Map(products.map((prod) => [prod.qr, prod]));
+    const productMap = new Map(
+      products.map((prod) => [prod._id.toString(), prod])
+    );
     const movementMap = new Map();
 
     const wasDraft = Boolean(purchase.isDraft);
@@ -1293,7 +1292,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     invoicesItem.forEach((item) => {
       if (item.type === "unTracedproduct" || item.type === "expense") return;
 
-      const originalItem = originalItems.find((o) => o.qr === item.qr);
+      const originalItem = originalItems.find((o) => o.id === item.id);
       const originalQty = Number(originalItem?.quantity ?? 0);
       const newQty = Number(item.quantity ?? 0);
 
@@ -1301,9 +1300,9 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
 
       if (diff === 0) return;
 
-      const existing = movementMap.get(item.qr);
+      const existing = movementMap.get(item.id);
       if (!existing) {
-        movementMap.set(item.qr, { ...item, quantityDiff: diff });
+        movementMap.set(item.id, { ...item, quantityDiff: diff });
       } else {
         existing.quantityDiff = (existing.quantityDiff || 0) + diff;
         existing.orginalBuyingPrice =
@@ -1313,64 +1312,41 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
 
     // Create product movement records for non-zero diffs
     await Promise.all(
-      Array.from(movementMap.entries()).map(async ([qr, item]) => {
-        const diff = Number(item.quantityDiff || 0);
-        if (diff === 0) return;
+      Array.from(movementMap.entries()).map(async ([id, item]) => {
+        const product = productMap.get(id);
+        console.log(product);
 
-        const product = productMap.get(qr);
         if (!product) return;
 
         const totalStockQuantity = product.stocks.reduce(
-          (total, stock) => total + (Number(stock.productQuantity) || 0),
+          (total, stock) => total + stock.productQuantity || 0,
           0
         );
 
-        // For purchases the movement direction is "in"
-        await createProductMovement(
-          product._id,
-          newPurchaseInvoice._id,
-          totalStockQuantity,
-          diff,
-          item.orginalBuyingPrice,
-          product.buyingprice,
-          "movement",
-          "in",
-          "purchase",
+        await createProductMovement({
+          productId: product._id,
+          reference: newPurchaseInvoice._id,
+          newQuantity: totalStockQuantity + item.quantity,
+          quantity: item.quantity,
+          movementType: "in",
+          source: "Purchase Invoice",
           companyId,
-          "",
-          "",
-          "",
-          item.costBuyingPrice,
-          0,
-          item.stock._id,
-          product.costBuyingPrice
-        );
-
-        // price change movement if needed
-        if (
-          item.orginalBuyingPrice !== undefined &&
-          item.orginalBuyingPrice !== product.buyingprice
-        ) {
-          await createProductMovement(
-            product._id,
-            newPurchaseInvoice._id,
-            0,
-            0,
-            item.orginalBuyingPrice,
-            product.buyingprice,
-            "price",
-            "in",
-            "purchase",
-            companyId,
-            "",
-            "",
-            "",
-            item.costBuyingPrice,
-            0,
-            item.stock._id,
-            product.costBuyingPrice
-          );
-        }
+          enterPrice: item.oldCostBuyingPrice,
+          stockId: item.stock._id,
+          buyingPrice: item.orginalBuyingPrice,
+          exchangeRate: item.exchangeRate,
+        });
+        await createProductBatch({
+          productId: item.id,
+          companyId,
+          stockId: item.stock._id,
+          quantity: item.quantity,
+          buyingprice: item.orginalBuyingPrice,
+          sourceId: newPurchaseInvoice._id,
+          costBuyingPrice: item.oldCostBuyingPrice,
+          exchangeRate: item.exchangeRate,
+          referenceType: "purchase",
+        });
       })
     );
   }
