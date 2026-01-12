@@ -82,7 +82,7 @@ const groupsSchema = new mongoose.Schema(
     },
 
     payday: {
-      start: { type: Number }, // day nuamber
+      start: { type: Number },
       end: { type: Number },
     },
   },

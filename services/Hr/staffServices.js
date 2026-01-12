@@ -87,8 +87,9 @@ exports.getStaff = asyncHandler(async (req, res, next) => {
   const staffs = await StaffsModel.find(query)
     .skip(skip)
     .limit(limit)
+    .sort({ createdAt: -1 })
     .populate("currency")
-    .populate("position");
+    .populate("position")
 
   res.status(200).json({
     status: "success",
@@ -108,7 +109,6 @@ exports.createStaff = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  req.body.slug = slugify(req.body.name);
   req.body.companyId = companyId;
   req.body.tags = JSON.parse(req.body.tags);
   const employeePass = generatePassword();
@@ -152,22 +152,28 @@ exports.updataStaff = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   req.body.companyId = companyId;
-  req.body.tags = JSON.parse(req.body.tags);
+
+  if (req.body.tags) {
+    req.body.tags = JSON.parse(req.body.tags);
+  }
 
   const Staffs = await StaffsModel.findOneAndUpdate(
     { _id: req.params.id, companyId },
     req.body,
-    {
-      new: true,
-    }
+    { new: true }
   );
+
   if (!Staffs) {
     return next(new ApiError(`No Staffs found for id ${req.params.id}`, 404));
   }
-  res
-    .status(200)
-    .json({ status: "success", message: "Staffs updated", data: Staffs });
+
+  res.status(200).json({
+    status: "success",
+    message: "Staffs updated",
+    data: Staffs,
+  });
 });
 
 // Delete specific Staffs

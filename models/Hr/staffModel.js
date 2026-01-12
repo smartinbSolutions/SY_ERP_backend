@@ -1,57 +1,60 @@
 const { default: mongoose } = require("mongoose");
 
-const StaffSchema = new mongoose.Schema({
-  name: {
-    type: String,
-  },
-  email: {
-    type: String,
-    unique: true,
-  },
-  latinName: String,
-  phoneNumber: String,
-  salary: Number,
-  profileImage: String,
-  branch: {
-    type: mongoose.Schema.ObjectId,
-    ref: "branches",
-  },
-  roleId: {
-    type: mongoose.Schema.ObjectId,
-    ref: "Roles",
-  },
-  position: { type: mongoose.Schema.ObjectId, ref: "Positions" },
-  groupId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Groups",
-  },
-  isUser: Boolean,
-  directManager: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "staff",
-  },
-  department: { type: mongoose.Schema.ObjectId, ref: "departments" },
-  hireDate: String,
-  currency: { type: mongoose.Schema.ObjectId, ref: "Currency" },
-  dateSalaryDue: String,
-  password: String,
-  employmentStatus: { type: Boolean, default: true },
-  tags: [
-    {
-      id: String,
-      name: String,
-      color: String,
-      _id: false,
+const StaffSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
     },
-  ],
-  files: [String],
-  companyId: {
-    type: String,
-    required: true,
-    index: true,
+    email: {
+      type: String,
+      unique: true,
+    },
+    latinName: String,
+    phoneNumber: String,
+    salary: Number,
+    profileImage: String,
+    branch: {
+      type: mongoose.Schema.ObjectId,
+      ref: "branches",
+    },
+    roleId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Roles",
+    },
+    position: { type: mongoose.Schema.ObjectId, ref: "Positions" },
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Groups",
+    },
+    isUser: Boolean,
+    directManager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "staff",
+    },
+    department: { type: mongoose.Schema.ObjectId, ref: "departments" },
+    hireDate: String,
+    currency: { type: mongoose.Schema.ObjectId, ref: "Currency" },
+    dateSalaryDue: String,
+    password: String,
+    employmentStatus: { type: Boolean, default: true },
+    tags: [
+      {
+        id: String,
+        name: String,
+        color: String,
+        _id: false,
+      },
+    ],
+    files: [String],
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    session: { type: Boolean, default: false },
   },
-  session: { type: Boolean, default: false },
-});
+  { timestamps: true }
+);
 const setFileURLs = (doc) => {
   if (doc.profileImage) {
     doc.profileImage = `${process.env.BASE_URL}/profileImage/${doc.profileImage}`;

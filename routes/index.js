@@ -91,6 +91,7 @@ const jobGradesRoute = require("./Hr/jobGradesRoute");
 const currencyLogRoute = require("./currencyLogRoute");
 const sharePurchaseRequestRoute = require("./investment/sharePurchaseRequestRoute");
 const productBatchRoute = require("./productBatchRoute");
+const filesRoute = require("./Hr/filesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -175,6 +176,7 @@ const mountRoutes = (app) => {
   app.use("/api/branch", branchRoute);
   app.use("/api/department", departmentRoute);
   app.use("/api/job-grades", jobGradesRoute);
+  app.use("/api/files", filesRoute);
 
   //Payment
   app.use("/api", paytrRouter);
