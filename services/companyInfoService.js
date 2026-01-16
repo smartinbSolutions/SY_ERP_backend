@@ -12,7 +12,6 @@ const StockModel = require("../models/stockModel");
 const thirdPartyAuthModel = require("../models/ecommerce/thirdPartyAuthModel");
 const paymentMethodModel = require("../models/ecommerce/ecommercePaymentMethodModel");
 const ecommerceSettingsModel = require("../models/ecommerce/ecommerceSettingsModel");
-const { createEmployee } = require("./employeeServices");
 const employeeModel = require("../models/employeeModel");
 const generatePassword = require("../utils/tools/generatePassword");
 const multerStorage = multer.memoryStorage();
@@ -20,6 +19,23 @@ const bcrypt = require("bcryptjs");
 const linkPanelModel = require("../models/linkPanelModel");
 const sendEmail = require("../utils/sendEmail");
 const { default: axios } = require("axios");
+const accountingTreeModel = require("../models/accountingTreeModel");
+const financialFundsModel = require("../models/financialFundsModel");
+const reportsFinancialFunds = require("../models/reportsFinancialFunds");
+const customarModel = require("../models/customarModel");
+const suppliersModel = require("../models/suppliersModel");
+const { createPaymentHistory } = require("./paymentHistoryService");
+const stockModel = require("../models/stockModel");
+const paymentHistoryModel = require("../models/paymentHistoryModel");
+const journalEntryModel = require("../models/journalEntryModel");
+const CategoryModel = require("../models/CategoryModel");
+const brandModel = require("../models/brandModel");
+const taxModel = require("../models/taxModel");
+const tagModel = require("../models/tagModel");
+const expensesCategoryModel = require("../models/expensesCategoryModel");
+const UnitsModel = require("../models/UnitsModel");
+const salesPointModel = require("../models/salesPointModel");
+const { generateCounter } = require("../utils/counterFormat");
 
 const multerFilter = function (req, file, cb) {
   if (file.mimetype.startsWith("image")) {
@@ -434,5 +450,566 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
     }
   } catch (error) {
     console.log(error);
+  }
+});
+
+exports.rollover = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  const currentDateTime = new Date();
+
+  const year = currentDateTime.getFullYear() - 1;
+  const firstYear = currentDateTime.getFullYear();
+  const date = `${firstYear}-01-01T00:00:00.000Z`;
+  const startDate = `${year}-01-01T00:00:00.000Z`;
+  const endDate = `${year}-12-31T23:59:59.999Z`;
+  try {
+    const companyInfo = await CompanyInfnoModel.findOne({
+      _id: companyId,
+      rollOver: false,
+    }).session(session);
+
+    if (!companyInfo) {
+      throw new ApiError(
+        `There is no company info with this id ${companyId} or rollover already done`,
+        404
+      );
+    }
+    const baseName = companyInfo.companyName;
+    await CompanyInfnoModel.findByIdAndUpdate(
+      companyId,
+      {
+        companyName: `${baseName}-${year}`,
+        rollOver: true,
+        closedAt: new Date(),
+      },
+      { new: true, session }
+    );
+
+    if (!companyInfo) {
+      throw new ApiError(
+        `There is no company info with this id ${companyId}`,
+        404
+      );
+    }
+
+    const newCompanyInfo = await CompanyInfnoModel.create(
+      [
+        {
+          companyName: baseName,
+          companyAddress: companyInfo.companyAddress,
+          companyTax: companyInfo.companyTax,
+          companyEmail: companyInfo.companyEmail,
+          companyTel: companyInfo.companyTel,
+          companyLogo: companyInfo.companyLogo,
+          pinCode: companyInfo.pinCode,
+          havePin: companyInfo.havePin,
+          facebookUrl: companyInfo.facebookUrl,
+          instagramUrl: companyInfo.instagramUrl,
+          linkedinUrl: companyInfo.linkedinUrl,
+          xtwitterUrl: companyInfo.xtwitterUrl,
+          emails: companyInfo.emails,
+          prefix: companyInfo.prefix,
+          turkcellApiKey: companyInfo.turkcellApiKey,
+          transactionReferenceExtra: companyInfo.transactionReferenceExtra,
+          transactionReferenceFormat: companyInfo.transactionReferenceFormat,
+          jobsCompanyId: companyInfo.jobsCompanyId,
+          models: companyInfo.models,
+          parentId: companyInfo.parentId,
+          rollOver: false,
+        },
+      ],
+      { session }
+    );
+    const { dateFormat, counterFormat } = companyInfo.prefix;
+
+    const counter = generateCounter({
+      dateFormat,
+      counterFormat,
+      date: new Date(),
+    });
+    const newCompanyId = newCompanyInfo[0]._id;
+
+    const dashboardRoles = await roleDashboardModel.find();
+    const dashboardRoleIds = dashboardRoles.map((role) => role._id);
+    const insertMainRole = await rolesModel.create({
+      name: "Super Admin",
+      description: "Role Description",
+      rolesDashboard: dashboardRoleIds,
+      superAdmin: true,
+      companyId: newCompanyId,
+    });
+    req.body.company = {
+      companyId: companyInfo._id,
+      selectedRoles: insertMainRole._id,
+      companyName: baseName,
+    };
+
+    await employeeModel.updateMany(
+      {
+        "company.companyId": companyId,
+      },
+      {
+        $set: {
+          "company.$.companyName": `${baseName}-${year}`,
+        },
+      },
+      { session }
+    );
+    await employeeModel.updateMany(
+      {
+        "company.companyId": companyId,
+      },
+      {
+        $push: {
+          company: {
+            companyId: newCompanyId,
+            companyName: baseName,
+            selectedRoles: insertMainRole._id,
+          },
+        },
+      },
+      { session }
+    );
+
+    const currencies = await currencyModel.find({ companyId }).session(session);
+
+    const newCurrencies = currencies.map((cur) => ({
+      ...cur.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+      oldCurrency: cur._id,
+    }));
+
+    const accounts = await accountingTreeModel
+      .find({ companyId })
+      .session(session);
+    const match = {
+      companyId: companyId,
+      journalDate: { $gte: startDate, $lte: endDate },
+    };
+    const journalSums = await journalEntryModel
+      .aggregate([
+        {
+          $match: match,
+        },
+        { $unwind: "$journalAccounts" },
+        {
+          $group: {
+            _id: "$journalAccounts.id",
+            totalDebit: { $sum: "$journalAccounts.MainDebit" },
+            totalCredit: { $sum: "$journalAccounts.MainCredit" },
+            totalAccountDebit: { $sum: "$journalAccounts.accountDebit" },
+            totalAccountCredit: { $sum: "$journalAccounts.accountCredit" },
+          },
+        },
+      ])
+      .session(session);
+
+    const journalMap = new Map();
+    journalSums.forEach((j) => {
+      journalMap.set(j._id, {
+        debtor: j.totalDebit,
+        creditor: j.totalCredit,
+      });
+    });
+    const insertCurrencies = await currencyModel.insertMany(newCurrencies, {
+      session,
+    });
+    const currencyMap = new Map();
+    newCurrencies.forEach((cur, index) => {
+      currencyMap.set(cur.oldCurrency.toString(), insertCurrencies[index]._id);
+    });
+
+    const newAccounts = await Promise.all(
+      accounts.map(async (account) => {
+        const isBalanceSheet = account.finalAccount === "Balance Sheet";
+
+        const sums = journalMap.get(account._id) || {
+          debtor: 0,
+          creditor: 0,
+        };
+
+        return {
+          ...account.toObject(),
+          _id: undefined,
+          companyId: newCompanyId,
+          originalAccountId: account._id,
+          debtor: isBalanceSheet ? sums.debtor : 0,
+          creditor: isBalanceSheet ? sums.creditor : 0,
+          currency: currencyMap.get(account.currency?.toString()) || null,
+        };
+      })
+    );
+
+    const insertedAccounts = await accountingTreeModel.insertMany(newAccounts, {
+      session,
+    });
+
+    const funds = await financialFundsModel
+      .find({ companyId })
+      .session(session);
+
+    const openingJournalAccounts = (
+      await Promise.all(
+        insertedAccounts.map(async (account, index) => {
+          if (account.finalAccount !== "Balance Sheet") return null;
+
+          if (!account.originalAccountId) return null;
+
+          const oldSums = journalMap.get(account.originalAccountId.toString());
+
+          if (!oldSums) return null;
+          let balance = 0;
+
+          if (account.balanceType === "debit") {
+            balance = oldSums.debtor - oldSums.creditor;
+          } else if (account.balanceType === "credit") {
+            balance = oldSums.creditor - oldSums.debtor;
+          }
+          console.log("oldSums", oldSums);
+
+          if (balance === 0) return null;
+
+          const currency = await currencyModel
+            .findOne({
+              companyId: newCompanyId,
+              _id: account.currency,
+            })
+            .session(session);
+
+          const rate = currency?.exchangeRate || 1;
+
+          return {
+            counter: Number(counter) + Number(index) + 1,
+            id: account._id,
+            name: account.name,
+            code: account.code,
+            MainDebit: account.balanceType === "debit" ? Math.abs(balance) : 0,
+            MainCredit:
+              account.balanceType === "credit" ? Math.abs(balance) : 0,
+            accountDebit:
+              account.balanceType === "debit" ? Math.abs(balance) * rate : 0,
+            accountCredit:
+              account.balanceType === "credit" ? Math.abs(balance) * rate : 0,
+            accountCurrency: currency?.currencyCode || "",
+            accountExRate: rate,
+            description: "Opening Balance",
+            isPrimary: rate === 1 ? true : false,
+          };
+        })
+      )
+    ).filter(Boolean);
+
+    if (openingJournalAccounts.length > 0) {
+      await journalEntryModel.create(
+        [
+          {
+            companyId: newCompanyId,
+            journalName: "Opening Balance",
+            journalDate: new Date(Date.UTC(year, 0, 1)),
+            journalRefNum: counter + 1,
+            journalDesc: "Opening Balance",
+            journalType: "Opening Balance",
+            journalAccounts: openingJournalAccounts,
+            counter: counter + 1,
+            journalDebit: openingJournalAccounts.reduce(
+              (sum, acc) => sum + acc.MainDebit,
+              0
+            ),
+            journalCredit: openingJournalAccounts.reduce(
+              (sum, acc) => sum + acc.MainCredit,
+              0
+            ),
+          },
+        ],
+        { session }
+      );
+    }
+
+    const newFunds = await Promise.all(
+      funds.map(async (fund) => {
+        const newFundId = new mongoose.Types.ObjectId();
+
+        const fundReportsData = await reportsFinancialFunds
+          .find({
+            companyId,
+            financialFundId: fund._id,
+            date: {
+              $gte: startDate,
+              $lte: endDate,
+            },
+          })
+          .session(session);
+
+        let fundBalance = 0;
+
+        for (const report of fundReportsData) {
+          if (report.paymentType === "Deposit") {
+            fundBalance += report.amount;
+          } else if (report.paymentType === "Withdrawal") {
+            fundBalance -= report.amount;
+          }
+        }
+
+        return {
+          ...fund.toObject(),
+          _id: newFundId,
+          companyId: newCompanyId,
+          openingBalance: fundBalance,
+          fundBalance: fundBalance,
+        };
+      })
+    );
+
+    const createFunds = await financialFundsModel.insertMany(newFunds, {
+      session,
+    });
+
+    for (const fund of createFunds) {
+      await reportsFinancialFunds.create(
+        [
+          {
+            date: date,
+            amount: fund.fundBalance,
+            type: "Opening Balance",
+            financialFundId: fund._id,
+            financialFundRest: fund.fundBalance,
+            paymentType: fund.fundBalance > 0 ? "Deposit" : "Withdrawal",
+            companyId: newCompanyId,
+          },
+        ],
+        { session }
+      );
+    }
+
+    const customers = await customarModel.find({ companyId }).session(session);
+
+    const newCustomers = await Promise.all(
+      customers.map(async (customer) => {
+        const newCustomerId = new mongoose.Types.ObjectId();
+
+        const customerHistoryData = await paymentHistoryModel
+          .find({
+            companyId,
+            customerId: customer._id,
+            date: {
+              $gte: startDate,
+              $lte: endDate,
+            },
+          })
+          .session(session);
+
+        let totalInvoices = 0;
+        let totalPayments = 0;
+        for (const report of customerHistoryData) {
+          if (report.type === "invoice") {
+            totalInvoices += report.amount;
+          } else if (report.type === "payment") {
+            totalPayments += report.amount;
+          }
+        }
+
+        const unpaid = totalInvoices - totalPayments;
+
+        return {
+          ...customer.toObject(),
+          _id: newCustomerId,
+          companyId: newCompanyId,
+          total: totalInvoices,
+          TotalUnpaid: unpaid,
+        };
+      })
+    );
+
+    const createCustomers = await customarModel.insertMany(newCustomers, {
+      session,
+    });
+
+    for (const customer of createCustomers) {
+      await createPaymentHistory(
+        "Opening balance",
+        req.body.date,
+        customer.TotalUnpaid,
+        customer.TotalUnpaid,
+        "customer",
+        customer._id,
+        "",
+        newCompanyId,
+        "",
+        "",
+        customer.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
+        "Opening balance"
+      );
+    }
+
+    const suppliers = await suppliersModel
+      .find({
+        companyId,
+      })
+      .session(session);
+
+    const newSuppliers = await Promise.all(
+      suppliers.map(async (supplier) => {
+        const newSupplierId = new mongoose.Types.ObjectId();
+
+        const supplierHistoryData = await paymentHistoryModel
+          .find({
+            companyId,
+            supplierId: supplier._id,
+            date: {
+              $gte: startDate,
+              $lte: endDate,
+            },
+          })
+          .session(session);
+        let totalInvoices = 0;
+        let totalPayments = 0;
+        for (const report of supplierHistoryData) {
+          if (report.type === "invoice") {
+            totalInvoices += report.amount;
+          } else if (report.type === "payment") {
+            totalPayments += report.amount;
+          }
+        }
+
+        const unpaid = totalInvoices - totalPayments;
+        return {
+          ...supplier.toObject(),
+          _id: newSupplierId,
+          companyId: newCompanyId,
+          total: totalInvoices,
+          TotalUnpaid: unpaid,
+        };
+      })
+    );
+
+    const createSuppliers = await suppliersModel.insertMany(newSuppliers, {
+      session,
+    });
+
+    for (const supplier of createSuppliers) {
+      await createPaymentHistory(
+        "Opening balance",
+        req.body.date,
+        supplier.TotalUnpaid,
+        supplier.TotalUnpaid,
+        "supplier",
+        supplier._id,
+        "",
+        newCompanyId,
+        "",
+        "",
+        supplier.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
+        "Opening balance"
+      );
+    }
+
+    //---Stocks
+    const stocks = await stockModel.find({ companyId }).session(session);
+
+    const newStocks = stocks.map((stock) => ({
+      ...stock.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await stockModel.insertMany(newStocks, { session });
+
+    //---Categories
+    const categories = await CategoryModel.find({ companyId }).session(session);
+
+    const newCategories = categories.map((cat) => ({
+      ...cat.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await CategoryModel.insertMany(newCategories, { session });
+
+    //---Brands
+    const brands = await brandModel.find({ companyId }).session(session);
+
+    const newBrands = brands.map((brand) => ({
+      ...brand.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await brandModel.insertMany(newBrands, { session });
+
+    //---Taxs
+    const taxs = await taxModel.find({ companyId }).session(session);
+
+    const newTaxs = taxs.map((tax) => ({
+      ...tax.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await taxModel.insertMany(newTaxs, { session });
+
+    //---Tags
+    const tags = await tagModel.find({ companyId }).session(session);
+
+    const newTags = tags.map((tag) => ({
+      ...tag.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await tagModel.insertMany(newTags, { session });
+
+    //---Unit
+    const units = await UnitsModel.find({ companyId }).session(session);
+
+    const newunits = units.map((unit) => ({
+      ...unit.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await UnitsModel.insertMany(newunits, { session });
+
+    //---Expenses Category
+    const categorExpenses = await expensesCategoryModel
+      .find({ companyId })
+      .session(session);
+
+    const newCategorExpense = categorExpenses.map((catEx) => ({
+      ...catEx.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await expensesCategoryModel.insertMany(newCategorExpense, { session });
+
+    //---Sales Point
+    const salesPoints = await salesPointModel
+      .find({ companyId })
+      .session(session);
+
+    const newSalesPoints = salesPoints.map((salesPoint) => ({
+      ...salesPoint.toObject(),
+      _id: undefined,
+      companyId: newCompanyId,
+    }));
+
+    await salesPointModel.insertMany(newSalesPoints, { session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json({
+      status: true,
+      message: "Rollover completed successfully",
+      data: newCompanyInfo[0],
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
   }
 });

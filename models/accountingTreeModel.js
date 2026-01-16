@@ -36,6 +36,7 @@ const AccountingTreeSchema = new mongoose.Schema(
       index: true,
     },
     finalAccount: String,
+    originalAccountId: String,
   },
   { timestamps: true }
 );

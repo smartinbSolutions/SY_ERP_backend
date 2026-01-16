@@ -51,8 +51,11 @@ const companyIfnoSchema = new mongoose.Schema(
       receiptPos: { type: String, default: "RP" },
       posRefund: { type: String, default: "RPF" },
     },
+    parentId: String,
     jobsCompanyId: { type: String, default: "" },
     models: [{ type: String }],
+    rollOver: { type: Boolean, default: false },
+    closedAt: String,
   },
   { timestamps: true }
 );

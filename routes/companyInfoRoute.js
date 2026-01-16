@@ -5,6 +5,7 @@ const {
   resizerLogo,
   getCompanyInfo,
   updataCompanyInfo,
+  rollover,
 } = require("../services/companyInfoService");
 
 const authService = require("../services/authService");
@@ -15,14 +16,9 @@ companyInfoRoute
   .route("/")
   .post(uploadCompanyLogo, resizerLogo, createCompanyInfo)
   .get(getCompanyInfo);
+companyInfoRoute.route("/rollover").post(rollover);
 companyInfoRoute
   .route("/:id")
-  .put(
-    authService.protect,
-    authService.protect,
-    uploadCompanyLogo,
-    resizerLogo,
-    updataCompanyInfo
-  );
+  .put(authService.protect, uploadCompanyLogo, resizerLogo, updataCompanyInfo);
 
 module.exports = companyInfoRoute;

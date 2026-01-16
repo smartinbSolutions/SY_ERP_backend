@@ -1328,7 +1328,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           reference: newPurchaseInvoice._id,
           newQuantity: totalStockQuantity + item.quantity,
           quantity: item.quantity,
-          movementType: "in",
+          movementType: item.quantityDiff > 0 ? "in" : "out",
           source: "Purchase Invoice",
           companyId,
           enterPrice: item.oldCostBuyingPrice,
@@ -1336,17 +1336,19 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
           buyingPrice: item.orginalBuyingPrice,
           exchangeRate: item.exchangeRate,
         });
-        await createProductBatch({
-          productId: item.id,
-          companyId,
-          stockId: item.stock._id,
-          quantity: item.quantity,
-          buyingprice: item.orginalBuyingPrice,
-          sourceId: newPurchaseInvoice._id,
-          costBuyingPrice: item.oldCostBuyingPrice,
-          exchangeRate: item.exchangeRate,
-          referenceType: "purchase",
-        });
+        if (item.quantityDiff > 0) {
+          await createProductBatch({
+            productId: item.id,
+            companyId,
+            stockId: item.stock._id,
+            quantity: item.quantityDiff,
+            buyingprice: item.orginalBuyingPrice,
+            sourceId: newPurchaseInvoice._id,
+            costBuyingPrice: item.oldCostBuyingPrice,
+            exchangeRate: item.exchangeRate,
+            referenceType: "purchase",
+          });
+        }
       })
     );
   }
