@@ -23,7 +23,7 @@ const productSchema = new mongoose.Schema(
       default: "Product description",
     },
     image: String,
-
+    originalProductId: String,
     /* =========================
        PRICING & QUANTITY
     ========================== */
@@ -180,7 +180,7 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 /* =========================
