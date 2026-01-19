@@ -1,42 +1,83 @@
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 
 const StaffSchema = new mongoose.Schema(
   {
+    /* ================= BASIC INFO ================= */
     name: {
       type: String,
+      trim: true,
     },
+
     email: {
       type: String,
       unique: true,
+      sparse: true,
+      lowercase: true,
     },
+
     latinName: String,
     phoneNumber: String,
     salary: Number,
+
+    /* ================= IMAGES ================= */
     profileImage: String,
+
+    /* ================= COMPANY STRUCTURE ================= */
     branch: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "branches",
     },
-    roleId: {
-      type: mongoose.Schema.ObjectId,
-      ref: "Roles",
+
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "departments",
     },
-    position: { type: mongoose.Schema.ObjectId, ref: "Positions" },
+
+    position: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Positions",
+    },
+
     groupId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Groups",
     },
-    isUser: Boolean,
+
+    /* ================= AUTH ================= */
+    roleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Roles",
+    },
+
+    isUser: {
+      type: Boolean,
+      default: false,
+    },
+
+    password: String,
+
+    /* ================= MANAGEMENT ================= */
     directManager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "staff",
     },
-    department: { type: mongoose.Schema.ObjectId, ref: "departments" },
+
+    /* ================= HR DATA ================= */
     hireDate: String,
-    currency: { type: mongoose.Schema.ObjectId, ref: "Currency" },
+
+    currency: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Currency",
+    },
+
     dateSalaryDue: String,
-    password: String,
-    employmentStatus: { type: Boolean, default: true },
+
+    employmentStatus: {
+      type: Boolean,
+      default: true,
+    },
+
+    /* ================= TAGS ================= */
     tags: [
       {
         id: String,
@@ -45,35 +86,58 @@ const StaffSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    files: [String],
+
+    /* ================= STAFF FILES ================= */
+    files: [
+      {
+        fileId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Files",
+          required: true,
+        },
+
+        fileUrl: {
+          type: String,
+          required: true,
+        },
+
+        expiryDate: {
+          type: Date,
+        },
+      },
+    ],
+
+    /* ================= SYSTEM ================= */
     companyId: {
       type: String,
       required: true,
       index: true,
     },
-    session: { type: Boolean, default: false },
+
+    session: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
-const setFileURLs = (doc) => {
-  if (doc.profileImage) {
-    doc.profileImage = `${process.env.BASE_URL}/profileImage/${doc.profileImage}`;
-  }
 
-  if (Array.isArray(doc.files)) {
-    doc.files = doc.files.map((file) =>
-      file.startsWith("http") ? file : `${process.env.BASE_URL}/hrDocs/${file}`
-    );
+/* ================= FILE URL FORMATTER ================= */
+const setProfileImageURL = (doc) => {
+  if (doc.profileImage) {
+    doc.profileImage = doc.profileImage.startsWith("http")
+      ? doc.profileImage
+      : `${process.env.BASE_URL}/profileImage/${doc.profileImage}`;
   }
 };
 
+/* ================= STAFF HOOKS ================= */
 StaffSchema.post("init", function (doc) {
-  setFileURLs(doc);
+  setProfileImageURL(doc);
 });
 
-//Create
-StaffSchema.post("save", (doc) => {
-  setFileURLs(doc);
+StaffSchema.post("save", function (doc) {
+  setProfileImageURL(doc);
 });
 
 module.exports = mongoose.model("staff", StaffSchema);

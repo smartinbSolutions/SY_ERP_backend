@@ -4,8 +4,8 @@ const filesSchema = new mongoose.Schema(
   {
     name: String,
     hasExpiry: { type: Boolean, default: false },
-    expiryDate: Date,
     required: Boolean,
+    expiryMonths : String , 
     companyId: {
       type: String,
       required: true,

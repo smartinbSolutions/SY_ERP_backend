@@ -5,22 +5,31 @@ const {
   getStaff,
   createStaff,
   getOneStaff,
-  updataStaff,
+  updateStaff,
   deleteStaff,
-  resizeAndSaveFiles,
-  uploadImageAndFiles,
+  uploadStaffAssets,
+  processProfileImage,
+  processStaffFiles,
 } = require("../../services/Hr/staffServices");
 
 const staffRout = express.Router();
 
-staffRout
-  .route("/")
-  .get(getStaff)
-  .post(uploadImageAndFiles, resizeAndSaveFiles, createStaff);
+/* ===================== GET STAFF ===================== */
+staffRout.route("/").get(getStaff);
+
+/* ===================== CREATE STAFF ===================== */
+staffRout.post(
+  "/",
+  uploadStaffAssets,
+  processProfileImage,
+  processStaffFiles,
+  createStaff
+);
+
 staffRout
   .route("/:id")
   .get(getOneStaff)
-  .put(uploadImageAndFiles, resizeAndSaveFiles, updataStaff)
+  .put(uploadStaffAssets, processProfileImage, processStaffFiles, updateStaff)
   .delete(deleteStaff);
 
 module.exports = staffRout;
