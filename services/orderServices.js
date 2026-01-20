@@ -756,8 +756,6 @@ exports.editOrderInvoice = asyncHandler(async (req, res, next) => {
   await Promise.all(
     Array.from(movementMap.entries()).map(async ([id, item]) => {
       const product = await productModel.findOne({ _id: id, companyId });
-      console.log(product);
-
       if (product && product.type !== "Service" && item.quantityDiff !== 0) {
         const totalStockQuantity = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity,
