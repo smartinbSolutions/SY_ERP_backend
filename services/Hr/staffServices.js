@@ -28,7 +28,6 @@ const upload = multer({
   fileFilter: multerFilter,
 });
 
-
 exports.uploadStaffAssets = upload.fields([
   { name: "profileImage", maxCount: 1 },
   { name: "files", maxCount: 10 },
@@ -116,6 +115,9 @@ exports.getStaff = asyncHandler(async (req, res) => {
 
   let query = { companyId };
 
+  // =========================
+  //  Search by keyword
+  // =========================
   if (req.query.keyword) {
     query.$or = [
       { name: { $regex: req.query.keyword, $options: "i" } },
@@ -124,14 +126,29 @@ exports.getStaff = asyncHandler(async (req, res) => {
     ];
   }
 
+  // =========================
+  //  Filter by Branch
+  // =========================
+  if (req.query.branch) {
+    query.branch = req.query.branch;
+  }
+
+  // =========================
+  //  Count
+  // =========================
   const totalItems = await StaffsModel.countDocuments(query);
 
+  // =========================
+  // Fetch Data
+  // =========================
   const staffs = await StaffsModel.find(query)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 })
     .populate("currency")
-    .populate("position");
+    .populate("position")
+    .populate("branch")
+    .populate("department");
 
   res.status(200).json({
     status: "success",
@@ -152,9 +169,9 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
   req.body.companyId = companyId;
 
-  if (req.body.tags) {
-    req.body.tags = JSON.parse(req.body.tags);
-  }
+  // if (req.body.tags) {
+  //   req.body.tags = JSON.parse(req.body.tags);
+  // }
 
   const employeePass = generatePassword();
 
@@ -165,6 +182,9 @@ exports.createStaff = asyncHandler(async (req, res) => {
   });
 
   req.body.password = await bcrypt.hash(employeePass, 12);
+  if (req.body.customAttributes) {
+    req.body.customAttributes = JSON.parse(req.body.customAttributes);
+  }
 
   const staff = await StaffsModel.create(req.body);
 

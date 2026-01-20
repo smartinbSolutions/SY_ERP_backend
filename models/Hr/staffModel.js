@@ -8,6 +8,13 @@ const StaffSchema = new mongoose.Schema(
       trim: true,
     },
 
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+
     email: {
       type: String,
       unique: true,
@@ -15,12 +22,37 @@ const StaffSchema = new mongoose.Schema(
       lowercase: true,
     },
 
+    personalEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+
     latinName: String,
     phoneNumber: String,
-    salary: Number,
+    secondaryPhoneNumber: String,
+
+    dateOfBirth: Date,
+
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+    },
+
+    nationality: String,
+    maritalStatus: String,
+
+    disabilitiesOrHealthConditions: {
+      type: String,
+      default: "",
+    },
 
     /* ================= IMAGES ================= */
     profileImage: String,
+
+    /* ================= ADDRESS ================= */
+    city: String,
+    homeAddress: String,
 
     /* ================= COMPANY STRUCTURE ================= */
     branch: {
@@ -65,6 +97,22 @@ const StaffSchema = new mongoose.Schema(
     /* ================= HR DATA ================= */
     hireDate: String,
 
+    probationPeriod: String,
+    probationEndDate: Date,
+
+    contractStartDate: Date,
+    contractEndDate: Date,
+
+    terminationDate: Date,
+    terminationReason: String,
+
+    employmentStatus: {
+      type: Boolean,
+      default: true,
+    },
+
+    salary: Number,
+
     currency: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Currency",
@@ -72,9 +120,11 @@ const StaffSchema = new mongoose.Schema(
 
     dateSalaryDue: String,
 
-    employmentStatus: {
-      type: Boolean,
-      default: true,
+    /* ================= EMERGENCY CONTACT ================= */
+    emergencyContact: {
+      name: String,
+      relationship: String,
+      phone: String,
     },
 
     /* ================= TAGS ================= */
@@ -87,23 +137,35 @@ const StaffSchema = new mongoose.Schema(
       },
     ],
 
-    /* ================= STAFF FILES ================= */
-    files: [
+    /* ================= BANK DETAILS ================= */
+    bankDetails: {
+      bankName: String,
+      accountName: String,
+      accountNumber: String,
+      swiftBicCode: String,
+      iban: String,
+    },
+
+    /* ================= EDUCATION ================= */
+    education: {
+      highestLevel: String,
+      degreeMajor: String,
+      institution: String,
+      graduationYear: Number,
+      licenseNumbers: [String],
+    },
+    /* ================= CUSTOM ATTRIBUTES ================= */
+    customAttributes: [
       {
-        fileId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Files",
-          required: true,
-        },
-
-        fileUrl: {
+        key: {
           type: String,
-          required: true,
+          trim: true,
         },
-
-        expiryDate: {
-          type: Date,
+        value: {
+          type: String,
+          trim: true,
         },
+        _id: false,
       },
     ],
 
