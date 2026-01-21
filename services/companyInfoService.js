@@ -36,6 +36,10 @@ const expensesCategoryModel = require("../models/expensesCategoryModel");
 const UnitsModel = require("../models/UnitsModel");
 const salesPointModel = require("../models/salesPointModel");
 const { generateCounter } = require("../utils/counterFormat");
+const productModel = require("../models/productModel");
+const purchaseinvoicesModel = require("../models/purchaseinvoicesModel");
+const { createProductMovement } = require("../utils/productMovement");
+const { createProductBatch } = require("./productBatchServices");
 
 const multerFilter = function (req, file, cb) {
   if (file.mimetype.startsWith("image")) {
@@ -253,7 +257,7 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
     try {
       await axios.post(
         `${process.env.JOBS_URL}api/auth/createEmployee`,
-        payload
+        payload,
       );
     } catch (err) {
       console.error("Failed to sync employee:", err.message);
@@ -275,7 +279,7 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
             companyName: req.body.companyName,
           },
         },
-      }
+      },
     );
   }
 
@@ -437,7 +441,7 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
       },
       {
         new: true,
-      }
+      },
     );
     if (!companyInfo) {
       return next(new ApiError(`There is no company with this id ${id}`, 404));
@@ -474,7 +478,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     if (!companyInfo) {
       throw new ApiError(
         `There is no company info with this id ${companyId} or rollover already done`,
-        404
+        404,
       );
     }
     const baseName = companyInfo.companyName;
@@ -485,13 +489,13 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         rollOver: true,
         closedAt: new Date(),
       },
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!companyInfo) {
       throw new ApiError(
         `There is no company info with this id ${companyId}`,
-        404
+        404,
       );
     }
 
@@ -521,7 +525,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           rollOver: false,
         },
       ],
-      { session }
+      { session },
     );
     const { dateFormat, counterFormat } = companyInfo.prefix;
 
@@ -556,7 +560,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           "company.$.companyName": `${baseName}-${year}`,
         },
       },
-      { session }
+      { session },
     );
     await employeeModel.updateMany(
       {
@@ -571,7 +575,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           },
         },
       },
-      { session }
+      { session },
     );
 
     const currencies = await currencyModel.find({ companyId }).session(session);
@@ -641,7 +645,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           creditor: isBalanceSheet ? sums.creditor : 0,
           currency: currencyMap.get(account.currency?.toString()) || null,
         };
-      })
+      }),
     );
 
     const insertedAccounts = await accountingTreeModel.insertMany(newAccounts, {
@@ -699,7 +703,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             description: "Opening Balance",
             isPrimary: rate === 1 ? true : false,
           };
-        })
+        }),
       )
     ).filter(Boolean);
 
@@ -717,15 +721,15 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             counter: counter + 1,
             journalDebit: openingJournalAccounts.reduce(
               (sum, acc) => sum + acc.MainDebit,
-              0
+              0,
             ),
             journalCredit: openingJournalAccounts.reduce(
               (sum, acc) => sum + acc.MainCredit,
-              0
+              0,
             ),
           },
         ],
-        { session }
+        { session },
       );
     }
 
@@ -761,7 +765,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           openingBalance: fundBalance,
           fundBalance: fundBalance,
         };
-      })
+      }),
     );
 
     const createFunds = await financialFundsModel.insertMany(newFunds, {
@@ -781,7 +785,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             companyId: newCompanyId,
           },
         ],
-        { session }
+        { session },
       );
     }
 
@@ -821,7 +825,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           total: totalInvoices,
           TotalUnpaid: unpaid,
         };
-      })
+      }),
     );
 
     const createCustomers = await customarModel.insertMany(newCustomers, {
@@ -841,7 +845,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         "",
         "",
         customer.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
-        "Opening balance"
+        "Opening balance",
       );
     }
 
@@ -883,7 +887,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           total: totalInvoices,
           TotalUnpaid: unpaid,
         };
-      })
+      }),
     );
 
     const createSuppliers = await suppliersModel.insertMany(newSuppliers, {
@@ -903,7 +907,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         "",
         "",
         supplier.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
-        "Opening balance"
+        "Opening balance",
       );
     }
 
@@ -999,9 +1003,18 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
     await salesPointModel.insertMany(newSalesPoints, { session });
 
+    await BeginningInvoice({
+      companyId,
+      newCompanyId,
+      session,
+      newStocks,
+      date,
+      counter,
+      units,
+      newunits,
+    });
     await session.commitTransaction();
     session.endSession();
-
     res.status(201).json({
       status: true,
       message: "Rollover completed successfully",
@@ -1013,3 +1026,212 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
+
+const BeginningInvoice = async ({
+  companyId,
+  newCompanyId,
+  session,
+  newStocks,
+  date,
+  counter,
+  units,
+  newunits,
+}) => {
+  const products = await productModel.find({ companyId }).session(session);
+
+  const oldUnitIdToName = new Map();
+  units.forEach((u) => {
+    oldUnitIdToName.set(u._id.toString(), u.name);
+  });
+  const newUnitNameToId = new Map();
+  newunits.forEach((u) => {
+    newUnitNameToId.set(u.name, u._id);
+  });
+
+  const newProducts = products.map((product) => {
+    const id = product._id;
+    product._id = null;
+    const newUnitsPrices = (product.unitsPrices || []).map((up) => {
+      const oldUnitName = oldUnitIdToName.get(up.unitId?.toString());
+      const newUnitId = newUnitNameToId.get(oldUnitName);
+
+      return {
+        ...up,
+        unitId: newUnitId || null,
+        name: oldUnitName || up.name,
+      };
+    });
+    return {
+      ...product.toObject(),
+      _id: null,
+      companyId: newCompanyId,
+      originalProductId: id,
+      stocks: [],
+      unitsPrices: newUnitsPrices,
+      costBuyingPrice: product.costBuyingPrice || product.buyingprice || 0,
+    };
+  });
+
+  const insertedProduct = await productModel.insertMany(newProducts, {
+    session,
+  });
+
+  await purchaseInvoiceRollover({
+    companyId,
+    newCompanyId,
+    session,
+    newStocks,
+    date,
+    counter,
+    products,
+  });
+};
+
+const purchaseInvoiceRollover = async ({
+  companyId,
+  newCompanyId,
+  session,
+  newStocks,
+  date,
+  counter,
+}) => {
+  const products = await productModel.find({ companyId }).session(session);
+  const MainCurrency = await currencyModel
+    .findOne({ companyId: newCompanyId, is_primary: "true" })
+    .session(session);
+  const newProducts = await productModel
+    .find({ companyId: newCompanyId })
+    .session(session)
+    .populate("currency")
+    .populate("tax");
+  for (const stock of newStocks) {
+    const invoiceItems = products
+      .map((oldProduct) => {
+        if (!oldProduct) return null;
+
+        const newProduct = newProducts.find(
+          (p) => p.originalProductId.toString() === oldProduct._id.toString(),
+        );
+
+        if (!newProduct) return null;
+
+        const stockEntry = oldProduct.stocks?.find(
+          (s) => s.stockName === stock.name,
+        );
+
+        const quantity = stockEntry?.productQuantity || 0;
+
+        if (quantity <= 0) return null;
+
+        const buyingPrice =
+          newProduct.costBuyingPrice || newProduct.buyingprice || 0;
+        const buyingPriceMineCurrency =
+          (buyingPrice * quantity) / (newProduct.currency?.exchangeRate || 1) ||
+          0;
+        const totalWithoutTax = quantity * buyingPrice;
+
+        return {
+          id: newProduct._id,
+          type: "product",
+          qr: newProduct.qr[0] || "",
+          name: newProduct.name,
+          orginalBuyingPrice: buyingPrice,
+          tax: newProduct.tax._id || null,
+          unit: newProduct.unit || newProduct.mainUnit?.name || "",
+          stock: {
+            _id: stock._id,
+            stock: stock.name,
+          },
+          quantity,
+          note: "Opening Balance",
+          exchangeRate: newProduct.currency.exchangeRate || 1,
+          convertedBuyingPrice: buyingPrice,
+          totalWithoutTax,
+          taxValue: 0,
+          total: totalWithoutTax,
+          profitRatio: 0,
+          showNote: true,
+          showDiscount: false,
+          vName: "",
+          buyingPriceMineCurrency,
+        };
+      })
+      .filter(Boolean);
+
+    if (!invoiceItems.length) continue;
+
+    const newPurchaseInvoice = await purchaseinvoicesModel.create(
+      [
+        {
+          companyId: newCompanyId,
+          invoiceName: "Opening Purchase Invoice",
+          type: "Purchase",
+          date,
+          counter,
+          invoiceNumber: counter,
+          exchangeRate: 1,
+          invoicesItems: invoiceItems,
+          invoiceSubTotal: invoiceItems.reduce(
+            (s, i) => s + i.totalWithoutTax,
+            0,
+          ),
+          invoiceGrandTotal: invoiceItems.reduce((s, i) => s + i.total, 0),
+          totalPurchasePriceMainCurrency: invoiceItems.reduce(
+            (s, i) => s + i.buyingPriceMineCurrency,
+            0,
+          ),
+          paid: "paid",
+          description: "Opening stock purchase invoice",
+          currency: {
+            currencyCode: MainCurrency?.currencyCode || "",
+            exchangeRate: MainCurrency?.exchangeRate || 1,
+            id: MainCurrency?._id || null,
+            currencyName: MainCurrency?.currencyName || "",
+          },
+          invoiceTax: 0,
+          ManualInvoiceDiscountValue: 0,
+          invoiceDiscount: 0,
+        },
+      ],
+      { session },
+    );
+
+    for (const item of invoiceItems) {
+      console.log(item.id);
+      await createProductMovement({
+        productId: item.id,
+        newQuantity: 0,
+        quantity: 0,
+        movementType: "in",
+        source: "Create",
+        companyId: newCompanyId,
+        enterPrice: item.orginalBuyingPrice,
+      });
+      await createProductMovement({
+        productId: item.id,
+        reference: newPurchaseInvoice._id,
+        newQuantity: item.quantity,
+        quantity: item.quantity,
+        movementType: "in",
+        source: "Purchase Invoice",
+        companyId: newCompanyId,
+        enterPrice: item.costBuyingPrice,
+        stockId: stock._id,
+        buyingPrice: item.orginalBuyingPrice,
+        exchangeRate: item.exchangeRate,
+      });
+      await createProductBatch({
+        productId: item.id,
+        companyId: newCompanyId,
+        stockId: stock._id,
+        quantity: item.quantity,
+        buyingprice: item.orginalBuyingPrice,
+        sourceId: newPurchaseInvoice._id,
+        costBuyingPrice: item.oldCostBuyingPrice,
+        exchangeRate: item.exchangeRate,
+        referenceType: "purchase",
+      });
+    }
+    counter++;
+  }
+};
