@@ -466,15 +466,16 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
 exports.rollover = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
+  const { journalDate, manualJournal } = req.body;
+
   const session = await mongoose.startSession();
   session.startTransaction();
   const currentDateTime = new Date();
 
   const year = currentDateTime.getFullYear() - 1;
-  const firstYear = currentDateTime.getFullYear();
-  const date = `${firstYear}-01-01T00:00:00.000Z`;
+  const date = `${journalDate}T00:00:00.000Z`;
   const startDate = `${year}-01-01T00:00:00.000Z`;
-  const endDate = `${year}-12-31T23:59:59.999Z`;
+  const endDate = `${journalDate}T23:59:59.999Z`;
   try {
     const companyInfo = await CompanyInfnoModel.findOne({
       _id: companyId,
@@ -493,7 +494,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       {
         companyName: `${baseName}-${year}`,
         rollOver: true,
-        closedAt: new Date(),
+        closedAt: endDate,
       },
       { new: true, session },
     );
@@ -653,97 +654,100 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const funds = await financialFundsModel
       .find({ companyId })
       .session(session);
+    if (!manualJournal) {
+      const openingJournalAccounts = (
+        await Promise.all(
+          insertedAccounts.map(async (account, index) => {
+            if (account.finalAccount !== "Balance Sheet") return null;
 
-    const openingJournalAccounts = (
-      await Promise.all(
-        insertedAccounts.map(async (account, index) => {
-          if (account.finalAccount !== "Balance Sheet") return null;
+            if (!account.originalAccountId) return null;
 
-          if (!account.originalAccountId) return null;
+            const oldSums = journalMap.get(
+              account.originalAccountId.toString(),
+            );
 
-          const oldSums = journalMap.get(account.originalAccountId.toString());
+            if (!oldSums) return null;
+            let balance = 0;
 
-          if (!oldSums) return null;
-          let balance = 0;
+            if (account.balanceType === "debit") {
+              balance = oldSums.debtor - oldSums.creditor;
+            } else if (account.balanceType === "credit") {
+              balance = oldSums.creditor - oldSums.debtor;
+            }
 
-          if (account.balanceType === "debit") {
-            balance = oldSums.debtor - oldSums.creditor;
-          } else if (account.balanceType === "credit") {
-            balance = oldSums.creditor - oldSums.debtor;
-          }
-          console.log("oldSums", oldSums);
+            if (balance === 0) return null;
 
-          if (balance === 0) return null;
+            const currency = await currencyModel
+              .findOne({
+                companyId: newCompanyId,
+                _id: account.currency,
+              })
+              .session(session);
 
-          const currency = await currencyModel
-            .findOne({
+            const rate = currency?.exchangeRate || 1;
+
+            return {
+              counter: Number(index) + 1,
+              id: account._id,
+              name: account.name,
+              code: account.code,
+              MainDebit:
+                account.balanceType === "debit" ? Math.abs(balance) : 0,
+              MainCredit:
+                account.balanceType === "credit" ? Math.abs(balance) : 0,
+              accountDebit:
+                account.balanceType === "debit" ? Math.abs(balance) * rate : 0,
+              accountCredit:
+                account.balanceType === "credit" ? Math.abs(balance) * rate : 0,
+              accountCurrency: currency?.currencyCode || "",
+              accountExRate: rate,
+              description: "Opening Balance",
+              isPrimary: rate === 1 ? true : false,
+            };
+          }),
+        )
+      ).filter(Boolean);
+      const debit = openingJournalAccounts.reduce(
+        (sum, acc) => sum + acc.MainDebit,
+        0,
+      );
+
+      const credit = openingJournalAccounts.reduce(
+        (sum, acc) => sum + acc.MainCredit,
+        0,
+      );
+
+      if (debit !== credit) {
+        throw new ApiError(
+          `Opening balance journal not balanced (Debit: ${debit}, Credit: ${credit})`,
+          400,
+        );
+      }
+      if (openingJournalAccounts.length > 0) {
+        await journalEntryModel.create(
+          [
+            {
               companyId: newCompanyId,
-              _id: account.currency,
-            })
-            .session(session);
-
-          const rate = currency?.exchangeRate || 1;
-
-          return {
-            counter: Number(index) + 1,
-            id: account._id,
-            name: account.name,
-            code: account.code,
-            MainDebit: account.balanceType === "debit" ? Math.abs(balance) : 0,
-            MainCredit:
-              account.balanceType === "credit" ? Math.abs(balance) : 0,
-            accountDebit:
-              account.balanceType === "debit" ? Math.abs(balance) * rate : 0,
-            accountCredit:
-              account.balanceType === "credit" ? Math.abs(balance) * rate : 0,
-            accountCurrency: currency?.currencyCode || "",
-            accountExRate: rate,
-            description: "Opening Balance",
-            isPrimary: rate === 1 ? true : false,
-          };
-        }),
-      )
-    ).filter(Boolean);
-    const debit = openingJournalAccounts.reduce(
-      (sum, acc) => sum + acc.MainDebit,
-      0,
-    );
-
-    const credit = openingJournalAccounts.reduce(
-      (sum, acc) => sum + acc.MainCredit,
-      0,
-    );
-
-    if (debit !== credit) {
-      throw new ApiError(
-        `Opening balance journal not balanced (Debit: ${debit}, Credit: ${credit})`,
-        400,
-      );
-    }
-    if (openingJournalAccounts.length > 0) {
-      await journalEntryModel.create(
-        [
-          {
-            companyId: newCompanyId,
-            journalName: "Opening Balance",
-            journalDate: new Date(Date.UTC(year, 0, 1)),
-            journalRefNum: counter + 1,
-            journalDesc: "Opening Balance",
-            journalType: "Opening Balance",
-            journalAccounts: openingJournalAccounts,
-            counter: counter + 1,
-            journalDebit: openingJournalAccounts.reduce(
-              (sum, acc) => sum + acc.MainDebit,
-              0,
-            ),
-            journalCredit: openingJournalAccounts.reduce(
-              (sum, acc) => sum + acc.MainCredit,
-              0,
-            ),
-          },
-        ],
-        { session },
-      );
+              journalName: "Opening Balance",
+              journalDate: new Date(Date.UTC(year, 0, 1)),
+              journalRefNum: counter + 1,
+              journalDesc: "Opening Balance",
+              journalType: "Opening Balance",
+              journalAccounts: openingJournalAccounts,
+              counter: counter + 1,
+              journalDebit: openingJournalAccounts.reduce(
+                (sum, acc) => sum + acc.MainDebit,
+                0,
+              ),
+              journalCredit: openingJournalAccounts.reduce(
+                (sum, acc) => sum + acc.MainCredit,
+                0,
+              ),
+            },
+          ],
+          { session },
+        );
+      }
     }
 
     const newFunds = await Promise.all(
@@ -1062,9 +1066,13 @@ const BeginningInvoice = async ({
   });
 
   const newProducts = products.map((product) => {
-    const id = product._id;
-    product._id = null;
-    const newUnitsPrices = (product.unitsPrices || []).map((up) => {
+    const obj = product.toObject();
+    const oldId = obj._id;
+
+    delete obj._id;
+    delete obj.id;
+
+    const newUnitsPrices = (obj.unitsPrices || []).map((up) => {
       const oldUnitName = oldUnitIdToName.get(up.unitId?.toString());
       const newUnitId = newUnitNameToId.get(oldUnitName);
 
@@ -1074,21 +1082,21 @@ const BeginningInvoice = async ({
         name: oldUnitName || up.name,
       };
     });
+
     return {
-      ...product.toObject(),
-      _id: null,
+      ...obj,
       companyId: newCompanyId,
-      originalProductId: id,
+      originalProductId: oldId,
       stocks: [],
       unitsPrices: newUnitsPrices,
-      costBuyingPrice: product.costBuyingPrice || product.buyingprice || 0,
+      costBuyingPrice: obj.costBuyingPrice || obj.buyingprice || 0,
     };
   });
 
-  const insertedProduct = await productModel.insertMany(newProducts, {
+  await productModel.insertMany(newProducts, {
     session,
+    ordered: false,
   });
-
   await purchaseInvoiceRollover({
     companyId,
     newCompanyId,
@@ -1109,6 +1117,7 @@ const purchaseInvoiceRollover = async ({
   counter,
 }) => {
   const products = await productModel.find({ companyId }).session(session);
+
   const MainCurrency = await currencyModel
     .findOne({ companyId: newCompanyId, is_primary: "true" })
     .session(session);
@@ -1116,68 +1125,80 @@ const purchaseInvoiceRollover = async ({
   if (!MainCurrency) {
     throw new ApiError("Main currency not found", 400);
   }
+
   const newProducts = await productModel
     .find({ companyId: newCompanyId })
     .session(session)
     .populate("currency")
     .populate("tax");
+
   for (const stock of newStocks) {
-    const invoiceItems = products
-      .map((oldProduct) => {
-        if (!oldProduct) return null;
+    const invoiceItems = [];
 
-        const newProduct = newProducts.find(
-          (p) => p.originalProductId.toString() === oldProduct._id.toString(),
-        );
+    for (const oldProduct of products) {
+      const newProduct = newProducts.find(
+        (p) => p.originalProductId?.toString() === oldProduct._id.toString(),
+      );
+      if (!newProduct) continue;
 
-        if (!newProduct) return null;
+      const stockEntry = oldProduct.stocks?.find(
+        (s) => s.stockName === stock.name,
+      );
 
-        const stockEntry = oldProduct.stocks?.find(
-          (s) => s.stockName === stock.name,
-        );
+      const quantity = stockEntry?.productQuantity || 0;
+      if (quantity <= 0) continue;
 
-        const quantity = stockEntry?.productQuantity || 0;
+      const buyingPrice =
+        newProduct.costBuyingPrice || newProduct.buyingprice || 0;
 
-        if (quantity <= 0) return null;
+      const exchangeRate = newProduct.currency?.exchangeRate || 1;
 
-        const buyingPrice =
-          newProduct.costBuyingPrice || newProduct.buyingprice || 0;
-        const buyingPriceMineCurrency =
-          (buyingPrice * quantity) / (newProduct.currency?.exchangeRate || 1) ||
-          0;
-        const totalWithoutTax = quantity * buyingPrice;
+      const totalWithoutTax = quantity * buyingPrice;
 
-        return {
-          id: newProduct._id,
-          type: "product",
-          qr: newProduct.qr[0] || "",
-          name: newProduct.name,
-          orginalBuyingPrice: buyingPrice,
-          tax: newProduct.tax._id || null,
-          unit: newProduct.unit || newProduct.mainUnit?.name || "",
-          stock: {
-            _id: stock._id,
-            stock: stock.name,
+      invoiceItems.push({
+        id: newProduct._id,
+        type: "product",
+        qr: newProduct.qr?.[0] || "",
+        name: newProduct.name,
+        orginalBuyingPrice: buyingPrice,
+        tax: newProduct.tax?._id || null,
+        unit: newProduct.unit || "",
+        stock: {
+          _id: stock._id,
+          stock: stock.name,
+        },
+        quantity,
+        note: "Opening Balance",
+        exchangeRate,
+        convertedBuyingPrice: buyingPrice,
+        totalWithoutTax,
+        taxValue: 0,
+        total: totalWithoutTax,
+        profitRatio: 0,
+        showNote: true,
+        showDiscount: false,
+        vName: "",
+        buyingPriceMineCurrency: (buyingPrice * quantity) / exchangeRate,
+      });
+
+      await productModel.updateOne(
+        { _id: newProduct._id },
+        {
+          $push: {
+            stocks: {
+              stockId: stock._id,
+              stockName: stock.name,
+              productQuantity: quantity,
+            },
           },
-          quantity,
-          note: "Opening Balance",
-          exchangeRate: newProduct.currency.exchangeRate || 1,
-          convertedBuyingPrice: buyingPrice,
-          totalWithoutTax,
-          taxValue: 0,
-          total: totalWithoutTax,
-          profitRatio: 0,
-          showNote: true,
-          showDiscount: false,
-          vName: "",
-          buyingPriceMineCurrency,
-        };
-      })
-      .filter(Boolean);
+        },
+        { session },
+      );
+    }
 
     if (!invoiceItems.length) continue;
 
-    const newPurchaseInvoice = await purchaseinvoicesModel.create(
+    const [newPurchaseInvoice] = await purchaseinvoicesModel.create(
       [
         {
           companyId: newCompanyId,
@@ -1200,10 +1221,10 @@ const purchaseInvoiceRollover = async ({
           paid: "paid",
           description: "Opening stock purchase invoice",
           currency: {
-            currencyCode: MainCurrency?.currencyCode || "",
-            exchangeRate: MainCurrency?.exchangeRate || 1,
-            id: MainCurrency?._id || null,
-            currencyName: MainCurrency?.currencyName || "",
+            currencyCode: MainCurrency.currencyCode,
+            exchangeRate: MainCurrency.exchangeRate,
+            id: MainCurrency._id,
+            currencyName: MainCurrency.currencyName,
           },
           invoiceTax: 0,
           ManualInvoiceDiscountValue: 0,
@@ -1216,24 +1237,15 @@ const purchaseInvoiceRollover = async ({
     for (const item of invoiceItems) {
       await createProductMovement({
         productId: item.id,
-        newQuantity: 0,
-        quantity: 0,
-        movementType: "in",
-        source: "Create",
-        companyId: newCompanyId,
-        enterPrice: item.orginalBuyingPrice,
-      });
-      await createProductMovement({
-        productId: item.id,
         reference: newPurchaseInvoice._id,
         newQuantity: item.quantity,
         quantity: item.quantity,
         movementType: "in",
         source: "Purchase Invoice",
         companyId: newCompanyId,
-        enterPrice: item.costBuyingPrice,
         stockId: stock._id,
         buyingPrice: item.orginalBuyingPrice,
+        enterPrice: item.orginalBuyingPrice,
         exchangeRate: item.exchangeRate,
       });
       await createProductBatch({
@@ -1242,8 +1254,8 @@ const purchaseInvoiceRollover = async ({
         stockId: stock._id,
         quantity: item.quantity,
         buyingprice: item.orginalBuyingPrice,
+        costBuyingPrice: item.orginalBuyingPrice,
         sourceId: newPurchaseInvoice._id,
-        costBuyingPrice: item.oldCostBuyingPrice,
         exchangeRate: item.exchangeRate,
         referenceType: "purchase",
       });
