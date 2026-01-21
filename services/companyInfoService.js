@@ -229,13 +229,19 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
   //4-insert the main role
   // Extract IDs from the inserted documents
   const dashboardRoleIds = dashboardRoles.map((role) => role._id);
-  const insertMainRole = await rolesModel.create({
-    name: "Super Admin",
-    description: "Role Description",
-    rolesDashboard: dashboardRoleIds,
-    superAdmin: true,
-    companyId: companyInfo._id,
-  });
+  const insertMainRole = await rolesModel.create(
+    [
+      {
+        name: "Super Admin",
+        description: "Role Description",
+        rolesDashboard: dashboardRoleIds,
+        superAdmin: true,
+        companyId: newCompanyId,
+      },
+    ],
+    { session },
+  );
+
   req.body.name = req.body.companyName;
   req.body.company = {
     companyId: companyInfo._id,
@@ -491,14 +497,6 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       },
       { new: true, session },
     );
-
-    if (!companyInfo) {
-      throw new ApiError(
-        `There is no company info with this id ${companyId}`,
-        404,
-      );
-    }
-
     const newCompanyInfo = await CompanyInfnoModel.create(
       [
         {
@@ -687,7 +685,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           const rate = currency?.exchangeRate || 1;
 
           return {
-            counter: Number(counter) + Number(index) + 1,
+            counter: Number(index) + 1,
             id: account._id,
             name: account.name,
             code: account.code,
@@ -706,7 +704,22 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         }),
       )
     ).filter(Boolean);
+    const debit = openingJournalAccounts.reduce(
+      (sum, acc) => sum + acc.MainDebit,
+      0,
+    );
 
+    const credit = openingJournalAccounts.reduce(
+      (sum, acc) => sum + acc.MainCredit,
+      0,
+    );
+
+    if (debit !== credit) {
+      throw new ApiError(
+        `Opening balance journal not balanced (Debit: ${debit}, Credit: ${credit})`,
+        400,
+      );
+    }
     if (openingJournalAccounts.length > 0) {
       await journalEntryModel.create(
         [
@@ -835,7 +848,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     for (const customer of createCustomers) {
       await createPaymentHistory(
         "Opening balance",
-        req.body.date,
+        date,
         customer.TotalUnpaid,
         customer.TotalUnpaid,
         "customer",
@@ -897,7 +910,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     for (const supplier of createSuppliers) {
       await createPaymentHistory(
         "Opening balance",
-        req.body.date,
+        date,
         supplier.TotalUnpaid,
         supplier.TotalUnpaid,
         "supplier",
@@ -1099,6 +1112,10 @@ const purchaseInvoiceRollover = async ({
   const MainCurrency = await currencyModel
     .findOne({ companyId: newCompanyId, is_primary: "true" })
     .session(session);
+
+  if (!MainCurrency) {
+    throw new ApiError("Main currency not found", 400);
+  }
   const newProducts = await productModel
     .find({ companyId: newCompanyId })
     .session(session)
@@ -1197,7 +1214,6 @@ const purchaseInvoiceRollover = async ({
     );
 
     for (const item of invoiceItems) {
-      console.log(item.id);
       await createProductMovement({
         productId: item.id,
         newQuantity: 0,
