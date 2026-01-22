@@ -93,6 +93,7 @@ const sharePurchaseRequestRoute = require("./investment/sharePurchaseRequestRout
 const productBatchRoute = require("./productBatchRoute");
 const filesRoute = require("./Hr/filesRoute");
 const staffFilesRoute = require("./Hr/staffFilesRoute");
+const leavesRoute = require("./Hr/leavesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -179,6 +180,7 @@ const mountRoutes = (app) => {
   app.use("/api/job-grades", jobGradesRoute);
   app.use("/api/files", filesRoute);
   app.use("/api/staff-files", staffFilesRoute);
+  app.use("/api/leaves", leavesRoute);
 
   //Payment
   app.use("/api", paytrRouter);

@@ -3,15 +3,8 @@ const mongoose = require("mongoose");
 const StaffSchema = new mongoose.Schema(
   {
     /* ================= BASIC INFO ================= */
-    name: {
+    fullName: {
       type: String,
-      trim: true,
-    },
-
-    employeeId: {
-      type: String,
-      unique: true,
-      sparse: true,
       trim: true,
     },
 
@@ -35,8 +28,7 @@ const StaffSchema = new mongoose.Schema(
     dateOfBirth: Date,
 
     gender: {
-      type: String,
-      enum: ["Male", "Female", "Other"],
+      String,
     },
 
     nationality: String,
@@ -123,19 +115,11 @@ const StaffSchema = new mongoose.Schema(
     /* ================= EMERGENCY CONTACT ================= */
     emergencyContact: {
       name: String,
-      relationship: String,
       phone: String,
     },
 
     /* ================= TAGS ================= */
-    tags: [
-      {
-        id: String,
-        name: String,
-        color: String,
-        _id: false,
-      },
-    ],
+    tags: [String],
 
     /* ================= BANK DETAILS ================= */
     bankDetails: {

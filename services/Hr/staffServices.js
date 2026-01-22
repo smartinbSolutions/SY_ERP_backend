@@ -182,7 +182,10 @@ exports.createStaff = asyncHandler(async (req, res) => {
   });
 
   req.body.password = await bcrypt.hash(employeePass, 12);
-  if (req.body.customAttributes) {
+  if (
+    req.body.customAttributes &&
+    typeof req.body.customAttributes === "string"
+  ) {
     req.body.customAttributes = JSON.parse(req.body.customAttributes);
   }
 
