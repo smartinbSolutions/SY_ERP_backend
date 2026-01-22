@@ -752,7 +752,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       if (debit.toFixed(4) !== credit.toFixed(4)) {
         throw new ApiError(
           `Opening balance journal not balanced (Debit: ${debit}, Credit: ${credit})`,
-          400,
+          405,
         );
       }
       if (openingJournalAccounts.length > 0) {
@@ -963,52 +963,77 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     //---Stocks
     const stocks = await stockModel.find({ companyId }).session(session);
 
-    const newStocks = stocks.map((stock) => ({
-      ...stock.toObject(),
-      _id: undefined,
-      companyId: newCompanyId,
-    }));
+    const newStocks = stocks.map((stock) => {
+      const obj = stock.toObject();
+      delete obj._id;
+      delete obj.id;
+
+      return {
+        ...obj,
+        companyId: newCompanyId,
+      };
+    });
 
     await stockModel.insertMany(newStocks, { session });
 
     //---Categories
     const categories = await CategoryModel.find({ companyId }).session(session);
 
-    const newCategories = categories.map((cat) => ({
-      ...cat.toObject(),
+    const newCategories = categories.map((c) => ({
+      ...c.toObject(),
       _id: undefined,
       companyId: newCompanyId,
+      oldId: c._id,
     }));
 
-    await CategoryModel.insertMany(newCategories, { session });
+    const insertedCategories = await CategoryModel.insertMany(newCategories, {
+      session,
+    });
+
+    const categoryMap = new Map();
+    insertedCategories.forEach((cat) => {
+      categoryMap.set(cat.oldId, cat._id);
+    });
 
     //---Brands
     const brands = await brandModel.find({ companyId }).session(session);
 
-    const newBrands = brands.map((brand) => ({
-      ...brand.toObject(),
+    const newBrands = brands.map((b) => ({
+      ...b,
       _id: undefined,
       companyId: newCompanyId,
+      oldId: b._id,
     }));
 
-    await brandModel.insertMany(newBrands, { session });
+    const insertedBrands = await brandModel.insertMany(newBrands, { session });
+
+    const brandMap = new Map();
+    insertedBrands.forEach((b) => {
+      brandMap.set(b.oldId, b._id);
+    });
 
     //---Taxs
-    const taxs = await taxModel.find({ companyId }).session(session);
+    const taxes = await taxModel.find({ companyId }).session(session);
 
-    const newTaxs = taxs.map((tax) => ({
-      ...tax.toObject(),
+    const newTaxes = taxes.map((t) => ({
+      ...t,
       _id: undefined,
       companyId: newCompanyId,
+      oldId: t._id,
     }));
 
-    await taxModel.insertMany(newTaxs, { session });
+    const insertedTaxes = await taxModel.insertMany(newTaxes, { session });
+
+    const taxMap = new Map();
+    insertedTaxes.forEach((t) => {
+      taxMap.set(t.oldId.toString(), t._id);
+    });
 
     //---Tags
     const tags = await tagModel.find({ companyId }).session(session);
 
     const newTags = tags.map((tag) => ({
-      ...tag.toObject(),
+      ...tag,
       _id: undefined,
       companyId: newCompanyId,
     }));
@@ -1018,13 +1043,19 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     //---Unit
     const units = await UnitsModel.find({ companyId }).session(session);
 
-    const newunits = units.map((unit) => ({
-      ...unit.toObject(),
+    const newUnits = units.map((u) => ({
+      ...u,
       _id: undefined,
       companyId: newCompanyId,
+      oldId: u._id,
     }));
 
-    await UnitsModel.insertMany(newunits, { session });
+    const insertedUnits = await UnitsModel.insertMany(newUnits, { session });
+
+    const unitMap = new Map();
+    insertedUnits.forEach((u) => {
+      unitMap.set(u.oldId.toString(), u._id);
+    });
 
     //---Expenses Category
     const categorExpenses = await expensesCategoryModel
@@ -1060,9 +1091,14 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       date,
       counter,
       units,
-      newunits,
+      newunits: insertedUnits,
       priceMethod,
       manualJournal,
+      categoryMap,
+      unitMap,
+      taxMap,
+      currencyMap,
+      brandMap,
     });
     await session.commitTransaction();
     session.endSession();
@@ -1089,6 +1125,11 @@ const BeginningInvoice = async ({
   newunits,
   priceMethod,
   manualJournal,
+  categoryMap,
+  unitMap,
+  taxMap,
+  currencyMap,
+  brandMap,
 }) => {
   const products = await productModel.find({ companyId }).lean();
   const oldUnitIdToName = new Map();
@@ -1108,16 +1149,10 @@ const BeginningInvoice = async ({
     delete obj._id;
     delete obj.id;
 
-    const newUnitsPrices = (obj.unitsPrices || []).map((up) => {
-      const oldUnitName = oldUnitIdToName.get(up.unitId?.toString());
-      const newUnitId = newUnitNameToId.get(oldUnitName);
-
-      return {
-        ...up,
-        unitId: newUnitId || null,
-        name: oldUnitName || up.name,
-      };
-    });
+    const newUnitsPrices = (obj.unitsPrices || []).map((up) => ({
+      ...up,
+      unitId: unitMap.get(up.unitId?.toString()) || null,
+    }));
 
     return {
       ...obj,
@@ -1126,13 +1161,17 @@ const BeginningInvoice = async ({
       stocks: [],
       unitsPrices: newUnitsPrices,
       costBuyingPrice: obj.costBuyingPrice || obj.buyingprice || 0,
+      category: categoryMap.get(obj.category?.toString()) || null,
+      unit: unitMap.get(obj.unit?.toString()) || null,
+      tax: taxMap.get(obj.tax?.toString()) || null,
+      currency: currencyMap.get(obj.currency?.toString()) || null,
+      brand: brandMap.get(obj.brand?.toString()) || null,
     };
   });
-  console.log("test");
+
   const insertedProduct = await productModel.insertMany(newProducts, {
     session,
   });
-  console.log("1137");
 
   await purchaseInvoiceRollover({
     products,
@@ -1148,10 +1187,8 @@ const BeginningInvoice = async ({
 
 const purchaseInvoiceRollover = async ({
   products,
-
   newCompanyId,
   session,
-  newStocks,
   date,
   counter,
   priceMethod,
@@ -1160,7 +1197,9 @@ const purchaseInvoiceRollover = async ({
   const MainCurrency = await currencyModel
     .findOne({ companyId: newCompanyId, is_primary: "true" })
     .session(session);
-
+  const newStocks = await stockModel
+    .find({ companyId: newCompanyId })
+    .session(session);
   if (!MainCurrency) {
     throw new ApiError("Main currency not found", 400);
   }
