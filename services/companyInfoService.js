@@ -466,7 +466,13 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
 exports.rollover = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
-  const { journalDate, manualJournal } = req.body;
+  const { journalDate, manualJournal, priceMethod } = req.body;
+  if (!journalDate || !priceMethod) {
+    throw new ApiError(
+      "Journal date and price method are required to continue rollover",
+      400,
+    );
+  }
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -593,6 +599,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       companyId: companyId,
       journalDate: { $gte: startDate, $lte: endDate },
     };
+
     const journalSums = await journalEntryModel
       .aggregate([
         {
@@ -648,6 +655,31 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     );
 
     const insertedAccounts = await accountingTreeModel.insertMany(newAccounts, {
+      session,
+    });
+    const accountIdMap = new Map();
+
+    insertedAccounts.forEach((acc) => {
+      accountIdMap.set(acc.originalAccountId.toString(), acc._id);
+    });
+    const linkedPanel = await linkPanelModel.find({ companyId }).lean();
+
+    const newLinkedPanel = linkedPanel
+      .map((link) => {
+        const newAccountId = accountIdMap.get(
+          link.accountData?.toString() || link.accountId?.toString(),
+        );
+
+        return {
+          ...link,
+          _id: undefined,
+          companyId: newCompanyId,
+          accountData: newAccountId,
+        };
+      })
+      .filter(Boolean);
+
+    const link = await linkPanelModel.insertMany(newLinkedPanel, {
       session,
     });
 
@@ -717,7 +749,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         0,
       );
 
-      if (debit !== credit) {
+      if (debit.toFixed(4) !== credit.toFixed(4)) {
         throw new ApiError(
           `Opening balance journal not balanced (Debit: ${debit}, Credit: ${credit})`,
           400,
@@ -1029,6 +1061,8 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       counter,
       units,
       newunits,
+      priceMethod,
+      manualJournal,
     });
     await session.commitTransaction();
     session.endSession();
@@ -1053,20 +1087,22 @@ const BeginningInvoice = async ({
   counter,
   units,
   newunits,
+  priceMethod,
+  manualJournal,
 }) => {
-  const products = await productModel.find({ companyId }).session(session);
-
+  const products = await productModel.find({ companyId }).lean();
   const oldUnitIdToName = new Map();
   units.forEach((u) => {
     oldUnitIdToName.set(u._id.toString(), u.name);
   });
+
   const newUnitNameToId = new Map();
   newunits.forEach((u) => {
     newUnitNameToId.set(u.name, u._id);
   });
 
   const newProducts = products.map((product) => {
-    const obj = product.toObject();
+    const obj = { ...product };
     const oldId = obj._id;
 
     delete obj._id;
@@ -1092,32 +1128,35 @@ const BeginningInvoice = async ({
       costBuyingPrice: obj.costBuyingPrice || obj.buyingprice || 0,
     };
   });
-
-  await productModel.insertMany(newProducts, {
+  console.log("test");
+  const insertedProduct = await productModel.insertMany(newProducts, {
     session,
-    ordered: false,
   });
+  console.log("1137");
+
   await purchaseInvoiceRollover({
-    companyId,
+    products,
     newCompanyId,
     session,
     newStocks,
     date,
     counter,
-    products,
+    priceMethod,
+    manualJournal,
   });
 };
 
 const purchaseInvoiceRollover = async ({
-  companyId,
+  products,
+
   newCompanyId,
   session,
   newStocks,
   date,
   counter,
+  priceMethod,
+  manualJournal,
 }) => {
-  const products = await productModel.find({ companyId }).session(session);
-
   const MainCurrency = await currencyModel
     .findOne({ companyId: newCompanyId, is_primary: "true" })
     .session(session);
@@ -1132,6 +1171,9 @@ const purchaseInvoiceRollover = async ({
     .populate("currency")
     .populate("tax");
 
+  const productStockMap = new Map();
+  let TotalPrice = 0;
+
   for (const stock of newStocks) {
     const invoiceItems = [];
 
@@ -1144,7 +1186,6 @@ const purchaseInvoiceRollover = async ({
       const stockEntry = oldProduct.stocks?.find(
         (s) => s.stockName === stock.name,
       );
-
       const quantity = stockEntry?.productQuantity || 0;
       if (quantity <= 0) continue;
 
@@ -1152,21 +1193,38 @@ const purchaseInvoiceRollover = async ({
         newProduct.costBuyingPrice || newProduct.buyingprice || 0;
 
       const exchangeRate = newProduct.currency?.exchangeRate || 1;
-
       const totalWithoutTax = quantity * buyingPrice;
+
+      const selectedPrice =
+        priceMethod === "buyingprice"
+          ? newProduct.buyingprice
+          : priceMethod === "costBuyingPrice"
+            ? newProduct.costBuyingPrice
+            : priceMethod === "price"
+              ? newProduct.price
+              : buyingPrice;
+
+      TotalPrice += selectedPrice * quantity;
+
+      if (!productStockMap.has(newProduct._id.toString())) {
+        productStockMap.set(newProduct._id.toString(), []);
+      }
+
+      productStockMap.get(newProduct._id.toString()).push({
+        stockId: stock._id,
+        stockName: stock.name,
+        productQuantity: quantity,
+      });
 
       invoiceItems.push({
         id: newProduct._id,
         type: "product",
-        qr: newProduct.qr?.[0] || "",
+        qr: Array.isArray(newProduct.qr) ? newProduct.qr[0] : "",
         name: newProduct.name,
         orginalBuyingPrice: buyingPrice,
         tax: newProduct.tax?._id || null,
         unit: newProduct.unit || "",
-        stock: {
-          _id: stock._id,
-          stock: stock.name,
-        },
+        stock: { _id: stock._id, stock: stock.name },
         quantity,
         note: "Opening Balance",
         exchangeRate,
@@ -1180,25 +1238,11 @@ const purchaseInvoiceRollover = async ({
         vName: "",
         buyingPriceMineCurrency: (buyingPrice * quantity) / exchangeRate,
       });
-
-      await productModel.updateOne(
-        { _id: newProduct._id },
-        {
-          $push: {
-            stocks: {
-              stockId: stock._id,
-              stockName: stock.name,
-              productQuantity: quantity,
-            },
-          },
-        },
-        { session },
-      );
     }
 
     if (!invoiceItems.length) continue;
 
-    const [newPurchaseInvoice] = await purchaseinvoicesModel.create(
+    const [invoice] = await purchaseinvoicesModel.create(
       [
         {
           companyId: newCompanyId,
@@ -1227,7 +1271,6 @@ const purchaseInvoiceRollover = async ({
             currencyName: MainCurrency.currencyName,
           },
           invoiceTax: 0,
-          ManualInvoiceDiscountValue: 0,
           invoiceDiscount: 0,
         },
       ],
@@ -1237,7 +1280,7 @@ const purchaseInvoiceRollover = async ({
     for (const item of invoiceItems) {
       await createProductMovement({
         productId: item.id,
-        reference: newPurchaseInvoice._id,
+        reference: invoice._id,
         newQuantity: item.quantity,
         quantity: item.quantity,
         movementType: "in",
@@ -1248,6 +1291,7 @@ const purchaseInvoiceRollover = async ({
         enterPrice: item.orginalBuyingPrice,
         exchangeRate: item.exchangeRate,
       });
+
       await createProductBatch({
         productId: item.id,
         companyId: newCompanyId,
@@ -1255,11 +1299,95 @@ const purchaseInvoiceRollover = async ({
         quantity: item.quantity,
         buyingprice: item.orginalBuyingPrice,
         costBuyingPrice: item.orginalBuyingPrice,
-        sourceId: newPurchaseInvoice._id,
+        sourceId: invoice._id,
         exchangeRate: item.exchangeRate,
         referenceType: "purchase",
       });
     }
+
     counter++;
+  }
+
+  for (const [productId, stocks] of productStockMap.entries()) {
+    await productModel.updateOne(
+      { _id: productId },
+      { $set: { stocks } },
+      { session },
+    );
+  }
+
+  if (!manualJournal) {
+    const purchaseLink = await linkPanelModel
+      .findOne({ name: "Purcahse", companyId: newCompanyId })
+      .session(session)
+      .lean();
+
+    const stockLink = await linkPanelModel
+      .findOne({ name: "Stocks", companyId: newCompanyId })
+      .session(session)
+      .lean();
+
+    const purchaseAccount = await accountingTreeModel
+      .findById(purchaseLink.accountData)
+      .session(session)
+      .populate({
+        path: "currency",
+        options: { session },
+      })
+      .lean();
+
+    const stockAccount = await accountingTreeModel
+      .findById(stockLink.accountData)
+      .session(session)
+      .populate({
+        path: "currency",
+        options: { session },
+      })
+      .lean();
+
+    const journalAccounts = [
+      {
+        counter: 1,
+        id: stockAccount._id,
+        name: stockAccount.name,
+        code: stockAccount.code,
+        MainDebit: TotalPrice,
+        MainCredit: 0,
+        accountDebit: TotalPrice * stockAccount.currency.exchangeRate,
+        accountCredit: 0,
+        accountCurrency: stockAccount.currency.currencyCode,
+        accountExRate: stockAccount.currency.exchangeRate,
+        description: "Opening Balance",
+      },
+      {
+        counter: 2,
+        id: purchaseAccount._id,
+        name: purchaseAccount.name,
+        code: purchaseAccount.code,
+        MainDebit: 0,
+        MainCredit: TotalPrice,
+        accountDebit: 0,
+        accountCredit: TotalPrice * purchaseAccount.currency.exchangeRate,
+        accountCurrency: purchaseAccount.currency.currencyCode,
+        accountExRate: purchaseAccount.currency.exchangeRate,
+        description: "Opening Balance",
+      },
+    ];
+
+    await journalEntryModel.create(
+      [
+        {
+          companyId: newCompanyId,
+          journalName: "Opening Balance",
+          journalDate: date,
+          journalRefNum: counter,
+          journalType: "Opening Balance",
+          journalAccounts,
+          journalDebit: TotalPrice,
+          journalCredit: TotalPrice,
+        },
+      ],
+      { session },
+    );
   }
 };

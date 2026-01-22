@@ -18,7 +18,6 @@ const createProductMovement = async ({
   buyingPrice,
   exchangeRate,
 }) => {
-  console.log("exchangeRate", exchangeRate);
   try {
     const newMovement = new ProductMovementSchema({
       productId,
@@ -36,12 +35,12 @@ const createProductMovement = async ({
         source === "Sales Invoice"
           ? "Sales"
           : source === "Purchase Invoice"
-          ? "PurchaseInvoices"
-          : source === "Stock reconciliation"
-          ? "Reconciliation"
-          : source === "Stock Transfer"
-          ? "StockTransfer"
-          : null,
+            ? "PurchaseInvoices"
+            : source === "Stock reconciliation"
+              ? "Reconciliation"
+              : source === "Stock Transfer"
+                ? "StockTransfer"
+                : null,
       stockId,
       sellingPrice,
       buyingPrice,
@@ -53,7 +52,7 @@ const createProductMovement = async ({
     console.error("Error saving product movement:", error);
     throw new ApiError(
       `Error creating product movement: ${error.message}`,
-      500
+      500,
     );
   }
 };
