@@ -491,7 +491,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     if (!companyInfo) {
       throw new ApiError(
         `There is no company info with this id ${companyId} or rollover already done`,
-        404,
+        409,
       );
     }
     const baseName = companyInfo.companyName;
