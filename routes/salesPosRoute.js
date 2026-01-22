@@ -24,16 +24,26 @@ SalesPosRout.use(authService.protect);
 // Define more specific routes before general ones
 
 // SalesPosRout.route("/salespos").get(findAllSalesPos);
-SalesPosRout.route("/").get(findAllSalsePos).post(createCashOrder);
+SalesPosRout.route("/")
+  .get(findAllSalsePos)
+  .post(authService.checkCompanyEditable, createCashOrder);
 SalesPosRout.route("/salespoint/:id").get(findAllSalsePosForSalsePoint);
 SalesPosRout.route("/refund_pos_receipt")
-  .post(returnPosSales)
+  .post(authService.checkCompanyEditable, returnPosSales)
   .get(getReturnPosSales);
-SalesPosRout.route("/merge").post(mergeRefundReceipts);
+SalesPosRout.route("/merge").post(
+  authService.checkCompanyEditable,
+  mergeRefundReceipts,
+);
 SalesPosRout.route("/funds/:id").get(fundAndReportsInPOS);
 SalesPosRout.route("/refund_pos_receipt/:id").get(getOneReturnPosSales);
-SalesPosRout.route("/canceled_receipt/:id").put(canceledPosSales);
-SalesPosRout.route("/:id").get(findOneSalsePos).put(editPosOrder);
+SalesPosRout.route("/canceled_receipt/:id").put(
+  authService.checkCompanyEditable,
+  canceledPosSales,
+);
+SalesPosRout.route("/:id")
+  .get(findOneSalsePos)
+  .put(authService.checkCompanyEditable, editPosOrder);
 SalesPosRout.route("/dailyreceipt/:id").get(getReceiptForDate);
 SalesPosRout.route("/dailyrefundreceipt/:id").get(getRefundReceiptForDate);
 

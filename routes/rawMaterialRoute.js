@@ -14,11 +14,19 @@ const rawMaterialRoute = express.Router();
 rawMaterialRoute
   .route("/")
   .get(getAllRawMaterials)
-  .post(authService.protect, createRawMaterial);
+  .post(
+    authService.protect,
+    authService.checkCompanyEditable,
+    createRawMaterial,
+  );
 brandRout
   .route("/:id")
   .get(getOneRawMaterial)
-  .put(authService.protect, updateRawMaterial)
-  .delete(authService.protect, deleteRawMaterial);
+  .put(authService.protect, authService.checkCompanyEditable, updateRawMaterial)
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteRawMaterial,
+  );
 
 module.exports = rawMaterialRoute;

@@ -18,13 +18,16 @@ router
   .put(authService.ecommerceProtect, updateCustomerPassword);
 router
   .route("/")
-  .post(authService.protect, createCustomar)
+  .post(authService.protect, authService.checkCompanyEditable, createCustomar)
   .get(authService.protect, getCustomars);
 router
   .route("/:id")
   .get(authService.protect, getCustomar)
-  .put(authService.protect, updataCustomar)
-  .delete(authService.protect, deleteCustomar);
-
+  .put(authService.protect, authService.checkCompanyEditable, updataCustomar)
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteCustomar,
+  );
 
 module.exports = router;

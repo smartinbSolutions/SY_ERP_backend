@@ -23,29 +23,50 @@ const { uploadFile } = require("../services/purchaseInvoicesServices");
 
 const OrderRout = express.Router();
 
-OrderRout.route("/return").post(authService.protect, returnOrder);
+OrderRout.route("/return").post(
+  authService.protect,
+  authService.checkCompanyEditable,
+  returnOrder,
+);
 OrderRout.route("/getReturnOrder").get(authService.protect, getReturnOrder);
 OrderRout.route("/getReturnOrder/:id").get(
   authService.protect,
-  getOneReturnOrder
+  getOneReturnOrder,
 );
 OrderRout.route("/customerorder/:id").get(authService.protect, findCustomer);
 
 OrderRout.route("/").get(authService.protect, findAllOrder);
 
-OrderRout.route("/salesDashbord").post(authService.protect, DashBordSalse);
-OrderRout.route("/archive/:id").put(authService.protect, archiveOrder);
-OrderRout.route("/merge").post(authService.protect, mergeReceipts);
+OrderRout.route("/salesDashbord").post(
+  authService.protect,
+  authService.checkCompanyEditable,
+  DashBordSalse,
+);
+OrderRout.route("/archive/:id").put(
+  authService.protect,
+  authService.checkCompanyEditable,
+  archiveOrder,
+);
+OrderRout.route("/merge").post(
+  authService.protect,
+  authService.checkCompanyEditable,
+  mergeReceipts,
+);
 OrderRout.route("/:id")
   .get(findOneOrder)
-  .put(authService.protect, editOrderInvoice)
-  .delete(authService.protect, canceledOrder)
-  .patch(authService.protect, uploadFile, patchOrder);
+  .put(authService.protect, authService.checkCompanyEditable, editOrderInvoice)
+  .delete(authService.protect, authService.checkCompanyEditable, canceledOrder)
+  .patch(
+    authService.protect,
+    authService.checkCompanyEditable,
+    uploadFile,
+    patchOrder,
+  );
 
 OrderRout.route("/integrate/sales").post(
   authService.protect,
   // EcommerceOrderIntegration
-  EcommerceOrderIntegrationFull
+  EcommerceOrderIntegrationFull,
 );
 
 module.exports = OrderRout;

@@ -13,11 +13,23 @@ const unTracedproductLogRout = express.Router();
 unTracedproductLogRout
   .route("/")
   .get(getUnTracedproductLog)
-  .post(authService.protect, createUnTracedproductLog);
+  .post(
+    authService.protect,
+    authService.checkCompanyEditable,
+    createUnTracedproductLog,
+  );
 unTracedproductLogRout
   .route("/:id")
   .get(getOneUnTracedproductLog)
-  .put(authService.protect, updataUnTracedproductLog)
-  .delete(authService.protect, deleteUnTracedproductLog);
+  .put(
+    authService.protect,
+    authService.checkCompanyEditable,
+    updataUnTracedproductLog,
+  )
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteUnTracedproductLog,
+  );
 
 module.exports = unTracedproductLogRout;

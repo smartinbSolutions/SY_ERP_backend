@@ -12,6 +12,12 @@ const linkPanelRoute = express.Router();
 
 linkPanelRoute.use(authService.protect);
 
-linkPanelRoute.route("/").get(getAllLinkPanel).post(createLinkPanel);
-linkPanelRoute.route("/:id").get(getLinkPanel).put(updateLinkPanel);
+linkPanelRoute
+  .route("/")
+  .get(getAllLinkPanel)
+  .post(authService.checkCompanyEditable, createLinkPanel);
+linkPanelRoute
+  .route("/:id")
+  .get(getLinkPanel)
+  .put(authService.checkCompanyEditable, updateLinkPanel);
 module.exports = linkPanelRoute;

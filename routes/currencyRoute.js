@@ -11,13 +11,14 @@ const authService = require("../services/authService");
 
 const currencyRoute = express.Router();
 
-
-
-currencyRoute.route("/").get(getCurrencies).post(authService.protect,createCurrency);
+currencyRoute
+  .route("/")
+  .get(getCurrencies)
+  .post(authService.protect, authService.checkCompanyEditable, createCurrency);
 currencyRoute
   .route("/:id")
   .get(getCurrency)
-  .put(authService.protect,updataCurrency)
-  .delete(authService.protect,deleteCurrency);
+  .put(authService.protect, authService.checkCompanyEditable, updataCurrency)
+  .delete(authService.protect, deleteCurrency);
 
 module.exports = currencyRoute;

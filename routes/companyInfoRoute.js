@@ -19,6 +19,12 @@ companyInfoRoute
 companyInfoRoute.route("/rollover").post(rollover);
 companyInfoRoute
   .route("/:id")
-  .put(authService.protect, uploadCompanyLogo, resizerLogo, updataCompanyInfo);
+  .put(
+    authService.protect,
+    authService.checkCompanyEditable,
+    uploadCompanyLogo,
+    resizerLogo,
+    updataCompanyInfo,
+  );
 
 module.exports = companyInfoRoute;

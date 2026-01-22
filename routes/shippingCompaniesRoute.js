@@ -18,9 +18,10 @@ shippingCompaniesRoute
   .get(getShippingCompanies)
   .post(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadShippingCompanyImage,
     resizerShippingCompanyImage,
-    createShippingCompany
+    createShippingCompany,
   );
 
 shippingCompaniesRoute
@@ -28,10 +29,15 @@ shippingCompaniesRoute
   .get(getShippingCompany)
   .put(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadShippingCompanyImage,
     resizerShippingCompanyImage,
-    updateShippingCompany
+    updateShippingCompany,
   )
-  .delete(authService.protect, deleteShippingCompany);
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteShippingCompany,
+  );
 
 module.exports = shippingCompaniesRoute;

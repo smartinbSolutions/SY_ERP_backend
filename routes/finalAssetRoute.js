@@ -11,7 +11,14 @@ const authService = require("../services/authService");
 const finalAsset = express.Router();
 finalAsset.use(authService.protect);
 
-finalAsset.route("/").post(createFinalAsset).get(getFinalAssets);
-finalAsset.route("/:id").get(getFinalAsset).put(updateFinalAsset).delete(deleteFinalAsset);
+finalAsset
+  .route("/")
+  .post(authService.checkCompanyEditable, createFinalAsset)
+  .get(getFinalAssets);
+finalAsset
+  .route("/:id")
+  .get(getFinalAsset)
+  .put(authService.checkCompanyEditable, updateFinalAsset)
+  .delete(authService.checkCompanyEditable, deleteFinalAsset);
 
 module.exports = finalAsset;

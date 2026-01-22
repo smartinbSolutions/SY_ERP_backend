@@ -10,8 +10,14 @@ const {
 const authService = require("../services/authService");
 const taxRout = express.Router();
 
-
-taxRout.route("/").get(getTax).post(authService.protect,createTax);
-taxRout.route("/:id").get(getOneTax).put(authService.protect,updataTax).delete(authService.protect,deleteTax);
+taxRout
+  .route("/")
+  .get(getTax)
+  .post(authService.protect, authService.checkCompanyEditable, createTax);
+taxRout
+  .route("/:id")
+  .get(getOneTax)
+  .put(authService.protect, authService.checkCompanyEditable, updataTax)
+  .delete(authService.protect, authService.checkCompanyEditable, deleteTax);
 
 module.exports = taxRout;

@@ -23,7 +23,7 @@ accountingTreeRouter.use(authService.protect);
 accountingTreeRouter
   .route("/")
   .get(getAccountingTree)
-  .post(createAccountingTree);
+  .post(authService.checkCompanyEditable, createAccountingTree);
 
 accountingTreeRouter.route("/tree").get(getAccountingTreeNoBalance);
 accountingTreeRouter
@@ -33,17 +33,21 @@ accountingTreeRouter
 accountingTreeRouter
   .route("/import")
   .get(getAccountingTreeForExport)
-  .post(upload.single("file"), importAccountingTree);
+  .post(
+    authService.checkCompanyEditable,
+    upload.single("file"),
+    importAccountingTree,
+  );
 
 accountingTreeRouter
   .route("/change/:id")
   .get(getOneAccountingTree)
-  .put(changeBalance);
+  .put(authService.checkCompanyEditable, changeBalance);
 
 accountingTreeRouter
   .route("/:id")
-  .put(updateAccountingTree)
+  .put(authService.checkCompanyEditable, updateAccountingTree)
   .get(getAccountingTree)
-  .delete(deleteAccountingTree);
+  .delete(authService.checkCompanyEditable, deleteAccountingTree);
 
 module.exports = accountingTreeRouter;

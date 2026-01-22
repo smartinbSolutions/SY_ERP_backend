@@ -14,12 +14,19 @@ const {
 
 const paymentRoutOld = express.Router();
 paymentRoutOld.use(authService.protect);
-paymentRoutOld.route("/").get(getPayment).post(createPayment);
-paymentRoutOld.route("/advance").post(createAdvancePayment);
+paymentRoutOld
+  .route("/")
+  .get(getPayment)
+  .post(authService.checkCompanyEditable, createPayment);
+paymentRoutOld
+  .route("/advance")
+  .post(authService.checkCompanyEditable, createAdvancePayment);
 paymentRoutOld
   .route("/:id")
   .get(getOnePayment)
-  .delete(deletePayment)
-  .patch(uploadFile, patchPayment);
-paymentRoutOld.route("/transfer/:id").delete(deletePaymentTransferFund);
+  .delete(authService.checkCompanyEditable, deletePayment)
+  .patch(authService.checkCompanyEditable, uploadFile, patchPayment);
+paymentRoutOld
+  .route("/transfer/:id")
+  .delete(authService.checkCompanyEditable, deletePaymentTransferFund);
 module.exports = paymentRoutOld;

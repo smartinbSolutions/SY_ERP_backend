@@ -21,7 +21,11 @@ stockRout.route("/").get(getStocks).post(authService.protect, createStock);
 stockRout
   .route("/transfer")
   .get(getTransferStock)
-  .put(authService.protect, transformQuantity);
+  .put(
+    authService.protect,
+    authService.checkCompanyEditable,
+    transformQuantity,
+  );
 stockRout.route("/stock-report").get(getStocksProducts);
 stockRout.route("/transfer/:id").get(getOneTransferStock);
 stockRout.route("/transferforstock/:id").get(getTransferForStock);
@@ -29,7 +33,7 @@ stockRout.route("/transferallstatementstock").get(getAllStatementStock);
 stockRout
   .route("/:id")
   .get(getOneStock)
-  .put(authService.protect, updateStock)
-  .delete(authService.protect, deleteStock);
+  .put(authService.protect, authService.checkCompanyEditable, updateStock)
+  .delete(authService.protect, authService.checkCompanyEditable, deleteStock);
 
 module.exports = stockRout;

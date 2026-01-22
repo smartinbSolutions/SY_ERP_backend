@@ -15,12 +15,19 @@ const authService = require("../services/authService");
 const router = express.Router();
 router.use(authService.protect);
 
-router.route("/").post(createSupplier).get(getSuppliers);
+router
+  .route("/")
+  .post(authService.checkCompanyEditable, createSupplier)
+  .get(getSuppliers);
 
 router
   .route("/:id")
   .get(getSupplierVlaidator, getSupplier)
-  .put(updataSupplier)
-  .delete(deleteSupplierVlaidator, deleteSupplier);
+  .put(authService.checkCompanyEditable, updataSupplier)
+  .delete(
+    deleteSupplierVlaidator,
+    authService.checkCompanyEditable,
+    deleteSupplier,
+  );
 
 module.exports = router;

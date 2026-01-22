@@ -17,13 +17,15 @@ financialFundsRoute.use(authService.protect);
 financialFundsRoute
   .route("/")
   .get(getFinancialFunds)
-  .post(createFinancialFunds);
+  .post(authService.checkCompanyEditable, createFinancialFunds);
 financialFundsRoute
   .route("/:id")
   .get(getOneFinancialFund)
-  .put(updateFinancialFund)
-  .delete(deletefinancialFund);
+  .put(authService.checkCompanyEditable, updateFinancialFund)
+  .delete(authService.checkCompanyEditable, deletefinancialFund);
 financialFundsRoute.route("/pos/:id").get(getFinancialFundForSalesPoint);
-financialFundsRoute.route("/trans/:id").put(transfer);
+financialFundsRoute
+  .route("/trans/:id")
+  .put(authService.checkCompanyEditable, transfer);
 
 module.exports = financialFundsRoute;

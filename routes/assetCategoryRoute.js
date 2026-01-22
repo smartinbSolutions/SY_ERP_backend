@@ -9,7 +9,10 @@ const authService = require("../services/authService");
 const assetCategoryRoute = express.Router();
 assetCategoryRoute.use(authService.protect);
 
-assetCategoryRoute.route("/").post(createAssetCategory).get(getAssetsCategory);
+assetCategoryRoute
+  .route("/")
+  .post(authService.checkCompanyEditable, createAssetCategory)
+  .get(getAssetsCategory);
 assetCategoryRoute.route("/:id").get(getAssetCategory);
 
 module.exports = assetCategoryRoute;

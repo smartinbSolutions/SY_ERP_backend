@@ -30,10 +30,11 @@ categoryRout
   .get(getCategories)
   .post(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadCategoryImage,
     resizerCategoryImage,
     createCategoryVlaidator,
-    createCategory
+    createCategory,
   );
 categoryRout.route("/import").post(upload.single("file"), importCategory);
 categoryRout
@@ -41,10 +42,16 @@ categoryRout
   .get(getCategoryValidator, getCategory)
   .put(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadCategoryImage,
     resizerCategoryImage,
     updateCategoryValidator,
-    updateCategory
+    updateCategory,
   )
-  .delete(authService.protect, deleteCategoryValidator, deleteCategory);
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteCategoryValidator,
+    deleteCategory,
+  );
 module.exports = categoryRout;

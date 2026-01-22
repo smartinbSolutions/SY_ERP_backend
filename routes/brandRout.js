@@ -24,21 +24,28 @@ brandRout
   .get(getBrands)
   .post(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadBrandImage,
     resizerBrandImage,
     createBrandValidator,
-    createBrand
+    createBrand,
   );
 brandRout
   .route("/:id")
   .get(getBrandValidator, getBrand)
   .put(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadBrandImage,
     resizerBrandImage,
     updataBrandValidator,
-    updataBrand
+    updataBrand,
   )
-  .delete(authService.protect, deleteBrandValidator, deleteBrand);
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteBrandValidator,
+    deleteBrand,
+  );
 
 module.exports = brandRout;

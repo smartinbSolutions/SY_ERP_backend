@@ -15,12 +15,12 @@ const {
 expenseCategoriesRoute.use(authService.protect);
 expenseCategoriesRoute
   .route("/")
-  .post(createExpenseCategory)
+  .post(authService.checkCompanyEditable, createExpenseCategory)
   .get(getExpenseCategories);
 expenseCategoriesRoute
   .route("/:id")
   .get(getOneExpenseCategory)
-  .delete(deleteOneExpenseCategory)
-  .put(updateOneExpenseCategory);
+  .delete(authService.checkCompanyEditable, deleteOneExpenseCategory)
+  .put(authService.checkCompanyEditable, updateOneExpenseCategory);
 
 module.exports = expenseCategoriesRoute;

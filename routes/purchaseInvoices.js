@@ -19,22 +19,22 @@ PurchaseInvoices.use(authService.protect);
 
 PurchaseInvoices.route("/refund")
   .get(getReturnPurchase)
-  .post(uploadFile, refundPurchaseInvoice);
+  .post(authService.checkCompanyEditable, uploadFile, refundPurchaseInvoice);
 PurchaseInvoices.route("/supplierinvoices/:id").get(findSupplier);
 
 PurchaseInvoices.route("/refund/:id").get(getOneReturnPurchase);
 PurchaseInvoices.route("/")
-  .post(uploadFile, createPurchaseInvoice)
+  .post(authService.checkCompanyEditable, uploadFile, createPurchaseInvoice)
   .get(findAllProductInvoices);
 PurchaseInvoices.route("/archive/:id").put(
   authService.protect,
-  archivePurchaseInvoice
+  archivePurchaseInvoice,
 );
 
 PurchaseInvoices.route("/:id")
   .get(findOneProductInvoices)
-  .put(uploadFile, updatePurchaseInvoices)
-  .delete(cancelPurchaseInvoice)
-  .patch(uploadFile, patchPurchaseInvoice);
+  .put(authService.checkCompanyEditable, uploadFile, updatePurchaseInvoices)
+  .delete(authService.checkCompanyEditable, cancelPurchaseInvoice)
+  .patch(authService.checkCompanyEditable, uploadFile, patchPurchaseInvoice);
 
 module.exports = PurchaseInvoices;

@@ -17,11 +17,29 @@ const {
 const authService = require("../services/authService");
 const unitRout = express.Router();
 
-unitRout.route("/").get(getUnits).post(authService.protect,createUnitValidator, createUnit);
+unitRout
+  .route("/")
+  .get(getUnits)
+  .post(
+    authService.protect,
+    authService.checkCompanyEditable,
+    createUnitValidator,
+    createUnit,
+  );
 unitRout
   .route("/:id")
   .get(getUnitValidator, getUnit)
-  .put(authService.protect,updataUnitValidator, updataUnit)
-  .delete(authService.protect,deleteUnitValidator, deleteUnit);
+  .put(
+    authService.protect,
+    authService.checkCompanyEditable,
+    updataUnitValidator,
+    updataUnit,
+  )
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteUnitValidator,
+    deleteUnit,
+  );
 
 module.exports = unitRout;

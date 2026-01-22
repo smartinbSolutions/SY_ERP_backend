@@ -16,11 +16,11 @@ reconciliationRoute.use(authService.protect);
 reconciliationRoute
   .route("/")
   .get(getReconciliations)
-  .post(createReconciliatio);
+  .post(authService.checkCompanyEditable, createReconciliatio);
 reconciliationRoute.route("/jornal/:id").get(getAllReconciliationsForAccount);
 reconciliationRoute
   .route("/:id")
   .get(getOneReconciliatio)
-  .delete(deleteReconciliatio);
+  .delete(authService.checkCompanyEditable, deleteReconciliatio);
 
 module.exports = reconciliationRoute;

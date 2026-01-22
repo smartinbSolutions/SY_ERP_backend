@@ -10,13 +10,13 @@ const {
 const authService = require("../services/authService");
 const LabelRout = express.Router();
 // authService.allowedTo("label"),
-  LabelRout.route("/")
-    .get(getLabels)
-    .post(authService.protect,createLabel);
+LabelRout.route("/")
+  .get(getLabels)
+  .post(authService.protect, authService.checkCompanyEditable, createLabel);
 
 LabelRout.route("/:id")
   .get(getLabel)
-  .put(authService.protect,updataLabel)
-  .delete(authService.protect,deleteLabel);
+  .put(authService.protect, authService.checkCompanyEditable, updataLabel)
+  .delete(authService.protect, authService.checkCompanyEditable, deleteLabel);
 
 module.exports = LabelRout;

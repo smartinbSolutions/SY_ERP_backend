@@ -27,24 +27,46 @@ employeeRoute
   .route("/")
   .get(getEmployees)
   .post(uploadEmployeeImage, resizerEmployeeImage, createEmployee);
-employeeRoute.route("/resendpassword/:email").put(authService.protect, reSendPassword);
+employeeRoute
+  .route("/resendpassword/:email")
+  .put(authService.protect, authService.checkCompanyEditable, reSendPassword);
 employeeRoute.route("/create-employee").post(createEmployee);
 
 employeeRoute
   .route("/:id")
-  .delete(authService.protect, deleteEmployeeVlaidator, deleteEmployee)
-  .get(authService.protect, getEmployeeVlaidator, getEmployee)
+  .delete(
+    authService.protect,
+    authService.checkCompanyEditable,
+    deleteEmployeeVlaidator,
+    deleteEmployee,
+  )
+  .get(
+    authService.protect,
+    authService.checkCompanyEditable,
+    getEmployeeVlaidator,
+    getEmployee,
+  )
   .put(
     authService.protect,
+    authService.checkCompanyEditable,
     uploadEmployeeImage,
     resizerEmployeeImage,
-    updateEmployee
+    updateEmployee,
   );
 employeeRoute
   .route("/updateName/:id")
-  .put(authService.protect, /*updateNameValidator, */ updateEmployee);
+  .put(
+    authService.protect,
+    authService.checkCompanyEditable,
+    /*updateNameValidator, */ updateEmployee,
+  );
 employeeRoute
   .route("/updatePassword/:id")
-  .put(authService.protect, updatePasswordValidator, updateEmployeePassword);
+  .put(
+    authService.protect,
+    authService.checkCompanyEditable,
+    updatePasswordValidator,
+    updateEmployeePassword,
+  );
 
 module.exports = employeeRoute;

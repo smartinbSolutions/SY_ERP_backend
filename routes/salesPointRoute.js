@@ -13,8 +13,15 @@ const SalesPointRout = express.Router();
 
 SalesPointRout.use(authService.protect);
 
-SalesPointRout.route("/").get(getSalesPoint).post(createSalesPoint);
-SalesPointRout.route("/:id").get(getOneSalePoint).put(updateSalePoint);
-SalesPointRout.route("/openandclose/:id").put(openAndCloseSalePoint);
+SalesPointRout.route("/")
+  .get(getSalesPoint)
+  .post(authService.checkCompanyEditable, createSalesPoint);
+SalesPointRout.route("/:id")
+  .get(getOneSalePoint)
+  .put(authService.checkCompanyEditable, updateSalePoint);
+SalesPointRout.route("/openandclose/:id").put(
+  authService.checkCompanyEditable,
+  openAndCloseSalePoint,
+);
 
 module.exports = SalesPointRout;

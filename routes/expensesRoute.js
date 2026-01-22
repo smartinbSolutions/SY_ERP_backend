@@ -22,16 +22,18 @@ const expensesRoute = express.Router();
 expensesRoute.use(authService.protect);
 expensesRoute
   .route("/")
-  .post(uploadFile, createInvoiceExpenses)
+  .post(authService.checkCompanyEditable, uploadFile, createInvoiceExpenses)
   .get(getInvoiceExpenses);
 
-expensesRoute.route("/archive/:id").put(archiveExpense);
+expensesRoute
+  .route("/archive/:id")
+  .put(authService.checkCompanyEditable, archiveExpense);
 expensesRoute
   .route("/:id")
   .get(getInvoiceExpense)
-  .put(uploadFile, updateInvoiceExpense)
-  .delete(cancelExpense)
-  .patch(uploadFile, patchExpense);
+  .put(authService.checkCompanyEditable, uploadFile, updateInvoiceExpense)
+  .delete(authService.checkCompanyEditable, cancelExpense)
+  .patch(authService.checkCompanyEditable, uploadFile, patchExpense);
 
 expensesRoute
   .route("/purchaseandexpence/:id")

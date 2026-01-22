@@ -8,8 +8,10 @@ const {
 
 const ShortageRoute = express.Router();
 
-// ShortageRoute.use(authService.protect);
+ShortageRoute.use(authService.protect);
 
-ShortageRoute.route("/").get(getAllShortage).post(createShortage);
+ShortageRoute.route("/")
+  .get(getAllShortage)
+  .post(authService.checkCompanyEditable, createShortage);
 
 module.exports = ShortageRoute;

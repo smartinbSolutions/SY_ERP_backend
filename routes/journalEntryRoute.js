@@ -22,27 +22,41 @@ accountingRoute.use(authService.protect);
 accountingRoute
   .route("/")
   .get(getJournals)
-  .post(uploadFileAndImagejournal, processFilesAndImagesjournal, createJournal);
+  .post(
+    authService.checkCompanyEditable,
+    uploadFileAndImagejournal,
+    processFilesAndImagesjournal,
+    createJournal,
+  );
 accountingRoute
   .route("/openbalance")
   .post(
+    authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    createJournalOpenBalance
+    createJournalOpenBalance,
   );
 
-accountingRoute.route("/audit/:id").put(auditingJornal);
+accountingRoute
+  .route("/audit/:id")
+  .put(authService.checkCompanyEditable, auditingJornal);
 accountingRoute
   .route("/:id")
   .get(getOneJournal)
-  .put(uploadFileAndImagejournal, processFilesAndImagesjournal, updateJournal);
+  .put(
+    authService.checkCompanyEditable,
+    uploadFileAndImagejournal,
+    processFilesAndImagesjournal,
+    updateJournal,
+  );
 accountingRoute.route("/accountwithjournal/:id").get(getOneAccountAndJournal);
 accountingRoute
   .route("/link/:linkNum")
   .get(getOneJournalByLink)
   .put(
+    authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    updateJournalForInvoice
+    updateJournalForInvoice,
   );
 module.exports = accountingRoute;

@@ -13,6 +13,7 @@ const { OAuth2Client } = require("google-auth-library");
 const E_user_Schema = require("../models/ecommerce/E_user_Modal");
 const { default: axios } = require("axios");
 const thirdPartyAuthSchema = require("../models/ecommerce/thirdPartyAuthModel");
+const companyInfoModel = require("../models/companyInfoModel");
 
 // @desc      Login
 // @route     POST /api/auth/login
@@ -44,7 +45,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     // Check password
     const passwordMatch = await bcrypt.compare(
       req.body.password,
-      user.password
+      user.password,
     );
     if (!passwordMatch) {
       return next(new ApiError("Incorrect Password", 401));
@@ -61,7 +62,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
     // Fetch roles in parallel
     const selectedCompany = user.company.find(
-      (c) => c.companyId === req.body.companyId
+      (c) => c.companyId === req.body.companyId,
     );
 
     const roles = await rolesModel.findOne({
@@ -136,6 +137,34 @@ exports.protect = asyncHandler(async (req, res, next) => {
   }
 });
 
+exports.checkCompanyEditable = async (req, res, next) => {
+  const companyId = req.query.companyId || req.body.companyId;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  const company = await companyInfoModel
+    .findById(companyId)
+    .select("isRolledOver")
+    .lean();
+
+  if (!company) {
+    return next(new ApiError("Company not found", 404));
+  }
+
+  if (company.isRolledOver) {
+    return next(
+      new ApiError(
+        "The company has already been closed and cannot be modified",
+        403,
+      ),
+    );
+  }
+
+  next();
+};
+
 // @desc      Forgot password
 // @route     POST /api/auth/forgotpasswordpos
 // @access    Public
@@ -151,7 +180,7 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
   const user = await employeeModel.findOne({ email, companyId });
   if (!user) {
     return next(
-      new ApiError(`There is no user with this email address ${email}`, 404)
+      new ApiError(`There is no user with this email address ${email}`, 404),
     );
   }
 
@@ -190,8 +219,8 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         "There was an error sending the email. Try again later!",
-        500
-      )
+        500,
+      ),
     );
   }
 });
@@ -218,7 +247,7 @@ exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
   // 3) Compare the reset code with the hashed code stored in the database
   const isResetCodeValid = await bcrypt.compare(
     resetCode,
-    user.passwordResetCode
+    user.passwordResetCode,
   );
   if (!isResetCodeValid) {
     return next(new ApiError("Reset code is invalid or has expired", 400));
@@ -250,8 +279,8 @@ exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         `There is no user with this email address ${req.body.email}`,
-        404
-      )
+        404,
+      ),
     );
   }
   // Check if user verify the reset code
@@ -298,7 +327,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
 const client = new OAuth2Client(
   process.env.CLIENT_ID,
   process.env.CLIENT_SECRET,
-  "https://store.noontek.com"
+  "https://store.noontek.com",
 );
 
 // Function to verify Google ID token
@@ -408,7 +437,7 @@ exports.ecommerceProtect = asyncHandler(async (req, res, next) => {
       if (currentUser.passwordChangedAt) {
         const passChangedTimestamp = parseInt(
           currentUser.passwordChangedAt.getTime() / 1000,
-          10
+          10,
         );
         if (passChangedTimestamp > decoded.iat) {
           req.user = null;
@@ -436,7 +465,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const user = await UserModel.findOne({ email });
   if (!user) {
     return next(
-      new ApiError(`There is no user with this email address ${email}`, 404)
+      new ApiError(`There is no user with this email address ${email}`, 404),
     );
   }
 
@@ -482,8 +511,8 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
         return next(
           new ApiError(
             "There was an error sending the email. Try again later!",
-            500
-          )
+            500,
+          ),
         );
       }
     });
@@ -513,7 +542,7 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
   // 3) Compare the reset code with the hashed code stored in the database
   const isResetCodeValid = await bcrypt.compare(
     resetCode,
-    user.passwordResetCode
+    user.passwordResetCode,
   );
 
   if (!isResetCodeValid) {
@@ -591,7 +620,7 @@ exports.googleLogin = asyncHandler(async (req, res, next) => {
       }),
       {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      }
+      },
     );
 
     const { id_token, access_token } = data;
@@ -631,7 +660,7 @@ exports.facebookLogin = asyncHandler(async (req, res, next) => {
           access_token: accessToken,
           fields: "email, name",
         },
-      }
+      },
     );
 
     const { email, name } = response.data;
