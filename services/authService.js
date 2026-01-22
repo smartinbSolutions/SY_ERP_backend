@@ -146,14 +146,14 @@ exports.checkCompanyEditable = async (req, res, next) => {
 
   const company = await companyInfoModel
     .findById(companyId)
-    .select("isRolledOver")
+    .select("rollOver")
     .lean();
 
   if (!company) {
     return next(new ApiError("Company not found", 404));
   }
 
-  if (company.isRolledOver) {
+  if (company.rollOver) {
     return next(
       new ApiError(
         "The company has already been closed and cannot be modified",
