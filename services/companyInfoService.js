@@ -999,7 +999,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const brands = await brandModel.find({ companyId }).session(session);
 
     const newBrands = brands.map((b) => ({
-      ...b,
+      ...b.toObject(),
       _id: undefined,
       companyId: newCompanyId,
       oldId: b._id,
@@ -1016,7 +1016,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const taxes = await taxModel.find({ companyId }).session(session);
 
     const newTaxes = taxes.map((t) => ({
-      ...t,
+      ...t.toObject(),
       _id: undefined,
       companyId: newCompanyId,
       oldId: t._id,
@@ -1033,7 +1033,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const tags = await tagModel.find({ companyId }).session(session);
 
     const newTags = tags.map((tag) => ({
-      ...tag,
+      ...tag.toObject(),
       _id: undefined,
       companyId: newCompanyId,
     }));
@@ -1044,7 +1044,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const units = await UnitsModel.find({ companyId }).session(session);
 
     const newUnits = units.map((u) => ({
-      ...u,
+      ...u.toObject(),
       _id: undefined,
       companyId: newCompanyId,
       oldId: u._id,

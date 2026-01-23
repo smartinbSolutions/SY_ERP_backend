@@ -15,6 +15,7 @@ const UnitSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  oldId:String,
 });
 
 module.exports = mongoose.model("Unit", UnitSchema);

@@ -30,6 +30,7 @@ const brandSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  oldId:String,
 });
 const setImageURL = (doc) => {
   if (doc.image) {
