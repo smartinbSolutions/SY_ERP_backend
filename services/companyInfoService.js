@@ -555,33 +555,66 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       selectedRoles: insertMainRole._id,
       companyName: baseName,
     };
+    //---Stocks
+    const stocks = await stockModel.find({ companyId }).session(session);
 
-    await employeeModel.updateMany(
-      {
-        "company.companyId": companyId,
-      },
-      {
-        $set: {
-          "company.$.companyName": `${baseName}-${year}`,
-        },
-      },
-      { session },
-    );
-    await employeeModel.updateMany(
-      {
-        "company.companyId": companyId,
-      },
-      {
-        $push: {
-          company: {
-            companyId: newCompanyId,
-            companyName: baseName,
-            selectedRoles: insertMainRole._id,
+    const newStocks = stocks.map((stock) => {
+      const obj = stock.toObject();
+      const oldId = obj._id;
+      delete obj._id;
+      delete obj.id;
+
+      return {
+        ...obj,
+        companyId: newCompanyId,
+        oldId: oldId,
+      };
+    });
+
+    const insertStock = await stockModel.insertMany(newStocks, { session });
+    const stockMap = new Map();
+    insertStock.forEach((s) => {
+      stockMap.set(s.oldId.toString(), s._id);
+    });
+    const employees = await employeeModel
+      .find({ "company.companyId": companyId })
+      .session(session);
+
+    const bulkOps = employees.map((emp) => {
+      const newEmployeeStocks = (emp.stocks || [])
+        .map((st) => {
+          const newStockId = stockMap.get(st.stockId?.toString());
+          if (!newStockId) return null;
+
+          return {
+            stockId: newStockId,
+            stockName: st.stockName,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        updateOne: {
+          filter: { _id: emp._id },
+          update: {
+            $set: {
+              stocks: newEmployeeStocks,
+            },
+            $push: {
+              company: {
+                companyId: newCompanyId,
+                companyName: baseName,
+                selectedRoles: insertMainRole._id,
+              },
+            },
           },
         },
-      },
-      { session },
-    );
+      };
+    });
+
+    if (bulkOps.length) {
+      await employeeModel.bulkWrite(bulkOps, { session });
+    }
 
     const currencies = await currencyModel.find({ companyId }).session(session);
 
@@ -959,22 +992,6 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         "Opening balance",
       );
     }
-
-    //---Stocks
-    const stocks = await stockModel.find({ companyId }).session(session);
-
-    const newStocks = stocks.map((stock) => {
-      const obj = stock.toObject();
-      delete obj._id;
-      delete obj.id;
-
-      return {
-        ...obj,
-        companyId: newCompanyId,
-      };
-    });
-
-    await stockModel.insertMany(newStocks, { session });
 
     //---Categories
     const categories = await CategoryModel.find({ companyId }).session(session);

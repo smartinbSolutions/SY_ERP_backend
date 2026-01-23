@@ -19,8 +19,9 @@ const stockSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    oldId: String,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Stock", stockSchema);
