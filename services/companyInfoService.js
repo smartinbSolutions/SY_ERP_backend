@@ -499,7 +499,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       companyId,
       {
         companyName: `${baseName}-${year}`,
-        rollOver: true,
+        // rollOver: true,
         closedAt: endDate,
       },
       { new: true, session },
