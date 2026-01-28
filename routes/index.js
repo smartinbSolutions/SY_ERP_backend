@@ -94,6 +94,7 @@ const productBatchRoute = require("./productBatchRoute");
 const filesRoute = require("./Hr/filesRoute");
 const staffFilesRoute = require("./Hr/staffFilesRoute");
 const leavesRoute = require("./Hr/leavesRoute");
+const ReconciliationRoute = require("./Stocks/reconciliation/reconciliationRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -122,6 +123,8 @@ const mountRoutes = (app) => {
   app.use("/api/companyinfo", companyInfoRoute);
   app.use("/api/financialfundsreports", reportsFinancialFundRoute);
   app.use("/api/stockreconciliation", StockReconciliationRoute);
+  app.use("/api/stockreconciliation-v1", ReconciliationRoute);
+
   app.use("/api/productmovements", productMovementsRoute);
   app.use("/api/invoicehistory", invoiceHistoryRoute);
   app.use("/api/payment", paymentRouteOld);

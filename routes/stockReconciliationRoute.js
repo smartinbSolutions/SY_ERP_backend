@@ -18,12 +18,8 @@ StockReconciliationRoute.route("/isreoprtclose/:stockid").get(
   checkStockReconciliation,
 );
 StockReconciliationRoute.route("/:id").get(findReconciliationReport);
-StockReconciliationRoute.route("/reconcile").post(
-  authService.checkCompanyEditable,
-  createStockReconciliation,
-);
+StockReconciliationRoute.route("/reconcile").post(createStockReconciliation);
 StockReconciliationRoute.route("/reconcile/:id").put(
-  authService.checkCompanyEditable,
   updataOneReconciliationReport,
 );
 

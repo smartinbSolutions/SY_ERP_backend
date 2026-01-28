@@ -16,6 +16,7 @@ const {
   getNullQrProduct,
   generateBarCode,
   importProduct,
+  getProductsByType,
 } = require("../services/productServices");
 const {
   deleteProductValdiator,
@@ -61,6 +62,7 @@ productRout
   .route("/nanqr")
   .get(authService.protect, getNullQrProduct)
   .put(authService.protect, authService.checkCompanyEditable, generateBarCode);
+productRout.route("/prductsByType").get(authService.protect, getProductsByType);
 
 productRout.route("/productLazy").get(getLezyProduct);
 productRout

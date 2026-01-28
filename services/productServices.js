@@ -70,7 +70,7 @@ exports.updateNumber = asyncHandler(async (req, res, next) => {
   for (let i = 0; i < products.length; i++) {
     products[i].productNo = i + 1; // Start numbering from 1
     console.log(
-      `Updating product ${products[i]._id} with productNo ${products[i].productNo}`
+      `Updating product ${products[i]._id} with productNo ${products[i].productNo}`,
     );
     await products[i].save(); // Save the updated product
   }
@@ -203,6 +203,106 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.getProductsByType = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const pageSize = parseInt(req.query.limit) || 25;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  let query = { companyId };
+  query.$and = [];
+
+  // ===== Keyword Search =====
+  if (req.query.keyword) {
+    const lang = req.query.lang || "en";
+    const nameField =
+      lang === "tr" ? "nameTR" : lang === "ar" ? "nameAR" : "name";
+
+    query.$and.push({
+      $or: [
+        { [nameField]: { $regex: req.query.keyword, $options: "i" } },
+        { qr: { $elemMatch: { $regex: req.query.keyword, $options: "i" } } },
+      ],
+    });
+  }
+
+  // ===== Filters =====
+  if (req.query.categoryId) {
+    query.$and.push({ category: new Types.ObjectId(req.query.categoryId) });
+  }
+
+  if (req.query.brandId) {
+    query.$and.push({ brand: new Types.ObjectId(req.query.brandId) });
+  }
+
+  if (req.query.unitId) {
+    query.$and.push({ unit: new Types.ObjectId(req.query.unitId) });
+  }
+
+  // ===== Product Types (array) =====
+  if (req.query.productType) {
+    let types = req.query.productType;
+
+    // If frontend sends comma-separated string, split into array
+    if (typeof types === "string") {
+      types = types.split(",").map((t) => t.trim());
+    }
+
+    query.$and.push({ type: { $in: types } });
+  }
+
+  // ===== Archives =====
+  if (req.query.archives === "true") {
+    query.$and.push({ archives: "true" });
+  } else {
+    query.$and.push({ archives: "false" });
+  }
+
+  // ===== Sorting =====
+  let sortQuery = {};
+  if (req.query.sold) {
+    sortQuery = { sold: parseInt(req.query.sold) === 1 ? 1 : -1 };
+  } else {
+    sortQuery = { createdAt: -1 };
+  }
+
+  // ===== Count and Pagination =====
+  const totalItems = await productModel.countDocuments(query);
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const products = await productModel
+    .find(query)
+    .sort(sortQuery)
+    .skip(skip)
+    .limit(pageSize)
+    .populate({ path: "category" })
+    .populate({ path: "brand", select: "name _id" })
+    .populate({ path: "unit", select: "name code _id" })
+    .populate({ path: "tax" })
+    .populate({
+      path: "currency",
+      select: "currencyCode currencyName exchangeRate is_primary _id",
+    })
+    .populate({
+      path: "tax",
+      populate: { path: "purchaseAccountTax", populate: { path: "currency" } },
+    })
+
+    .lean();
+
+  res.status(200).json({
+    status: true,
+    results: totalItems,
+    pages: totalPages,
+    data: products,
+  });
+});
+
 exports.getProductPos = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
@@ -265,7 +365,7 @@ exports.getProductPos = asyncHandler(async (req, res, next) => {
   const productsWithQuantity = products.map((product) => {
     const productObject = product.toObject();
     const stockEntry = product.stocks.find(
-      (stock) => stock?.stockId?.toString() === stockId
+      (stock) => stock?.stockId?.toString() === stockId,
     );
     productObject.activeCount = stockEntry ? stockEntry.productQuantity : 0;
     return productObject;
@@ -356,7 +456,7 @@ exports.resizerImage = asyncHandler(async (req, res, next) => {
             isCover: false,
           });
         }
-      })
+      }),
     );
 
     // If there's a cover image, add it to the imagesArray
@@ -379,7 +479,7 @@ const updateStocks = async (productId, stocks, quantity, productName) => {
       // Skip updating or adding the product if productQuantity is 0
       if (productQuantity === 0) {
         console.log(
-          `Skipping product ${productId} in stock ${stockId} due to quantity 0`
+          `Skipping product ${productId} in stock ${stockId} due to quantity 0`,
         );
         continue;
       }
@@ -580,7 +680,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     const totalQuantity = existingProduct?.stocks.reduce(
       (sum, stock) => sum + stock.productQuantity,
 
-      0
+      0,
     );
 
     // Check if quantity or price has changed
@@ -593,7 +693,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
 
     if (!product) {
@@ -653,7 +753,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
         id,
         productData.stocks,
         productData.quantity,
-        productData.name
+        productData.name,
       );
     }
 
@@ -694,7 +794,7 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
     const updatedProduct = await productModel.findOneAndUpdate(
       { _id: id },
       { $set: { archives: product.archives } },
-      { new: true }
+      { new: true },
     );
 
     const movementType = product.archives === "true" ? "out" : "in";
@@ -714,7 +814,7 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
       "",
       "",
       product.buyingprice,
-      product.taxPrice
+      product.taxPrice,
     );
 
     res.status(200).json({
@@ -990,7 +1090,7 @@ exports.updateProductFromExcel = asyncHandler(async (req, res) => {
         },
         {
           new: true,
-        }
+        },
       );
     }
     res.json({ success: "Success" });
@@ -1099,13 +1199,13 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
 
     for (const updatedUnit of newUnits) {
       const origUnit = originalUnits.find(
-        (u) => u.unitId?.toString() === updatedUnit.unitId?.toString()
+        (u) => u.unitId?.toString() === updatedUnit.unitId?.toString(),
       );
       if (!origUnit) continue;
 
       for (const updatedPrice of updatedUnit.prices || []) {
         const origPriceObj = origUnit.prices.find(
-          (p) => p.title === updatedPrice.title
+          (p) => p.title === updatedPrice.title,
         );
         if (!origPriceObj) continue;
 
@@ -1139,7 +1239,7 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
             product.currency,
             product.currency,
             product.buyingprice,
-            product.price
+            product.price,
           );
 
           totalLogs++;
@@ -1246,8 +1346,8 @@ exports.generateBarCode = asyncHandler(async (req, res, next) => {
         return next(
           new ApiError(
             `QR ${generatedQr} already exists for product ${exists.name}`,
-            400
-          )
+            400,
+          ),
         );
       }
 

@@ -70,7 +70,7 @@ exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
             isCover: false,
           });
         }
-      })
+      }),
     );
 
     // If there's a cover image, add it to the imagesArray
@@ -372,7 +372,7 @@ exports.updateEcommerceProducts = async (req, res, next) => {
         categoryFilter = await getAllChildCategories(
           categoryId,
           db,
-          categorySchema
+          categorySchema,
         );
       }
 
@@ -417,7 +417,7 @@ exports.updateEcommerceProducts = async (req, res, next) => {
           await product.save();
 
           return product;
-        })
+        }),
       );
     }
 
@@ -456,7 +456,7 @@ exports.updateEcommerceProductDeActive = asyncHandler(
           publish: false,
           importDate: null,
         },
-        { new: true }
+        { new: true },
       );
 
       if (!updatedProduct) {
@@ -468,7 +468,7 @@ exports.updateEcommerceProductDeActive = asyncHandler(
       console.error("Error updating ecommerce products:", error.message);
       res.status(500).json({ error: "Server Error" });
     }
-  }
+  },
 );
 
 // @desc Update the product to go in Ecommers
@@ -488,7 +488,7 @@ exports.setEcommerceProductPublish = async (req, res, next) => {
     if (product.ecommercePrice <= 0) {
       const updatedProduct = await productModel.findOneAndUpdate(
         { _id: id, companyId },
-        { publish: false }
+        { publish: false },
       );
       return next(new ApiError("Please check the price of the product", 506));
     }
@@ -496,7 +496,7 @@ exports.setEcommerceProductPublish = async (req, res, next) => {
     const updatedProduct = await productModel.findOneAndUpdate(
       { _id: id, companyId },
       { publish: publish, slug: slugify(product.name) },
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json({ success: true, data: updatedProduct });
@@ -719,13 +719,13 @@ exports.setEcommerceProductFeatured = async (req, res, next) => {
       const allCategories = await getAllChildCategories(
         categoryId,
         db,
-        categorySchema
+        categorySchema,
       );
 
       // Update products by category
       updatedProducts = await productModel.updateMany(
         { category: { $in: allCategories }, companyId },
-        { $set: { featured } }
+        { $set: { featured } },
       );
 
       if (updatedProducts.matchedCount === 0) {
@@ -734,7 +734,7 @@ exports.setEcommerceProductFeatured = async (req, res, next) => {
     } else if (brandId) {
       updatedProducts = await productModel.updateMany(
         { brand: { $in: brandId }, companyId },
-        { $set: { featured } }
+        { $set: { featured } },
       );
     } else {
       // Update products matching the given productIds
@@ -743,7 +743,7 @@ exports.setEcommerceProductFeatured = async (req, res, next) => {
           const product = await productModel.findOneAndUpdate(
             { _id: productId, companyId },
             { featured },
-            { new: true }
+            { new: true },
           );
 
           if (!product) {
@@ -751,7 +751,7 @@ exports.setEcommerceProductFeatured = async (req, res, next) => {
           }
 
           return product;
-        })
+        }),
       );
     }
 
@@ -813,13 +813,13 @@ exports.setEcommerceProductSponsored = async (req, res, next) => {
       const allCategories = await getAllChildCategories(
         categoryId,
         db,
-        categorySchema
+        categorySchema,
       );
 
       // Update products by category
       updatedProducts = await productModel.updateMany(
         { category: { $in: allCategories }, companyId },
-        { $set: { sponsored } }
+        { $set: { sponsored } },
       );
 
       if (updatedProducts.matchedCount === 0) {
@@ -828,7 +828,7 @@ exports.setEcommerceProductSponsored = async (req, res, next) => {
     } else if (brandId) {
       updatedProducts = await productModel.updateMany(
         { brand: { $in: brandId }, companyId },
-        { $set: { sponsored } }
+        { $set: { sponsored } },
       );
     } else {
       // Update products matching the given productIds
@@ -837,7 +837,7 @@ exports.setEcommerceProductSponsored = async (req, res, next) => {
           const product = await productModel.findOneAndUpdate(
             { _id: productId, companyId },
             { sponsored },
-            { new: true }
+            { new: true },
           );
 
           if (!product) {
@@ -845,7 +845,7 @@ exports.setEcommerceProductSponsored = async (req, res, next) => {
           }
 
           return product;
-        })
+        }),
       );
     }
 
