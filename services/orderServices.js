@@ -198,7 +198,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           financialFundsId: financailSources.id,
           date: req.body.paymentDate || timeIsoString,
           invoiceNumber: Number(req.body.counters) + nextCounter,
-          invoiceID: order._id,
+          invoiceID: order[0]._id,
           counter: Number(req.body.counters) + nextCounterPayment.seq,
           description: req.body.paymentDescription,
           paymentInFundCurrency: req.body.paymentInFundCurrency,
@@ -207,7 +207,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
           paymentText: "Deposit",
           companyId,
           payid: {
-            id: order._id,
+            id: order[0]._id,
             status: req.body.paymentsStatus,
             invoiceTotal: req.body.invoiceGrandTotal,
             invoiceName: req.body.invoiceName,
@@ -221,24 +221,25 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       ],
       { session },
     );
-    order.payments.push({
+
+    order[0].payments.push({
       payment: req.body.paymentInFundCurrency,
       paymentMainCurrency: req.body.paymentInMainCurrency,
       financialFunds: financailSources.name,
       financialFundsCurrencyCode: financailSources.code,
       date: req.body.paymentDate || timeIsoString,
-      paymentID: payment._id,
+      paymentID: payment[0]._id,
       paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
     });
     customars.total += Number(req.body.totalInMainCurrency);
     customars.TotalUnpaid += Number(req.body.totalRemainderMainCurrency);
-    await order.save({ session });
+    await order[0].save({ session });
     if (financailSources.type === "fund") {
       const reportsFinancialFundsPromise = ReportsFinancialFundsModel.create(
         [
           {
             date: req.body.paymentDate,
-            ref: order._id,
+            ref: order[0]._id,
             amount: req.body.paymentInFundCurrency,
             exchangeAmount: req.body.totalInMainCurrency,
             type: "sales",
@@ -246,7 +247,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             financialFundRest: financialFunds.fundBalance,
             exchangeRate: req.body.exchangeRate,
             paymentType: "Deposit",
-            payment: payment._id,
+            payment: payment[0]._id,
             description: req.body.paymentDescription,
             companyId,
           },
@@ -267,8 +268,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         financailSources,
         companyId,
         req.body,
-        order._id,
-        payment._id,
+        order[0]._id,
+        payment[0]._id,
       );
     }
   } else if (req.body.paymentsStatus === "unpaid" && !invoiceDraft) {
@@ -397,7 +398,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         for (const fm of fifoMovements) {
           await createProductMovement({
             productId: product._id,
-            reference: order.id,
+            reference: order[0].id,
             newQuantity: totalStockQuantity - fm.quantity,
             quantity: fm.quantity,
             movementType: "out",
@@ -513,7 +514,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       req.body.invoiceGrandTotal,
       "customer",
       req.body.customer.id,
-      order._id,
+      order[0]._id,
       companyId,
       req.body.description,
       "",
@@ -527,7 +528,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
   const history = createInvoiceHistory(
     companyId,
-    order._id,
+    order[0]._id,
     "create",
     req.user._id,
     req.body.orderDate || timeIsoString,
@@ -541,10 +542,10 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       req.body.paymentInFundCurrency,
       "customer",
       req.body.customer.id,
-      order._id,
+      order[0]._id,
       companyId,
       req.body.paymentDescription,
-      payment.id,
+      payment[0].id,
       "Deposit",
       "",
       financailSources.code,
@@ -552,7 +553,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   }
   await session.commitTransaction();
   session.endSession();
-  res.status(201).json({ status: "success", data: order, history });
+  res.status(201).json({ status: "success", data: order[0], history });
 });
 
 // @desc    Get All order
