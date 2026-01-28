@@ -1187,7 +1187,7 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
               "stocks.$.productQuantity": returnedQty,
             },
             $set: {
-              costBuyingPrice: Number(newAvgCost),
+              costBuyingPrice: Number(newAvgCost || 0),
             },
           },
         },
@@ -1214,33 +1214,12 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
     await Promise.all(
       Array.from(movementMap.entries()).map(async ([id, item]) => {
         const product = await productModel.findOne({ _id: id, companyId });
-        console.log(item);
 
         if (product && product.type !== "Service") {
           const totalStockQuantity = product.stocks.reduce(
             (total, stock) => total + stock.productQuantity,
             0,
           );
-
-          // await createProductMovement(
-          //   product._id,
-          //   order._id,
-          //   totalStockQuantity,
-          //   item.quantityDiff,
-          //   0,
-          //   0,
-          //   "movement",
-          //   "in",
-          //   "Refund Sales Invoice",
-          //   companyId,
-          //   "",
-          //   "",
-          //   "",
-          //   item.orginalBuyingPrice,
-          //   item.sellingPrice,
-          //   item.stock._id,
-          //   product.costBuyingPrice
-          // );
           await createProductMovement({
             productId: product._id,
             reference: order._id,
