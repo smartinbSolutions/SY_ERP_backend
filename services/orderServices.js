@@ -26,6 +26,7 @@ const companyInfoModel = require("../models/companyInfoModel");
 const { generateCounter } = require("../utils/counterFormat");
 const prodcutBatchModel = require("../models/prodcutBatchModel");
 const { createProductBatch } = require("./productBatchServices");
+const counterModel = require("../models/Settings/counterModel");
 
 const financailSource = async (
   taker,
@@ -92,10 +93,15 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+  const session = await mongoose.startSession();
+  session.startTransaction();
   req.body.companyId = companyId;
-  const nextCounterPayment =
-    (await paymentModel.countDocuments({ companyId, paymentText: "Deposit" })) +
-    1;
+
+  const nextCounterPayment = await counterModel.findOneAndUpdate(
+    { companyId, name: "payment" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
   const cartItems = req.body.invoicesItems;
 
   function padZero(value) {
@@ -127,17 +133,21 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
   const timeIsoString = new Date().toISOString();
 
-  const customarsPromise = customersModel.findOne({
-    _id: req.body.customer.id,
-    companyId,
-  });
-  const nextCounterOrder = await orderModel
-    .countDocuments({ companyId })
-    .then((count) => count + 1);
+  const customarsPromise = customersModel
+    .findOne({
+      _id: req.body.customer.id,
+      companyId,
+    })
+    .session(session);
 
+  const nextCounterOrder = await counterModel.findOneAndUpdate(
+    { companyId, name: "Sales" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
   req.body.type = "sales";
   req.body.counters = req.body.counter;
-  req.body.counter = Number(req.body.counter) + nextCounterOrder;
+  req.body.counter = Number(req.body.counter) + nextCounterOrder.seq;
   const financailSources = req.body.financailSource;
   req.body.financailFund = req.body.financailSource;
   let financialFunds;
@@ -155,9 +165,9 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     }
     financialFunds.fundBalance += Number(req.body.paymentInFundCurrency);
   }
-  const [customars, nextCounter, reportCounter] = await Promise.all([
+  const [customars, nextCounter] = await Promise.all([
     customarsPromise,
-    nextCounterOrder,
+    nextCounterOrder.seq,
   ]);
   req.body.returnCartItem = req.body.invoicesItems;
   let order;
@@ -173,39 +183,44 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       req.body.paymentsStatus = "unpaid";
     }
 
-    order = await orderModel.create(req.body);
+    order = await orderModel.create([req.body], { session });
 
-    payment = await paymentModel.create({
-      customerId: req.body.customer.id,
-      customerName: req.body.customer.name,
-      total: req.body.paymentInInvoiceCurrency,
-      totalMainCurrency: req.body.paymentInMainCurrency,
-      exchangeRate: financailSources.exchangeRate,
-      financialFundsCurrencyCode: financailSources.code,
-      financialFundsName: financailSources.name,
-      financialFundsId: financailSources.id,
-      date: req.body.paymentDate || timeIsoString,
-      invoiceNumber: Number(req.body.counters) + nextCounter,
-      invoiceID: order._id,
-      counter: Number(req.body.counters) + nextCounterPayment,
-      description: req.body.paymentDescription,
-      paymentInFundCurrency: req.body.paymentInFundCurrency,
-      paymentCurrency: req.body.currency.currencyCode,
-      type: "sales",
-      paymentText: "Deposit",
-      companyId,
-      payid: {
-        id: order._id,
-        status: req.body.paymentsStatus,
-        invoiceTotal: req.body.invoiceGrandTotal,
-        invoiceName: req.body.invoiceName,
-        invoiceCurrencyCode: req.body.currency.currencyCode,
-        paymentInFundCurrency: req.body.paymentInFundCurrency,
-        paymentMainCurrency: req.body.paymentInMainCurrency,
-        paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-      },
-      financailType: financailSources.type,
-    });
+    payment = await paymentModel.create(
+      [
+        {
+          customerId: req.body.customer.id,
+          customerName: req.body.customer.name,
+          total: req.body.paymentInInvoiceCurrency,
+          totalMainCurrency: req.body.paymentInMainCurrency,
+          exchangeRate: financailSources.exchangeRate,
+          financialFundsCurrencyCode: financailSources.code,
+          financialFundsName: financailSources.name,
+          financialFundsId: financailSources.id,
+          date: req.body.paymentDate || timeIsoString,
+          invoiceNumber: Number(req.body.counters) + nextCounter,
+          invoiceID: order._id,
+          counter: Number(req.body.counters) + nextCounterPayment.seq,
+          description: req.body.paymentDescription,
+          paymentInFundCurrency: req.body.paymentInFundCurrency,
+          paymentCurrency: req.body.currency.currencyCode,
+          type: "sales",
+          paymentText: "Deposit",
+          companyId,
+          payid: {
+            id: order._id,
+            status: req.body.paymentsStatus,
+            invoiceTotal: req.body.invoiceGrandTotal,
+            invoiceName: req.body.invoiceName,
+            invoiceCurrencyCode: req.body.currency.currencyCode,
+            paymentInFundCurrency: req.body.paymentInFundCurrency,
+            paymentMainCurrency: req.body.paymentInMainCurrency,
+            paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+          },
+          financailType: financailSources.type,
+        },
+      ],
+      { session },
+    );
     order.payments.push({
       payment: req.body.paymentInFundCurrency,
       paymentMainCurrency: req.body.paymentInMainCurrency,
@@ -217,24 +232,29 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
     });
     customars.total += Number(req.body.totalInMainCurrency);
     customars.TotalUnpaid += Number(req.body.totalRemainderMainCurrency);
-    await order.save();
+    await order.save({ session });
     if (financailSources.type === "fund") {
-      const reportsFinancialFundsPromise = ReportsFinancialFundsModel.create({
-        date: req.body.paymentDate,
-        ref: order._id,
-        amount: req.body.paymentInFundCurrency,
-        exchangeAmount: req.body.totalInMainCurrency,
-        type: "sales",
-        financialFundId: req.body.financailFund.id,
-        financialFundRest: financialFunds.fundBalance,
-        exchangeRate: req.body.exchangeRate,
-        paymentType: "Deposit",
-        payment: payment._id,
-        description: req.body.paymentDescription,
-        companyId,
-      });
+      const reportsFinancialFundsPromise = ReportsFinancialFundsModel.create(
+        [
+          {
+            date: req.body.paymentDate,
+            ref: order._id,
+            amount: req.body.paymentInFundCurrency,
+            exchangeAmount: req.body.totalInMainCurrency,
+            type: "sales",
+            financialFundId: req.body.financailFund.id,
+            financialFundRest: financialFunds.fundBalance,
+            exchangeRate: req.body.exchangeRate,
+            paymentType: "Deposit",
+            payment: payment._id,
+            description: req.body.paymentDescription,
+            companyId,
+          },
+        ],
+        { session },
+      );
 
-      const financialFundsSavePromise = financialFunds.save();
+      const financialFundsSavePromise = financialFunds.save({ session });
 
       await Promise.all([
         reportsFinancialFundsPromise,
@@ -275,22 +295,23 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       customars.TotalUnpaid += total;
     }
 
-    order = await orderModel.create(req.body);
+    order = await orderModel.create([req.body], { session });
   } else if (req.body.paymentsStatus === "unpaid" && invoiceDraft) {
     req.body.isDraft = true;
-    order = await orderModel.create(req.body);
+    order = await orderModel.create([req.body], { session });
   } else {
     console.log("Really? Not paid or unpaid?");
   }
+
   const productQRCodes = cartItems
     .filter(
       (item) => item.type !== "unTracedproduct" && item.type !== "expense",
     )
     .map((item) => item.id);
 
-  const products = await productModel.find({
-    _id: { $in: productQRCodes },
-  });
+  const products = await productModel
+    .find({ _id: { $in: productQRCodes } })
+    .session(session);
 
   const productMap = new Map(
     products.map((prod) => [prod._id.toString(), prod]),
@@ -313,11 +334,6 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       existing.soldQuantity += item.soldQuantity;
     }
   }
-  await Promise.all(
-    Array.from(movementMap.entries()).map(async ([id, item]) => {
-      const product = productMap.get(id);
-    }),
-  );
 
   const bulkOption = await Promise.all(
     cartItems.map(async (item) => {
@@ -352,7 +368,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             stockId: item.stock._id,
             remaining: { $gt: 0 },
           })
-          .sort({ createdAt: 1 });
+          .sort({ createdAt: 1 })
+          .session(session);
 
         for (const batch of batches) {
           if (qtyToSell <= 0) break;
@@ -377,7 +394,6 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
         }
         let soldTotalQty = 0;
         let soldTotalCost = 0;
-        console.log("item", item);
         for (const fm of fifoMovements) {
           await createProductMovement({
             productId: product._id,
@@ -486,7 +502,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
 
   // Perform bulkWrite
   if (!invoiceDraft && validBulkOptions.length > 0) {
-    await productModel.bulkWrite(validBulkOptions);
+    await productModel.bulkWrite(validBulkOptions, { session });
   }
 
   if (!invoiceDraft) {
@@ -506,7 +522,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       req.body.currency.currencyCode,
     );
 
-    await customars.save();
+    await customars.save({ session });
   }
 
   const history = createInvoiceHistory(
@@ -534,7 +550,8 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
       financailSources.code,
     );
   }
-
+  await session.commitTransaction();
+  session.endSession();
   res.status(201).json({ status: "success", data: order, history });
 });
 
@@ -1276,37 +1293,42 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
       if (req.body.totalRemainderMainCurrency > 0.5) {
         req.body.paymentsStatus = "unpaid";
       }
-      await financialFunds.save();
-      const payment = await paymentModel.create({
-        customerId: order.customer.id,
-        customerName: order.customer.name,
-        total: req.body.paymentInInvoiceCurrency,
-        totalMainCurrency: req.body.paymentInMainCurrency,
-        exchangeRate: financialFunds.fundCurrency.exchangeRate,
-        financialFundsCurrencyCode: req.body.financailFund.code,
-        financialFundsName: financialFunds.fundName,
-        financialFundsID: req.body.financailFund.id,
-        date: req.body.date || timeIsoString,
-        invoiceNumber: order.counter,
-        invoiceID: order._id,
-        counter: conuter + nextCounterPayment,
-        description: req.body.paymentDescription,
-        paymentInFundCurrency: req.body.paymentInFundCurrency,
-        paymentText: "Withdrawal",
-        type: "sales refund",
-        paymentCurrency: req.body.currencyCode,
-        companyId,
-        payid: {
-          id: order._id,
-          status: req.body.paymentsStatus,
-          invoiceTotal: req.body.invoiceGrandTotal,
-          invoiceName: req.body.invoiceName,
-          invoiceCurrencyCode: req.body.currency.currencyCode,
-          paymentInFundCurrency: req.body.paymentInFundCurrency,
-          paymentMainCurrency: req.body.paymentInMainCurrency,
-          paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-        },
-      });
+      await financialFunds.save({ session });
+      const payment = await paymentModel.create(
+        [
+          {
+            customerId: order.customer.id,
+            customerName: order.customer.name,
+            total: req.body.paymentInInvoiceCurrency,
+            totalMainCurrency: req.body.paymentInMainCurrency,
+            exchangeRate: financialFunds.fundCurrency.exchangeRate,
+            financialFundsCurrencyCode: req.body.financailFund.code,
+            financialFundsName: financialFunds.fundName,
+            financialFundsID: req.body.financailFund.id,
+            date: req.body.date || timeIsoString,
+            invoiceNumber: order.counter,
+            invoiceID: order._id,
+            counter: conuter + nextCounterPayment,
+            description: req.body.paymentDescription,
+            paymentInFundCurrency: req.body.paymentInFundCurrency,
+            paymentText: "Withdrawal",
+            type: "sales refund",
+            paymentCurrency: req.body.currencyCode,
+            companyId,
+            payid: {
+              id: order._id,
+              status: req.body.paymentsStatus,
+              invoiceTotal: req.body.invoiceGrandTotal,
+              invoiceName: req.body.invoiceName,
+              invoiceCurrencyCode: req.body.currency.currencyCode,
+              paymentInFundCurrency: req.body.paymentInFundCurrency,
+              paymentMainCurrency: req.body.paymentInMainCurrency,
+              paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+            },
+          },
+        ],
+        { session },
+      );
       order.payments.push({
         payment: req.body.paymentInFundCurrency,
         paymentMainCurrency: req.body.paymentInMainCurrency,
@@ -1329,7 +1351,7 @@ exports.returnOrder = asyncHandler(async (req, res, next) => {
         payment: payment._id,
         companyId,
       });
-      await order.save();
+      await order.save({ session });
     }
     await createPaymentHistory(
       "Refund Invoice",
