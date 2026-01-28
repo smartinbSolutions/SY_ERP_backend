@@ -36,6 +36,7 @@ const ProductMovementSchema = new mongoose.Schema(
         "Stock reconciliation",
         "Stock Transfer",
         "Refund Sales Invoice",
+        "Opening Inventory",
       ],
       required: true,
     },
@@ -48,6 +49,6 @@ const ProductMovementSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 module.exports = mongoose.model("ProductMovement", ProductMovementSchema);

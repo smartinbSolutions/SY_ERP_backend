@@ -40,6 +40,8 @@ const productModel = require("../models/productModel");
 const purchaseinvoicesModel = require("../models/purchaseinvoicesModel");
 const { createProductMovement } = require("../utils/productMovement");
 const { createProductBatch } = require("./productBatchServices");
+const OpeningInventoryItemModel = require("../models/OpeningInventoryItemModel");
+const openingInventoryModel = require("../models/openingInventoryModel");
 
 const multerFilter = function (req, file, cb) {
   if (file.mimetype.startsWith("image")) {
@@ -1190,7 +1192,7 @@ const BeginningInvoice = async ({
     session,
   });
 
-  await purchaseInvoiceRollover({
+  await openingInventoryRollover({
     products,
     newCompanyId,
     session,
@@ -1202,7 +1204,7 @@ const BeginningInvoice = async ({
   });
 };
 
-const purchaseInvoiceRollover = async ({
+const openingInventoryRollover = async ({
   products,
   newCompanyId,
   session,
@@ -1211,28 +1213,49 @@ const purchaseInvoiceRollover = async ({
   priceMethod,
   manualJournal,
 }) => {
-  const MainCurrency = await currencyModel
+  const mainCurrency = await currencyModel
     .findOne({ companyId: newCompanyId, is_primary: "true" })
-    .session(session);
-  const newStocks = await stockModel
-    .find({ companyId: newCompanyId })
-    .session(session);
-  if (!MainCurrency) {
+    .session(session)
+    .lean();
+
+  if (!mainCurrency) {
     throw new ApiError("Main currency not found", 400);
   }
+
+  const stocks = await stockModel
+    .find({ companyId: newCompanyId })
+    .session(session)
+    .lean();
 
   const newProducts = await productModel
     .find({ companyId: newCompanyId })
     .session(session)
-    .populate("currency")
-    .populate("tax");
+    .lean();
 
+  const [openingInventory] = await openingInventoryModel.create(
+    [
+      {
+        companyId: newCompanyId,
+        openingNumber: counter,
+        date,
+        description: "Opening Inventory Balance",
+        currency: {
+          id: mainCurrency._id,
+          currencyCode: mainCurrency.currencyCode,
+          currencyName: mainCurrency.currencyName,
+          exchangeRate: mainCurrency.exchangeRate,
+        },
+      },
+    ],
+    { session },
+  );
+
+  const items = [];
   const productStockMap = new Map();
-  let TotalPrice = 0;
+  let totalQuantity = 0;
+  let totalValue = 0;
 
-  for (const stock of newStocks) {
-    const invoiceItems = [];
-
+  for (const stock of stocks) {
     for (const oldProduct of products) {
       const newProduct = newProducts.find(
         (p) => p.originalProductId?.toString() === oldProduct._id.toString(),
@@ -1242,25 +1265,23 @@ const purchaseInvoiceRollover = async ({
       const stockEntry = oldProduct.stocks?.find(
         (s) => s.stockName === stock.name,
       );
+
       const quantity = stockEntry?.productQuantity || 0;
       if (quantity <= 0) continue;
 
-      const buyingPrice =
-        newProduct.costBuyingPrice || newProduct.buyingprice || 0;
+      let buyingPrice = 0;
+      if (priceMethod === "costBuyingPrice") {
+        buyingPrice = newProduct.costBuyingPrice || 0;
+      } else if (priceMethod === "price") {
+        buyingPrice = newProduct.price || 0;
+      } else {
+        buyingPrice = newProduct.buyingprice || 0;
+      }
 
-      const exchangeRate = newProduct.currency?.exchangeRate || 1;
-      const totalWithoutTax = quantity * buyingPrice;
+      const total = quantity * buyingPrice;
 
-      const selectedPrice =
-        priceMethod === "buyingprice"
-          ? newProduct.buyingprice
-          : priceMethod === "costBuyingPrice"
-            ? newProduct.costBuyingPrice
-            : priceMethod === "price"
-              ? newProduct.price
-              : buyingPrice;
-
-      TotalPrice += selectedPrice * quantity;
+      totalQuantity += quantity;
+      totalValue += total;
 
       if (!productStockMap.has(newProduct._id.toString())) {
         productStockMap.set(newProduct._id.toString(), []);
@@ -1272,178 +1293,133 @@ const purchaseInvoiceRollover = async ({
         productQuantity: quantity,
       });
 
-      invoiceItems.push({
-        id: newProduct._id,
-        type: "product",
-        qr: Array.isArray(newProduct.qr) ? newProduct.qr[0] : "",
+      items.push({
+        openingInventoryId: openingInventory._id,
+        companyId: newCompanyId,
+
+        productId: newProduct._id,
         name: newProduct.name,
-        orginalBuyingPrice: buyingPrice,
-        tax: newProduct.tax?._id || null,
-        unit: newProduct.unit || "",
-        stock: { _id: stock._id, stock: stock.name },
-        quantity,
-        note: "Opening Balance",
-        exchangeRate,
-        convertedBuyingPrice: buyingPrice,
-        totalWithoutTax,
-        taxValue: 0,
-        total: totalWithoutTax,
-        profitRatio: 0,
-        showNote: true,
-        showDiscount: false,
-        vName: "",
-        buyingPriceMineCurrency: (buyingPrice * quantity) / exchangeRate,
-      });
-    }
+        sku: newProduct.sku,
+        barcode: newProduct.barcode,
 
-    if (!invoiceItems.length) continue;
+        unit: newProduct.unit,
 
-    const [invoice] = await purchaseinvoicesModel.create(
-      [
-        {
-          companyId: newCompanyId,
-          invoiceName: "Opening Purchase Invoice",
-          type: "Purchase",
-          date,
-          counter,
-          invoiceNumber: counter,
-          exchangeRate: 1,
-          invoicesItems: invoiceItems,
-          invoiceSubTotal: invoiceItems.reduce(
-            (s, i) => s + i.totalWithoutTax,
-            0,
-          ),
-          invoiceGrandTotal: invoiceItems.reduce((s, i) => s + i.total, 0),
-          totalPurchasePriceMainCurrency: invoiceItems.reduce(
-            (s, i) => s + i.buyingPriceMineCurrency,
-            0,
-          ),
-          paid: "paid",
-          description: "Opening stock purchase invoice",
-          currency: {
-            currencyCode: MainCurrency.currencyCode,
-            exchangeRate: MainCurrency.exchangeRate,
-            id: MainCurrency._id,
-            currencyName: MainCurrency.currencyName,
-          },
-          invoiceTax: 0,
-          invoiceDiscount: 0,
+        stock: {
+          id: stock._id,
+          name: stock.name,
         },
-      ],
-      { session },
-    );
 
-    for (const item of invoiceItems) {
-      await createProductMovement({
-        productId: item.id,
-        reference: invoice._id,
-        newQuantity: item.quantity,
-        quantity: item.quantity,
-        movementType: "in",
-        source: "Purchase Invoice",
-        companyId: newCompanyId,
-        stockId: stock._id,
-        buyingPrice: item.orginalBuyingPrice,
-        enterPrice: item.orginalBuyingPrice,
-        exchangeRate: item.exchangeRate,
-      });
-
-      await createProductBatch({
-        productId: item.id,
-        companyId: newCompanyId,
-        stockId: stock._id,
-        quantity: item.quantity,
-        buyingprice: item.orginalBuyingPrice,
-        costBuyingPrice: item.orginalBuyingPrice,
-        sourceId: invoice._id,
-        exchangeRate: item.exchangeRate,
-        referenceType: "purchase",
+        quantity,
+        buyingPrice,
+        total,
+        note: "Opening Balance",
       });
     }
-
-    counter++;
   }
 
-  for (const [productId, stocks] of productStockMap.entries()) {
+  if (!items.length) {
+    throw new ApiError("No opening inventory items found", 400);
+  }
+
+  await OpeningInventoryItemModel.insertMany(items, { session });
+
+  for (const item of items) {
+    await createProductMovement({
+      productId: item.productId,
+      reference: openingInventory._id,
+      newQuantity: item.quantity,
+      quantity: item.quantity,
+      movementType: "in",
+      source: "Opening Inventory",
+      companyId: newCompanyId,
+      stockId: item.stock.id,
+      buyingPrice: item.buyingPrice,
+      enterPrice: item.buyingPrice,
+      exchangeRate: 1,
+    });
+
+    await createProductBatch({
+      productId: item.productId,
+      companyId: newCompanyId,
+      stockId: item.stock.id,
+      quantity: item.quantity,
+      buyingprice: item.buyingPrice,
+      costBuyingPrice: item.buyingPrice,
+      sourceId: openingInventory._id,
+      referenceType: "opening",
+    });
+  }
+
+  for (const [productId, stocksData] of productStockMap.entries()) {
     await productModel.updateOne(
       { _id: productId },
-      { $set: { stocks } },
+      { $set: { stocks: stocksData } },
       { session },
     );
   }
 
+  await openingInventoryModel.updateOne(
+    { _id: openingInventory._id },
+    {
+      $set: {
+        totalQuantity,
+        totalValue,
+        totalValueMainCurrency: totalValue * mainCurrency.exchangeRate,
+      },
+    },
+    { session },
+  );
+
   if (!manualJournal) {
-    const purchaseLink = await linkPanelModel
-      .findOne({ name: "Purcahse", companyId: newCompanyId })
+    const inventoryAccount = await accountingTreeModel
+      .findOne({ code: "INVENTORY", companyId: newCompanyId })
       .session(session)
       .lean();
 
-    const stockLink = await linkPanelModel
-      .findOne({ name: "Stocks", companyId: newCompanyId })
+    const openingBalanceAccount = await accountingTreeModel
+      .findOne({ code: "OPENING_BALANCE", companyId: newCompanyId })
       .session(session)
       .lean();
 
-    const purchaseAccount = await accountingTreeModel
-      .findById(purchaseLink.accountData)
-      .session(session)
-      .populate({
-        path: "currency",
-        options: { session },
-      })
-      .lean();
-
-    const stockAccount = await accountingTreeModel
-      .findById(stockLink.accountData)
-      .session(session)
-      .populate({
-        path: "currency",
-        options: { session },
-      })
-      .lean();
-
-    const journalAccounts = [
-      {
-        counter: 1,
-        id: stockAccount._id,
-        name: stockAccount.name,
-        code: stockAccount.code,
-        MainDebit: TotalPrice,
-        MainCredit: 0,
-        accountDebit: TotalPrice * stockAccount.currency.exchangeRate,
-        accountCredit: 0,
-        accountCurrency: stockAccount.currency.currencyCode,
-        accountExRate: stockAccount.currency.exchangeRate,
-        description: "Opening Balance",
-      },
-      {
-        counter: 2,
-        id: purchaseAccount._id,
-        name: purchaseAccount.name,
-        code: purchaseAccount.code,
-        MainDebit: 0,
-        MainCredit: TotalPrice,
-        accountDebit: 0,
-        accountCredit: TotalPrice * purchaseAccount.currency.exchangeRate,
-        accountCurrency: purchaseAccount.currency.currencyCode,
-        accountExRate: purchaseAccount.currency.exchangeRate,
-        description: "Opening Balance",
-      },
-    ];
+    if (!inventoryAccount || !openingBalanceAccount) {
+      throw new ApiError("Opening accounts not found", 400);
+    }
 
     await journalEntryModel.create(
       [
         {
           companyId: newCompanyId,
-          journalName: "Opening Balance",
+          journalName: "Opening Inventory",
           journalDate: date,
-          journalRefNum: counter,
           journalType: "Opening Balance",
-          journalAccounts,
-          journalDebit: TotalPrice,
-          journalCredit: TotalPrice,
+          journalRefNum: counter,
+          journalDebit: totalValue,
+          journalCredit: totalValue,
+          journalAccounts: [
+            {
+              counter: 1,
+              id: inventoryAccount._id,
+              name: inventoryAccount.name,
+              code: inventoryAccount.code,
+              MainDebit: totalValue,
+              MainCredit: 0,
+              description: "Opening Inventory",
+            },
+            {
+              counter: 2,
+              id: openingBalanceAccount._id,
+              name: openingBalanceAccount.name,
+              code: openingBalanceAccount.code,
+              MainDebit: 0,
+              MainCredit: totalValue,
+              description: "Opening Balance",
+            },
+          ],
         },
       ],
       { session },
     );
   }
+
+  return openingInventory;
 };
