@@ -19,7 +19,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
 
     if (!user) {
       return next(
-        new ApiError("Incorrect email or Have session in other divase ", 401)
+        new ApiError("Incorrect email or Have session in other divase ", 401),
       );
     }
     user.session = true;
@@ -27,14 +27,14 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     // Check password
     const passwordMatch = await bcrypt.compare(
       req.body.password,
-      user.password
+      user.password,
     );
     if (!passwordMatch) {
       return next(new ApiError("Incorrect Password", 401));
     }
     user.password = undefined;
     const companyData = await companyInfoModel.findById(user.companyId);
-    const token = createToken(user);
+    const token = createToken(user, null, "staff");
     res.status(200).json({
       status: "true",
       company: companyData.companyName,
@@ -47,7 +47,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
   }
 });
 
-exports.hrSingOut = asyncHandler(async (req, res, next) => {
+exports.hrSignOut = asyncHandler(async (req, res, next) => {
   try {
     const user = await StaffsModel.findOne({
       email: req.body.email,
@@ -63,7 +63,7 @@ exports.hrSingOut = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       status: "true",
       data: user,
-      message: "sing Out successfuly",
+      message: "sign Out successfuly",
       companyId: req.body.companyId,
     });
   } catch (error) {
@@ -72,11 +72,11 @@ exports.hrSingOut = asyncHandler(async (req, res, next) => {
   }
 });
 
-exports.protect = asyncHandler(async (req, res, next) => {
+exports.protectStaff = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return next(new ApiError("companyId is required", 400));
   }
 
   let token;
@@ -88,34 +88,151 @@ exports.protect = asyncHandler(async (req, res, next) => {
   }
 
   if (!token) {
-    return next(new ApiError("Not login", 401));
-  } else {
-    try {
-      //2- Verify token (no change happens, expired token)
-      const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-
-      //3-Check if user exists
-
-      const curentUser = await StaffsModel.findOne({
-        _id: decoded.userId,
-        companyId: companyId,
-      });
-      console.log(decoded.userId);
-
-      if (!curentUser) {
-        return next(new ApiError("The user does not exit", 404));
-      }
-      req.user = curentUser;
-      next();
-    } catch (error) {
-      // Token verification failed
-      console.error("JWT Error:", error.message);
-      if (error.name === "TokenExpiredError") {
-        return next(new ApiError("Token has expired", 401));
-      } else {
-        console.error("JWT Error:", error.message);
-        return next(new ApiError("Not login", 401));
-      }
-    }
+    return next(new ApiError("Not logged in", 401));
   }
+
+  try {
+    // 1️⃣ Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+
+    // 2️⃣ Ensure token source is STAFF
+    if (decoded.authSource !== "staff") {
+      return next(new ApiError("Staff access only", 403));
+    }
+
+    // 3️⃣ Check staff existence
+    const currentUser = await StaffsModel.findOne({
+      _id: decoded.userId,
+      companyId,
+    });
+
+    if (!currentUser) {
+      return next(new ApiError("Staff not found", 404));
+    }
+
+    // 4️⃣ Attach staff to request
+    req.user = currentUser;
+    next();
+  } catch (error) {
+    console.error("JWT Error:", error.message);
+
+    if (error.name === "TokenExpiredError") {
+      return next(new ApiError("Token has expired", 401));
+    }
+
+    return next(new ApiError("Invalid token", 401));
+  }
+});
+
+exports.protectERP = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (!token) {
+    return next(new ApiError("Not logged in", 401));
+  }
+
+  try {
+    // 1️⃣ Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+
+    // 2️⃣ Ensure token source is ERP
+    if (decoded.authSource !== "erp") {
+      return next(new ApiError("ERP access only", 403));
+    }
+
+    // 3️⃣ ERP user MUST exist as Staff
+    const staffUser = await StaffsModel.findOne({
+      email: decoded.email,
+      companyId,
+    });
+
+    if (!staffUser) {
+      return next(new ApiError("ERP user is not registered as staff", 403));
+    }
+
+    // 4️⃣ Attach staff (not ERP user!)
+    req.erpUser = staffUser;
+    req.authSource = "erp";
+
+    next();
+  } catch (error) {
+    console.error("JWT Error:", error.message);
+
+    if (error.name === "TokenExpiredError") {
+      return next(new ApiError("Token expired", 401));
+    }
+
+    return next(new ApiError("Invalid token", 401));
+  }
+});
+
+exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
+  const { email: bodyEmail, companyId: bodyCompanyId } = req.body;  
+  const { email: erpEmail, companyId: erpCompanyId } = req.erpUser;
+
+  if (bodyEmail !== erpEmail || bodyCompanyId !== erpCompanyId) {
+    return next(
+      new ApiError("Mismatch between ERP user and request data", 403),
+    );
+  }
+
+  const staff = await StaffsModel.findOne({
+    email: erpEmail,
+    companyId: erpCompanyId,
+  });
+
+  if (!staff) {
+    return next(new ApiError("You are not registered as staff", 403));
+  }
+
+  const staffToken = createToken(staff, null, "staff");
+
+  res.status(200).json({
+    status: true,
+    token: staffToken,
+  });
+});
+
+exports.protectStaffOrERP = asyncHandler(async (req, res, next) => {
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (!token) {
+    return next(new ApiError("Not logged in", 401));
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  } catch (err) {
+    return next(new ApiError("Invalid token", 401));
+  }
+
+  if (decoded.authSource === "staff") {
+    return exports.protectStaff(req, res, next);
+  }
+
+  if (decoded.authSource === "erp") {
+    return exports.protectERP(req, res, next);
+  }
+
+  return next(new ApiError("Invalid auth source", 401));
 });

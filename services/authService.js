@@ -73,7 +73,7 @@ exports.login = asyncHandler(async (req, res, next) => {
       getDashboardRoles(roles.rolesDashboard),
     ]);
 
-    const token = createToken(user);
+    const token = createToken(user, null, "erp");
     res.status(200).json({
       status: "true",
       data: user,

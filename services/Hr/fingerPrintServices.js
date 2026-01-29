@@ -79,7 +79,7 @@ exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
 
   if (!fingerPrint || fingerPrint.length === 0) {
     return next(
-      new ApiError(`No fingerPrint found for id ${req.user.id}`, 404)
+      new ApiError(`No fingerPrint found for id ${req.user.id}`, 404),
     );
   }
 
@@ -132,7 +132,7 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 
   if (!fingerPrint) {
     return next(
-      new ApiError(`No fingerPrint found for id ${req.params.id}`, 404)
+      new ApiError(`No fingerPrint found for id ${req.params.id}`, 404),
     );
   }
 
@@ -146,7 +146,7 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 //@desc Post Make the finger print for enter and exit
 //@route POST /api/finger-print
 //@access public just for Employee
-exports.createLogedFingerPrint = asyncHandler(async (req, res, next) => {
+exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const staffMember = await Staff.findOne({ email: req.user.email, companyId });
 
@@ -239,7 +239,7 @@ exports.deleteFingerprint = asyncHandler(async (req, res, next) => {
 
   if (!fingerPrint) {
     return next(
-      new ApiError(`No fingerPrint by this id ${req.params.id}`, 404)
+      new ApiError(`No fingerPrint by this id ${req.params.id}`, 404),
     );
   }
   res.status(200).json({ status: "true", message: "Deleted" });
@@ -259,12 +259,12 @@ exports.updateFingerPrint = asyncHandler(async (req, res, next) => {
   const fingerPrint = await fingerPrintModel.findOneAndUpdate(
     { _id: req.params.id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   if (!fingerPrint) {
     return next(
-      new ApiError(`No fingerPrint by this id ${req.params.id}`, 404)
+      new ApiError(`No fingerPrint by this id ${req.params.id}`, 404),
     );
   }
 
@@ -405,7 +405,7 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
           const hoursDiff = adjustedCheckOutTime.diff(
             checkInTime,
             "hour",
-            true
+            true,
           );
           dayHours += Math.max(0, hoursDiff);
 
@@ -444,12 +444,12 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
 
       if (unpairedCheckIns > 0) {
         dailySummary[dateKey].warnings.push(
-          `Has ${unpairedCheckIns} unpaired check-in(s)`
+          `Has ${unpairedCheckIns} unpaired check-in(s)`,
         );
       }
       if (unpairedCheckOuts > 0) {
         dailySummary[dateKey].warnings.push(
-          `Has ${unpairedCheckOuts} unpaired check-out(s)`
+          `Has ${unpairedCheckOuts} unpaired check-out(s)`,
         );
       }
 

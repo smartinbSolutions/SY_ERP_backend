@@ -33,7 +33,7 @@ exports.getAllStaffFiles = asyncHandler(async (req, res, next) => {
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 })
-    .lean();
+    
 
   res.status(200).json({
     status: "success",

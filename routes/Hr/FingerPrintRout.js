@@ -7,26 +7,37 @@ const {
   getOneFingerPrint,
   getLoggedUserFingerPrint,
   calculateSalaryFlexible,
-  createLogedFingerPrint,
+  createLoggedFingerPrint,
   createFingerPrint,
   getTodayFingerPrint,
 } = require("../../services/Hr/fingerPrintServices");
 const authService = require("../../services/authService");
 
 const FingerPrintRout = express.Router();
-// FingerPrintRout.use();
 
 FingerPrintRout.route("/loged")
-  .get(hrAuthServices.protect, getLoggedUserFingerPrint)
-  .post(hrAuthServices.protect, createLogedFingerPrint);
-  FingerPrintRout.route("/loged/today")
-  .get(hrAuthServices.protect, getTodayFingerPrint)
-FingerPrintRout.route("/loged/:id").get(
-  hrAuthServices.protect,
-  getOneFingerPrint
-);
-FingerPrintRout.route("/salary").get(calculateSalaryFlexible);
+  .get(hrAuthServices.protectStaffOrERP, getLoggedUserFingerPrint)
+  .post(hrAuthServices.protectStaffOrERP, createLoggedFingerPrint);
 
+FingerPrintRout.post(
+  "/erp-to-staff",
+  hrAuthServices.protectERP,
+  hrAuthServices.erpToStaffPortal,
+);
+
+FingerPrintRout.route("/logged/today").get(
+  hrAuthServices.protectStaffOrERP,
+  getTodayFingerPrint,
+);
+
+FingerPrintRout.route("/salary").get(
+  hrAuthServices.protectStaffOrERP,
+  calculateSalaryFlexible,
+);
+
+/**
+ * 🏢 ERP Admin only
+ */
 FingerPrintRout.route("/")
   .get(authService.protect, getFingerPrint)
   .post(authService.protect, createFingerPrint);
@@ -35,4 +46,5 @@ FingerPrintRout.route("/:id")
   .get(authService.protect, getOneFingerPrint)
   .delete(authService.protect, deleteFingerprint)
   .put(authService.protect, updateFingerPrint);
+
 module.exports = FingerPrintRout;
