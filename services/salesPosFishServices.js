@@ -22,6 +22,7 @@ const salesPointModel = require("../models/salesPointModel");
 const returnOrderModel = require("../models/returnOrderModel");
 const counterModel = require("../models/Settings/counterModel");
 const { createProductBatch } = require("./productBatchServices");
+const prodcutBatchModel = require("../models/prodcutBatchModel");
 
 // @desc    Create cash order from the POS page
 // @route   POST /api/salse-pos
