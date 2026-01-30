@@ -1,7 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const salsePointModel = require("../models/salesPointModel");
 
-
 exports.createSalesPoint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
@@ -38,6 +37,7 @@ exports.getOneSalePoint = asyncHandler(async (req, res, next) => {
   const sales = await salsePointModel
     .findOne({ _id: id, companyId })
     .populate("salesPointCurrency");
+
   res.status(200).json({ status: "success", data: sales });
 });
 
@@ -54,7 +54,7 @@ exports.updateSalePoint = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   res.status(200).json({ status: "success", data: sales });
 });
@@ -67,11 +67,11 @@ exports.openAndCloseSalePoint = asyncHandler(async (req, res, next) => {
   }
 
   const { id } = req.params;
-  const open = await salesPointModel.findOneAndUpdate(
+  const open = await salsePointModel.findOneAndUpdate(
     { _id: id, companyId },
     {
       isOpen: req.body.isOpen,
-    }
+    },
   );
 
   // if (req.body.isOpen === false) {

@@ -20,6 +20,8 @@ const stockSchema = require("../models/stockModel");
 const reportsFinancialFunds = require("../models/reportsFinancialFunds");
 const salesPointModel = require("../models/salesPointModel");
 const returnOrderModel = require("../models/returnOrderModel");
+const counterModel = require("../models/Settings/counterModel");
+const { createProductBatch } = require("./productBatchServices");
 
 // @desc    Create cash order from the POS page
 // @route   POST /api/salse-pos
@@ -36,9 +38,9 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1
+    date_ob.getMonth() + 1,
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
   const cartItems = req.body.cartItems;
   req.body.date = date;
@@ -74,14 +76,11 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     return next(new ApiError("The cart is empty", 400));
   }
 
-  const { paymentInFundCurrency, salesPoint, financialFund } = req.body;
-  req.body.employee = req.user.name;
+  const { salesPoint, financialFund } = req.body;
   const stockID = req.body.stock;
   req.body.returnCartItem = req.body.cartItems;
   // Get next counter
   let nextCounter = 0;
-  const nextCounterPayment =
-    (await paymentModel.countDocuments({ companyId })) + 1;
 
   let order;
   await salsePointModel.findOneAndUpdate(
@@ -89,79 +88,16 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     {
       $inc: { sold: 1 },
     },
-    { new: true }
+    { new: true },
   );
-  if (req.body.customarId) {
-    nextCounter = (await orderModel.countDocuments({ companyId })) + 1;
-    req.body.counter = Number(req.body.counter) + nextCounter;
-    const customers = await customersModel.findOneAndUpdate(
-      { _id: req.body.customarId, companyId },
-      { $inc: { total: paymentInFundCurrency } },
-      { new: true }
-    );
-    req.body.customer = {
-      id: req.body.customarId,
-      name: customers.name,
-      phone: customers.phone,
-      email: customers.email,
-      address: customers.address,
-      company: customers.company,
-      taxAdministration: customers.taxAdministration,
-      taxNumber: customers.taxNumber,
-      country: customers.country,
-      city: customers.city,
-    };
-    req.body.cartItems.map((item) => {
-      item.sellingPrice = item.sellingPriceBeforTax;
-    });
 
-    req.body.invoicesItems = req.body.cartItems;
-    req.body.invoiceDiscount = req.body.invoiceDiscount;
-    req.body.manuallInvoiceDiscountValue = req.body.manuallInvoiceDiscountValue;
+  nextCounter = (await posReceiptsModel.countDocuments({ companyId })) + 1;
+  // Create order
+  req.body.invoiceGrandTotal = parseFloat(req.body.invoiceGrandTotal);
+  req.body.salesPoint = salesPoint;
+  req.body.counter = Number(req.body.counter) + nextCounter;
 
-    if (req.body.couponType === "") {
-      req.body.manuallInvoiceDiscountValue = 0;
-    }
-    req.body.invoiceGrandTotal = parseFloat(req.body.invoiceGrandTotal);
-    req.body.type = "sales-pos";
-    req.body.invoiceSubTotal =
-      parseFloat(req.body.invoiceSubTotal) +
-      parseFloat(req.body.manuallInvoiceDiscountValue);
-    order = await orderModel.create(req.body);
-    await createPaymentHistory(
-      "invoice",
-      new Date().toISOString(),
-      paymentInFundCurrency,
-      customers.TotalUnpaid,
-      "customer",
-      req.body.customarId,
-      nextCounter,
-      companyId
-    );
-    await createPaymentHistory(
-      "payment",
-      new Date().toISOString(),
-      paymentInFundCurrency,
-      customers.TotalUnpaid,
-      "customer",
-      req.body.customarId,
-      nextCounter,
-      companyId,
-      req.body.paymentDescription,
-      counter + nextCounterPayment
-    );
-    req.body.invoiceSubTotal =
-      parseFloat(req.body.invoiceSubTotal) -
-      parseFloat(req.body.manuallInvoiceDiscountValue);
-  } else {
-    nextCounter = (await posReceiptsModel.countDocuments({ companyId })) + 1;
-    // Create order
-    req.body.invoiceGrandTotal = parseFloat(req.body.invoiceGrandTotal);
-    req.body.salesPoint = salesPoint;
-    req.body.counter = Number(req.body.counter) + nextCounter;
-
-    order = await posReceiptsModel.create(req.body);
-  }
+  order = await posReceiptsModel.create(req.body);
 
   const financialFundsMap = {};
   const bulkUpdates = [];
@@ -271,58 +207,110 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     await FinancialFundsModel.bulkWrite(bulkUpdates);
   }
   // Product movements
-  cartItems.map(async (item) => {
-    const product = await productModel.findOne({ _id: item.id });
+  for (const item of cartItems) {
+    const product = await productModel.findById(item.id);
+    if (!product || product.type === "Service") continue;
 
-    if (product && product.type !== "Service") {
-      const stockEntryIndex = product.stocks.findIndex(
-        (stock) => stock.stockId.toString() === stockID.toString()
-      );
-      if (stockEntryIndex !== -1) {
-        // Update product model
-        const updatedProduct = await productModel.findOneAndUpdate(
-          {
-            _id: item.id,
-            "stocks.stockId": stockID,
-            companyId,
-          },
-          {
-            $inc: {
-              "stocks.$.productQuantity": -item.soldQuantity,
-              sold: item.soldQuantity,
-              soldByMonth: item.soldQuantity,
-              soldByWeek: item.soldQuantity,
-            },
-          },
-          { new: true }
-        );
-        const totalStockQuantity = updatedProduct.stocks.reduce(
-          (total, stock) => total + stock.productQuantity,
-          0
-        );
+    const soldQty = Number(item.soldQuantity);
 
-        await createProductMovement(
-          product._id,
-          order.id,
-          totalStockQuantity,
-          item.soldQuantity,
-          0,
-          0,
-          "movement",
-          "out",
-          "POS Receipt",
-          companyId,
-          "",
-          "",
-          "",
-          item.buyingpriceMainCurrence,
-          item.taxValue / item.soldQuantity + item.sellingPrice,
-          stockID
-        );
-      }
+    const oldQty = product.stocks.reduce(
+      (t, s) => t + (s.productQuantity || 0),
+      0,
+    );
+
+    if (soldQty > oldQty) {
+      throw new ApiError("Insufficient stock", 400);
     }
-  });
 
+    let qtyToSell = soldQty;
+    const fifoMovements = [];
+
+    const batches = await prodcutBatchModel
+      .find({
+        productId: item.id,
+        companyId,
+        stockId: stockID,
+        remaining: { $gt: 0 },
+      })
+      .sort({ createdAt: 1 });
+
+    for (const batch of batches) {
+      if (qtyToSell <= 0) break;
+
+      const usedQty = Math.min(batch.remaining, qtyToSell);
+
+      batch.remaining -= usedQty;
+      await batch.save();
+
+      qtyToSell -= usedQty;
+
+      fifoMovements.push({
+        quantity: usedQty,
+        costBuyingPrice: batch.costBuyingPrice,
+        batchId: batch._id,
+      });
+    }
+
+    if (qtyToSell > 0) {
+      throw new ApiError("Not enough batch stock", 400);
+    }
+
+    let soldTotalCost = 0;
+
+    // ✅ Create movements PER BATCH
+    for (const fm of fifoMovements) {
+      await createProductMovement({
+        productId: product._id,
+        reference: order._id,
+        quantity: fm.quantity,
+        movementType: "out",
+        source: "POS Receipt",
+        companyId,
+        outPrice: fm.costBuyingPrice,
+        stockId: stockID,
+        sellingPrice: item.sellingPrice,
+      });
+
+      soldTotalCost += fm.quantity * fm.costBuyingPrice;
+    }
+
+    // 🔄 Recalculate avg cost
+    const remainingBatches = await prodcutBatchModel.find({
+      productId: item.id,
+      companyId,
+      stockId: stockID,
+      remaining: { $gt: 0 },
+    });
+
+    let remainingQty = 0;
+    let remainingCost = 0;
+
+    for (const batch of remainingBatches) {
+      remainingQty += batch.remaining;
+      remainingCost += batch.remaining * (batch.costBuyingPrice || 0);
+    }
+
+    const newAvgCost = remainingQty > 0 ? remainingCost / remainingQty : 0;
+
+    // 📦 Update product stock
+    await productModel.updateOne(
+      {
+        _id: item.id,
+        "stocks.stockId": stockID,
+      },
+      {
+        $inc: {
+          "stocks.$.productQuantity": -soldQty,
+          sold: soldQty,
+          soldByMonth: soldQty,
+          soldByWeek: soldQty,
+        },
+        $set: {
+          costBuyingPrice: newAvgCost,
+        },
+      },
+    );
+  }
   // Wait for all promises to resolve
 
   // Save financial funds and respond
@@ -332,7 +320,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     order._id,
     "create",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
   res.status(201).json({ status: "success", data: order, history });
 });
@@ -542,7 +530,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!order) {
@@ -623,7 +611,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
     const product = await productModel.findOne({ qr: item.qr });
     const totalStockQuantity = product.stocks.reduce(
       (total, stock) => total + stock.productQuantity,
-      0
+      0,
     );
     await createProductMovement(
       product._id,
@@ -640,7 +628,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
       "",
       "",
       item.sellingPrice + item.taxValue / item.soldQuantity,
-      item.buyingpriceMainCurrence
+      item.buyingpriceMainCurrence,
     );
   });
 
@@ -649,7 +637,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
 
   res.status(200).json({
@@ -666,159 +654,247 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  req.body.companyId = companyId;
-  const financialFundsId = req.body.financailFund.id;
-  const financialFunds = await FinancialFundsModel.findOne({
-    _id: financialFundsId,
-  });
-  const orderId = req.body.orderId;
-  const orders = await posReceiptsModel.findOne({ _id: orderId, companyId });
 
-  // Helper function to pad zero
-  const padZero = (value) => (value < 10 ? `0${value}` : value);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  const currentDateTime = new Date();
-  const formattedDate = `${currentDateTime.getFullYear()}-${padZero(
-    currentDateTime.getMonth() + 1
-  )}-${padZero(currentDateTime.getDate())}T${padZero(
-    currentDateTime.getHours()
-  )}:${padZero(currentDateTime.getMinutes())}:${padZero(
-    currentDateTime.getSeconds()
-  )}.${currentDateTime.getMilliseconds()}Z`;
+  try {
+    req.body.companyId = companyId;
 
-  req.body.paidAt = formattedDate;
-  req.body.employee = req.user.name;
-  const nextCounterRefund =
-    (await refundPosSales.countDocuments({ companyId })) + 1;
-  req.body.counter = Number(req.body.counter) + nextCounterRefund;
-  req.body.salesPoint = orders.salesPoint;
-  req.body.receipt = orders.counter;
-  const order = await refundPosSales.create(req.body);
+    const financialFundsId = req.body.financailFund.id;
 
-  const bulkUpdateOptions = req.body.cartItems.map((item) => ({
-    updateOne: {
-      filter: { qr: item.qr, "stocks.stockId": item.stock._id, companyId },
-      update: {
-        $inc: {
-          soldQuantity: +item.soldQuantity,
-          "stocks.$.productQuantity": +item.soldQuantity,
+    const financialFunds = await FinancialFundsModel.findOne({
+      _id: financialFundsId,
+    }).session(session);
+
+    const orderId = req.body.orderId;
+
+    const orders = await posReceiptsModel
+      .findOne({ _id: orderId, companyId })
+      .session(session);
+    console.log(orders);
+
+    // Helper function to pad zero
+    const padZero = (value) => (value < 10 ? `0${value}` : value);
+
+    const currentDateTime = new Date();
+    const formattedDate = `${currentDateTime.getFullYear()}-${padZero(
+      currentDateTime.getMonth() + 1,
+    )}-${padZero(currentDateTime.getDate())}T${padZero(
+      currentDateTime.getHours(),
+    )}:${padZero(currentDateTime.getMinutes())}:${padZero(
+      currentDateTime.getSeconds(),
+    )}.${currentDateTime.getMilliseconds()}Z`;
+
+    req.body.paidAt = formattedDate;
+    req.body.employee = req.user.name;
+
+    const nextCounterRefund = await counterModel.findOneAndUpdate(
+      { companyId, name: "posRefund" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session },
+    );
+
+    // const nextCounterRefund =
+    //   (await refundPosSales.countDocuments({ companyId }).session(session)) + 1;
+
+    req.body.counter = Number(req.body.counter) + nextCounterRefund.seq;
+    req.body.salesPoint = orders.salesPoint;
+    req.body.receipt = orders.counter;
+    req.body.stock = orders.stock; // add this BEFORE create()
+
+    // ✅ IMPORTANT FIX: create inside transaction using ARRAY form
+    const [order] = await refundPosSales.create([req.body], { session });
+    console.log(orders.stock);
+
+    const bulkUpdateOptions = req.body.cartItems.map((item) => ({
+      updateOne: {
+        filter: { _id: item.id, "stocks.stockId": orders.stock, companyId },
+        update: {
+          $inc: { "stocks.$.productQuantity": +item.soldQuantity },
         },
       },
-    },
-  }));
+    }));
 
-  await productModel.bulkWrite(bulkUpdateOptions);
+    await productModel.bulkWrite(bulkUpdateOptions, { session });
 
-  financialFunds.fundBalance -= req.body.paymentInFundCurrency;
-  await financialFunds.save();
+    financialFunds.fundBalance -= req.body.paymentInFundCurrency;
+    await financialFunds.save({ session });
 
-  await reportsFinancialFunds.create({
-    date: req.body.paidAt,
-    amount: req.body.paymentInFundCurrency,
-    ref: order._id,
-    type: "refund-POS-Receipts",
-    financialFundId: financialFundsId,
-    financialFundRest: financialFunds.fundBalance,
-    exchangeRate: req.body.exchangeRate,
-    paymentType: "Withdrawal",
-    payment: null,
-    companyId,
-  });
+    await reportsFinancialFunds.create(
+      [
+        {
+          date: req.body.paidAt,
+          amount: req.body.paymentInFundCurrency,
+          ref: order._id,
+          type: "refund-POS-Receipts",
+          financialFundId: financialFundsId,
+          financialFundRest: financialFunds.fundBalance,
+          exchangeRate: req.body.exchangeRate,
+          paymentType: "Withdrawal",
+          payment: null,
+          companyId,
+        },
+      ],
+      { session },
+    );
 
-  const returnCartItemUpdates = req.body.cartItems
-    .map((incomingItem) => {
-      const matchingIndex = orders.returnCartItem.findIndex(
-        (item) => item.qr === incomingItem.qr
-      );
+    const returnCartItemUpdates = req.body.cartItems
+      .map((incomingItem) => {
+        const matchingIndex = orders.returnCartItem.findIndex(
+          (item) => item.id === incomingItem.id,
+        );
 
-      if (matchingIndex !== -1) {
-        const newQuantity =
-          orders.returnCartItem[matchingIndex].soldQuantity -
-          incomingItem.soldQuantity;
-        const newtotal =
-          orders.returnCartItem[matchingIndex].total - incomingItem.total;
-        const newsubtotal =
-          orders.returnCartItem[matchingIndex].totalWithoutTax -
-          incomingItem.totalWithoutTax;
-        const newTaxValue =
-          orders.returnCartItem[matchingIndex].taxValue - incomingItem.taxValue;
-        return {
-          updateOne: {
-            filter: { _id: orderId, companyId },
-            update: {
-              $set: {
-                [`returnCartItem.${matchingIndex}.soldQuantity`]: newQuantity,
-                [`returnCartItem.${matchingIndex}.total`]: newtotal,
-                [`returnCartItem.${matchingIndex}.totalWithoutTax`]:
-                  newsubtotal,
-                [`returnCartItem.${matchingIndex}.taxValue`]: newTaxValue,
-                isRefund: true,
+        if (matchingIndex !== -1) {
+          const newQuantity =
+            orders.returnCartItem[matchingIndex].soldQuantity -
+            incomingItem.soldQuantity;
+          const newtotal =
+            orders.returnCartItem[matchingIndex].total - incomingItem.total;
+          const newsubtotal =
+            orders.returnCartItem[matchingIndex].totalWithoutTax -
+            incomingItem.totalWithoutTax;
+          const newTaxValue =
+            orders.returnCartItem[matchingIndex].taxValue -
+            incomingItem.taxValue;
+
+          return {
+            updateOne: {
+              filter: { _id: orderId, companyId },
+              update: {
+                $set: {
+                  [`returnCartItem.${matchingIndex}.soldQuantity`]: newQuantity,
+                  [`returnCartItem.${matchingIndex}.total`]: newtotal,
+                  [`returnCartItem.${matchingIndex}.totalWithoutTax`]:
+                    newsubtotal,
+                  [`returnCartItem.${matchingIndex}.taxValue`]: newTaxValue,
+                  isRefund: true,
+                },
               },
             },
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    await posReceiptsModel.bulkWrite(returnCartItemUpdates, { session });
+
+    const movementMap = new Map();
+    const originalItems = orders.cartItems;
+
+    req.body.cartItems.forEach((item, index) => {
+      if (item.type === "unTracedproduct" || item.type === "expense") return;
+
+      const diff = item.soldQuantity - originalItems[index].soldQuantity;
+      if (!movementMap.has(item.id)) {
+        movementMap.set(item.id, { ...item, quantityDiff: diff });
+      } else {
+        const existing = movementMap.get(item.id);
+        existing.quantityDiff += diff;
+      }
+    });
+
+    for (const item of originalItems) {
+      if (item.type === "unTracedproduct" || item.type === "expense") continue;
+
+      const product = await productModel
+        .findOne({ _id: item.id, "stocks.stockId": orders.stock })
+        .session(session);
+
+      if (!product) continue;
+
+      const returnedQty = Number(item.soldQuantity);
+      const returnedCost = Number(item.orginalBuyingPrice);
+
+      const oldQty = product.stocks.reduce(
+        (total, stock) => total + (stock.productQuantity || 0),
+        0,
+      );
+
+      const oldAvgCost = product.costBuyingPrice;
+      const newQty = oldQty + returnedQty;
+
+      const newAvgCost =
+        newQty > 0
+          ? (oldQty * oldAvgCost + returnedQty * returnedCost) / newQty
+          : oldAvgCost;
+
+      bulkUpdateOptions.push({
+        updateOne: {
+          filter: { _id: item.id, "stocks.stockId": order.stock },
+          update: {
+            $inc: { "stocks.$.productQuantity": returnedQty },
+            $set: { costBuyingPrice: Number(newAvgCost) },
           },
-        };
-      }
-
-      return null;
-    })
-    .filter(Boolean);
-
-  await posReceiptsModel.bulkWrite(returnCartItemUpdates);
-
-  const movementMap = new Map();
-  const originalItems = orders.cartItems;
-  req.body.cartItems.forEach((item, index) => {
-    if (item.type === "unTracedproduct" || item.type === "expense") return;
-
-    const diff = item.soldQuantity - originalItems[index].soldQuantity;
-    if (!movementMap.has(item.qr)) {
-      movementMap.set(item.qr, { ...item, quantityDiff: diff });
-    } else {
-      const existing = movementMap.get(item.qr);
-      existing.quantityDiff += diff;
+        },
+      });
     }
-  });
 
-  await Promise.all(
-    Array.from(movementMap.entries()).map(async ([qr, item]) => {
-      const product = await productModel.findOne({ qr, companyId });
+    await Promise.all(
+      Array.from(movementMap.entries()).map(async ([id, item]) => {
+        const product = await productModel
+          .findOne({ _id: id, companyId })
+          .session(session);
 
-      if (product && product.type !== "Service") {
-        const totalStockQuantity = product.stocks.reduce(
-          (total, stock) => total + stock.productQuantity,
-          0
-        );
+        if (product && product.type !== "Service") {
+          const totalStockQuantity = product.stocks.reduce(
+            (total, stock) => total + (stock.productQuantity || 0),
+            0,
+          );
 
-        await createProductMovement(
-          product._id,
-          order._id,
-          totalStockQuantity,
-          item.soldQuantity,
-          0,
-          0,
-          "movement",
-          "in",
-          "Refund POS Receipt",
-          companyId
-        );
-      }
-    })
-  );
+          // ✅ RECOMMENDED: add session support in these helpers if you can
+          await createProductMovement({
+            productId: product._id,
+            reference: order._id,
+            newQuantity: totalStockQuantity,
+            quantity: item.soldQuantity,
+            movementType: "in",
+            source: "Refund POS Receipt",
+            companyId,
+            enterPrice: item.orginalBuyingPrice,
+            stockId: item.stock._id,
+            // session, // <-- only if your helper supports it
+          });
 
-  const history = createInvoiceHistory(
-    companyId,
-    orderId,
-    "return",
-    req.user._id,
-    req.body.paidAt
-  );
+          await createProductBatch({
+            productId: product.id,
+            companyId,
+            stockId: item.stock._id,
+            quantity: item.soldQuantity,
+            buyingprice: item.orginalBuyingPrice,
+            sourceId: order._id,
+            costBuyingPrice: item.costBuyingPrice,
+            referenceType: "Refund POS Receipt",
+            // session, // <-- only if your helper supports it
+          });
+        }
+      }),
+    );
 
-  res.status(200).json({
-    status: "success",
-    message: "The product has been returned",
-    data: order,
-    history,
-  });
+    const history = createInvoiceHistory(
+      companyId,
+      orderId,
+      "return",
+      req.user._id,
+      req.body.paidAt,
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      status: "success",
+      message: "The product has been returned",
+      data: order,
+      history,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    next(err);
+  }
 });
 
 // @desc    Get All order
@@ -903,9 +979,9 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1
+    date_ob.getMonth() + 1,
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
 
   const { id } = req.params;
@@ -945,7 +1021,7 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
       const product = await productModel.findOne({ qr: item.qr });
       if (product && product.type !== "Service") {
         const stockEntry = product.stocks.find(
-          (stock) => stock.stockId === stockId
+          (stock) => stock.stockId === stockId,
         );
 
         if (stockEntry) {
@@ -963,7 +1039,7 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
             "cancel",
             companyId,
             item.taxValue + item.totalWithoutTax,
-            item.buyingpriceMainCurrence
+            item.buyingpriceMainCurrence,
           );
           await product.save();
         }
@@ -977,7 +1053,7 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
         date: date,
         counter: "cancel " + canceled.counter,
       },
-      { new: true }
+      { new: true },
     );
 
     createInvoiceHistory(companyId, id, "cancel", req.user._id, date);
@@ -1173,9 +1249,9 @@ exports.mergeRefundReceipts = asyncHandler(async (req, res, next) => {
   const date_ob = new Date(ts);
 
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1
+    date_ob.getMonth() + 1,
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
 
   const aggregatedFunds = Array.from(financialFundsMap.values());

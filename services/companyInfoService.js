@@ -1090,17 +1090,39 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     await expensesCategoryModel.insertMany(newCategorExpense, { session });
 
     //---Sales Point
+
     const salesPoints = await salesPointModel
       .find({ companyId })
       .session(session);
 
-    const newSalesPoints = salesPoints.map((salesPoint) => ({
-      ...salesPoint.toObject(),
-      _id: undefined,
-      companyId: newCompanyId,
-    }));
+    const bulkpoint = salesPoints.map((point) => {
+      const newSalesPoints = (point.stock || [])
+        .map((st) => {
+          const newStockId = stockMap.get(st.id?.toString());
+          if (!newStockId) return null;
 
-    await salesPointModel.insertMany(newSalesPoints, { session });
+          return {
+            id: newStockId,
+            name: st.name,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        updateOne: {
+          filter: { _id: point._id },
+          update: {
+            $set: {
+              stock: newSalesPoints,
+            },
+          },
+        },
+      };
+    });
+
+    if (bulkpoint.length) {
+      await salesPointModel.bulkWrite(bulkpoint, { session });
+    }
 
     await BeginningInvoice({
       companyId,

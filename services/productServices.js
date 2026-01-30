@@ -683,10 +683,6 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
       0,
     );
 
-    // Check if quantity or price has changed
-    const quantityChanged = totalQuantity !== req.body.totalQuantity;
-    const priceChanged = existingProduct.buyingprice !== req.body.buyingprice;
-
     // Update product in the database
     const product = await productModel.findOneAndUpdate(
       { _id: id, companyId },
