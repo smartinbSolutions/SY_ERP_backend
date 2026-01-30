@@ -69,6 +69,7 @@ exports.getBrands = asyncHandler(async (req, res, next) => {
 // Create Brand
 exports.createBrand = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
+  
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

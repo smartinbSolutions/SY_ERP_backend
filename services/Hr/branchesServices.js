@@ -79,6 +79,7 @@ exports.createBranch = asyncHandler(async (req, res, next) => {
 
   const branchData = {
     name: req.body.name,
+    routers: req.body.routers,
     AlternativeName: req.body.AlternativeName,
     location: req.body.location,
     email: req.body.email,
@@ -113,7 +114,7 @@ exports.updateBranch = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!branch) {

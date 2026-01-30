@@ -15,7 +15,11 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
       // session: false,
     })
       .populate({ path: "position", select: "name -_id" })
-      .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" });
+      .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" })
+      .populate("branch")
+      .populate("department")
+      .populate("groupId")
+      .populate("roleId");
 
     if (!user) {
       return next(
@@ -24,7 +28,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     }
     user.session = true;
     await user.save();
-    // Check password
+    // Check passwords
     const passwordMatch = await bcrypt.compare(
       req.body.password,
       user.password,
@@ -179,19 +183,9 @@ exports.protectERP = asyncHandler(async (req, res, next) => {
 });
 
 exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
-  const { email: bodyEmail, companyId: bodyCompanyId } = req.body;  
-  const { email: erpEmail, companyId: erpCompanyId } = req.erpUser;
+  const { email, companyId } = req.erpUser;
 
-  if (bodyEmail !== erpEmail || bodyCompanyId !== erpCompanyId) {
-    return next(
-      new ApiError("Mismatch between ERP user and request data", 403),
-    );
-  }
-
-  const staff = await StaffsModel.findOne({
-    email: erpEmail,
-    companyId: erpCompanyId,
-  });
+  const staff = await StaffsModel.findOne({ email, companyId });
 
   if (!staff) {
     return next(new ApiError("You are not registered as staff", 403));
@@ -202,6 +196,7 @@ exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: true,
     token: staffToken,
+    data: staff,
   });
 });
 

@@ -4,6 +4,13 @@ const branchesSchema = new mongoose.Schema(
   {
     name: String,
     AlternativeName: String,
+    routers: [
+      {
+        name: { type: String },
+        bssid: { type: String },
+        isActive: { type: Boolean },
+      },
+    ],
     location: {
       name: String,
       latitude: {
@@ -22,7 +29,7 @@ const branchesSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("branches", branchesSchema);

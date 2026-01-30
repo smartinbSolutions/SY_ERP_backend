@@ -11,6 +11,7 @@ const brandSchema = new mongoose.Schema({
   nameTR: {
     type: String,
   },
+ 
   ecommerceVisible: {
     type: Boolean,
     default: true,
@@ -30,7 +31,7 @@ const brandSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
-  oldId:String,
+  oldId: String,
 });
 const setImageURL = (doc) => {
   if (doc.image) {
