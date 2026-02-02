@@ -7,15 +7,16 @@ const leavesSchema = new mongoose.Schema(
     isPaid: Boolean,
     deduction: Number,
     attachment: Boolean,
+    days: String,
     notes: String,
     companyId: {
       type: String,
-      required: true, 
+      required: true,
       index: true,
     },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("leaves", leavesSchema);

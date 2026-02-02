@@ -30,6 +30,20 @@ const StaffSchema = new mongoose.Schema(
     gender: {
       String,
     },
+    leaveBalances: [
+      {
+        leaveType: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "leaves",
+          required: true,
+        },
+        remainingDays: {
+          type: Number,
+          required: true,
+        },
+        _id: false,
+      },
+    ],
 
     nationality: String,
     maritalStatus: String,
@@ -165,7 +179,7 @@ const StaffSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 /* ================= FILE URL FORMATTER ================= */
