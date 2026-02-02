@@ -655,11 +655,12 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
     const journalMap = new Map();
     journalSums.forEach((j) => {
-      journalMap.set(j._id, {
+      journalMap.set(j._id?.toString(), {
         debtor: j.totalDebit,
         creditor: j.totalCredit,
       });
     });
+
     const insertCurrencies = await currencyModel.insertMany(newCurrencies, {
       session,
     });
@@ -667,16 +668,22 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     newCurrencies.forEach((cur, index) => {
       currencyMap.set(cur.oldCurrency.toString(), insertCurrencies[index]._id);
     });
-
+    let chackDateBalanceDebtor = 0;
+    let chackDateBalanceCreditor = 0;
     const newAccounts = await Promise.all(
       accounts.map(async (account) => {
         const isBalanceSheet = account.finalAccount === "Balance Sheet";
 
-        const sums = journalMap.get(account._id) || {
+        const sums = journalMap.get(account._id.toString()) || {
           debtor: 0,
           creditor: 0,
         };
 
+        const debtor = Number(sums.debtor) || 0;
+        const creditor = Number(sums.creditor) || 0;
+
+        chackDateBalanceDebtor += debtor;
+        chackDateBalanceCreditor += creditor;
         return {
           ...account.toObject(),
           _id: undefined,
@@ -783,10 +790,12 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         (sum, acc) => sum + acc.MainCredit,
         0,
       );
-
-      if (debit.toFixed(4) !== credit.toFixed(4)) {
+      if (
+        chackDateBalanceDebtor.toFixed(4) !==
+        chackDateBalanceCreditor.toFixed(4)
+      ) {
         throw new ApiError(
-          `Opening balance journal not balanced (Debit: ${debit}, Credit: ${credit})`,
+          `Opening balance journal not balanced (Debit: ${chackDateBalanceDebtor}, Credit: ${chackDateBalanceCreditor}), `,
           405,
         );
       }
@@ -1094,9 +1103,9 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const salesPoints = await salesPointModel
       .find({ companyId })
       .session(session);
-
-    const bulkpoint = salesPoints.map((point) => {
-      const newSalesPoints = (point.stock || [])
+    const stockArr = Array.isArray(point?.stock) ? point.stock : [];
+    const bulkpoint = stockArr.map((point) => {
+      const newSalesPoints = (point?.stock || [])
         .map((st) => {
           const newStockId = stockMap.get(st.id?.toString());
           if (!newStockId) return null;
