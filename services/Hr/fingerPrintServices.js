@@ -63,6 +63,7 @@ exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+  console.log("req.user.id:", req.user.id);
   const totalItems = await fingerPrintModel.countDocuments({
     userID: req.user.id,
     companyId,

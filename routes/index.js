@@ -95,6 +95,7 @@ const filesRoute = require("./Hr/filesRoute");
 const staffFilesRoute = require("./Hr/staffFilesRoute");
 const leavesRoute = require("./Hr/leavesRoute");
 const ReconciliationRoute = require("./Stocks/reconciliation/reconciliationRoute");
+const leaveRequestRoutes = require("./Hr/leaveRequestRoutes");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -184,6 +185,7 @@ const mountRoutes = (app) => {
   app.use("/api/files", filesRoute);
   app.use("/api/staff-files", staffFilesRoute);
   app.use("/api/leaves", leavesRoute);
+  app.use("/api/leave-request", leaveRequestRoutes)
 
   //Payment
   app.use("/api", paytrRouter);

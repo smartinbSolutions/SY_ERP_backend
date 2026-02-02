@@ -185,7 +185,15 @@ exports.protectERP = asyncHandler(async (req, res, next) => {
 exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
   const { email, companyId } = req.erpUser;
 
-  const staff = await StaffsModel.findOne({ email, companyId });
+  const staff = await StaffsModel.findOne({ email, companyId })
+  .populate("branch")
+    .populate({
+    path: "groupId",
+    populate: {
+      path: "leaveType",
+      model: "leaves" 
+    }
+  });
 
   if (!staff) {
     return next(new ApiError("You are not registered as staff", 403));
