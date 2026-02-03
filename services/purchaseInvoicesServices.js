@@ -16,6 +16,8 @@ const unTracedproductLogModel = require("../models/unTracedproductLogModel");
 const multer = require("multer");
 const ShortageModel = require("../models/ShortageModel");
 const { createProductBatch } = require("./productBatchServices");
+const counterModel = require("../models/Settings/counterModel");
+const prodcutBatchModel = require("../models/prodcutBatchModel");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -43,7 +45,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -203,15 +205,15 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -268,7 +270,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
   // Create a map for quick product lookups by QR code
   const productMap = new Map(
-    products.map((prod) => [prod._id.toString(), prod])
+    products.map((prod) => [prod._id.toString(), prod]),
   );
   // Prepare and update invoice items with product data
 
@@ -398,7 +400,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "purchase",
-      financailFund.code
+      financailFund.code,
     );
 
     await financialFund.save();
@@ -502,7 +504,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       (item) =>
         item.type !== "unTracedproduct" &&
         item.type !== "expense" &&
-        item.type !== "variants"
+        item.type !== "variants",
     )
     .map((item) => {
       const product = productMap.get(item.id);
@@ -510,7 +512,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       const oldQty = product.stocks.reduce(
         (total, stock) => total + stock.productQuantity || 0,
-        0
+        0,
       );
 
       const oldCost = product.costBuyingPrice || 0;
@@ -614,7 +616,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       (item) =>
         item.type !== "unTracedproduct" &&
         item.type !== "expense" &&
-        item.type !== "variants"
+        item.type !== "variants",
     )
     .map((item) => ({
       updateOne: {
@@ -664,7 +666,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
         const totalStockQuantity = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity || 0,
-          0
+          0,
         );
 
         await createProductMovement({
@@ -691,7 +693,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           exchangeRate: item.exchangeRate,
           referenceType: "purchase",
         });
-      })
+      }),
     );
   }
 
@@ -739,7 +741,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       "",
       "",
       "",
-      currency.currencyCode
+      currency.currencyCode,
     );
   }
 
@@ -748,13 +750,13 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     newPurchaseInvoice._id,
     "create",
     req.user._id,
-    req.body.date
+    req.body.date,
   );
 
   if (req.body?.selectedId?.length > 0) {
     await ShortageModel.updateMany(
       { _id: { $in: req.body.selectedId } },
-      { status: "done" }
+      { status: "done" },
     );
   }
   res.status(201).json({
@@ -792,13 +794,13 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
   const futureDateOb = new Date(ts);
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
   const formattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
   const formattedDatePurchase = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   const isoDate = `${req.body.paymentDate}T${formattedDate}Z`;
@@ -854,7 +856,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         (item) =>
           item.type !== "unTracedproduct" &&
           item.type !== "expense" &&
-          item.type !== "variants"
+          item.type !== "variants",
       )
       .forEach((item) => {
         bulkProductUpdatesOriginal.push({
@@ -895,7 +897,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     // Applying quantities of updated items
     updatedItems
       .filter(
-        (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+        (item) => item.type !== "unTracedproduct" && item.type !== "expense",
       )
       .forEach((item) => {
         const filterForUpdate = {
@@ -938,7 +940,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
 
         bulkProductUpdatesNew.push(
           { updateOne: { filter: filterForUpdate, update: updateIfExists } },
-          { updateOne: { filter: filterForInsert, update: updateIfMissing } }
+          { updateOne: { filter: filterForInsert, update: updateIfMissing } },
         );
       });
 
@@ -999,7 +1001,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
               update: updateIfMissingVariant,
               arrayFilters: [{ "v.qr": item.qr }],
             },
-          }
+          },
         );
       });
 
@@ -1077,7 +1079,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         companyId,
         isDraft: false,
       },
-      { new: true }
+      { new: true },
     );
 
     payment = await PaymentModel.create({
@@ -1170,7 +1172,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "purchase",
-      financailFund.code
+      financailFund.code,
     );
   } else if (paid === "unpaid" && !invoiceDraft) {
     if (
@@ -1230,7 +1232,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         companyId,
         isDraft: false,
       },
-      { new: true }
+      { new: true },
     );
   } else if (paid === "unpaid" && invoiceDraft) {
     newPurchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
@@ -1269,7 +1271,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         companyId,
         isDraft: true,
       },
-      { new: true }
+      { new: true },
     );
   } else {
     console.log("Invalid paid status or draft condition");
@@ -1282,7 +1284,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       companyId,
     });
     const productMap = new Map(
-      products.map((prod) => [prod._id.toString(), prod])
+      products.map((prod) => [prod._id.toString(), prod]),
     );
     const movementMap = new Map();
 
@@ -1320,7 +1322,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
 
         const totalStockQuantity = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity || 0,
-          0
+          0,
         );
 
         await createProductMovement({
@@ -1349,7 +1351,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
             referenceType: "purchase",
           });
         }
-      })
+      }),
     );
   }
 
@@ -1358,7 +1360,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
 
   res.status(200).json({
@@ -1396,7 +1398,7 @@ exports.patchPurchaseInvoice = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
 
   res.status(200).json({
@@ -1406,399 +1408,534 @@ exports.patchPurchaseInvoice = asyncHandler(async (req, res, next) => {
   });
 });
 
+const mongoose = require("mongoose");
+
 exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   req.body.companyId = companyId;
-  const nextCounterPayment =
-    (await PaymentModel.countDocuments({
-      companyId,
-      paymentText: "Deposit",
-    })) + 1;
+
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
 
-  const formattedDate = new Date().toISOString().replace("T", " ").slice(0, 19);
-  const ts = Date.now();
-
-  const futureTs = ts + 5000;
-
-  const futureDateOb = new Date(futureTs);
-  const futureDateOb2 = new Date(ts);
-
-  futureDateOb2.setSeconds(futureDateOb.getSeconds() + 1);
-
-  const futureFormattedDate = `${padZero(futureDateOb2.getHours())}:${padZero(
-    futureDateOb2.getMinutes()
-  )}:${padZero(futureDateOb2.getSeconds())}.${padZero(
-    futureDateOb2.getMilliseconds(),
-    3
-  )}`;
-  req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
-
-  const futureFormatDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
-  )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds(),
-    3
-  )}`;
-  req.body.date = `${req.body.date}T${futureFormatDate}Z`;
-
-  const {
-    supplier: suppliers,
-    paid,
-    financailFund,
-    exchangeRate,
-    totalInMainCurrency: totalPurchasePriceMainCurrency,
-    currency,
-    invoiceNumber,
-    invoiceSubTotal,
-    invoiceDiscount,
-    invoiceGrandTotal,
-    ManualInvoiceDiscount,
-    taxDetails,
-    invoiceName,
-    paymentInFundCurrency,
-    InvoiceDiscountType,
-    subtotalWithDiscount,
-    paymentDate,
-    counter,
-  } = req.body;
-
-  let supplier, invoicesItem, newPurchaseInvoice;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    invoicesItem = JSON.parse(req.body.invoicesItems);
-    supplier = await suppliersModel.findOne({ _id: suppliers.id, companyId });
-    if (!supplier) throw new Error("Supplier not found");
-  } catch (error) {
-    return res.status(400).json({ status: "error", message: error.message });
-  }
+    const nextCounterPayment = await counterModel.findOneAndUpdate(
+      { companyId, name: "payment" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session },
+    );
 
-  const productQRCodes = invoicesItem.map((item) => item.qr);
-  const products = await productModel.find({
-    qr: { $in: productQRCodes },
-    companyId,
-  });
+    const formattedDate = new Date()
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19);
+    const ts = Date.now();
 
-  // Create a map for quick product lookups by QR code
-  const productMap = new Map(products.map((prod) => [prod.qr, prod]));
-  let payment;
-  const nextCounterrefundPurchaseInvict =
-    (await refundPurchaseInviceModel.countDocuments({ companyId })) + 1;
-  // Handle invoice creation based on 'paid' status
-  if (paid === "paid") {
-    // Handle paid invoice logic
-    req.body.status = "paid";
-    if (req.body.totalRemainderMainCurrency > 0.3) {
-      req.body.paid = "unpaid";
-    }
-    const financialFund = await financialFundsModel.findOne({
-      _id: financailFund.id,
-      companyId,
-    });
+    const futureTs = ts + 5000;
+    const futureDateOb = new Date(futureTs);
+    const futureDateOb2 = new Date(ts);
 
-    if (!financialFund) throw new Error("Financial fund not found");
+    futureDateOb2.setSeconds(futureDateOb.getSeconds() + 1);
 
-    financialFund.fundBalance += paymentInFundCurrency;
+    const futureFormattedDate = `${padZero(futureDateOb2.getHours())}:${padZero(
+      futureDateOb2.getMinutes(),
+    )}:${padZero(futureDateOb2.getSeconds())}.${padZero(
+      futureDateOb2.getMilliseconds(),
+      3,
+    )}`;
 
-    newPurchaseInvoice = await refundPurchaseInviceModel.create({
-      invoicesItems: invoicesItem,
-      date: req.body.date || formattedDate,
+    req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
+
+    const futureFormatDate = `${padZero(futureDateOb.getHours())}:${padZero(
+      futureDateOb.getMinutes(),
+    )}:${padZero(futureDateOb.getSeconds())}.${padZero(
+      futureDateOb.getMilliseconds(),
+      3,
+    )}`;
+
+    req.body.date = `${req.body.date}T${futureFormatDate}Z`;
+
+    const {
       supplier: suppliers,
-      currency,
-      exchangeRate,
-      financailFund,
-      invoiceNumber,
       paid,
-      totalPurchasePriceMainCurrency,
-      invoiceSubTotal,
-      invoiceDiscount,
-      invoiceGrandTotal,
-      taxDetails,
-      invoiceName,
-      paymentInFundCurrency: paymentInFundCurrency,
-      ManualInvoiceDiscount,
-      InvoiceDiscountType,
-      subtotalWithDiscount,
-      paymentDate,
-      journalCounter: req.body.journalCounter,
-      invoiceTax: req.body.invoiceTax,
-      type: "refund purchase",
-      tag: req.body.tag,
-      totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-      totalRemainder: req.body.totalRemainder,
-      companyId,
-      counter: Number(counter) + nextCounterrefundPurchaseInvict,
-    });
-    // Use Promise.all for parallel database operations
-
-    payment = await PaymentModel.create({
-      supplierId: supplier.id,
-      supplierName: supplier.name,
-      total: req.body.paymentInInvoiceCurrency,
-      totalMainCurrency: req.body.paymentInMainCurrency,
-      paymentInFundCurrency: paymentInFundCurrency,
-      exchangeRate: financialFund.fundCurrency.exchangeRate,
-      financialFundsCurrencyCode: financailFund.code,
-      date: req.body.paymentDate || formattedDate,
-      financialFundsName: financialFund.fundName,
-      financialFundsId: financailFund.id,
-      invoiceNumber: invoiceNumber,
-      invoiceID: newPurchaseInvoice._id,
-      counter: Number(counter) + nextCounterPayment,
-      description: req.body.paymentDescription,
-      invoiceCurrencyCode: req.body.currency.currencyCode,
-      paymentText: "Deposit",
-      companyId,
-      payid: {
-        id: newPurchaseInvoice._id,
-        status: req.body.paid,
-        invoiceTotal: req.body.invoiceGrandTotal,
-        invoiceName: req.body.invoiceName,
-        invoiceCurrencyCode: req.body.currency.currencyCode,
-        paymentInFundCurrency: paymentInFundCurrency,
-        paymentMainCurrency: req.body.paymentInMainCurrency,
-        paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-      },
-    });
-
-    const reports = await reportsFinancialFunds.create({
-      date: req.body.paymentDate || formattedDate,
-      ref: newPurchaseInvoice._id,
-      amount: paymentInFundCurrency,
-      type: "refund-purchase",
-      exchangeRate,
-      financialFundId: financailFund.id,
-      financialFundRest: financialFund.fundBalance,
-      paymentType: "Deposit",
-      payment: payment._id,
-      companyId,
-    });
-    newPurchaseInvoice.payments.push({
-      payment: paymentInFundCurrency,
-      paymentMainCurrency: req.body.paymentInMainCurrency,
-      financialFunds: financialFund.fundName,
-      financialFundsCurrencyCode: req.body.financailFund.code,
-      date: req.body.paymentDate || formattedDate,
-      paymentID: payment._id,
-      paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-      financialFundsId: financailFund.id,
-    });
-
-    // Assign reports balance ID after the report is created
-    newPurchaseInvoice.reportsBalanceId = reports.id;
-    await newPurchaseInvoice.save();
-
-    // Update supplier and financial fund balances
-    supplier.total -=
-      totalPurchasePriceMainCurrency - ManualInvoiceDiscount || 0;
-    supplier.TotalUnpaid -=
-      totalPurchasePriceMainCurrency - ManualInvoiceDiscount || 0;
-    await financialFund.save();
-  } else {
-    // Handle unpaid invoice logic
-    let total = totalPurchasePriceMainCurrency - ManualInvoiceDiscount;
-
-    supplier.TotalUnpaid -= total || 0;
-
-    supplier.total -= total || 0;
-
-    newPurchaseInvoice = await refundPurchaseInviceModel.create({
-      employee: req.user._id,
-      date: req.body.date || formattedDate,
-      invoicesItems: invoicesItem,
-      supplier: suppliers,
-      currency,
-      exchangeRate,
       financailFund,
+      exchangeRate,
+      totalInMainCurrency: totalPurchasePriceMainCurrency,
+      currency,
       invoiceNumber,
-      paid: "unpaid",
-      totalPurchasePriceMainCurrency,
       invoiceSubTotal,
       invoiceDiscount,
-      totalRemainderMainCurrency: totalPurchasePriceMainCurrency,
-      totalRemainder: invoiceGrandTotal,
       invoiceGrandTotal,
+      ManualInvoiceDiscount,
       taxDetails,
       invoiceName,
-      ManualInvoiceDiscount,
+      paymentInFundCurrency,
       InvoiceDiscountType,
       subtotalWithDiscount,
       paymentDate,
-      journalCounter: req.body.journalCounter,
-      invoiceTax: req.body.invoiceTax,
-      type: "refund purchase",
-      tag: req.body.tag,
-      companyId,
-      counter: Number(counter) + nextCounterrefundPurchaseInvict,
-    });
-  }
+      counter,
+    } = req.body;
 
-  // Bulk update product quantities and stock information
-  const bulkProductUpdates = invoicesItem
-    .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
-    )
-    .map((item) => ({
-      updateOne: {
-        filter: { qr: item.qr, "stocks.stockId": item.stock._id, companyId },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": -item.quantity,
+    let supplier, invoicesItem, newPurchaseInvoice;
+    let payment;
+
+    try {
+      invoicesItem = JSON.parse(req.body.invoicesItems);
+
+      supplier = await suppliersModel
+        .findOne({ _id: suppliers.id, companyId })
+        .session(session);
+
+      if (!supplier) throw new Error("Supplier not found");
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ status: "error", message: error.message });
+    }
+
+    // products map
+    const productIds = invoicesItem
+      .filter((it) => it.type !== "unTracedproduct" && it.type !== "expense")
+      .map((item) => item.id);
+
+    const products = await productModel
+      .find({ _id: { $in: productIds }, companyId })
+      .session(session);
+
+    const productMap = new Map(
+      products.map((prod) => [prod._id.toString(), prod]),
+    );
+
+    const nextCounterrefundPurchaseInvict = await counterModel.findOneAndUpdate(
+      { companyId, name: "refundPurchaseInvoice" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session },
+    );
+
+    // إنشاء الفاتورة + الدفع حسب الحالة
+    if (paid === "paid") {
+      req.body.status = "paid";
+      if (req.body.totalRemainderMainCurrency > 0.3) {
+        req.body.paid = "unpaid";
+      }
+
+      const financialFund = await financialFundsModel
+        .findOne({ _id: financailFund.id, companyId })
+        .session(session);
+
+      if (!financialFund) throw new Error("Financial fund not found");
+
+      financialFund.fundBalance += paymentInFundCurrency;
+
+      const createdInvoices = await refundPurchaseInviceModel.create(
+        [
+          {
+            invoicesItems: invoicesItem,
+            date: req.body.date || formattedDate,
+            supplier: suppliers,
+            currency,
+            exchangeRate,
+            financailFund,
+            invoiceNumber,
+            paid,
+            totalPurchasePriceMainCurrency,
+            invoiceSubTotal,
+            invoiceDiscount,
+            invoiceGrandTotal,
+            taxDetails,
+            invoiceName,
+            paymentInFundCurrency: paymentInFundCurrency,
+            ManualInvoiceDiscount,
+            InvoiceDiscountType,
+            subtotalWithDiscount,
+            paymentDate,
+            journalCounter: req.body.journalCounter,
+            invoiceTax: req.body.invoiceTax,
+            type: "refund purchase",
+            tag: req.body.tag,
+            totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+            totalRemainder: req.body.totalRemainder,
+            companyId,
+            counter: Number(counter) + nextCounterrefundPurchaseInvict.seq,
           },
-          $set: { buyingprice: item.orginalBuyingPrice },
-        },
-      },
-    }));
-
-  await productModel.bulkWrite(bulkProductUpdates);
-
-  const movementMap = new Map();
-  for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
-
-    const existing = movementMap.get(item.qr);
-    if (!existing) {
-      movementMap.set(item.qr, { ...item });
-    } else {
-      existing.quantity += item.quantity;
-      existing.orginalBuyingPrice = item.orginalBuyingPrice;
-    }
-  }
-  await Promise.all(
-    Array.from(movementMap.entries()).map(async ([qr, item]) => {
-      const product = productMap.get(qr);
-      if (!product) return;
-
-      const totalStockQuantity = product.stocks.reduce(
-        (total, stock) => total + stock.productQuantity,
-        0
+        ],
+        { session },
       );
+      newPurchaseInvoice = createdInvoices[0];
 
-      await createProductMovement(
-        product._id,
-        newPurchaseInvoice._id,
-        totalStockQuantity - item.quantity,
-        item.quantity,
-        0,
-        0,
-        "movement",
-        "out",
-        "refund purchase",
-        companyId,
-        "",
-        "",
-        "",
-        item.orginalBuyingPrice,
-        0,
-        item.stock._id,
-        product.costBuyingPrice
+      const createdPayments = await PaymentModel.create(
+        [
+          {
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            total: req.body.paymentInInvoiceCurrency,
+            totalMainCurrency: req.body.paymentInMainCurrency,
+            paymentInFundCurrency: paymentInFundCurrency,
+            exchangeRate: financialFund.fundCurrency.exchangeRate,
+            financialFundsCurrencyCode: financailFund.code,
+            date: req.body.paymentDate || formattedDate,
+            financialFundsName: financialFund.fundName,
+            financialFundsId: financailFund.id,
+            invoiceNumber: invoiceNumber,
+            invoiceID: newPurchaseInvoice._id,
+            counter: Number(counter) + nextCounterPayment.seq,
+            description: req.body.paymentDescription,
+            invoiceCurrencyCode: req.body.currency.currencyCode,
+            paymentText: "Deposit",
+            companyId,
+            payid: {
+              id: newPurchaseInvoice._id,
+              status: req.body.paid,
+              invoiceTotal: req.body.invoiceGrandTotal,
+              invoiceName: req.body.invoiceName,
+              invoiceCurrencyCode: req.body.currency.currencyCode,
+              paymentInFundCurrency: paymentInFundCurrency,
+              paymentMainCurrency: req.body.paymentInMainCurrency,
+              paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+            },
+          },
+        ],
+        { session },
       );
+      payment = createdPayments[0];
 
-      if (item.orginalBuyingPrice !== product.buyingprice) {
-        await createProductMovement(
-          product._id, //productId
-          newPurchaseInvoice._id, //reference
-          0, //newQuantity
-          0, //quantity
-          item.orginalBuyingPrice, //newPrice
-          product.buyingprice, //oldPrice
-          "price", //type
-          "in", //movementType
-          "refund purchase", //source
-          companyId, //dbName,
-          "",
-          "",
-          "",
-          item.orginalBuyingPrice,
-          0,
-          item.stock._id,
-          product.costBuyingPrice
-        );
-      }
-    })
-  );
+      const createdReports = await reportsFinancialFunds.create(
+        [
+          {
+            date: req.body.paymentDate || formattedDate,
+            ref: newPurchaseInvoice._id,
+            amount: paymentInFundCurrency,
+            type: "refund-purchase",
+            exchangeRate,
+            financialFundId: financailFund.id,
+            financialFundRest: financialFund.fundBalance,
+            paymentType: "Deposit",
+            payment: payment._id,
+            companyId,
+          },
+        ],
+        { session },
+      );
+      const reports = createdReports[0];
 
-  const bulkSupplierPromises = invoicesItem.map(async (item) => {
-    const product = productMap.get(item.qr);
-    const updates = [];
-
-    if (product) {
-      if (!product.suppliers.includes(suppliers.id)) {
-        product.suppliers.push(suppliers.id);
-        updates.push(product.save());
-      }
-    } else if (item.type === "unTracedproduct") {
-      await unTracedproductLogModel.create({
-        name: item.name,
-        buyingPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
-        type: "purchase",
-        quantity: item.quantity,
-        tax: item.tax,
-        totalWithoutTax: item.totalWithoutTax,
-        total: item.total,
-        companyId,
+      newPurchaseInvoice.payments.push({
+        payment: paymentInFundCurrency,
+        paymentMainCurrency: req.body.paymentInMainCurrency,
+        financialFunds: financialFund.fundName,
+        financialFundsCurrencyCode: req.body.financailFund.code,
+        date: req.body.paymentDate || formattedDate,
+        paymentID: payment._id,
+        paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+        financialFundsId: financailFund.id,
       });
-    } else if (item.type === "expense") {
-      console.log("Hi");
+
+      newPurchaseInvoice.reportsBalanceId = reports.id;
+      await newPurchaseInvoice.save({ session });
+
+      supplier.total -=
+        totalPurchasePriceMainCurrency - (ManualInvoiceDiscount || 0);
+      supplier.TotalUnpaid -=
+        totalPurchasePriceMainCurrency - (ManualInvoiceDiscount || 0);
+
+      await financialFund.save({ session });
+    } else {
+      let total = totalPurchasePriceMainCurrency - (ManualInvoiceDiscount || 0);
+
+      supplier.TotalUnpaid -= total || 0;
+      supplier.total -= total || 0;
+
+      const createdInvoices = await refundPurchaseInviceModel.create(
+        [
+          {
+            employee: req.user._id,
+            date: req.body.date || formattedDate,
+            invoicesItems: invoicesItem,
+            supplier: suppliers,
+            currency,
+            exchangeRate,
+            financailFund,
+            invoiceNumber,
+            paid: "unpaid",
+            totalPurchasePriceMainCurrency,
+            invoiceSubTotal,
+            invoiceDiscount,
+            totalRemainderMainCurrency: totalPurchasePriceMainCurrency,
+            totalRemainder: invoiceGrandTotal,
+            invoiceGrandTotal,
+            taxDetails,
+            invoiceName,
+            ManualInvoiceDiscount,
+            InvoiceDiscountType,
+            subtotalWithDiscount,
+            paymentDate,
+            journalCounter: req.body.journalCounter,
+            invoiceTax: req.body.invoiceTax,
+            type: "refund purchase",
+            tag: req.body.tag,
+            companyId,
+            counter: Number(counter) + nextCounterrefundPurchaseInvict.seq,
+          },
+        ],
+        { session },
+      );
+      newPurchaseInvoice = createdInvoices[0];
     }
 
-    return Promise.all(updates);
-  });
+    // ======= FIFO + Movements + Product updates (مرة وحدة فقط) =======
 
-  // Ensure all mapped promises are awaited
-  await Promise.all(bulkSupplierPromises);
+    // جمع نفس المنتج لو متكرر
+    const movementMap = new Map();
+    for (const item of invoicesItem) {
+      if (item.type === "unTracedproduct" || item.type === "expense") continue;
 
-  await supplier.save();
-  await createPaymentHistory(
-    "Refund Invoice",
-    req.body.date || formattedDate,
-    totalPurchasePriceMainCurrency,
-    invoiceGrandTotal,
-    "supplier",
-    suppliers.id,
-    newPurchaseInvoice._id,
-    companyId,
-    "",
-    "",
-    "Deposit",
-    "refund Purchase",
-    currency.currencyCode
-  );
-  if (paid === "paid") {
+      const existing = movementMap.get(item.id);
+      if (!existing) {
+        movementMap.set(item.id, { ...item });
+      } else {
+        existing.quantity =
+          Number(existing.quantity || 0) + Number(item.quantity || 0);
+        existing.orginalBuyingPrice = item.orginalBuyingPrice;
+      }
+    }
+
+    const ops = await Promise.all(
+      Array.from(movementMap.entries()).map(async ([id, item]) => {
+        if (
+          item.type === "unTracedproduct" ||
+          item.type === "expense" ||
+          item.type === "variants"
+        ) {
+          return null;
+        }
+
+        const product = productMap.get(item.id);
+        if (!product) return null;
+
+        const returnQty = Number(item.quantity || 0);
+        if (!Number.isFinite(returnQty) || returnQty <= 0) return null;
+
+        const oldQty = (product.stocks || []).reduce(
+          (total, stock) => total + (Number(stock.productQuantity) || 0),
+          0,
+        );
+
+        if (returnQty > oldQty) {
+          throw new Error("Insufficient stock");
+        }
+
+        let qtyToOut = returnQty;
+        const fifoMovements = [];
+
+        const batches = await prodcutBatchModel
+          .find({
+            productId: item.id,
+            companyId,
+            stockId: item.stock._id,
+            remaining: { $gt: 0 },
+          })
+          .sort({ createdAt: 1 })
+          .session(session);
+
+        for (const batch of batches) {
+          if (qtyToOut <= 0) break;
+
+          const usedQty = Math.min(Number(batch.remaining) || 0, qtyToOut);
+          if (usedQty <= 0) continue;
+
+          batch.remaining = (Number(batch.remaining) || 0) - usedQty;
+          await batch.save({ session });
+
+          qtyToOut -= usedQty;
+
+          fifoMovements.push({
+            quantity: usedQty,
+            buyingPrice: batch.buyingprice,
+            costBuyingPrice: batch.costBuyingPrice,
+            batchId: batch._id,
+          });
+        }
+
+        if (qtyToOut > 0) {
+          throw new Error("Not enough batch stock");
+        }
+
+        // تسجيل Movements: لازم newQuantity يكون تراكمي
+        let runningQty = oldQty;
+        let outTotalCost = 0;
+
+        for (const fm of fifoMovements) {
+          runningQty -= fm.quantity;
+
+          await createProductMovement({
+            productId: product._id,
+            reference: newPurchaseInvoice._id, // بدل order[0].id
+            newQuantity: runningQty,
+            quantity: fm.quantity,
+            movementType: "out",
+            source: "Refund Purchase Invoice",
+            companyId,
+            outPrice: fm.costBuyingPrice,
+            stockId: item.stock._id,
+            sellingPrice: item.sellingPrice,
+            exchangeRate: item.exchangeRate,
+            batchId: fm.batchId,
+            session, // مهم: لازم الدالة تدعم session
+          });
+
+          outTotalCost += fm.quantity * (Number(fm.costBuyingPrice) || 0);
+        }
+
+        // حساب متوسط تكلفة جديد (من remaining)
+        const remainingBatches = await prodcutBatchModel
+          .find({
+            productId: item.id,
+            companyId,
+            stockId: item.stock._id,
+            remaining: { $gt: 0 }, // ✅ صح
+          })
+          .session(session);
+
+        let remainingTotalQty = 0;
+        let remainingTotalCost = 0;
+
+        for (const b of remainingBatches) {
+          const rq = Number(b.remaining) || 0;
+          remainingTotalQty += rq;
+          remainingTotalCost += rq * (Number(b.costBuyingPrice) || 0);
+        }
+
+        const newAvgCost =
+          remainingTotalQty > 0 ? remainingTotalCost / remainingTotalQty : 0;
+
+        // تحديث المنتج (مرة واحدة)
+        return {
+          updateOne: {
+            filter: {
+              _id: item.id,
+              "stocks.stockId": item.stock._id,
+              companyId,
+            },
+            update: {
+              $inc: {
+                "stocks.$.productQuantity": -returnQty,
+              },
+              $set: {
+                buyingprice: item.orginalBuyingPrice,
+                costBuyingPrice: newAvgCost,
+              },
+            },
+          },
+        };
+      }),
+    );
+
+    const bulkOps = ops.filter(Boolean);
+    if (bulkOps.length) {
+      await productModel.bulkWrite(bulkOps, { session });
+    }
+
+    // ======= suppliers + untraced logs =======
+    const bulkSupplierPromises = invoicesItem.map(async (item) => {
+      const updates = [];
+
+      // انت كنت تستخدم item.qr هون — خليتها item.id لتطابق الباقي
+      const product = productMap.get(item.id);
+
+      if (product) {
+      } else if (item.type === "unTracedproduct") {
+        await unTracedproductLogModel.create(
+          [
+            {
+              name: item.name,
+              buyingPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
+              type: "purchase",
+              quantity: item.quantity,
+              tax: item.tax,
+              totalWithoutTax: item.totalWithoutTax,
+              total: item.total,
+              companyId,
+            },
+          ],
+          { session },
+        );
+      } else if (item.type === "expense") {
+        // ...
+      }
+
+      return Promise.all(updates);
+    });
+
+    await Promise.all(bulkSupplierPromises);
+
+    await supplier.save({ session });
+
+    // ======= history (لازم دوالك تدعم session أو خليه بعد commit) =======
     await createPaymentHistory(
-      "payment",
-      req.body.paymentDate || formattedDate,
+      "Refund Invoice",
+      req.body.date || formattedDate,
       totalPurchasePriceMainCurrency,
       invoiceGrandTotal,
       "supplier",
-      "",
+      suppliers.id,
       newPurchaseInvoice._id,
       companyId,
       "",
-      payment._id,
+      "",
       "Deposit",
       "refund Purchase",
-      financailFund.code
+      currency.currencyCode,
+      { session }, // لازم الدالة تدعمه
     );
+
+    if (paid === "paid") {
+      await createPaymentHistory(
+        "payment",
+        req.body.paymentDate || formattedDate,
+        totalPurchasePriceMainCurrency,
+        invoiceGrandTotal,
+        "supplier",
+        "",
+        newPurchaseInvoice._id,
+        companyId,
+        "",
+        payment._id,
+        "Deposit",
+        "refund Purchase",
+        financailFund.code,
+        { session }, // لازم الدالة تدعمه
+      );
+    }
+
+    await createInvoiceHistory(
+      companyId,
+      newPurchaseInvoice._id,
+      "create",
+      req.user._id,
+      req.body.date,
+      { session }, // لازم الدالة تدعمه
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(201).json({
+      status: "success",
+      message: "Invoice created successfully",
+      data: newPurchaseInvoice,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    return next(err);
   }
-  createInvoiceHistory(
-    companyId,
-    newPurchaseInvoice._id,
-    "create",
-    req.user._id,
-    req.body.date
-  );
-  res.status(201).json({
-    status: "success",
-    message: "Invoice created successfully",
-    data: newPurchaseInvoice,
-  });
 });
 
 exports.getReturnPurchase = asyncHandler(async (req, res, next) => {
@@ -1991,7 +2128,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
           const totalStockQuantity = product.stocks.reduce(
             (total, stock) => total + stock.productQuantity,
-            0
+            0,
           );
 
           // Create one movement record per product
@@ -2012,12 +2149,12 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
             item.orginalBuyingPrice,
             0,
             item.stock._id,
-            product.costBuyingPrice
+            product.costBuyingPrice,
           );
         } catch (error) {
           console.error(`Error processing product ${item.qr}:`, error);
         }
-      })
+      }),
     );
 
     // Execute all promises at once
@@ -2034,7 +2171,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
         },
         { archives: true, paymentType: "Deposit" },
-        { new: true }
+        { new: true },
       );
     }
     await paymentHistoryModel.deleteMany({
@@ -2046,7 +2183,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       id,
       "cancel",
       req.user._id,
-      new Date().toISOString()
+      new Date().toISOString(),
     );
     purchaseInvoices.type = "purchase cancelled";
     purchaseInvoices.invoiceNumber =
@@ -2059,7 +2196,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
     res.status(200).json({ message: "cancel is success" });
   } else {
     return next(
-      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500)
+      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500),
     );
   }
 });
@@ -2108,7 +2245,7 @@ exports.archivePurchaseInvoice = asyncHandler(async (req, res, next) => {
   const purchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true }
+    { new: true },
   );
 
   if (!purchaseInvoice) {

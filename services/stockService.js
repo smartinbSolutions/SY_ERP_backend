@@ -9,6 +9,8 @@ const stockTransferModel = require("../models/stockTransfer");
 const productMovementModel = require("../models/productMovementModel");
 const ShortageModel = require("../models/ShortageModel");
 const { default: mongoose } = require("mongoose");
+const { createProductBatch } = require("./productBatchServices");
+const prodcutBatchModel = require("../models/prodcutBatchModel");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -101,7 +103,7 @@ exports.getOneStock = asyncHandler(async (req, res, next) => {
   let filteredProducts = products
     .map((product) => {
       const filteredStocks = product.stocks.filter(
-        (s) => s.stockId.toString() === stockId
+        (s) => s.stockId.toString() === stockId,
       );
       return {
         ...product._doc,
@@ -164,7 +166,7 @@ exports.updateStock = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!Stock) {
     return next(new ApiError(`No Stock found for id ${req.params.id}`, 404));
@@ -197,156 +199,348 @@ exports.deleteStock = asyncHandler(async (req, res, next) => {
 // @desc    Transfer product quantities between stocks
 // @route   PUT /api/stock/transfer
 // @access  Private
-exports.transformQuantity = asyncHandler(async (req, res, next) => {
+exports.transformQuantity = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
 
-  // Validate companyId
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   req.body.companyId = companyId;
 
-  const { fromStockId, toStockId, products, counter } = req.body;
+  const {
+    fromStockId,
+    toStockId,
+    products = [],
+    counter = 0,
+    selectedId = [],
+  } = req.body;
 
-  // Fetch both stocks
-  const stocks = await StockModel.find({
-    _id: { $in: [fromStockId, toStockId] },
-    companyId,
-  });
-  const fromStock = stocks.find((s) => s._id.toString() === fromStockId);
-  const toStock = stocks.find((s) => s._id.toString() === toStockId);
-
-  if (!fromStock || !toStock) {
-    return res.status(404).json({ message: "Stock not found" });
+  if (!fromStockId || !toStockId) {
+    return res
+      .status(400)
+      .json({ message: "fromStockId and toStockId are required" });
   }
 
-  // Validate product quantities
-  for (const product of products) {
-    const quantity = parseInt(product.productQuantity, 10);
-    if (quantity < 0) {
+  if (!Array.isArray(products) || products.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "products must be a non-empty array" });
+  }
+
+  // Validate quantities
+  for (const p of products) {
+    const q = Number(p?.productQuantity);
+    if (!p?.productId) {
       return res
         .status(400)
-        .json({ message: "Product quantity cannot be less than 0" });
+        .json({ message: "productId is required for each item" });
+    }
+    if (!Number.isFinite(q) || q <= 0) {
+      return res
+        .status(400)
+        .json({ message: "productQuantity must be a number > 0" });
     }
   }
 
-  // Generate transfer counter
-  const nextCounterForTransfer =
-    (await stockTransferModel.countDocuments({ companyId })) + 1;
+  const session = await mongoose.startSession();
 
-  // Create the stock transfer record
-  const transferStock = await stockTransferModel.create({
-    ...req.body,
-    counter: Number(counter) + nextCounterForTransfer,
-  });
-  const transferId = transferStock._id;
+  try {
+    await session.withTransaction(async () => {
+      // Fetch stocks
+      const stocks = await StockModel.find({
+        _id: { $in: [fromStockId, toStockId] },
+        companyId,
+      }).session(session);
 
-  // Prepare bulk operations for product updates
-  const bulkOps = [];
+      const fromStock = stocks.find(
+        (s) => s._id.toString() === String(fromStockId),
+      );
+      const toStock = stocks.find(
+        (s) => s._id.toString() === String(toStockId),
+      );
 
-  for (const product of products) {
-    const { productId, productQuantity } = product;
-    const quantity = parseInt(productQuantity, 10);
+      if (!fromStock || !toStock) {
+        throw Object.assign(new Error("Stock not found"), { statusCode: 404 });
+      }
 
-    const productDoc = await productModel.findById(productId);
+      // Generate transfer counter
+      const nextCounterForTransfer =
+        (await stockTransferModel
+          .countDocuments({ companyId })
+          .session(session)) + 1;
 
-    // Check if fromStock and toStock exist in the product
-    const fromStockExists = productDoc.stocks.some(
-      (stock) => stock.stockId.toString() === fromStockId
-    );
-    const toStockExists = productDoc.stocks.some(
-      (stock) => stock.stockId.toString() === toStockId
-    );
+      // Create transfer record
+      const transferStock = await stockTransferModel.create(
+        [
+          {
+            ...req.body,
+            companyId,
+            counter: Number(counter) + nextCounterForTransfer,
+          },
+        ],
+        { session },
+      );
 
-    // Deduct quantity from fromStock
-    if (fromStockExists) {
-      bulkOps.push({
-        updateOne: {
-          filter: { _id: productId, "stocks.stockId": fromStockId },
-          update: { $inc: { "stocks.$.productQuantity": -quantity } },
-        },
-      });
-    } else {
-      return res.status(400).json({
-        message: `Stock ID ${fromStockId} not found in product ${productId}`,
-      });
-    }
+      const transferDoc = transferStock[0];
+      const transferId = transferDoc._id;
 
-    // Add quantity to toStock
-    if (toStockExists) {
-      bulkOps.push({
-        updateOne: {
-          filter: { _id: productId, "stocks.stockId": toStockId },
-          update: { $inc: { "stocks.$.productQuantity": quantity } },
-        },
-      });
-    } else {
-      // If toStock doesn't exist, add it
-      bulkOps.push({
-        updateOne: {
-          filter: { _id: productId, companyId },
-          update: {
-            $push: {
-              stocks: {
-                stockId: toStockId,
-                stockName: toStock.name,
-                productQuantity: quantity,
+      // Prepare bulk ops
+      const bulkOps = [];
+
+      for (const p of products) {
+        const productId = p.productId;
+        const quantity = Number(p.productQuantity);
+
+        const productDoc = await productModel
+          .findOne({ _id: productId, companyId })
+          .session(session);
+
+        if (!productDoc) {
+          throw Object.assign(new Error(`Product not found: ${productId}`), {
+            statusCode: 404,
+          });
+        }
+
+        const stocksArr = Array.isArray(productDoc.stocks)
+          ? productDoc.stocks
+          : [];
+
+        // Ensure from stock exists in product
+        const fromStockExists = stocksArr.some(
+          (st) => st?.stockId?.toString() === String(fromStockId),
+        );
+        if (!fromStockExists) {
+          throw Object.assign(
+            new Error(
+              `Stock ID ${fromStockId} not found in product ${productId}`,
+            ),
+            { statusCode: 400 },
+          );
+        }
+
+        // Prevent negative quantity in fromStock
+        const fromEntry = stocksArr.find(
+          (st) => st?.stockId?.toString() === String(fromStockId),
+        );
+        const fromQty = Number(fromEntry?.productQuantity) || 0;
+        if (fromQty < quantity) {
+          throw Object.assign(
+            new Error(
+              `Not enough quantity in fromStock for product ${productId}. Available=${fromQty}, Requested=${quantity}`,
+            ),
+            { statusCode: 400 },
+          );
+        }
+
+        // Bulk: decrement fromStock
+        bulkOps.push({
+          updateOne: {
+            filter: {
+              _id: productId,
+              companyId,
+              "stocks.stockId": fromStockId,
+            },
+            update: { $inc: { "stocks.$.productQuantity": -quantity } },
+          },
+        });
+
+        // Bulk: increment toStock or push if missing
+        const toStockExists = stocksArr.some(
+          (st) => st?.stockId?.toString() === String(toStockId),
+        );
+
+        if (toStockExists) {
+          bulkOps.push({
+            updateOne: {
+              filter: {
+                _id: productId,
+                companyId,
+                "stocks.stockId": toStockId,
+              },
+              update: { $inc: { "stocks.$.productQuantity": quantity } },
+            },
+          });
+        } else {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: productId, companyId },
+              update: {
+                $push: {
+                  stocks: {
+                    stockId: toStockId,
+                    stockName: toStock.name,
+                    productQuantity: quantity,
+                  },
+                },
               },
             },
+          });
+        }
+
+        // Total across all stocks (transfer doesn't change total)
+        const totalProductQuantity = stocksArr.reduce((sum, st) => {
+          const qty = Number(st?.productQuantity);
+          return sum + (Number.isFinite(qty) ? qty : 0);
+        }, 0);
+
+        // OUT movement (fromStock)
+        await createProductMovement({
+          productId,
+          reference: transferId,
+          newQuantity: totalProductQuantity,
+          quantity,
+          movementType: "out",
+          source: "Stock Transfer",
+          companyId,
+          desc: `${fromStock.name} -> ${toStock.name}`,
+          stockId: fromStockId,
+        });
+
+        // FIFO batches: remove from source batches
+        let qtyToOut = quantity;
+        const fifoMovements = [];
+
+        const batches = await prodcutBatchModel
+          .find({
+            productId,
+            companyId,
+            stockId: fromStockId,
+            remaining: { $gt: 0 },
+          })
+          .sort({ createdAt: 1 })
+          .session(session);
+
+        for (const batch of batches) {
+          if (qtyToOut <= 0) break;
+
+          const remaining = Number(batch.remaining) || 0;
+          const usedQty = Math.min(remaining, qtyToOut);
+
+          if (usedQty <= 0) continue;
+
+          batch.remaining = remaining - usedQty;
+          await batch.save({ session });
+
+          qtyToOut -= usedQty;
+
+          fifoMovements.push({
+            quantity: usedQty,
+            buyingprice: batch.buyingprice,
+            costBuyingPrice: batch.costBuyingPrice,
+            exchangeRate: batch.exchangeRate,
+            sourceBatchId: batch._id,
+          });
+        }
+
+        if (qtyToOut > 0) {
+          throw Object.assign(new Error("Not enough batch stock"), {
+            statusCode: 400,
+          });
+        }
+
+        // IN movement (toStock)
+        await createProductMovement({
+          productId,
+          reference: transferId,
+          newQuantity: totalProductQuantity,
+          quantity,
+          movementType: "in",
+          source: "Stock Transfer",
+          companyId,
+          desc: `${fromStock.name} -> ${toStock.name}`,
+          stockId: toStockId,
+        });
+
+        // ✅ Create ONE destination batch only (weighted average from FIFO consumption)
+        let totalMovedQty = 0;
+        let totalBuyingValue = 0;
+        let totalCostValue = 0;
+        let totalExchangeValue = 0;
+
+        for (const m of fifoMovements) {
+          const q = Number(m.quantity) || 0;
+          totalMovedQty += q;
+
+          const bp = Number(m.buyingprice) || 0;
+          const cbp = Number(m.costBuyingPrice) || 0;
+          const ex = Number(m.exchangeRate) || 0;
+
+          totalBuyingValue += q * bp;
+          totalCostValue += q * cbp;
+          totalExchangeValue += q * ex;
+        }
+
+        if (totalMovedQty <= 0) {
+          throw Object.assign(new Error("No FIFO movements were created"), {
+            statusCode: 400,
+          });
+        }
+
+        // Optional strict check (use tolerance if you have decimals)
+        if (Math.abs(totalMovedQty - quantity) > 1e-9) {
+          throw Object.assign(
+            new Error(
+              `FIFO moved qty mismatch. Moved=${totalMovedQty}, Requested=${quantity}`,
+            ),
+            { statusCode: 400 },
+          );
+        }
+
+        const avgBuyingPrice = totalBuyingValue / totalMovedQty;
+        const avgCostBuyingPrice = totalCostValue / totalMovedQty;
+        const avgExchangeRate = totalExchangeValue / totalMovedQty;
+
+        await createProductBatch({
+          productId,
+          companyId,
+          stockId: toStockId,
+          quantity: totalMovedQty, // batch واحدة فقط
+          buyingprice: avgBuyingPrice,
+          costBuyingPrice: avgCostBuyingPrice,
+          exchangeRate: avgExchangeRate,
+          sourceId: transferId,
+          referenceType: "stock_transfer",
+          meta: {
+            fromStockId,
+            toStockId,
+            fifoSources: fifoMovements.map((x) => ({
+              batchId: x.sourceBatchId,
+              quantity: x.quantity,
+            })),
           },
-        },
+        });
+      }
+
+      // Execute bulk updates
+      if (bulkOps.length) {
+        await productModel.bulkWrite(bulkOps, { session });
+      }
+
+      // Update shortages if selected
+      if (Array.isArray(selectedId) && selectedId.length > 0) {
+        await ShortageModel.updateMany(
+          { _id: { $in: selectedId }, companyId },
+          { status: "done" },
+          { session },
+        );
+      }
+
+      res.status(200).json({
+        status: "success",
+        message: "Transfer successful",
+        data: transferDoc,
       });
-    }
-
-    // Calculate total quantity across all stocks for movement record
-    const totalProductQuantity = productDoc.stocks.reduce((sum, stock) => {
-      const qty = parseInt(stock.productQuantity, 10);
-      return sum + (isNaN(qty) ? 0 : qty);
-    }, 0);
-
-    // Create OUT movement from fromStock
-    await createProductMovement({
-      productId,
-      reference: transferId,
-      newQuantity: totalProductQuantity,
-      quantity,
-      movementType: "out",
-      source: "Stock Transfer",
-      companyId,
-      desc: `${fromStock.name} -> ${toStock.name}`,
-      stockId: fromStockId,
     });
-
-    // Create IN movement to toStock
-    await createProductMovement({
-      productId,
-      reference: transferId,
-      newQuantity: totalProductQuantity,
-      quantity,
-      movementType: "in",
-      source: "Stock Transfer",
-      companyId,
-      desc: `${fromStock.name} -> ${toStock.name}`,
-      stockId: toStockId,
+  } catch (err) {
+    const code = err?.statusCode || 500;
+    return res.status(code).json({
+      status: "fail",
+      message: err?.message || "Internal Server Error",
     });
+  } finally {
+    await session.endSession();
   }
-
-  // Execute bulk updates
-  await productModel.bulkWrite(bulkOps);
-
-  // Update shortages if any selected
-  if (req.body?.selectedId?.length > 0) {
-    await ShortageModel.updateMany(
-      { _id: { $in: req.body.selectedId } },
-      { status: "done" }
-    );
-  }
-
-  res.status(200).json({
-    status: "success",
-    message: "Transfer successful",
-    data: transferStock,
-  });
 });
 
 // @desc put list product

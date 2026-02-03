@@ -39,6 +39,7 @@ const ProductMovementSchema = new mongoose.Schema(
         "Opening Inventory",
         "Refund POS Receipt",
         "POS Receipt",
+        "Refund Purchase Invoice",
       ],
       required: true,
     },

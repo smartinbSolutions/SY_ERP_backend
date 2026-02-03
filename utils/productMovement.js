@@ -40,7 +40,9 @@ const createProductMovement = async ({
               ? "Reconciliation"
               : source === "Stock Transfer"
                 ? "StockTransfer"
-                : null,
+                : source === "Refund Purchase Invoice"
+                  ? "refundpurchaseinvoices"
+                  : null,
       stockId,
       sellingPrice,
       buyingPrice,

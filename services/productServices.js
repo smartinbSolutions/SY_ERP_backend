@@ -1110,14 +1110,8 @@ exports.getProductBySuppliers = asyncHandler(async (req, res) => {
   const skip = (page - 1) * pageSize;
 
   // Get the supplier ID from the URL path and convert it to an array
-  const supplierIds = req.params.id ? [req.params.id] : null;
 
   const query = { companyId };
-
-  // Apply the supplier filter only if supplierIds is not null
-  if (supplierIds) {
-    query.suppliers = { $in: supplierIds };
-  }
 
   if (req.query.keyword) {
     query.$or = [
