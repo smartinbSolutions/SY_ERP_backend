@@ -466,9 +466,9 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           const cbp = Number(m.costBuyingPrice) || 0;
           const ex = Number(m.exchangeRate) || 0;
 
-          totalBuyingValue += q * bp;
-          totalCostValue += q * cbp;
-          totalExchangeValue += q * ex;
+          totalBuyingValue = bp;
+          totalCostValue = cbp;
+          totalExchangeValue = ex;
         }
 
         if (totalMovedQty <= 0) {
@@ -487,15 +487,15 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           );
         }
 
-        const avgBuyingPrice = totalBuyingValue / totalMovedQty;
-        const avgCostBuyingPrice = totalCostValue / totalMovedQty;
-        const avgExchangeRate = totalExchangeValue / totalMovedQty;
+        const avgBuyingPrice = totalBuyingValue;
+        const avgCostBuyingPrice = totalCostValue;
+        const avgExchangeRate = totalExchangeValue;
 
         await createProductBatch({
           productId,
           companyId,
           stockId: toStockId,
-          quantity: totalMovedQty, // batch واحدة فقط
+          quantity: totalMovedQty,
           buyingprice: avgBuyingPrice,
           costBuyingPrice: avgCostBuyingPrice,
           exchangeRate: avgExchangeRate,
