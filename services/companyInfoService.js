@@ -1405,50 +1405,74 @@ const openingInventoryRollover = async ({
   );
 
   if (!manualJournal) {
-    const inventoryAccount = await accountingTreeModel
-      .findOne({ code: "INVENTORY", companyId: newCompanyId })
+    const purchaseLink = await linkPanelModel
+      .findOne({ name: "Purcahse", companyId: newCompanyId })
       .session(session)
       .lean();
 
-    const openingBalanceAccount = await accountingTreeModel
-      .findOne({ code: "OPENING_BALANCE", companyId: newCompanyId })
+    const stockLink = await linkPanelModel
+      .findOne({ name: "Stocks", companyId: newCompanyId })
       .session(session)
       .lean();
 
-    if (!inventoryAccount || !openingBalanceAccount) {
-      throw new ApiError("Opening accounts not found", 400);
-    }
+    const purchaseAccount = await accountingTreeModel
+      .findById(purchaseLink.accountData)
+      .session(session)
+      .populate({
+        path: "currency",
+        options: { session },
+      })
+      .lean();
+
+    const stockAccount = await accountingTreeModel
+      .findById(stockLink.accountData)
+      .session(session)
+      .populate({
+        path: "currency",
+        options: { session },
+      })
+      .lean();
+
+    const journalAccounts = [
+      {
+        counter: 1,
+        id: stockAccount._id,
+        name: stockAccount.name,
+        code: stockAccount.code,
+        MainDebit: totalValue,
+        MainCredit: 0,
+        accountDebit: totalValue * stockAccount.currency.exchangeRate,
+        accountCredit: 0,
+        accountCurrency: stockAccount.currency.currencyCode,
+        accountExRate: stockAccount.currency.exchangeRate,
+        description: "Opening Balance",
+      },
+      {
+        counter: 2,
+        id: purchaseAccount._id,
+        name: purchaseAccount.name,
+        code: purchaseAccount.code,
+        MainDebit: 0,
+        MainCredit: totalValue,
+        accountDebit: 0,
+        accountCredit: totalValue * purchaseAccount.currency.exchangeRate,
+        accountCurrency: purchaseAccount.currency.currencyCode,
+        accountExRate: purchaseAccount.currency.exchangeRate,
+        description: "Opening Balance",
+      },
+    ];
 
     await journalEntryModel.create(
       [
         {
           companyId: newCompanyId,
-          journalName: "Opening Inventory",
+          journalName: "Opening Balance",
           journalDate: date,
-          journalType: "Opening Balance",
           journalRefNum: counter,
+          journalType: "Opening Balance",
+          journalAccounts,
           journalDebit: totalValue,
           journalCredit: totalValue,
-          journalAccounts: [
-            {
-              counter: 1,
-              id: inventoryAccount._id,
-              name: inventoryAccount.name,
-              code: inventoryAccount.code,
-              MainDebit: totalValue,
-              MainCredit: 0,
-              description: "Opening Inventory",
-            },
-            {
-              counter: 2,
-              id: openingBalanceAccount._id,
-              name: openingBalanceAccount.name,
-              code: openingBalanceAccount.code,
-              MainDebit: 0,
-              MainCredit: totalValue,
-              description: "Opening Balance",
-            },
-          ],
         },
       ],
       { session },
