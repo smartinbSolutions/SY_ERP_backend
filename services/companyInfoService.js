@@ -1103,16 +1103,21 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const salesPoints = await salesPointModel
       .find({ companyId })
       .session(session);
-    const stockArr = Array.isArray(point?.stock) ? point.stock : [];
-    const bulkpoint = stockArr.map((point) => {
-      const newSalesPoints = (point?.stock || [])
+
+    const bulkpoint = salesPoints.map((point) => {
+      const stockArr = Array.isArray(point?.stock) ? point.stock : [];
+
+      const newSalesPoints = stockArr
         .map((st) => {
-          const newStockId = stockMap.get(st.id?.toString());
+          const key = (st?.id ?? st?._id)?.toString();
+          if (!key) return null;
+
+          const newStockId = stockMap.get(key);
           if (!newStockId) return null;
 
           return {
             id: newStockId,
-            name: st.name,
+            name: st?.name,
           };
         })
         .filter(Boolean);
@@ -1120,17 +1125,15 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       return {
         updateOne: {
           filter: { _id: point._id },
-          update: {
-            $set: {
-              stock: newSalesPoints,
-            },
-          },
+          update: { $set: { stock: newSalesPoints } },
         },
       };
     });
 
-    if (bulkpoint.length) {
-      await salesPointModel.bulkWrite(bulkpoint, { session });
+    const ops = bulkpoint.filter((op) => op?.updateOne);
+
+    if (ops.length) {
+      await salesPointModel.bulkWrite(ops, { session });
     }
 
     await BeginningInvoice({
