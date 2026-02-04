@@ -1,5 +1,3 @@
-// services/Hr/leaveRequestService.js
-
 const LeaveRequest = require("../../models/Hr/leaveRequestModel");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
@@ -8,14 +6,13 @@ const ApiError = require("../../utils/apiError");
 exports.createLeaveRequest = asyncHandler(async (req, res) => {
   const { leaveType, startDate, endDate, reason, attachment } = req.body;
 
-  // تأكد من وجود user في req (middleware auth لازم يحط req.user)
   if (!req.user) {
     return res.status(401).json({ status: "fail", message: "Not logged in" });
   }
 
   const newRequest = await LeaveRequest.create({
-    userId: req.user._id,           
-    companyId: req.user.companyId,  
+    userId: req.user._id,
+    companyId: req.user.companyId,
     leaveType,
     startDate,
     endDate,
@@ -30,7 +27,6 @@ exports.createLeaveRequest = asyncHandler(async (req, res) => {
   });
 });
 
-
 /* ================= GET MY REQUESTS ================= */
 exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
   const requests = await LeaveRequest.find({ userId: req.user._id }).populate(
@@ -38,13 +34,14 @@ exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
   );
   res.status(200).json({ status: true, data: requests });
 });
-
 /* ================= GET ALL COMPANY REQUESTS (ADMIN) ================= */
 exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ status: false, message: "companyId is required" });
+    return res
+      .status(400)
+      .json({ status: false, message: "companyId is required" });
   }
 
   const page = parseInt(req.query.page) || 1;
@@ -70,13 +67,11 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   });
 });
 
-
-
 /* ================= GET ONE REQUEST ================= */
 exports.getLeaveRequestById = asyncHandler(async (req, res, next) => {
-  const request = await LeaveRequest.findById(req.params.id)
-    // .populate("userId", "name email")
-    // .populate("leaveType");
+  const request = await LeaveRequest.findById(req.params.id);
+  // .populate("userId", "name email")
+  // .populate("leaveType");
 
   if (!request) return next(new ApiError("Leave request not found", 404));
 
@@ -127,19 +122,3 @@ exports.deleteLeaveRequest = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: true, message: "Leave request deleted" });
 });
 
-
-/* ================= ADMIN: CHANGE STATUS ================= */
-exports.changeLeaveRequestStatus = asyncHandler(async (req, res, next) => {
-  const { status } = req.body; // "Approved" or "Rejected"
-
-  const request = await LeaveRequest.findById(req.params.id);
-
-  if (!request) return next(new ApiError("Leave request not found", 404));
-
-  request.status = status;
-  await request.save();
-
-  res
-    .status(200)
-    .json({ status: true, data: request, message: `Request ${status}` });
-});

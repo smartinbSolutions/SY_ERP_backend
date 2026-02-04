@@ -54,7 +54,7 @@ const groupsSchema = new mongoose.Schema(
 
     locationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Location",
+      ref: "hrlocation",
       default: null,
     },
 

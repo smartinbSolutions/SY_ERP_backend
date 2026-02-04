@@ -7,7 +7,7 @@ const leavesSchema = new mongoose.Schema(
     isPaid: Boolean,
     deduction: Number,
     attachment: Boolean,
-    days: String,
+    maxDays: String,
     notes: String,
     companyId: {
       type: String,
