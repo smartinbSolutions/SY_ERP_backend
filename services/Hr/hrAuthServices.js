@@ -1,10 +1,12 @@
 const companyInfoModel = require("../../models/companyInfoModel");
+const staffModel = require("../../models/Hr/staffModel");
 const StaffsModel = require("../../models/Hr/staffModel");
 const ApiError = require("../../utils/apiError");
 const createToken = require("../../utils/createToken");
 const bcrypt = require("bcrypt");
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
+const sendEmail = require("../../utils/sendEmail");
 
 exports.hrLogin = asyncHandler(async (req, res, next) => {
   try {
@@ -186,14 +188,14 @@ exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
   const { email, companyId } = req.erpUser;
 
   const staff = await StaffsModel.findOne({ email, companyId })
-  .populate("branch")
+    .populate("branch")
     .populate({
-    path: "groupId",
-    populate: {
-      path: "leaveType",
-      model: "leaves" 
-    }
-  });
+      path: "groupId",
+      populate: {
+        path: "leaveType",
+        model: "leaves",
+      },
+    });
 
   if (!staff) {
     return next(new ApiError("You are not registered as staff", 403));
@@ -238,4 +240,148 @@ exports.protectStaffOrERP = asyncHandler(async (req, res, next) => {
   }
 
   return next(new ApiError("Invalid auth source", 401));
+});
+
+// @desc      forgot password
+// @route     POST /api/hrauth/forgotPassword
+// @access    Public
+
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  // 1) Get user by email
+  const { email } = req.body;
+  const staff = await staffModel.findOne({ email, companyId });
+  if (!staff) {
+    return next(
+      new ApiError(`There is no staff with this email address ${email}`, 404),
+    );
+  }
+
+  const resetCode = Math.floor(Math.random() * 1000000 + 1).toString();
+  const hashedResetCode = await bcrypt.hash(resetCode, 10);
+
+  staff.passwordResetCode = hashedResetCode;
+  //10 min
+  staff.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  staff.resetCodeVerified = false;
+  await staff.save();
+
+  const message = `Forgot your password? Submit this reset password code: ${resetCode}\n If you didn't forget your password, please ignore this email!`;
+
+  try {
+    await sendEmail({
+      email: staff.email,
+      subject: "Your Password Reset Code (valid for 10 min)",
+      message,
+    });
+
+    res.status(200).json({
+      status: "Success",
+      message: "Reset code sent to your email",
+    });
+  } catch (err) {
+    staff.passwordResetCode = undefined;
+    staff.passwordResetExpires = undefined;
+    await staff.save({ validateBeforeSave: false });
+    console.log(err);
+    return next(
+      new ApiError(
+        "There was an error sending the email. Try again later!",
+        500,
+      ),
+    );
+  }
+});
+
+// @desc      Verify reset password code
+// @route     POST /api/hrauth/verifyresetcode
+// @access    Public
+
+exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { email, resetCode } = req.body;
+
+  if (!email || !resetCode) {
+    return next(new ApiError("Email and reset code are required", 400));
+  }
+
+  const staff = await staffModel.findOne({
+    email,
+    companyId,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!staff) {
+    return next(new ApiError("Reset code is invalid or expired", 400));
+  }
+
+  const isResetCodeValid = await bcrypt.compare(
+    resetCode,
+    staff.passwordResetCode,
+  );
+
+  if (!isResetCodeValid) {
+    return next(new ApiError("Reset code is invalid", 400));
+  }
+
+  staff.resetCodeVerified = true;
+  await staff.save();
+
+  res.status(200).json({
+    status: "Success",
+  });
+});
+
+// @desc      Reset password
+// @route     POST /api/hrauth/resetpassword
+// @access    Public
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  const { email, newPassword } = req.body;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  // 1) Get staff based on email
+  const staff = await staffModel.findOne({
+    email,
+    companyId,
+  });
+
+  console.log(staff.resetCodeVerified);
+
+  if (!staff) {
+    return next(
+      new ApiError(
+        `There is no staff with this email address ${req.body.email}`,
+        404,
+      ),
+    );
+  }
+  if (!staff.resetCodeVerified) {
+    return next(new ApiError("reset code not verified", 400));
+  }
+  const hashedResetCode = await bcrypt.hash(newPassword, 10);
+
+  staff.password = hashedResetCode;
+  staff.passwordResetCode = undefined;
+  staff.passwordResetExpires = undefined;
+  staff.resetCodeVerified = undefined;
+  await staff.save();
+
+  const token = createToken(staff);
+
+  res.status(200).json({ staff: staff, token });
 });

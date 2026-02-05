@@ -93,7 +93,12 @@ const StaffSchema = new mongoose.Schema(
     },
 
     password: String,
-
+    passwordResetCode: String,
+    passwordResetExpires: Date,
+    resetCodeVerified: {
+      type: Boolean,
+      default: false,
+    },
     /* ================= MANAGEMENT ================= */
     directManager: {
       type: mongoose.Schema.Types.ObjectId,

@@ -18,7 +18,7 @@ const locationSchema = new mongoose.Schema(
     },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("hrlocation", locationSchema);
