@@ -468,7 +468,8 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
 exports.rollover = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
-  const { journalDate, manualJournal, priceMethod } = req.body;
+  const { journalDate, manualJournal, priceMethod, profitloseAccounts, type } =
+    req.body;
   if (!journalDate || !priceMethod) {
     throw new ApiError(
       "Journal date and price method are required to continue rollover",
@@ -721,13 +722,14 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       })
       .filter(Boolean);
 
-    const link = await linkPanelModel.insertMany(newLinkedPanel, {
+    await linkPanelModel.insertMany(newLinkedPanel, {
       session,
     });
 
     const funds = await financialFundsModel
       .find({ companyId })
       .session(session);
+
     if (!manualJournal) {
       const openingJournalAccounts = (
         await Promise.all(
@@ -743,14 +745,9 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             if (!oldSums) return null;
             let balance = 0;
 
-            if (account.balanceType === "debit") {
-              balance = oldSums.debtor - oldSums.creditor;
-            } else if (account.balanceType === "credit") {
-              balance = oldSums.creditor - oldSums.debtor;
-            }
+            balance = oldSums.debtor - oldSums.creditor;
 
-            if (balance === 0) return null;
-
+            if (Math.abs(balance) <= 0.009) return null;
             const currency = await currencyModel
               .findOne({
                 companyId: newCompanyId,
@@ -759,20 +756,21 @@ exports.rollover = asyncHandler(async (req, res, next) => {
               .session(session);
 
             const rate = currency?.exchangeRate || 1;
+            const amt = Math.abs(balance);
+
+            console.log(account.name, "  ", balance);
 
             return {
               counter: Number(index) + 1,
               id: account._id,
               name: account.name,
               code: account.code,
-              MainDebit:
-                account.balanceType === "debit" ? Math.abs(balance) : 0,
-              MainCredit:
-                account.balanceType === "credit" ? Math.abs(balance) : 0,
-              accountDebit:
-                account.balanceType === "debit" ? Math.abs(balance) * rate : 0,
-              accountCredit:
-                account.balanceType === "credit" ? Math.abs(balance) * rate : 0,
+              MainDebit: balance > 0 ? amt : 0,
+              MainCredit: balance < 0 ? amt : 0,
+
+              accountDebit: balance > 0 ? amt * rate : 0,
+              accountCredit: balance < 0 ? amt * rate : 0,
+
               accountCurrency: currency?.currencyCode || "",
               accountExRate: rate,
               description: "Opening Balance",
@@ -780,16 +778,10 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             };
           }),
         )
-      ).filter(Boolean);
-      const debit = openingJournalAccounts.reduce(
-        (sum, acc) => sum + acc.MainDebit,
-        0,
-      );
+      )
+        .filter(Boolean)
+        .sort((a, b) => a.code.localeCompare(b.code));
 
-      const credit = openingJournalAccounts.reduce(
-        (sum, acc) => sum + acc.MainCredit,
-        0,
-      );
       if (
         chackDateBalanceDebtor.toFixed(4) !==
         chackDateBalanceCreditor.toFixed(4)
@@ -799,6 +791,41 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           405,
         );
       }
+      const debit = openingJournalAccounts.reduce(
+        (sum, acc) => sum + acc.MainDebit,
+        0,
+      );
+
+      const credit = openingJournalAccounts.reduce(
+        (sum, acc) => sum + acc.MainCredit,
+        0,
+      );
+
+      for (const acc of profitloseAccounts) {
+        openingJournalAccounts.push({
+          counter: openingJournalAccounts.length + 1,
+          id: acc.id,
+          name: acc.name,
+          code: acc.code,
+          MainDebit: type === "credit" ? Math.abs(acc.Balance || 0) : 0,
+          MainCredit: type === "debit" ? Math.abs(acc.Balance || 0) : 0,
+
+          accountDebit:
+            type === "credit"
+              ? Math.abs(acc.Balance || 0) * (acc.exchRate || 1)
+              : 0,
+          accountCredit:
+            type === "debit"
+              ? Math.abs(acc.Balance || 0) * (acc.exchRate || 1)
+              : 0,
+          accountCurrency: acc.currency || "",
+          accountExRate: acc.exchRate || 1,
+
+          description: "PROFIT & LOSS CLOSING ENTRY",
+          isPrimary: (acc.exchRate || 1) === 1,
+        });
+      }
+
       if (openingJournalAccounts.length > 0) {
         await journalEntryModel.create(
           [
@@ -857,6 +884,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           companyId: newCompanyId,
           openingBalance: fundBalance,
           fundBalance: fundBalance,
+          linkAccount: accountIdMap.get(fund.linkAccount?.toString()) || null,
         };
       }),
     );
@@ -917,6 +945,8 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           companyId: newCompanyId,
           total: totalInvoices,
           TotalUnpaid: unpaid,
+          linkAccount:
+            accountIdMap.get(customer.linkAccount?.toString()) || null,
         };
       }),
     );
@@ -979,6 +1009,8 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           companyId: newCompanyId,
           total: totalInvoices,
           TotalUnpaid: unpaid,
+          linkAccount:
+            accountIdMap.get(supplier.linkAccount?.toString()) || null,
         };
       }),
     );
@@ -1048,6 +1080,9 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       _id: undefined,
       companyId: newCompanyId,
       oldId: t._id,
+      salesAccountTax: accountIdMap.get(t.salesAccountTax?.toString()) || null,
+      purchaseAccountTax:
+        accountIdMap.get(t.purchaseAccountTax?.toString()) || null,
     }));
 
     const insertedTaxes = await taxModel.insertMany(newTaxes, { session });
@@ -1094,6 +1129,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       ...catEx.toObject(),
       _id: undefined,
       companyId: newCompanyId,
+      linkAccount: accountIdMap.get(catEx.linkAccount?.toString()) || null,
     }));
 
     await expensesCategoryModel.insertMany(newCategorExpense, { session });
@@ -1404,80 +1440,80 @@ const openingInventoryRollover = async ({
     { session },
   );
 
-  if (!manualJournal) {
-    const purchaseLink = await linkPanelModel
-      .findOne({ name: "Purcahse", companyId: newCompanyId })
-      .session(session)
-      .lean();
+  // if (!manualJournal) {
+  //   const purchaseLink = await linkPanelModel
+  //     .findOne({ name: "Purcahse", companyId: newCompanyId })
+  //     .session(session)
+  //     .lean();
 
-    const stockLink = await linkPanelModel
-      .findOne({ name: "Stocks", companyId: newCompanyId })
-      .session(session)
-      .lean();
+  //   const stockLink = await linkPanelModel
+  //     .findOne({ name: "Stocks", companyId: newCompanyId })
+  //     .session(session)
+  //     .lean();
 
-    const purchaseAccount = await accountingTreeModel
-      .findById(purchaseLink.accountData)
-      .session(session)
-      .populate({
-        path: "currency",
-        options: { session },
-      })
-      .lean();
+  //   const purchaseAccount = await accountingTreeModel
+  //     .findById(purchaseLink.accountData)
+  //     .session(session)
+  //     .populate({
+  //       path: "currency",
+  //       options: { session },
+  //     })
+  //     .lean();
 
-    const stockAccount = await accountingTreeModel
-      .findById(stockLink.accountData)
-      .session(session)
-      .populate({
-        path: "currency",
-        options: { session },
-      })
-      .lean();
+  //   const stockAccount = await accountingTreeModel
+  //     .findById(stockLink.accountData)
+  //     .session(session)
+  //     .populate({
+  //       path: "currency",
+  //       options: { session },
+  //     })
+  //     .lean();
 
-    const journalAccounts = [
-      {
-        counter: 1,
-        id: stockAccount._id,
-        name: stockAccount.name,
-        code: stockAccount.code,
-        MainDebit: totalValue,
-        MainCredit: 0,
-        accountDebit: totalValue * stockAccount.currency.exchangeRate,
-        accountCredit: 0,
-        accountCurrency: stockAccount.currency.currencyCode,
-        accountExRate: stockAccount.currency.exchangeRate,
-        description: "Opening Balance",
-      },
-      {
-        counter: 2,
-        id: purchaseAccount._id,
-        name: purchaseAccount.name,
-        code: purchaseAccount.code,
-        MainDebit: 0,
-        MainCredit: totalValue,
-        accountDebit: 0,
-        accountCredit: totalValue * purchaseAccount.currency.exchangeRate,
-        accountCurrency: purchaseAccount.currency.currencyCode,
-        accountExRate: purchaseAccount.currency.exchangeRate,
-        description: "Opening Balance",
-      },
-    ];
+  //   const journalAccounts = [
+  //     {
+  //       counter: 1,
+  //       id: stockAccount._id,
+  //       name: stockAccount.name,
+  //       code: stockAccount.code,
+  //       MainDebit: totalValue,
+  //       MainCredit: 0,
+  //       accountDebit: totalValue * stockAccount.currency.exchangeRate,
+  //       accountCredit: 0,
+  //       accountCurrency: stockAccount.currency.currencyCode,
+  //       accountExRate: stockAccount.currency.exchangeRate,
+  //       description: "Opening Balance",
+  //     },
+  //     {
+  //       counter: 2,
+  //       id: purchaseAccount._id,
+  //       name: purchaseAccount.name,
+  //       code: purchaseAccount.code,
+  //       MainDebit: 0,
+  //       MainCredit: totalValue,
+  //       accountDebit: 0,
+  //       accountCredit: totalValue * purchaseAccount.currency.exchangeRate,
+  //       accountCurrency: purchaseAccount.currency.currencyCode,
+  //       accountExRate: purchaseAccount.currency.exchangeRate,
+  //       description: "Opening Balance",
+  //     },
+  //   ];
 
-    await journalEntryModel.create(
-      [
-        {
-          companyId: newCompanyId,
-          journalName: "Opening Balance",
-          journalDate: date,
-          journalRefNum: counter,
-          journalType: "Opening Balance",
-          journalAccounts,
-          journalDebit: totalValue,
-          journalCredit: totalValue,
-        },
-      ],
-      { session },
-    );
-  }
+  //   await journalEntryModel.create(
+  //     [
+  //       {
+  //         companyId: newCompanyId,
+  //         journalName: "Opening Balance",
+  //         journalDate: date,
+  //         journalRefNum: counter,
+  //         journalType: "Opening Balance",
+  //         journalAccounts,
+  //         journalDebit: totalValue,
+  //         journalCredit: totalValue,
+  //       },
+  //     ],
+  //     { session },
+  //   );
+  // }
 
   return openingInventory;
 };

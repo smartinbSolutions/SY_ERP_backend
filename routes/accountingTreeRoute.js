@@ -10,6 +10,7 @@ const {
   getOneAccountingTree,
   getAccountingTreeForExport,
   getAccountingTreeFromJournals,
+  calculateBalance,
 } = require("../services/accountingTreeServices");
 const authService = require("../services/authService");
 const multer = require("multer");
@@ -17,14 +18,17 @@ const upload = multer();
 
 const accountingTreeRouter = express.Router();
 
-accountingTreeRouter.use(authService.protect);
+// accountingTreeRouter.use(authService.protect);
 
 // Routes
 accountingTreeRouter
   .route("/")
   .get(getAccountingTree)
   .post(authService.checkCompanyEditable, createAccountingTree);
-
+accountingTreeRouter
+  .route("/calculatebalance")
+  .get(calculateBalance)
+  .get(getAccountingTreeNoBalance);
 accountingTreeRouter.route("/tree").get(getAccountingTreeNoBalance);
 accountingTreeRouter
   .route("/treefromjournals")

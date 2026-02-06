@@ -156,11 +156,11 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     // 6️⃣ Global totals
     const totalDebit = Object.values(balanceMap).reduce(
       (sum, v) => sum + v.totalDebit,
-      0
+      0,
     );
     const totalCredit = Object.values(balanceMap).reduce(
       (sum, v) => sum + v.totalCredit,
-      0
+      0,
     );
 
     res.status(200).json({
@@ -229,7 +229,7 @@ exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   res.status(200).json({ status: "success", data: updateTree });
@@ -360,7 +360,7 @@ exports.changeBalance = asyncHandler(async (req, res, next) => {
     {
       $inc: { debtor: req.body.debtor || 0, creditor: req.body.creditor || 0 },
     },
-    { new: true }
+    { new: true },
   );
 
   res
@@ -383,4 +383,84 @@ exports.getOneAccountingTree = asyncHandler(async (req, res, next) => {
   });
 
   res.status(200).json({ status: "success", data: findOneAccount });
+});
+exports.calculateBalance = asyncHandler(async (req, res) => {
+  const companyId = req.query.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is required" });
+
+  const match = { companyId };
+
+  const journalSums = await journalEntryModel.aggregate([
+    { $match: match },
+    { $unwind: "$journalAccounts" },
+
+    { $match: { "journalAccounts.id": { $exists: true, $ne: null, $ne: "" } } },
+
+    {
+      $lookup: {
+        from: "accountingtrees",
+        let: {
+          accId: {
+            $convert: {
+              input: "$journalAccounts.id",
+              to: "objectId",
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$_id", "$$accId"] } } },
+          { $project: { finalAccount: 1, balanceType: 1 } },
+        ],
+        as: "acc",
+      },
+    },
+
+    // إذا ما لقى حساب (accId null أو مش موجود) استبعده
+    { $unwind: "$acc" },
+
+    { $match: { "acc.finalAccount": "Balance Sheet" } },
+
+    {
+      $group: {
+        _id: { $toString: "$journalAccounts.id" },
+        totalDebit: { $sum: { $ifNull: ["$journalAccounts.MainDebit", 0] } },
+        totalCredit: { $sum: { $ifNull: ["$journalAccounts.MainCredit", 0] } },
+        balance: {
+          $sum: {
+            $subtract: [
+              { $ifNull: ["$journalAccounts.MainDebit", 0] },
+              { $ifNull: ["$journalAccounts.MainCredit", 0] },
+            ],
+          },
+        },
+        balanceType: { $first: "$acc.balanceType" },
+      },
+    },
+  ]);
+
+  const round4 = (n) => Math.round((Number(n) || 0) * 10000) / 10000;
+
+  const totalDebit = round4(
+    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0),
+  );
+
+  const totalCredit = round4(
+    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0),
+  );
+  const totalBalance = round4(
+    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0),
+  );
+  const diff = round4(totalDebit - totalCredit);
+
+  return res.json({
+    totalDebit,
+    totalCredit,
+    totalBalance,
+    diff,
+    isBalanced: diff === 0,
+    byAccount: journalSums,
+  });
 });
