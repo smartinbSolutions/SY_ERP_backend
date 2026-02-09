@@ -502,7 +502,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       companyId,
       {
         companyName: `${baseName}-${year}`,
-        // rollOver: true,
+        rollOver: true,
         closedAt: endDate,
       },
       { new: true, session },
@@ -579,6 +579,19 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     insertStock.forEach((s) => {
       stockMap.set(s.oldId.toString(), s._id);
     });
+    await employeeModel.updateMany(
+      { "company.companyId": companyId },
+      {
+        $set: {
+          "company.$[c].companyName": `${baseName}-${year}`,
+        },
+      },
+      {
+        arrayFilters: [{ "c.companyId": companyId }],
+        session,
+      },
+    );
+
     const employees = await employeeModel
       .find({ "company.companyId": companyId })
       .session(session);
