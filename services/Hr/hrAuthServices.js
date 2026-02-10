@@ -16,11 +16,23 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
       email: req.body.email,
       // session: false,
     })
-      .populate({ path: "position", select: "name -_id" })
+       .populate({ path: "position", select: "name -_id" })
       .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" })
       .populate("branch")
       .populate("department")
-      .populate("groupId")
+      .populate({
+        path: "groupId",
+        populate: [
+          {
+            path: "leaveType",
+            model: "Leave",
+          },
+          {
+            path: "locationId",
+            model: "hrlocation",
+          },
+        ],
+      })
       .populate("roleId");
 
     if (!user) {
@@ -188,13 +200,19 @@ exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
   const { email, companyId } = req.erpUser;
 
   const staff = await StaffsModel.findOne({ email, companyId })
-    .populate("branch")
+      .populate("branch")
     .populate({
       path: "groupId",
-      populate: {
-        path: "leaveType",
-        model: "leaves",
-      },
+      populate: [
+        {
+          path: "leaveType",
+          model: "leaves",
+        },
+        {
+          path: "locationId",
+          model: "hrlocation",
+        },
+      ],
     });
 
   if (!staff) {
@@ -247,15 +265,11 @@ exports.protectStaffOrERP = asyncHandler(async (req, res, next) => {
 // @access    Public
 
 exports.forgotPassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
 
   // 1) Get user by email
   const { email } = req.body;
-  const staff = await staffModel.findOne({ email, companyId });
+  const staff = await staffModel.findOne({ email });
   if (!staff) {
     return next(
       new ApiError(`There is no staff with this email address ${email}`, 404),
@@ -264,6 +278,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
   const resetCode = Math.floor(Math.random() * 1000000 + 1).toString();
   const hashedResetCode = await bcrypt.hash(resetCode, 10);
+console.log(resetCode);
 
   staff.passwordResetCode = hashedResetCode;
   //10 min
@@ -304,11 +319,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 // @access    Public
 
 exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
 
   const { email, resetCode } = req.body;
 
@@ -318,7 +329,6 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
 
   const staff = await staffModel.findOne({
     email,
-    companyId,
     passwordResetExpires: { $gt: Date.now() },
   });
 
@@ -347,17 +357,13 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
 // @route     POST /api/hrauth/resetpassword
 // @access    Public
 exports.resetPassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
 
   const { email, newPassword } = req.body;
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
+
   // 1) Get staff based on email
   const staff = await staffModel.findOne({
     email,
-    companyId,
   });
 
   console.log(staff.resetCodeVerified);

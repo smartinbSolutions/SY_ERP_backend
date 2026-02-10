@@ -7,7 +7,11 @@ const LeaveSchema = new mongoose.Schema({
     ref: "LeavePolicy",
     required: true,
   },
-
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
   /* ===== Leave Type ===== */
   typeId: {
     type: Number,
