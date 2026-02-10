@@ -67,12 +67,13 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const { companyId, startDate, endDate } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-
+  let startDates;
+  let endDates;
   try {
     // 1️⃣ Fetch chart of accounts
     const accounts = await AccountingTree.aggregate([
@@ -102,8 +103,17 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     ]);
 
     // 2️⃣ Remove all filters — fetch ALL journals for this company
-    const match = { companyId };
 
+    if (startDate && endDate) {
+      startDates = `${startDate}T00:00:00.000Z`;
+      endDates = `${endDate}T23:59:59.999Z`;
+    }
+    const match = {
+      companyId,
+      ...(startDates && endDates
+        ? { journalDate: { $gte: startDates, $lte: endDates } }
+        : {}),
+    };
     // 3️⃣ Aggregate journal totals grouped by account ID (as string)
     const journalSums = await journalEntryModel.aggregate([
       { $match: match },
@@ -389,7 +399,14 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
 
-  const match = { companyId };
+  const { startDate, endDate } = req.query;
+
+  const startDates = `${startDate}T00:00:00.000Z`;
+  const endDates = `${endDate}T23:59:59.999Z`;
+  const match = {
+    companyId,
+    journalDate: { $gte: startDates, $lte: endDates },
+  };
 
   const journalSums = await journalEntryModel.aggregate([
     { $match: match },
@@ -418,7 +435,6 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
       },
     },
 
-    // إذا ما لقى حساب (accId null أو مش موجود) استبعده
     { $unwind: "$acc" },
 
     { $match: { "acc.finalAccount": "Balance Sheet" } },
