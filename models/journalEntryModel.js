@@ -24,6 +24,8 @@ const journalEntrySchema = new mongoose.Schema(
         Desc: String,
         accountType: String,
         code: String,
+        party: String,
+        partyName: String,
         _id: false,
       },
     ],
@@ -43,12 +45,12 @@ const journalEntrySchema = new mongoose.Schema(
     refId: String,
     auditing: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 const setfilesURL = (doc) => {
   if (doc.filesArray && Array.isArray(doc.filesArray)) {
     doc.filesArray = doc.filesArray.map(
-      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`
+      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`,
     );
   }
 };

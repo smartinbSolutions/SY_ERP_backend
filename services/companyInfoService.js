@@ -468,9 +468,16 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
 exports.rollover = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
-  const { journalDate, manualJournal, priceMethod, profitloseAccounts, type } =
-    req.body;
-  if (!journalDate || !priceMethod) {
+  const {
+    endDate: endDates,
+    startDate: startDates,
+    manualJournal,
+    priceMethod,
+    profitloseAccounts,
+    type,
+  } = req.body;
+
+  if (!endDates || !startDates) {
     throw new ApiError(
       "Journal date and price method are required to continue rollover",
       400,
@@ -479,12 +486,14 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
   const session = await mongoose.startSession();
   session.startTransaction();
-  const currentDateTime = new Date();
 
+  const currentDateTime = new Date();
   const year = currentDateTime.getFullYear() - 1;
-  const date = `${journalDate}T00:00:00.000Z`;
-  const startDate = `${year}-01-01T00:00:00.000Z`;
-  const endDate = `${journalDate}T23:59:59.999Z`;
+
+  const date = `${endDates}T00:00:00.000Z`;
+  const startDate = `${startDates}T00:00:00.000Z`;
+  const endDate = `${endDates}T23:59:59.999Z`;
+
   try {
     const companyInfo = await CompanyInfnoModel.findOne({
       _id: companyId,
@@ -553,12 +562,14 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       superAdmin: true,
       companyId: newCompanyId,
     });
+
     req.body.company = {
       companyId: companyInfo._id,
       selectedRoles: insertMainRole._id,
       companyName: baseName,
     };
-    //---Stocks
+
+    // --- Stocks
     const stocks = await stockModel.find({ companyId }).session(session);
 
     const newStocks = stocks.map((stock) => {
@@ -575,10 +586,12 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     });
 
     const insertStock = await stockModel.insertMany(newStocks, { session });
+
     const stockMap = new Map();
     insertStock.forEach((s) => {
       stockMap.set(s.oldId.toString(), s._id);
     });
+
     await employeeModel.updateMany(
       { "company.companyId": companyId },
       {
@@ -644,6 +657,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const accounts = await accountingTreeModel
       .find({ companyId })
       .session(session);
+
     const match = {
       companyId: companyId,
       journalDate: { $gte: startDate, $lte: endDate },
@@ -651,9 +665,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
     const journalSums = await journalEntryModel
       .aggregate([
-        {
-          $match: match,
-        },
+        { $match: match },
         { $unwind: "$journalAccounts" },
         {
           $group: {
@@ -678,12 +690,15 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const insertCurrencies = await currencyModel.insertMany(newCurrencies, {
       session,
     });
+
     const currencyMap = new Map();
     newCurrencies.forEach((cur, index) => {
       currencyMap.set(cur.oldCurrency.toString(), insertCurrencies[index]._id);
     });
+
     let chackDateBalanceDebtor = 0;
     let chackDateBalanceCreditor = 0;
+
     const newAccounts = await Promise.all(
       accounts.map(async (account) => {
         const isBalanceSheet = account.finalAccount === "Balance Sheet";
@@ -698,6 +713,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
         chackDateBalanceDebtor += debtor;
         chackDateBalanceCreditor += creditor;
+
         return {
           ...account.toObject(),
           _id: undefined,
@@ -713,11 +729,12 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const insertedAccounts = await accountingTreeModel.insertMany(newAccounts, {
       session,
     });
-    const accountIdMap = new Map();
 
+    const accountIdMap = new Map();
     insertedAccounts.forEach((acc) => {
       accountIdMap.set(acc.originalAccountId.toString(), acc._id);
     });
+
     const linkedPanel = await linkPanelModel.find({ companyId }).lean();
 
     const newLinkedPanel = linkedPanel
@@ -739,61 +756,310 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       session,
     });
 
+    // ------------------------------------------------------------------
+    // Suppliers (create first)
+    // ------------------------------------------------------------------
+    const suppliers = await suppliersModel.find({ companyId }).session(session);
+
+    const newSuppliers = await Promise.all(
+      suppliers.map(async (supplier) => {
+        const newSupplierId = new mongoose.Types.ObjectId();
+
+        const supplierHistoryData = await paymentHistoryModel
+          .find({
+            companyId,
+            supplierId: supplier._id,
+            date: { $gte: startDate, $lte: endDate },
+          })
+          .session(session);
+
+        let totalInvoices = 0;
+        let totalPayments = 0;
+
+        for (const report of supplierHistoryData) {
+          if (report.type === "invoice") totalInvoices += report.amount;
+          else if (report.type === "payment") totalPayments += report.amount;
+        }
+
+        const unpaid = totalInvoices - totalPayments;
+
+        return {
+          ...supplier.toObject(),
+          _id: newSupplierId,
+          companyId: newCompanyId,
+          total: totalInvoices,
+          TotalUnpaid: unpaid,
+          linkAccount:
+            accountIdMap.get(supplier.linkAccount?.toString()) || null,
+        };
+      }),
+    );
+
+    const createSuppliers = await suppliersModel.insertMany(newSuppliers, {
+      session,
+    });
+
+    // ------------------------------------------------------------------
+    // Funds (create)
+    // ------------------------------------------------------------------
     const funds = await financialFundsModel
       .find({ companyId })
       .session(session);
 
+    const newFunds = await Promise.all(
+      funds.map(async (fund) => {
+        const newFundId = new mongoose.Types.ObjectId();
+
+        const fundReportsData = await reportsFinancialFunds
+          .find({
+            companyId,
+            financialFundId: fund._id,
+            date: { $gte: startDate, $lte: endDate },
+          })
+          .session(session);
+
+        let fundBalance = 0;
+
+        for (const report of fundReportsData) {
+          if (report.paymentType === "Deposit") fundBalance += report.amount;
+          else if (report.paymentType === "Withdrawal")
+            fundBalance -= report.amount;
+        }
+
+        return {
+          ...fund.toObject(),
+          _id: newFundId,
+          companyId: newCompanyId,
+          openingBalance: fundBalance,
+          fundBalance: fundBalance,
+          linkAccount: accountIdMap.get(fund.linkAccount?.toString()) || null,
+        };
+      }),
+    );
+
+    const createFunds = await financialFundsModel.insertMany(newFunds, {
+      session,
+    });
+
+    // ------------------------------------------------------------------
+    // Customers (create)
+    // ------------------------------------------------------------------
+    const customers = await customarModel.find({ companyId }).session(session);
+
+    const newCustomers = await Promise.all(
+      customers.map(async (customer) => {
+        const newCustomerId = new mongoose.Types.ObjectId();
+
+        const customerHistoryData = await paymentHistoryModel
+          .find({
+            companyId,
+            customerId: customer._id,
+            date: { $gte: startDate, $lte: endDate },
+          })
+          .session(session);
+
+        let totalInvoices = 0;
+        let totalPayments = 0;
+
+        for (const report of customerHistoryData) {
+          if (report.type === "invoice") totalInvoices += report.amount;
+          else if (report.type === "payment") totalPayments += report.amount;
+        }
+
+        const unpaid = totalInvoices - totalPayments;
+
+        return {
+          ...customer.toObject(),
+          _id: newCustomerId,
+          companyId: newCompanyId,
+          total: totalInvoices,
+          TotalUnpaid: unpaid,
+          linkAccount:
+            accountIdMap.get(customer.linkAccount?.toString()) || null,
+        };
+      }),
+    );
+
+    const createCustomers = await customarModel.insertMany(newCustomers, {
+      session,
+    });
+
+    // Customers: amount sign stays as-is (AR usually Debit)
+    const customersByAccount = new Map(); // accId => [{ kind, refId, name, amountSigned }]
+    for (const c of createCustomers) {
+      const accId = c.linkAccount?.toString();
+      if (!accId) continue;
+
+      const amt = Number(c.TotalUnpaid) || 0;
+      if (Math.abs(amt) <= 0.009) continue;
+
+      if (!customersByAccount.has(accId)) customersByAccount.set(accId, []);
+      customersByAccount.get(accId).push({
+        kind: "customer",
+        refId: c._id,
+        name: c.name || c.customerName || "",
+        amountSigned: amt,
+      });
+    }
+
+    const suppliersByAccount = new Map();
+    for (const s of createSuppliers) {
+      const accId = s.linkAccount?.toString();
+      if (!accId) continue;
+
+      const raw = Number(s.TotalUnpaid) || 0;
+      if (Math.abs(raw) <= 0.009) continue;
+
+      const amtSigned = -raw;
+
+      if (!suppliersByAccount.has(accId)) suppliersByAccount.set(accId, []);
+      suppliersByAccount.get(accId).push({
+        kind: "supplier",
+        refId: s._id,
+        name: s.name || s.supplierName || "",
+        amountSigned: amtSigned,
+      });
+    }
+
+    const fundsByAccount = new Map();
+    for (const f of createFunds) {
+      const accId = f.linkAccount?.toString();
+      if (!accId) continue;
+
+      const amt = Number(f.fundBalance) || 0;
+      if (Math.abs(amt) <= 0.009) continue;
+
+      if (!fundsByAccount.has(accId)) fundsByAccount.set(accId, []);
+      fundsByAccount.get(accId).push({
+        kind: "fund",
+        refId: f._id,
+        name: f.name || f.fundName || "",
+        amountSigned: amt,
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Opening Journal
+    // ------------------------------------------------------------------
     if (!manualJournal) {
-      const openingJournalAccounts = (
-        await Promise.all(
-          insertedAccounts.map(async (account, index) => {
-            if (account.finalAccount !== "Balance Sheet") return null;
+      const openingJournalAccounts = [];
 
-            if (!account.originalAccountId) return null;
+      for (let index = 0; index < insertedAccounts.length; index++) {
+        const account = insertedAccounts[index];
 
-            const oldSums = journalMap.get(
-              account.originalAccountId.toString(),
-            );
+        if (account.finalAccount !== "Balance Sheet") continue;
+        if (!account.originalAccountId) continue;
 
-            if (!oldSums) return null;
-            let balance = 0;
+        const oldSums = journalMap.get(account.originalAccountId.toString());
+        if (!oldSums) continue;
 
-            balance = oldSums.debtor - oldSums.creditor;
+        const balance =
+          (Number(oldSums.debtor) || 0) - (Number(oldSums.creditor) || 0);
 
-            if (Math.abs(balance) <= 0.009) return null;
-            const currency = await currencyModel
-              .findOne({
-                companyId: newCompanyId,
-                _id: account.currency,
-              })
-              .session(session);
+        if (Math.abs(balance) <= 0.009) continue;
 
-            const rate = currency?.exchangeRate || 1;
-            const amt = Math.abs(balance);
+        const currency = await currencyModel
+          .findOne({ companyId: newCompanyId, _id: account.currency })
+          .session(session);
 
-            console.log(account.name, "  ", balance);
+        const rate = currency?.exchangeRate || 1;
 
-            return {
-              counter: Number(index) + 1,
+        const accKey = account._id.toString();
+
+        const partyLines = [
+          ...(customersByAccount.get(accKey) || []),
+          ...(suppliersByAccount.get(accKey) || []),
+          ...(fundsByAccount.get(accKey) || []),
+        ];
+
+        if (partyLines.length) {
+          let sumLines = 0;
+
+          for (const item of partyLines) {
+            sumLines += item.amountSigned;
+
+            const amt = Math.abs(item.amountSigned);
+
+            const row = {
+              counter: openingJournalAccounts.length + 1,
               id: account._id,
               name: account.name,
               code: account.code,
-              MainDebit: balance > 0 ? amt : 0,
-              MainCredit: balance < 0 ? amt : 0,
 
-              accountDebit: balance > 0 ? amt * rate : 0,
-              accountCredit: balance < 0 ? amt * rate : 0,
+              MainDebit: item.amountSigned > 0 ? amt : 0,
+              MainCredit: item.amountSigned < 0 ? amt : 0,
+
+              accountDebit: item.amountSigned > 0 ? amt * rate : 0,
+              accountCredit: item.amountSigned < 0 ? amt * rate : 0,
 
               accountCurrency: currency?.currencyCode || "",
               accountExRate: rate,
-              description: "Opening Balance",
-              isPrimary: rate === 1 ? true : false,
+              Desc: `Opening Balance - ${item.name}`,
+              isPrimary: rate === 1,
+
+              party: item.refId,
+              partyName: item.name,
             };
-          }),
-        )
-      )
-        .filter(Boolean)
-        .sort((a, b) => a.code.localeCompare(b.code));
+
+            if (item.kind === "customer") {
+              row.customerId = item.refId;
+            } else if (item.kind === "supplier") {
+              row.supplierId = item.refId;
+            } else if (item.kind === "fund") {
+              row.financialFundId = item.refId;
+            }
+
+            openingJournalAccounts.push(row);
+          }
+
+          const unallocated = balance - sumLines;
+
+          if (Math.abs(unallocated) > 0.009) {
+            const ua = Math.abs(unallocated);
+            openingJournalAccounts.push({
+              counter: openingJournalAccounts.length + 1,
+              id: account._id,
+              name: account.name,
+              code: account.code,
+
+              MainDebit: unallocated > 0 ? ua : 0,
+              MainCredit: unallocated < 0 ? ua : 0,
+
+              accountDebit: unallocated > 0 ? ua * rate : 0,
+              accountCredit: unallocated < 0 ? ua * rate : 0,
+
+              accountCurrency: currency?.currencyCode || "",
+              accountExRate: rate,
+              Desc: "Opening Balance - UNALLOCATED",
+              isPrimary: rate === 1,
+            });
+          }
+
+          continue;
+        }
+
+        const amt = Math.abs(balance);
+
+        openingJournalAccounts.push({
+          counter: openingJournalAccounts.length + 1,
+          id: account._id,
+          name: account.name,
+          code: account.code,
+
+          MainDebit: balance > 0 ? amt : 0,
+          MainCredit: balance < 0 ? amt : 0,
+
+          accountDebit: balance > 0 ? amt * rate : 0,
+          accountCredit: balance < 0 ? amt * rate : 0,
+
+          accountCurrency: currency?.currencyCode || "",
+          accountExRate: rate,
+          Desc: "Opening Balance",
+          isPrimary: rate === 1,
+        });
+      }
+
+      openingJournalAccounts.sort((a, b) => a.code.localeCompare(b.code));
 
       if (
         chackDateBalanceDebtor.toFixed(4) !==
@@ -804,15 +1070,6 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           405,
         );
       }
-      const debit = openingJournalAccounts.reduce(
-        (sum, acc) => sum + acc.MainDebit,
-        0,
-      );
-
-      const credit = openingJournalAccounts.reduce(
-        (sum, acc) => sum + acc.MainCredit,
-        0,
-      );
 
       for (const acc of profitloseAccounts) {
         openingJournalAccounts.push({
@@ -820,6 +1077,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           id: acc.id,
           name: acc.name,
           code: acc.code,
+
           MainDebit: type === "credit" ? Math.abs(acc.Balance || 0) : 0,
           MainCredit: type === "debit" ? Math.abs(acc.Balance || 0) : 0,
 
@@ -831,6 +1089,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             type === "debit"
               ? Math.abs(acc.Balance || 0) * (acc.exchRate || 1)
               : 0,
+
           accountCurrency: acc.currency || "",
           accountExRate: acc.exchRate || 1,
 
@@ -866,46 +1125,9 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       }
     }
 
-    const newFunds = await Promise.all(
-      funds.map(async (fund) => {
-        const newFundId = new mongoose.Types.ObjectId();
-
-        const fundReportsData = await reportsFinancialFunds
-          .find({
-            companyId,
-            financialFundId: fund._id,
-            date: {
-              $gte: startDate,
-              $lte: endDate,
-            },
-          })
-          .session(session);
-
-        let fundBalance = 0;
-
-        for (const report of fundReportsData) {
-          if (report.paymentType === "Deposit") {
-            fundBalance += report.amount;
-          } else if (report.paymentType === "Withdrawal") {
-            fundBalance -= report.amount;
-          }
-        }
-
-        return {
-          ...fund.toObject(),
-          _id: newFundId,
-          companyId: newCompanyId,
-          openingBalance: fundBalance,
-          fundBalance: fundBalance,
-          linkAccount: accountIdMap.get(fund.linkAccount?.toString()) || null,
-        };
-      }),
-    );
-
-    const createFunds = await financialFundsModel.insertMany(newFunds, {
-      session,
-    });
-
+    // ------------------------------------------------------------------
+    // Create opening reports / history (كما عندك)
+    // ------------------------------------------------------------------
     for (const fund of createFunds) {
       await reportsFinancialFunds.create(
         [
@@ -922,51 +1144,6 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         { session },
       );
     }
-
-    const customers = await customarModel.find({ companyId }).session(session);
-
-    const newCustomers = await Promise.all(
-      customers.map(async (customer) => {
-        const newCustomerId = new mongoose.Types.ObjectId();
-
-        const customerHistoryData = await paymentHistoryModel
-          .find({
-            companyId,
-            customerId: customer._id,
-            date: {
-              $gte: startDate,
-              $lte: endDate,
-            },
-          })
-          .session(session);
-
-        let totalInvoices = 0;
-        let totalPayments = 0;
-        for (const report of customerHistoryData) {
-          if (report.type === "invoice") {
-            totalInvoices += report.amount;
-          } else if (report.type === "payment") {
-            totalPayments += report.amount;
-          }
-        }
-
-        const unpaid = totalInvoices - totalPayments;
-
-        return {
-          ...customer.toObject(),
-          _id: newCustomerId,
-          companyId: newCompanyId,
-          total: totalInvoices,
-          TotalUnpaid: unpaid,
-          linkAccount:
-            accountIdMap.get(customer.linkAccount?.toString()) || null,
-        };
-      }),
-    );
-
-    const createCustomers = await customarModel.insertMany(newCustomers, {
-      session,
-    });
 
     for (const customer of createCustomers) {
       await createPaymentHistory(
@@ -985,53 +1162,6 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       );
     }
 
-    const suppliers = await suppliersModel
-      .find({
-        companyId,
-      })
-      .session(session);
-
-    const newSuppliers = await Promise.all(
-      suppliers.map(async (supplier) => {
-        const newSupplierId = new mongoose.Types.ObjectId();
-
-        const supplierHistoryData = await paymentHistoryModel
-          .find({
-            companyId,
-            supplierId: supplier._id,
-            date: {
-              $gte: startDate,
-              $lte: endDate,
-            },
-          })
-          .session(session);
-        let totalInvoices = 0;
-        let totalPayments = 0;
-        for (const report of supplierHistoryData) {
-          if (report.type === "invoice") {
-            totalInvoices += report.amount;
-          } else if (report.type === "payment") {
-            totalPayments += report.amount;
-          }
-        }
-
-        const unpaid = totalInvoices - totalPayments;
-        return {
-          ...supplier.toObject(),
-          _id: newSupplierId,
-          companyId: newCompanyId,
-          total: totalInvoices,
-          TotalUnpaid: unpaid,
-          linkAccount:
-            accountIdMap.get(supplier.linkAccount?.toString()) || null,
-        };
-      }),
-    );
-
-    const createSuppliers = await suppliersModel.insertMany(newSuppliers, {
-      session,
-    });
-
     for (const supplier of createSuppliers) {
       await createPaymentHistory(
         "Opening balance",
@@ -1049,7 +1179,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       );
     }
 
-    //---Categories
+    // --- Categories
     const categories = await CategoryModel.find({ companyId }).session(session);
 
     const newCategories = categories.map((c) => ({
@@ -1068,7 +1198,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       categoryMap.set(cat.oldId, cat._id);
     });
 
-    //---Brands
+    // --- Brands
     const brands = await brandModel.find({ companyId }).session(session);
 
     const newBrands = brands.map((b) => ({
@@ -1085,7 +1215,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       brandMap.set(b.oldId, b._id);
     });
 
-    //---Taxs
+    // --- Taxes
     const taxes = await taxModel.find({ companyId }).session(session);
 
     const newTaxes = taxes.map((t) => ({
@@ -1105,7 +1235,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       taxMap.set(t.oldId.toString(), t._id);
     });
 
-    //---Tags
+    // --- Tags
     const tags = await tagModel.find({ companyId }).session(session);
 
     const newTags = tags.map((tag) => ({
@@ -1116,7 +1246,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
     await tagModel.insertMany(newTags, { session });
 
-    //---Unit
+    // --- Unit
     const units = await UnitsModel.find({ companyId }).session(session);
 
     const newUnits = units.map((u) => ({
@@ -1133,7 +1263,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       unitMap.set(u.oldId.toString(), u._id);
     });
 
-    //---Expenses Category
+    // --- Expenses Category
     const categorExpenses = await expensesCategoryModel
       .find({ companyId })
       .session(session);
@@ -1147,8 +1277,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
 
     await expensesCategoryModel.insertMany(newCategorExpense, { session });
 
-    //---Sales Point
-
+    // --- Sales Point
     const salesPoints = await salesPointModel
       .find({ companyId })
       .session(session);
@@ -1202,8 +1331,10 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       currencyMap,
       brandMap,
     });
+
     await session.commitTransaction();
     session.endSession();
+
     res.status(201).json({
       status: true,
       message: "Rollover completed successfully",
