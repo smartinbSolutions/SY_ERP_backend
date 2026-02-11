@@ -4,7 +4,7 @@ const leavesPolicyModel = require("../../models/Hr/leavesPolicyModel");
 const leavesModel = require("../../models/Hr/leavesModel");
 
 // @desc    Get all leave policies
-// @route   GET /api/leave-policies
+// @route   GET /api/leaves-policy
 exports.getAllLeavePolicies = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
@@ -43,7 +43,7 @@ exports.getAllLeavePolicies = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Get single leave policy
-// @route   GET /api/leave-policies/:id
+// @route   GET /api/leaves-policy/:id
 exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -68,7 +68,7 @@ exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Create leave policy
-// @route   POST /api/leave-policies
+// @route   POST /api/leaves-policy
 exports.createLeavePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
@@ -113,7 +113,7 @@ exports.createLeavePolicy = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Update leave policy
-// @route   PUT /api/leave-policies/:id
+// @route   PUT /api/leaves-policy/:id
 exports.updateLeavePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -139,7 +139,7 @@ exports.updateLeavePolicy = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Delete leave policy
-// @route   DELETE /api/leave-policies/:id
+// @route   DELETE /api/leaves-policy/:id
 exports.deleteLeavePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -148,7 +148,7 @@ exports.deleteLeavePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError("companyId is required", 400));
   }
 
-  // Optional: check if policy is assigned to staff
+  // حذف السياسة
   const policy = await leavesPolicyModel.findOneAndDelete({
     _id: id,
     companyId,
@@ -158,8 +158,10 @@ exports.deleteLeavePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`No policy found with this ID: ${id}`, 404));
   }
 
+  await leavesModel.deleteMany({ policyId: id });
+
   res.status(200).json({
     status: "success",
-    message: "Leave policy deleted successfully",
+    message: "Leave policy and related leaves deleted successfully",
   });
 });

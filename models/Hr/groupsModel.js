@@ -66,9 +66,10 @@ const groupsSchema = new mongoose.Schema(
       required: true,
     },
 
-    leaveType: {
+    leavePolicy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: " leaves",
+      ref: "LeavePolicy",
+      required: true,
     },
 
     offDays: [{ type: String }],

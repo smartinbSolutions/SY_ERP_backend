@@ -1,11 +1,12 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const leavesModel = require("../../models/Hr/leavesModel");
+const { default: mongoose } = require("mongoose");
 
 // @desc    Get all leaves
 // @route   GET /api/leaves
 exports.getAllLeaves = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const { companyId, policyId } = req.query;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -13,9 +14,8 @@ exports.getAllLeaves = asyncHandler(async (req, res, next) => {
 
   const query = { companyId };
 
-  // Search by name
-  if (req.query.keyword) {
-    query.name = { $regex: req.query.keyword, $options: "i" };
+  if (policyId) {
+    query.policyId = new mongoose.Types.ObjectId(policyId);
   }
 
   // Pagination
@@ -96,7 +96,7 @@ exports.updateLeave = asyncHandler(async (req, res, next) => {
   const leave = await leavesModel.findOneAndUpdate(
     { _id: id, companyId },
     { ...req.body, companyId },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   if (!leave) {

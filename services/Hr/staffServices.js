@@ -250,7 +250,7 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
   const staff = await StaffsModel.findOneAndUpdate(
     { _id: req.params.id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   if (!staff) {
