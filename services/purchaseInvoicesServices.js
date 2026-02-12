@@ -659,42 +659,42 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     }
   }
   if (!invoiceDraft) {
-    await Promise.all(
-      Array.from(movementMap.entries()).map(async ([id, item]) => {
-        const product = productMap.get(id);
-        if (!product) return;
+    for (const item of invoicesItem) {
+      if (item.type === "unTracedproduct" || item.type === "expense") continue;
 
-        const totalStockQuantity = product.stocks.reduce(
-          (total, stock) => total + stock.productQuantity || 0,
-          0,
-        );
+      const product = productMap.get(item.id);
+      if (!product) return;
 
-        await createProductMovement({
-          productId: product._id,
-          reference: newPurchaseInvoice._id,
-          newQuantity: totalStockQuantity + item.quantity,
-          quantity: item.quantity,
-          movementType: "in",
-          source: "Purchase Invoice",
-          companyId,
-          enterPrice: item.oldCostBuyingPrice,
-          stockId: item.stock._id,
-          buyingPrice: item.orginalBuyingPrice,
-          exchangeRate: item.exchangeRate,
-        });
-        await createProductBatch({
-          productId: item.id,
-          companyId,
-          stockId: item.stock._id,
-          quantity: item.quantity,
-          buyingprice: item.orginalBuyingPrice,
-          sourceId: newPurchaseInvoice._id,
-          costBuyingPrice: item.oldCostBuyingPrice,
-          exchangeRate: item.exchangeRate,
-          referenceType: "purchase",
-        });
-      }),
-    );
+      const totalStockQuantity = product.stocks.reduce(
+        (total, stock) => total + stock.productQuantity || 0,
+        0,
+      );
+
+      await createProductMovement({
+        productId: product._id,
+        reference: newPurchaseInvoice._id,
+        newQuantity: totalStockQuantity + item.quantity,
+        quantity: item.quantity,
+        movementType: "in",
+        source: "Purchase Invoice",
+        companyId,
+        enterPrice: item.oldCostBuyingPrice,
+        stockId: item.stock._id,
+        buyingPrice: item.orginalBuyingPrice,
+        exchangeRate: item.exchangeRate,
+      });
+      await createProductBatch({
+        productId: item.id,
+        companyId,
+        stockId: item.stock._id,
+        quantity: item.quantity,
+        buyingprice: item.orginalBuyingPrice,
+        sourceId: newPurchaseInvoice._id,
+        costBuyingPrice: item.oldCostBuyingPrice,
+        exchangeRate: item.exchangeRate,
+        referenceType: "purchase",
+      });
+    }
   }
 
   const bulkSupplierPromises = invoicesItem.map(async (item) => {
