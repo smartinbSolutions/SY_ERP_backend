@@ -8,7 +8,7 @@ const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
 const SupplierModel = require("../models/suppliersModel");
 const { createPaymentHistory } = require("./paymentHistoryService");
-const paymentModel = require("../models/paymentModelOld");
+const paymentModel = require("../models/paymentModel");
 const PaymentHistoryModel = require("../models/paymentHistoryModel");
 const PurchaseInvoicesModel = require("../models/purchaseinvoicesModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
@@ -40,7 +40,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -66,21 +66,21 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
   const date_ob = new Date(ts);
   const futureDateOb = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth()
+    date_ob.getMonth(),
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}:${padZero(date_ob.getMilliseconds())}`;
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const formattedPayment = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const formattedDateAdd3 = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   let expense;
   const isoDate = `${req.body.date}T${formattedDateAdd3}Z`;
@@ -129,36 +129,47 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     const paymentInFundCurrency = req.body.paymentInFundCurrency;
     financialFunds.fundBalance -= Number(paymentInFundCurrency);
     const payment = await paymentModel.create({
-      supplierId: req.body.supllier.id,
-      supplierName: req.body.supllier.name,
-      total: req.body.paymentInInvoiceCurrency,
-      totalMainCurrency: req.body.paymentInMainCurrency,
-      exchangeRate: financialFunds.fundCurrency.exchangeRate,
-      financialFundsCurrencyCode: financialFunds.fundCurrency.currencyCode,
-      financialFundsName: financialFunds.fundName,
-      financialFundsID: req.body.financialFund,
-      date: req.body.paymentDate || formattedDate,
-      invoiceNumber: nextCounter,
-      invoiceID: expense._id,
-      counter: Number(req.body.counters) + nextCounterPayment,
-      type: "expense",
-      description: req.body.paymentDisc,
-      invoiceCurrencyCode: req.body.currency.currencyCode,
-      paymentInFundCurrency: req.body.paymentInFundCurrency,
-      paymentText: "Withdrawal",
-      companyId,
-      payid: {
-        id: expense._id,
-        status: req.body.paymentStatus,
-        invoiceTotal: req.body.expenceTotal,
-        invoiceName: req.body.expenseName,
-        invoiceCurrencyCode: req.body.currency.currencyCode,
-        status: req.body.paymentStatus,
-        paymentInFundCurrency: req.body.paymentInFundCurrency,
-        paymentMainCurrency: req.body.paymentInMainCurrency,
-        paymentInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+      source: {
+        id: expense.id,
+        name: expense.expenseName,
       },
+      destination: {
+        id: req.body.financialFund,
+        name: financialFunds.fundName,
+      },
+      sourceType: "expense",
+      destinationType: "fund",
+      totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
+      totalMainCurrency: req.body.paymentInMainCurrency,
+      paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+      paymentCurrency: {
+        id: req.body.currency.id,
+        name: req.body.currency.name,
+        code: req.body.currency.currencyCode,
+        exchangeRate: req.body.currency.exchangeRate,
+      },
+      destinationExchangeRate: financialFunds.fundCurrency.exchangeRate,
+      destinationCurrencyCode: financialFunds.fundCurrency.currencyCode,
+      type: "expense",
+      paymentType: "Withdrawal",
+      description: req.body.paymentDisc,
+      date: req.body.paymentDate || formattedDate,
+      counter: Number(req.body.counters) + nextCounterPayment,
+      companyId,
+      payid: [
+        {
+          id: expense._id,
+          status: req.body.paymentStatus,
+          invoiceTotal: req.body.expenceTotal,
+          invoiceName: req.body.expenseName,
+          invoiceCurrencyCode: req.body.currency.currencyCode,
+          paymentInFundCurrency: req.body.paymentInFundCurrency,
+          paymentMainCurrency: req.body.paymentInMainCurrency,
+          paymentInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+        },
+      ],
     });
+
     if (financialFunds) {
       await ReportsFinancialFundsModel.create({
         date: req.body.paymentDate || formattedDate,
@@ -191,7 +202,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
             paymentID: payment._id,
           },
         ],
-      }
+      },
     );
     await createPaymentHistory(
       "payment",
@@ -206,7 +217,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "expense",
-      financialFunds.fundCurrency.currencyCode
+      financialFunds.fundCurrency.currencyCode,
     );
   } else {
     expense = await expensesModel.create(req.body);
@@ -230,7 +241,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     "",
     "",
     "expence",
-    req.body.currency.currencyCode
+    req.body.currency.currencyCode,
   );
   supplier.save();
   await createInvoiceHistory(
@@ -238,7 +249,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     expense._id,
     "create",
     req.user._id,
-    req.body.date
+    req.body.date,
   );
 
   // Send response
@@ -344,7 +355,7 @@ exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
 
   if (!expense) {
     return next(
-      new ApiError(`There is no expense with this id or counter: ${id}`, 404)
+      new ApiError(`There is no expense with this id or counter: ${id}`, 404),
     );
   }
 
@@ -399,7 +410,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds())}`;
   req.body.supllier = JSON.parse(req.body.supllier);
   req.body.currency = JSON.parse(req.body.currency);
@@ -409,9 +420,9 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds()
+    futureDateOb.getMilliseconds(),
   )}`;
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
 
@@ -438,7 +449,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     "",
     "",
     "expence",
-    req.body.currency.currencyCode
+    req.body.currency.currencyCode,
   );
 
   if (req.body.paymentStatus === "paid") {
@@ -452,7 +463,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
     const financialFunds = await FinancialFundsModel.findById({
       _id: req.body.financialFund,
@@ -534,7 +545,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
           },
         },
       },
-      { new: true }
+      { new: true },
     );
 
     await createPaymentHistory(
@@ -550,7 +561,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "expence",
-      financialFunds.fundCurrency.currencyCode
+      financialFunds.fundCurrency.currencyCode,
     );
 
     if (req.body.supllier.id === expence.supllier.id) {
@@ -590,7 +601,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
   }
 
@@ -599,7 +610,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
   res.status(200).json({ status: "true", message: "Expense updated" });
 });
@@ -631,7 +642,7 @@ exports.patchExpense = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
 
   res.status(200).json({
@@ -664,7 +675,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
             total: -expensesInvoices.expenceTotalMainCurrency,
             TotalUnpaid: -expensesInvoices.totalRemainderMainCurrency,
           },
-        }
+        },
       );
 
       await PaymentHistoryModel.deleteMany({
@@ -675,7 +686,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
         id,
         "cancel",
         req.user._id,
-        new Date().toISOString()
+        new Date().toISOString(),
       );
       expensesInvoices.type = "expenses cancelled";
       expensesInvoices.totalRemainderMainCurrency = 0;
@@ -688,7 +699,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
     }
   } else {
     return next(
-      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500)
+      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500),
     );
   }
 });
@@ -736,7 +747,7 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
 
     // Merge both arrays and sort by date if needed
     const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
+      (a, b) => new Date(b.date) - new Date(a.date),
     );
 
     // Paginate the combined result
@@ -750,7 +761,7 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
       totalPages,
       data: paginatedData,
     });
-  }
+  },
 );
 
 exports.archiveExpense = asyncHandler(async (req, res, next) => {
@@ -763,7 +774,7 @@ exports.archiveExpense = asyncHandler(async (req, res, next) => {
   const expense = await expensesModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true }
+    { new: true },
   );
 
   if (!expense) {
