@@ -107,8 +107,7 @@ const StaffSchema = new mongoose.Schema(
 
     /* ================= HR DATA ================= */
     hireDate: {
-      type: Date,
-      required: true,
+      String,
     },
     probationPeriod: String,
     probationEndDate: Date,

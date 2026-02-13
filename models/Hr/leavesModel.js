@@ -13,14 +13,20 @@ const LeaveSchema = new mongoose.Schema({
       index: true,
     },
   /* ===== Leave Type ===== */
-  typeId: {
-    type: Number,
-    required: true,
-  },
 
-  typeKey: {
-    type: String, // annual | sick | hajj | maternity | unpaid
+   typeKey: {
+    type: String,
     required: true,
+    enum: [
+      "annual",      // Annual Leave
+      "maternity",   // Maternity Leave
+      "sick",        // Sick Leave
+      "paternity",   // Paternity Leave
+      "marriage",    // Marriage Leave
+      "bereavement", // Bereavement Leave
+      "hajj",        // Hajj Leave
+      "unpaid",      // Unpaid Leave
+    ],
   },
 
   requiresAttachment: {

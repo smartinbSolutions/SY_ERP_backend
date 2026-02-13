@@ -4,7 +4,8 @@ const ApiError = require("../../utils/apiError");
 
 /* ================= CREATE ================= */
 exports.createLeaveRequest = asyncHandler(async (req, res) => {
-  const { leaveType, startDate, endDate, reason, attachment } = req.body;
+  const { leaveType, startDate, endDate, reason, attachment, managerId } =
+    req.body;
 
   if (!req.user) {
     return res.status(401).json({ status: "fail", message: "Not logged in" });
@@ -17,6 +18,7 @@ exports.createLeaveRequest = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     reason,
+    managerId,
     attachment: attachment || null,
   });
 
@@ -34,9 +36,9 @@ exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
   );
   res.status(200).json({ status: true, data: requests });
 });
-/* ================= GET ALL COMPANY REQUESTS (ADMIN) ================= */
+/* ================= GET ALL COMPANY REQUESTS (ADMIN OR MANAGER) ================= */
 exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const { companyId, managerId } = req.query;
 
   if (!companyId) {
     return res
@@ -45,14 +47,19 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   }
 
   const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.limit) || 20; // لو موجود limit من query رح يستخدمه، وإلا 20
+  const pageSize = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * pageSize;
 
-  const totalItems = await LeaveRequest.countDocuments({ companyId });
+  // ===== Build filter =====
+  const filter = { companyId };
+  if (managerId) filter.managerId = managerId; // فلترة حسب المدير إذا موجود
+
+  const totalItems = await LeaveRequest.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);
 
-  const requests = await LeaveRequest.find({ companyId })
+  const requests = await LeaveRequest.find(filter)
     .populate("leaveType")
+    .populate("userId", "fullName email") // للحصول على اسم الموظف
     .skip(skip)
     .limit(pageSize)
     .sort({ createdAt: -1 });
@@ -85,24 +92,31 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
   if (!request) return next(new ApiError("Leave request not found", 404));
 
   // Allow only owner to edit before approval
-  if (request.userId.toString() !== req.user._id.toString())
-    return next(new ApiError("Unauthorized", 403));
+  // if (request.userId.toString() !== req.user._id.toString())
+  //   return next(new ApiError("Unauthorized", 403));
 
-  if (request.status !== "Pending")
-    return next(new ApiError("Cannot edit a processed request", 400));
+  // if (request.status !== "Pending")
+  //   return next(new ApiError("Cannot edit a processed request", 400));
 
-  const { leaveType, startDate, endDate, reason, attachment } = req.body;
+  const { leaveType, startDate, endDate, reason, attachment, status } = req.body;
 
+  // Update fields if provided
   request.leaveType = leaveType || request.leaveType;
   request.startDate = startDate || request.startDate;
   request.endDate = endDate || request.endDate;
   request.reason = reason || request.reason;
   request.attachment = attachment || request.attachment;
 
+  // ✅ Update status if provided and valid
+  if (status && ["pending", "approved", "rejected"].includes(status.toLowerCase())) {
+    request.status = status.toLowerCase();
+  }
+
   await request.save();
 
   res.status(200).json({ status: true, data: request });
 });
+
 
 /* ================= DELETE REQUEST ================= */
 exports.deleteLeaveRequest = asyncHandler(async (req, res, next) => {
@@ -111,14 +125,13 @@ exports.deleteLeaveRequest = asyncHandler(async (req, res, next) => {
   if (!request) return next(new ApiError("Leave request not found", 404));
 
   // Only owner can delete before approval
-  if (request.userId.toString() !== req.user._id.toString())
-    return next(new ApiError("Unauthorized", 403));
+  // if (request.userId.toString() !== req.user._id.toString())
+  //   return next(new ApiError("Unauthorized", 403));
 
-  if (request.status !== "Pending")
-    return next(new ApiError("Cannot delete a processed request", 400));
+  // if (request.status !== "Pending")
+  //   return next(new ApiError("Cannot delete a processed request", 400));
 
   await LeaveRequest.deleteOne({ _id: request._id });
 
   res.status(200).json({ status: true, message: "Leave request deleted" });
 });
-

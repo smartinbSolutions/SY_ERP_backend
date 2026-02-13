@@ -29,6 +29,7 @@ exports.getAllLeaves = asyncHandler(async (req, res, next) => {
     .find(query)
     .skip(skip)
     .limit(limit)
+    .populate("policyId")
     .sort({ createdAt: -1 });
 
   res.status(200).json({

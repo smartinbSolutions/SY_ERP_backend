@@ -24,13 +24,10 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
         path: "groupId",
         populate: [
           {
-            path: "leaveType",
-            model: "Leave",
+            path: "leavePolicy",
+            model: "LeavePolicy",
           },
-          {
-            path: "locationId",
-            model: "hrlocation",
-          },
+          
         ],
       })
       .populate("roleId");
