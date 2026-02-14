@@ -1,8 +1,8 @@
 const LeaveRequest = require("../../models/Hr/leaveRequestModel");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
+const leavesLogsModel = require("../../models/Hr/leavesLogsModel");
 
-/* ================= CREATE ================= */
 exports.createLeaveRequest = asyncHandler(async (req, res) => {
   const { leaveType, startDate, endDate, reason, attachment, managerId } =
     req.body;
@@ -50,16 +50,15 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const pageSize = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * pageSize;
 
-  // ===== Build filter =====
   const filter = { companyId };
-  if (managerId) filter.managerId = managerId; // فلترة حسب المدير إذا موجود
+  if (managerId) filter.managerId = managerId; 
 
   const totalItems = await LeaveRequest.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);
 
   const requests = await LeaveRequest.find(filter)
     .populate("leaveType")
-    .populate("userId", "fullName email") // للحصول على اسم الموظف
+    .populate("userId", "fullName email") 
     .skip(skip)
     .limit(pageSize)
     .sort({ createdAt: -1 });
@@ -91,24 +90,22 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
 
   if (!request) return next(new ApiError("Leave request not found", 404));
 
-  // Allow only owner to edit before approval
-  // if (request.userId.toString() !== req.user._id.toString())
-  //   return next(new ApiError("Unauthorized", 403));
+  if (request.status !== "pending")
+    return next(new ApiError("Cannot edit a processed request", 400));
 
-  // if (request.status !== "Pending")
-  //   return next(new ApiError("Cannot edit a processed request", 400));
+  const { leaveType, startDate, endDate, reason, attachment, status } =
+    req.body;
 
-  const { leaveType, startDate, endDate, reason, attachment, status } = req.body;
-
-  // Update fields if provided
   request.leaveType = leaveType || request.leaveType;
   request.startDate = startDate || request.startDate;
   request.endDate = endDate || request.endDate;
   request.reason = reason || request.reason;
   request.attachment = attachment || request.attachment;
 
-  // ✅ Update status if provided and valid
-  if (status && ["pending", "approved", "rejected"].includes(status.toLowerCase())) {
+  if (
+    status &&
+    ["pending", "approved", "rejected"].includes(status.toLowerCase())
+  ) {
     request.status = status.toLowerCase();
   }
 
@@ -117,6 +114,38 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: true, data: request });
 });
 
+exports.approveLeaveRequest = asyncHandler(async (req, res, next) => {
+  
+  const request = await LeaveRequest.findById(req.params.id);
+  if (!request) return next(new ApiError("Leave request not found", 404));
+
+  if (request.status !== "pending")
+    return next(new ApiError("Already processed", 400));
+
+  if (req.user._id.toString() !== request.managerId.toString()) {
+    return next(new ApiError("Not authorized", 403));
+  }
+
+  const leaveLog = await leavesLogsModel.create({
+    userId: request.userId,
+    leaveRequestId: request._id,
+    leaveType: request.leaveType,
+    startDate: request.startDate,
+    endDate: request.endDate,
+    days: request.days,
+    approvedBy: req.user._id,
+    companyId: request.companyId,
+  });
+
+  request.status = "approved";
+  await request.save();
+
+  res.status(200).json({
+    status: true,
+    message: "Leave approved successfully",
+    data: leaveLog,
+  });
+});
 
 /* ================= DELETE REQUEST ================= */
 exports.deleteLeaveRequest = asyncHandler(async (req, res, next) => {
