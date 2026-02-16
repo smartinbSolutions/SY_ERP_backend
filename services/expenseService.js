@@ -12,6 +12,7 @@ const paymentModel = require("../models/paymentModel");
 const PaymentHistoryModel = require("../models/paymentHistoryModel");
 const PurchaseInvoicesModel = require("../models/purchaseinvoicesModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
+const counterModel = require("../models/Settings/counterModel");
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, callback) {
@@ -130,7 +131,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     financialFunds.fundBalance -= Number(paymentInFundCurrency);
     const payment = await paymentModel.create({
       source: {
-        id: expense.id,
+        id: expense._id,
         name: expense.expenseName,
       },
       destination: {
@@ -154,7 +155,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
       paymentType: "Withdrawal",
       description: req.body.paymentDisc,
       date: req.body.paymentDate || formattedDate,
-      counter: Number(req.body.counters) + nextCounterPayment,
+      counter: Number(req.body.counters) + nextCounterPayment.seq,
       companyId,
       payid: [
         {

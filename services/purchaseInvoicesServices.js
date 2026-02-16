@@ -9,7 +9,7 @@ const refundPurchaseInviceModel = require("../models/refundPurchaseInviceModel")
 const { createProductMovement } = require("../utils/productMovement");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
 const { createPaymentHistory } = require("./paymentHistoryService");
-const PaymentModel = require("../models/paymentModelOld");
+const PaymentModel = require("../models/paymentModel");
 const paymentHistoryModel = require("../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
@@ -186,13 +186,17 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const nextCounterPayment =
-    (await PaymentModel.countDocuments({
-      companyId,
-      paymentText: "Withdrawal",
-    })) + 1;
-  const nextCounterPurchaseInvoices =
-    (await PurchaseInvoicesModel.countDocuments({ companyId })) + 1;
+  const nextCounterPayment = await counterModel.findOneAndUpdate(
+    { companyId, name: "Payment" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
+
+  const nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
+    { companyId, name: "Purchase Invoice" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
 
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
@@ -314,7 +318,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       subtotalWithDiscount,
       paymentDate,
       invoiceTax,
-      counter: Number(counter) + nextCounterPurchaseInvoices,
+      counter: Number(counter) + nextCounterPurchaseInvoices.seq,
       tag,
       journalCounter: req.body.journalCounter,
       type: "purchase",
@@ -326,34 +330,45 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     });
     // Use Promise.all for parallel database operations
     const payment = await PaymentModel.create({
-      supplierId: supllierObject.id,
-      supplierName: supllierObject.name,
-      total: req.body.paymentInInvoiceCurrency,
-      totalMainCurrency: req.body.paymentInMainCurrency,
-      paymentInFundCurrency: paymentInFundCurrency,
-      exchangeRate: financialFund.fundCurrency.exchangeRate,
-      financialFundsCurrencyCode: financailFund.code,
-      date: req.body.paymentDate || formattedDate,
-      financialFundsName: financialFund.fundName,
-      financialFundsId: financailFund.id,
-      invoiceNumber: invoiceNumber,
-      invoiceID: newPurchaseInvoice._id,
-      counter: Number(counter) + nextCounterPayment,
-      description: req.body.paymentDescription,
-      invoiceCurrencyCode: req.body.currency.currencyCode,
-      paymentText: "Withdrawal",
-      type: "purchase",
-      companyId,
-      payid: {
+      source: {
         id: newPurchaseInvoice._id,
-        status: req.body.paid,
-        invoiceTotal: req.body.invoiceGrandTotal,
-        invoiceName: req.body.invoiceName,
-        invoiceCurrencyCode: req.body.currency.currencyCode,
-        paymentInFundCurrency: paymentInFundCurrency,
-        paymentMainCurrency: req.body.paymentInMainCurrency,
-        paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+        name: newPurchaseInvoice.invoiceName,
       },
+      destination: {
+        id: financialFund.id,
+        name: financialFund.fundName,
+      },
+      sourceType: "expense",
+      destinationType: "fund",
+      totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
+      totalMainCurrency: req.body.paymentInMainCurrency,
+      paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+      paymentCurrency: {
+        id: req.body.currency.id,
+        name: req.body.currency.name,
+        code: req.body.currency.currencyCode,
+        exchangeRate: req.body.currency.exchangeRate,
+      },
+      destinationExchangeRate: financialFund.fundCurrency.exchangeRate,
+      destinationCurrencyCode: financailFund.code,
+      type: "expense",
+      paymentType: "Withdrawal",
+      description: req.body.paymentDisc,
+      date: req.body.paymentDate || formattedDate,
+      counter: Number(req.body.counters) + nextCounterPayment.seq,
+      companyId,
+      payid: [
+        {
+          id: newPurchaseInvoice._id,
+          status: req.body.paid,
+          invoiceTotal: req.body.invoiceGrandTotal,
+          invoiceName: req.body.invoiceName,
+          invoiceCurrencyCode: req.body.currency.currencyCode,
+          paymentInFundCurrency: paymentInFundCurrency,
+          paymentMainCurrency: req.body.paymentInMainCurrency,
+          paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+        },
+      ],
     });
     const reports = await reportsFinancialFunds.create({
       date: req.body.paymentDate || formattedDate,
@@ -452,7 +467,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       paymentDate,
       invoiceTax,
       tag,
-      counter: Number(counter) + nextCounterPurchaseInvoices,
+      counter: Number(counter) + nextCounterPurchaseInvoices.seq,
       journalCounter: req.body.journalCounter,
       type: "purchase",
       dueDate: paymentDate,
@@ -486,7 +501,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       paymentDate,
       invoiceTax,
       tag,
-      counter: Number(counter) + nextCounterPurchaseInvoices,
+      counter: Number(counter) + nextCounterPurchaseInvoices.seq,
       journalCounter: req.body.journalCounter,
       type: "purchase",
       dueDate: paymentDate,

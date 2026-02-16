@@ -37,12 +37,22 @@ const createProductMovement = async ({
           : source === "Purchase Invoice"
             ? "PurchaseInvoices"
             : source === "Stock reconciliation"
-              ? "Reconciliation"
+              ? "Reconciliation-v1"
               : source === "Stock Transfer"
                 ? "StockTransfer"
-                : source === "Refund Purchase Invoice"
-                  ? "refundpurchaseinvoices"
-                  : null,
+                : source === "POS Receipt"
+                  ? "posReceipts"
+                  : source === "Resturant Order"
+                    ? "MenuOrder"
+                    : source === "Refund POS Receipt"
+                      ? "RefundPosSales"
+                      : source === "Manufacturing"
+                        ? "productionLog"
+                        : source === "Refund Purchase Invoice"
+                          ? "refundpurchaseinvoices"
+                          : source === "Refund Sales Invoice"
+                            ? "returnOrder"
+                            : null,
       stockId,
       sellingPrice,
       buyingPrice,
