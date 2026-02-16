@@ -51,14 +51,14 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const skip = (page - 1) * pageSize;
 
   const filter = { companyId };
-  if (managerId) filter.managerId = managerId; 
+  if (managerId) filter.managerId = managerId;
 
   const totalItems = await LeaveRequest.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);
 
   const requests = await LeaveRequest.find(filter)
     .populate("leaveType")
-    .populate("userId", "fullName email") 
+    .populate("userId", "fullName email")
     .skip(skip)
     .limit(pageSize)
     .sort({ createdAt: -1 });
@@ -114,36 +114,57 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: true, data: request });
 });
 
-exports.approveLeaveRequest = asyncHandler(async (req, res, next) => {
-  
+exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
+  const { action, reason } = req.body;
+
   const request = await LeaveRequest.findById(req.params.id);
+
   if (!request) return next(new ApiError("Leave request not found", 404));
+
+  console.log(request.status);
 
   if (request.status !== "pending")
     return next(new ApiError("Already processed", 400));
 
+  // Only manager can handle
   if (req.user._id.toString() !== request.managerId.toString()) {
     return next(new ApiError("Not authorized", 403));
   }
 
-  const leaveLog = await leavesLogsModel.create({
-    userId: request.userId,
-    leaveRequestId: request._id,
-    leaveType: request.leaveType,
-    startDate: request.startDate,
-    endDate: request.endDate,
-    days: request.days,
-    approvedBy: req.user._id,
-    companyId: request.companyId,
-  });
+  /* =======================
+     APPROVE
+  ======================= */
+  if (action === "approve") {
+    await leavesLogsModel.create({
+      userId: request.userId,
+      leaveRequestId: request._id,
+      leaveType: request.leaveType,
+      startDate: request.startDate,
+      endDate: request.endDate,
+      days: request.days,
+      approvedBy: req.user._id,
+      companyId: request.companyId,
+    });
 
-  request.status = "approved";
+    request.status = "approved";
+    request.approvedAt = Date.now();
+  } else if (action === "reject") {
+    request.status = "rejected";
+    request.rejectionReason = reason || "";
+    request.rejectedAt = Date.now();
+  } else {
+    /* =======================
+     INVALID
+  ======================= */
+    return next(new ApiError("Invalid action", 400));
+  }
+
   await request.save();
 
   res.status(200).json({
     status: true,
-    message: "Leave approved successfully",
-    data: leaveLog,
+    message: `Leave ${action} successfully`,
+    data: request,
   });
 });
 

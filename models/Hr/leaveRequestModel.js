@@ -32,9 +32,8 @@ const leaveRequestSchema = new mongoose.Schema(
 
     days: Number,
 
-    reason: {
+    rejectionReason: {
       type: String,
-      required: true,
       trim: true,
     },
 

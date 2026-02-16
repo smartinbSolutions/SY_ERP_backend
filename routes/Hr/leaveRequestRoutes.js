@@ -1,4 +1,3 @@
-
 const express = require("express");
 const {
   createLeaveRequest,
@@ -7,7 +6,7 @@ const {
   getLeaveRequestById,
   updateLeaveRequest,
   deleteLeaveRequest,
-  approveLeaveRequest,
+  handleLeaveRequest,
 } = require("../../services/Hr/leaveRequestService");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -23,9 +22,9 @@ LeaveRequestRouter.route("/")
   .post(hrAuthServices.protectStaffOrERP, createLeaveRequest)
   .get(getAllLeaveRequests);
 
-LeaveRequestRouter.route("/approve-leave/:id").post(
+LeaveRequestRouter.route("/handle-leave-status/:id").post(
   hrAuthServices.protectStaffOrERP,
-  approveLeaveRequest,
+  handleLeaveRequest,
 );
 
 LeaveRequestRouter.route("/:id")

@@ -16,7 +16,7 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
       email: req.body.email,
       // session: false,
     })
-       .populate({ path: "position", select: "name -_id" })
+      .populate({ path: "position", select: "name -_id" })
       .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" })
       .populate("branch")
       .populate("department")
@@ -27,26 +27,25 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
             path: "leavePolicy",
             model: "LeavePolicy",
           },
-          
         ],
       })
       .populate("roleId");
 
     if (!user) {
-      return next(
-        new ApiError("Incorrect email or Have session in other divase ", 401),
-      );
+      return next(new ApiError("Invalid email or password", 401));
     }
-    user.session = true;
     await user.save();
     // Check passwords
     const passwordMatch = await bcrypt.compare(
       req.body.password,
       user.password,
     );
+
     if (!passwordMatch) {
       return next(new ApiError("Incorrect Password", 401));
     }
+    user.session = true;
+
     user.password = undefined;
     const companyData = await companyInfoModel.findById(user.companyId);
     const token = createToken(user, null, "staff");
@@ -197,7 +196,7 @@ exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
   const { email, companyId } = req.erpUser;
 
   const staff = await StaffsModel.findOne({ email, companyId })
-      .populate("branch")
+    .populate("branch")
     .populate({
       path: "groupId",
       populate: [
@@ -262,8 +261,6 @@ exports.protectStaffOrERP = asyncHandler(async (req, res, next) => {
 // @access    Public
 
 exports.forgotPassword = asyncHandler(async (req, res, next) => {
-
-
   // 1) Get user by email
   const { email } = req.body;
   const staff = await staffModel.findOne({ email });
@@ -275,7 +272,6 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
   const resetCode = Math.floor(Math.random() * 1000000 + 1).toString();
   const hashedResetCode = await bcrypt.hash(resetCode, 10);
-console.log(resetCode);
 
   staff.passwordResetCode = hashedResetCode;
   //10 min
@@ -316,8 +312,6 @@ console.log(resetCode);
 // @access    Public
 
 exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
-
-
   const { email, resetCode } = req.body;
 
   if (!email || !resetCode) {
@@ -354,9 +348,7 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
 // @route     POST /api/hrauth/resetpassword
 // @access    Public
 exports.resetPassword = asyncHandler(async (req, res, next) => {
-
   const { email, newPassword } = req.body;
-
 
   // 1) Get staff based on email
   const staff = await staffModel.findOne({
