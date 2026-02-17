@@ -66,126 +66,369 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   }
 });
 
+// exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
+//   const { companyId, startDate, endDate } = req.query;
+
+//   if (!companyId) {
+//     return res.status(400).json({ message: "companyId is required" });
+//   }
+//   let startDates;
+//   let endDates;
+//   try {
+//     // 1️⃣ Fetch chart of accounts
+//     const accounts = await AccountingTree.aggregate([
+//       { $match: { companyId } },
+//       {
+//         $addFields: {
+//           numericCode: {
+//             $convert: {
+//               input: "$code",
+//               to: "double",
+//               onError: null,
+//               onNull: null,
+//             },
+//           },
+//         },
+//       },
+//       { $sort: { numericCode: 1 } },
+//       {
+//         $lookup: {
+//           from: "currencies",
+//           localField: "currency",
+//           foreignField: "_id",
+//           as: "currency",
+//         },
+//       },
+//       { $unwind: { path: "$currency", preserveNullAndEmptyArrays: true } },
+//     ]);
+
+//     // 2️⃣ Remove all filters — fetch ALL journals for this company
+
+//     if (startDate && endDate) {
+//       startDates = `${startDate}T00:00:00.000Z`;
+//       endDates = `${endDate}T23:59:59.999Z`;
+//     }
+//     const match = {
+//       companyId,
+//       ...(startDates && endDates
+//         ? { journalDate: { $gte: startDates, $lte: endDates } }
+//         : {}),
+//     };
+//     // 3️⃣ Aggregate journal totals grouped by account ID (as string)
+//     const journalSums = await journalEntryModel.aggregate([
+//       { $match: match },
+//       { $unwind: "$journalAccounts" },
+//       {
+//         $group: {
+//           _id: { $toString: "$journalAccounts.id" }, // normalize IDs
+//           totalDebit: { $sum: "$journalAccounts.MainDebit" },
+//           totalCredit: { $sum: "$journalAccounts.MainCredit" },
+//         },
+//       },
+//     ]);
+
+//     // 4️⃣ Create balance map
+//     const balanceMap = {};
+//     for (const j of journalSums) {
+//       balanceMap[j._id] = {
+//         totalDebit: j.totalDebit || 0,
+//         totalCredit: j.totalCredit || 0,
+//         balance: (j.totalDebit || 0) - (j.totalCredit || 0),
+//       };
+//     }
+
+//     // 5️⃣ Build the tree and attach balances
+//     const buildTree = (data, parentCode = null) =>
+//       data
+//         .filter((acc) => acc.parentCode === parentCode)
+//         .map((acc) => {
+//           const children = buildTree(data, acc.code);
+//           const bal = balanceMap[acc._id.toString()] || {
+//             totalDebit: 0,
+//             totalCredit: 0,
+//             balance: 0,
+//           };
+
+//           const normalizedBalance =
+//             acc.balanceType === "credit" ? -bal.balance : bal.balance;
+
+//           return {
+//             ...acc,
+//             totalDebit: bal.totalDebit,
+//             totalCredit: bal.totalCredit,
+//             balance: normalizedBalance,
+//             children: children.length > 0 ? children : [],
+//           };
+//         });
+
+//     const treeData = buildTree(accounts);
+
+//     // 6️⃣ Global totals
+//     const totalDebit = Object.values(balanceMap).reduce(
+//       (sum, v) => sum + v.totalDebit,
+//       0,
+//     );
+//     const totalCredit = Object.values(balanceMap).reduce(
+//       (sum, v) => sum + v.totalCredit,
+//       0,
+//     );
+
+//     res.status(200).json({
+//       status: "success",
+//       companyId,
+//       totals: {
+//         totalDebit,
+//         totalCredit,
+//         totalBalance: totalDebit - totalCredit,
+//       },
+//       data: treeData,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
   const { companyId, startDate, endDate } = req.query;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  let startDates;
-  let endDates;
+
   try {
-    // 1️⃣ Fetch chart of accounts
-    const accounts = await AccountingTree.aggregate([
+    /* ============================================
+       1) GET ACCOUNTS (lean + populate)
+    ============================================ */
+    const accounts = await AccountingTree.find({ companyId })
+      .populate("currency")
+      .lean();
+
+    /* ============================================
+       2) JOURNAL AGGREGATION (server-side)
+       NOTE: journalDate is String in your schema, so we must parse it.
+       Long-term: store journalDate as Date for index usage.
+    ============================================ */
+    const pipeline = [
       { $match: { companyId } },
       {
         $addFields: {
-          numericCode: {
-            $convert: {
-              input: "$code",
-              to: "double",
+          journalDateObj: {
+            $dateFromString: {
+              dateString: "$journalDate",
               onError: null,
               onNull: null,
             },
           },
         },
       },
-      { $sort: { numericCode: 1 } },
-      {
-        $lookup: {
-          from: "currencies",
-          localField: "currency",
-          foreignField: "_id",
-          as: "currency",
-        },
-      },
-      { $unwind: { path: "$currency", preserveNullAndEmptyArrays: true } },
-    ]);
-
-    // 2️⃣ Remove all filters — fetch ALL journals for this company
+    ];
 
     if (startDate && endDate) {
-      startDates = `${startDate}T00:00:00.000Z`;
-      endDates = `${endDate}T23:59:59.999Z`;
+      pipeline.push({
+        $match: {
+          journalDateObj: {
+            $gte: new Date(`${startDate}T00:00:00.000Z`),
+            $lte: new Date(`${endDate}T23:59:59.999Z`),
+          },
+        },
+      });
     }
-    const match = {
-      companyId,
-      ...(startDates && endDates
-        ? { journalDate: { $gte: startDates, $lte: endDates } }
-        : {}),
-    };
-    // 3️⃣ Aggregate journal totals grouped by account ID (as string)
-    const journalSums = await journalEntryModel.aggregate([
-      { $match: match },
+
+    pipeline.push(
       { $unwind: "$journalAccounts" },
       {
         $group: {
-          _id: { $toString: "$journalAccounts.id" }, // normalize IDs
+          _id: { $toString: "$journalAccounts.id" }, // normalize
           totalDebit: { $sum: "$journalAccounts.MainDebit" },
           totalCredit: { $sum: "$journalAccounts.MainCredit" },
         },
-      },
-    ]);
+      }
+    );
 
-    // 4️⃣ Create balance map
-    const balanceMap = {};
+    const journalSums = await journalEntryModel.aggregate(pipeline);
+
+    /* ============================================
+       3) BALANCE MAP (accountId -> totals)
+    ============================================ */
+    const balanceMap = Object.create(null);
     for (const j of journalSums) {
-      balanceMap[j._id] = {
-        totalDebit: j.totalDebit || 0,
-        totalCredit: j.totalCredit || 0,
-        balance: (j.totalDebit || 0) - (j.totalCredit || 0),
+      balanceMap[String(j._id)] = {
+        totalDebit: Number(j.totalDebit || 0),
+        totalCredit: Number(j.totalCredit || 0),
       };
     }
 
-    // 5️⃣ Build the tree and attach balances
-    const buildTree = (data, parentCode = null) =>
-      data
-        .filter((acc) => acc.parentCode === parentCode)
-        .map((acc) => {
-          const children = buildTree(data, acc.code);
-          const bal = balanceMap[acc._id.toString()] || {
-            totalDebit: 0,
-            totalCredit: 0,
-            balance: 0,
-          };
+    /* ============================================
+       4) BUILD ACCOUNT MAP (code -> node)
+       ✅ Project only needed fields (lighter payload)
+       ✅ Normalize initial balance using balanceType
+    ============================================ */
+    const accountMap = Object.create(null);
 
-          const normalizedBalance =
-            acc.balanceType === "credit" ? -bal.balance : bal.balance;
+    for (const acc of accounts) {
+      const idStr = String(acc._id);
+      const bal = balanceMap[idStr] || { totalDebit: 0, totalCredit: 0 };
 
-          return {
-            ...acc,
-            totalDebit: bal.totalDebit,
-            totalCredit: bal.totalCredit,
-            balance: normalizedBalance,
-            children: children.length > 0 ? children : [],
-          };
-        });
+      const totalDebit = bal.totalDebit;
+      const totalCredit = bal.totalCredit;
+      const balance = calcBalanceByType(acc, totalDebit, totalCredit);
 
-    const treeData = buildTree(accounts);
+      accountMap[String(acc.code)] = {
+        _id: acc._id,
+        name: acc.name,
+        nameAr: acc.nameAr,
+        nameTr: acc.nameTr,
+        code: acc.code,
+        accountType: acc.accountType,
+        balanceType: acc.balanceType,
+        parentId: acc.parentId,
+        parentCode: acc.parentCode,
+        currency: acc.currency || null,
 
-    // 6️⃣ Global totals
-    const totalDebit = Object.values(balanceMap).reduce(
-      (sum, v) => sum + v.totalDebit,
-      0,
-    );
-    const totalCredit = Object.values(balanceMap).reduce(
-      (sum, v) => sum + v.totalCredit,
-      0,
-    );
+        // ✅ calculated fields (leaf base totals)
+        totalDebit,
+        totalCredit,
+        balance,
 
-    res.status(200).json({
+        children: [],
+      };
+    }
+
+    /* ============================================
+       5) BUILD TREE STRUCTURE
+    ============================================ */
+    const tree = [];
+    for (const acc of accounts) {
+      const node = accountMap[String(acc.code)];
+      if (!node) continue;
+
+      if (acc.parentCode && accountMap[String(acc.parentCode)]) {
+        accountMap[String(acc.parentCode)].children.push(node);
+      } else {
+        tree.push(node);
+      }
+    }
+
+    /* ============================================
+       6) RECURSIVE ROLLUP (parent totals)
+       ✅ parent totals include children totals
+       ✅ balanceType normalization for every node
+    ============================================ */
+    const rollup = (node) => {
+      let debitSum = Number(node.totalDebit || 0);
+      let creditSum = Number(node.totalCredit || 0);
+
+      const kids = node.children || [];
+      for (const child of kids) {
+        const childTotals = rollup(child);
+        debitSum += childTotals.totalDebit;
+        creditSum += childTotals.totalCredit;
+      }
+
+      node.totalDebit = debitSum;
+      node.totalCredit = creditSum;
+      node.balance = calcBalanceByType(node, debitSum, creditSum);
+
+      return { totalDebit: debitSum, totalCredit: creditSum };
+    };
+
+    for (const node of tree) rollup(node);
+
+    /* ============================================
+       7) SORT TREE (server-side)
+    ============================================ */
+    const sortedTree = sortNodesByCode(tree);
+
+    /* ============================================
+       8) GLOBAL TOTALS
+       ✅ IMPORTANT: totals should be summed as raw debit/credit
+       ✅ totalBalance here is "debit - credit" in main currency sense.
+       If you want a different convention, adjust here.
+    ============================================ */
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    for (const n of sortedTree) {
+      totalDebit += Number(n.totalDebit || 0);
+      totalCredit += Number(n.totalCredit || 0);
+    }
+
+    /* ============================================
+       9) RESPONSE
+    ============================================ */
+    return res.status(200).json({
       status: "success",
       companyId,
+      filter: {
+        startDate: startDate || null,
+        endDate: endDate || null,
+      },
       totals: {
         totalDebit,
         totalCredit,
         totalBalance: totalDebit - totalCredit,
       },
-      data: treeData,
+      data: sortedTree,
     });
   } catch (error) {
     next(error);
   }
+});
+exports.getChartOfAccounts = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const accounts = await AccountingTree.find({ companyId })
+    .select("code name nameAr nameTr parent balanceType accountType currency")
+    .lean();
+
+  // 🔹 Build map
+  const accountMap = {};
+  const rootAccounts = [];
+
+  accounts.forEach((account) => {
+    account.children = [];
+    accountMap[account._id] = account;
+  });
+
+  accounts.forEach((account) => {
+    if (account.parent) {
+      if (accountMap[account.parent]) {
+        accountMap[account.parent].children.push(account);
+      }
+    } else {
+      rootAccounts.push(account);
+    }
+  });
+
+  // 🔹 Optional: sort by code
+  const sortByCode = (nodes) => {
+    nodes.sort((a, b) => {
+      const aParts = a.code.split(".").map(Number);
+      const bParts = b.code.split(".").map(Number);
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aVal = aParts[i] ?? 0;
+        const bVal = bParts[i] ?? 0;
+        if (aVal !== bVal) return aVal - bVal;
+      }
+      return 0;
+    });
+
+    nodes.forEach((node) => {
+      if (node.children.length > 0) {
+        sortByCode(node.children);
+      }
+    });
+  };
+
+  sortByCode(rootAccounts);
+
+  res.status(200).json({
+    results: rootAccounts.length,
+    data: rootAccounts,
+  });
 });
 
 exports.getAccountingTreeNoBalance = asyncHandler(async (req, res, next) => {
@@ -239,7 +482,7 @@ exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
 
   res.status(200).json({ status: "success", data: updateTree });
@@ -370,7 +613,7 @@ exports.changeBalance = asyncHandler(async (req, res, next) => {
     {
       $inc: { debtor: req.body.debtor || 0, creditor: req.body.creditor || 0 },
     },
-    { new: true },
+    { new: true }
   );
 
   res
@@ -460,14 +703,14 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
   const round4 = (n) => Math.round((Number(n) || 0) * 10000) / 10000;
 
   const totalDebit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0),
+    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0)
   );
 
   const totalCredit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0),
+    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0)
   );
   const totalBalance = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0),
+    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0)
   );
   const diff = round4(totalDebit - totalCredit);
 
@@ -480,3 +723,34 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
     byAccount: journalSums,
   });
 });
+
+// ---- helpers ----
+const sortNodesByCode = (nodes = []) => {
+  const sorted = [...nodes].sort((a, b) => {
+    const aParts = String(a.code || "")
+      .split(".")
+      .map((x) => Number(x) || 0);
+    const bParts = String(b.code || "")
+      .split(".")
+      .map((x) => Number(x) || 0);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const av = aParts[i] ?? 0;
+      const bv = bParts[i] ?? 0;
+      if (av !== bv) return av - bv;
+    }
+    return 0;
+  });
+
+  return sorted.map((n) => ({
+    ...n,
+    children: sortNodesByCode(n.children || []),
+  }));
+};
+
+const calcBalanceByType = (node, debit, credit) => {
+  const bt = String(node.balanceType || "").toLowerCase();
+  // debit accounts: Dr - Cr
+  // credit accounts: Cr - Dr
+  return bt === "credit" ? credit - debit : debit - credit;
+};

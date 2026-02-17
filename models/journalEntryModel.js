@@ -1,9 +1,13 @@
+// models/journalEntry.js
+// ✅ SAME TYPES AS YOU ASKED (journalDate stays String)
+// ✅ Only add indexes + keep your existing hooks
+
 const mongoose = require("mongoose");
 
 const journalEntrySchema = new mongoose.Schema(
   {
     journalName: String,
-    journalDate: String,
+    journalDate: String, // keep as-is (string)
     journalSerialNum: String,
     journalRefNum: String,
     journalDesc: String,
@@ -35,22 +39,28 @@ const journalEntrySchema = new mongoose.Schema(
     refCounter: String,
     filesArray: [String],
     sync: { type: Boolean, default: false },
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
-    },
+    companyId: { type: String, required: true, index: true },
     party: String,
     receiptNumber: String,
     refId: String,
     auditing: { type: Boolean, default: false },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
+
+/**
+ * ✅ Add helpful indexes
+ * - companyId is already indexed.
+ * - this helps "recent" or range queries if you later migrate journalDate to Date.
+ * - currently journalDate is String so Mongo can't use it for real date ranges,
+ *   but this still helps if you do equality / prefix / sorting sometimes.
+ */
+journalEntrySchema.index({ companyId: 1, journalDate: 1 });
+
 const setfilesURL = (doc) => {
   if (doc.filesArray && Array.isArray(doc.filesArray)) {
     doc.filesArray = doc.filesArray.map(
-      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`,
+      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`
     );
   }
 };
