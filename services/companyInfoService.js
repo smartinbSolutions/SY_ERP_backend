@@ -241,7 +241,7 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
         companyId: newCompanyId,
       },
     ],
-    { session },
+    { session }
   );
 
   req.body.name = req.body.companyName;
@@ -265,7 +265,7 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
     try {
       await axios.post(
         `${process.env.JOBS_URL}api/auth/createEmployee`,
-        payload,
+        payload
       );
     } catch (err) {
       console.error("Failed to sync employee:", err.message);
@@ -287,7 +287,7 @@ exports.createCompanyInfo = asyncHandler(async (req, res, next) => {
             companyName: req.body.companyName,
           },
         },
-      },
+      }
     );
   }
 
@@ -449,7 +449,7 @@ exports.updataCompanyInfo = asyncHandler(async (req, res, next) => {
       },
       {
         new: true,
-      },
+      }
     );
     if (!companyInfo) {
       return next(new ApiError(`There is no company with this id ${id}`, 404));
@@ -480,7 +480,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
   if (!endDates || !startDates) {
     throw new ApiError(
       "Journal date and price method are required to continue rollover",
-      400,
+      400
     );
   }
 
@@ -503,7 +503,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     if (!companyInfo) {
       throw new ApiError(
         `There is no company info with this id ${companyId} or rollover already done`,
-        409,
+        409
       );
     }
     const baseName = companyInfo.companyName;
@@ -514,7 +514,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         rollOver: true,
         closedAt: endDate,
       },
-      { new: true, session },
+      { new: true, session }
     );
     const newCompanyInfo = await CompanyInfnoModel.create(
       [
@@ -542,7 +542,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           rollOver: false,
         },
       ],
-      { session },
+      { session }
     );
     const { dateFormat, counterFormat } = companyInfo.prefix;
 
@@ -602,7 +602,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       {
         arrayFilters: [{ "c.companyId": companyId }],
         session,
-      },
+      }
     );
 
     const employees = await employeeModel
@@ -723,7 +723,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           creditor: isBalanceSheet ? sums.creditor : 0,
           currency: currencyMap.get(account.currency?.toString()) || null,
         };
-      }),
+      })
     );
 
     const insertedAccounts = await accountingTreeModel.insertMany(newAccounts, {
@@ -740,7 +740,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     const newLinkedPanel = linkedPanel
       .map((link) => {
         const newAccountId = accountIdMap.get(
-          link.accountData?.toString() || link.accountId?.toString(),
+          link.accountData?.toString() || link.accountId?.toString()
         );
 
         return {
@@ -792,7 +792,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           linkAccount:
             accountIdMap.get(supplier.linkAccount?.toString()) || null,
         };
-      }),
+      })
     );
 
     const createSuppliers = await suppliersModel.insertMany(newSuppliers, {
@@ -834,7 +834,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           fundBalance: fundBalance,
           linkAccount: accountIdMap.get(fund.linkAccount?.toString()) || null,
         };
-      }),
+      })
     );
 
     const createFunds = await financialFundsModel.insertMany(newFunds, {
@@ -877,7 +877,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           linkAccount:
             accountIdMap.get(customer.linkAccount?.toString()) || null,
         };
-      }),
+      })
     );
 
     const createCustomers = await customarModel.insertMany(newCustomers, {
@@ -1067,7 +1067,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       ) {
         throw new ApiError(
           `Opening balance journal not balanced (Debit: ${chackDateBalanceDebtor}, Credit: ${chackDateBalanceCreditor}), `,
-          405,
+          405
         );
       }
 
@@ -1112,15 +1112,15 @@ exports.rollover = asyncHandler(async (req, res, next) => {
               counter: counter + 1,
               journalDebit: openingJournalAccounts.reduce(
                 (sum, acc) => sum + acc.MainDebit,
-                0,
+                0
               ),
               journalCredit: openingJournalAccounts.reduce(
                 (sum, acc) => sum + acc.MainCredit,
-                0,
+                0
               ),
             },
           ],
-          { session },
+          { session }
         );
       }
     }
@@ -1141,7 +1141,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
             companyId: newCompanyId,
           },
         ],
-        { session },
+        { session }
       );
     }
 
@@ -1158,7 +1158,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         "",
         "",
         customer.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
-        "Opening balance",
+        "Opening balance"
       );
     }
 
@@ -1175,7 +1175,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
         "",
         "",
         supplier.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
-        "Opening balance",
+        "Opening balance"
       );
     }
 
@@ -1461,7 +1461,7 @@ const openingInventoryRollover = async ({
         },
       },
     ],
-    { session },
+    { session }
   );
 
   const items = [];
@@ -1472,12 +1472,12 @@ const openingInventoryRollover = async ({
   for (const stock of stocks) {
     for (const oldProduct of products) {
       const newProduct = newProducts.find(
-        (p) => p.originalProductId?.toString() === oldProduct._id.toString(),
+        (p) => p.originalProductId?.toString() === oldProduct._id.toString()
       );
       if (!newProduct) continue;
 
       const stockEntry = oldProduct.stocks?.find(
-        (s) => s.stockName === stock.name,
+        (s) => s.stockName === stock.name
       );
 
       const quantity = stockEntry?.productQuantity || 0;
@@ -1568,7 +1568,7 @@ const openingInventoryRollover = async ({
     await productModel.updateOne(
       { _id: productId },
       { $set: { stocks: stocksData } },
-      { session },
+      { session }
     );
   }
 
@@ -1581,7 +1581,7 @@ const openingInventoryRollover = async ({
         totalValueMainCurrency: totalValue * mainCurrency.exchangeRate,
       },
     },
-    { session },
+    { session }
   );
 
   // if (!manualJournal) {

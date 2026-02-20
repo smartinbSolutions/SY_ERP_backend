@@ -17,6 +17,7 @@ const createProductMovement = async ({
   sellingPrice,
   buyingPrice,
   exchangeRate,
+  movementDate,
 }) => {
   try {
     const newMovement = new ProductMovementSchema({
@@ -56,6 +57,7 @@ const createProductMovement = async ({
       stockId,
       sellingPrice,
       buyingPrice,
+      movementDate: movementDate ? new Date(movementDate) : new Date(),
     });
     const savedMovement = await newMovement.save();
 

@@ -429,6 +429,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
             stockId: item.stock._id,
             sellingPrice: item.sellingPrice,
             exchangeRate: item.exchangeRate,
+            movementDate: req.body.orderDate,
           });
           soldTotalQty += fm.quantity;
           soldTotalCost += fm.quantity * fm.costBuyingPrice;

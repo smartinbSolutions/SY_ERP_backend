@@ -45,6 +45,11 @@ const ProductMovementSchema = new mongoose.Schema(
     },
     desc: String,
     sync: { type: Boolean, default: false },
+    movementDate: {
+      type: Date,
+      required: true,
+      index: true,
+    },
 
     companyId: {
       type: String,

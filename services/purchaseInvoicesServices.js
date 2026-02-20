@@ -697,6 +697,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         stockId: item.stock._id,
         buyingPrice: item.orginalBuyingPrice,
         exchangeRate: item.exchangeRate,
+        movementDate: req.body.date,
       });
       await createProductBatch({
         productId: item.id,
@@ -708,6 +709,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         costBuyingPrice: item.oldCostBuyingPrice,
         exchangeRate: item.exchangeRate,
         referenceType: "purchase",
+        batchDate: req.body.date,
       });
     }
   }

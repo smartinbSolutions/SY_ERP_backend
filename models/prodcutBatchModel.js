@@ -39,6 +39,11 @@ const ProductBatchSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       default: null,
     },
+    batchDate: {
+      type: Date,
+      required: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -46,8 +51,7 @@ const ProductBatchSchema = new mongoose.Schema(
 );
 
 ProductBatchSchema.index(
-  { productId: 1, companyId: 1, stockId: 1, createdAt: 1 },
+  { productId: 1, companyId: 1, stockId: 1, batchDate: 1 },
   { name: "fifo_index" }
 );
-
 module.exports = mongoose.model(" ProductBatch", ProductBatchSchema);

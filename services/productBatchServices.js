@@ -12,6 +12,7 @@ exports.createProductBatch = async function createProductBatch({
   sourceId,
   costBuyingPrice,
   referenceType,
+  batchDate,
 }) {
   const batch = await prodcutBatchModel.create({
     productId,
@@ -23,6 +24,7 @@ exports.createProductBatch = async function createProductBatch({
     sourceId,
     costBuyingPrice,
     sourceType: referenceType,
+    batchDate: batchDate ? new Date(batchDate) : new Date(),
   });
 
   await productLedgerModel.create({
@@ -36,6 +38,7 @@ exports.createProductBatch = async function createProductBatch({
     referenceType,
     referenceId: sourceId,
     costBuyingPrice,
+    movementDate: batchDate ? new Date(batchDate) : new Date(),
   });
 
   return batch;

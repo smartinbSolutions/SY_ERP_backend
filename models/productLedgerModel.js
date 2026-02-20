@@ -38,8 +38,19 @@ const productLedgerSchema = new mongoose.Schema(
     referenceId: {
       type: mongoose.Schema.ObjectId,
     },
+    movementDate: {
+      type: Date,
+      required: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );
+
+productLedgerSchema.index({
+  productId: 1,
+  companyId: 1,
+  movementDate: 1,
+});
 
 module.exports = mongoose.model("ProductLedger", productLedgerSchema);
