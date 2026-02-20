@@ -590,7 +590,7 @@ exports.calculateProfit = asyncHandler(async (req, res) => {
   }
 
   const productIds = products.map((p) => p.productId);
-  console.log("productIds", productIds);
+
   const movements = await productMovementModel.aggregate([
     {
       $match: {
@@ -614,7 +614,7 @@ exports.calculateProfit = asyncHandler(async (req, res) => {
   ]);
 
   const costMap = {};
-  console.log("movements", movements);
+
   movements.forEach((m) => {
     const rawEnterPrice = Number(m.enterPrice) || 0;
     const rate = Number(m.exchangeRate) || 1;
