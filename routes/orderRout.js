@@ -12,6 +12,7 @@ const {
   mergeReceipts,
   archiveOrder,
   patchOrder,
+  calculateProfit,
 } = require("../services/orderServices");
 
 const authService = require("../services/authService");
@@ -26,12 +27,13 @@ const OrderRout = express.Router();
 OrderRout.route("/return").post(
   authService.protect,
   authService.checkCompanyEditable,
-  returnOrder,
+  returnOrder
 );
 OrderRout.route("/getReturnOrder").get(authService.protect, getReturnOrder);
+OrderRout.route("/calculate-profit").post(authService.protect, calculateProfit);
 OrderRout.route("/getReturnOrder/:id").get(
   authService.protect,
-  getOneReturnOrder,
+  getOneReturnOrder
 );
 OrderRout.route("/customerorder/:id").get(authService.protect, findCustomer);
 
@@ -40,17 +42,17 @@ OrderRout.route("/").get(authService.protect, findAllOrder);
 OrderRout.route("/salesDashbord").post(
   authService.protect,
   authService.checkCompanyEditable,
-  DashBordSalse,
+  DashBordSalse
 );
 OrderRout.route("/archive/:id").put(
   authService.protect,
   authService.checkCompanyEditable,
-  archiveOrder,
+  archiveOrder
 );
 OrderRout.route("/merge").post(
   authService.protect,
   authService.checkCompanyEditable,
-  mergeReceipts,
+  mergeReceipts
 );
 OrderRout.route("/:id")
   .get(findOneOrder)
@@ -60,13 +62,13 @@ OrderRout.route("/:id")
     authService.protect,
     authService.checkCompanyEditable,
     uploadFile,
-    patchOrder,
+    patchOrder
   );
 
 OrderRout.route("/integrate/sales").post(
   authService.protect,
   // EcommerceOrderIntegration
-  EcommerceOrderIntegrationFull,
+  EcommerceOrderIntegrationFull
 );
 
 module.exports = OrderRout;

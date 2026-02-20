@@ -52,6 +52,8 @@ const ProductMovementSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
+
+ProductMovementSchema.index({ productId: 1, companyId: 1, createdAt: -1 });
 module.exports = mongoose.model("ProductMovement", ProductMovementSchema);
