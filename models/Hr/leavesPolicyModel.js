@@ -9,7 +9,6 @@ const leavePolicySchema = new mongoose.Schema(
     code: String,
     companyId: {
       type: String,
-      required: true,
       index: true,
     },
   },

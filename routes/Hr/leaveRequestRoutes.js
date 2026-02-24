@@ -7,6 +7,8 @@ const {
   updateLeaveRequest,
   deleteLeaveRequest,
   handleLeaveRequest,
+  processLeaveAttachment,
+  uploadLeaveAttachment,
 } = require("../../services/Hr/leaveRequestService");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -19,7 +21,12 @@ LeaveRequestRouter.route("/my-requests").get(
 );
 
 LeaveRequestRouter.route("/")
-  .post(hrAuthServices.protectStaffOrERP, createLeaveRequest)
+  .post(
+    hrAuthServices.protectStaffOrERP,
+    uploadLeaveAttachment,
+    processLeaveAttachment,
+    createLeaveRequest,
+  )
   .get(getAllLeaveRequests);
 
 LeaveRequestRouter.route("/handle-leave-status/:id").post(
@@ -29,7 +36,12 @@ LeaveRequestRouter.route("/handle-leave-status/:id").post(
 
 LeaveRequestRouter.route("/:id")
   .get(hrAuthServices.protectStaffOrERP, getLeaveRequestById)
-  .put(hrAuthServices.protectStaffOrERP, updateLeaveRequest)
+  .put(
+    hrAuthServices.protectStaffOrERP,
+    uploadLeaveAttachment,
+    processLeaveAttachment,
+    updateLeaveRequest,
+  )
   .delete(hrAuthServices.protectStaffOrERP, deleteLeaveRequest);
 
 module.exports = LeaveRequestRouter;

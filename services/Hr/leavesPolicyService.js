@@ -58,6 +58,7 @@ exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
   });
 
   if (!policy) {
+    
     return next(new ApiError(`No policy found with this ID: ${id}`, 404));
   }
 

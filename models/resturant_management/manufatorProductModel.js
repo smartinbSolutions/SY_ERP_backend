@@ -59,7 +59,7 @@ const manufatorProductSchema = new mongoose.Schema(
     },
   },
   { timestamps: true },
-  { collection: "manufatorProduct" }
+  { collection: "manufatorProduct" },
 );
 
 const setImageURL = (doc) => {

@@ -58,4 +58,20 @@ const leaveRequestSchema = new mongoose.Schema(
   },
 );
 
+const setAttachmentURL = (doc) => {
+  if (doc.attachment) {
+    const attachmentURL = `${process.env.BASE_URL}/leaveAttachments/${doc.attachment}`;
+    doc.attachment = attachmentURL;
+  }
+};
+
+leaveRequestSchema.post("init", function (doc) {
+  setAttachmentURL(doc);
+});
+
+//Create
+leaveRequestSchema.post("save", (doc) => {
+  setAttachmentURL(doc);
+});
+
 module.exports = mongoose.model("LeaveRequest", leaveRequestSchema);

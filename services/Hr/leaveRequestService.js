@@ -2,6 +2,50 @@ const LeaveRequest = require("../../models/Hr/leaveRequestModel");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const leavesLogsModel = require("../../models/Hr/leavesLogsModel");
+const multer = require("multer");
+const fs = require("fs");
+const { v4: uuidv4 } = require("uuid");
+const path = require("path");
+const multerStorage = multer.memoryStorage();
+
+const attachmentFilter = function (req, file, cb) {
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/jpg",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new ApiError("File type not allowed", 400), false);
+  }
+};
+
+const uploadAttachment = multer({
+  storage: multerStorage,
+  fileFilter: attachmentFilter,
+});
+exports.uploadLeaveAttachment = uploadAttachment.single("attachment");
+
+exports.processLeaveAttachment = asyncHandler(async (req, res, next) => {
+  if (!req.file) return next();
+
+  const ext = path.extname(req.file.originalname);
+  const filename = `leave-${uuidv4()}-${Date.now()}${ext}`;
+
+  await fs.promises.writeFile(
+    `uploads/leaveAttachments/${filename}`,
+    req.file.buffer,
+  );
+
+  req.body.attachment = filename;
+
+  next();
+});
 
 exports.createLeaveRequest = asyncHandler(async (req, res) => {
   const { leaveType, startDate, endDate, reason, attachment, managerId } =
@@ -51,7 +95,8 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const skip = (page - 1) * pageSize;
 
   const filter = { companyId };
-  if (managerId) filter.managerId = managerId;
+  if (managerId) 
+    {filter.managerId = managerId;}
 
   const totalItems = await LeaveRequest.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);
@@ -131,9 +176,6 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Not authorized", 403));
   }
 
-  /* =======================
-     APPROVE
-  ======================= */
   if (action === "approve") {
     await leavesLogsModel.create({
       userId: request.userId,
@@ -153,9 +195,6 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
     request.rejectionReason = reason || "";
     request.rejectedAt = Date.now();
   } else {
-    /* =======================
-     INVALID
-  ======================= */
     return next(new ApiError("Invalid action", 400));
   }
 

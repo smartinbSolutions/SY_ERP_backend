@@ -52,7 +52,9 @@ exports.getOneGroups = asyncHandler(async (req, res, next) => {
   const groups = await groupsModel.findOne({
     _id: req.params.id,
     companyId,
-  });
+  })
+  .populate("locationId")
+  .populate("leavePolicy");
   res.status(200).json({ status: "success", data: groups });
 });
 

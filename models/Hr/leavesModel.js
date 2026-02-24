@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const LeaveSchema = new mongoose.Schema({
+  
   /* ===== Policy Relation ===== */
   policyId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -18,14 +19,14 @@ const LeaveSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      "annual",      // Annual Leave
-      "maternity",   // Maternity Leave
-      "sick",        // Sick Leave
-      "paternity",   // Paternity Leave
-      "marriage",    // Marriage Leave
-      "bereavement", // Bereavement Leave
-      "hajj",        // Hajj Leave
-      "unpaid",      // Unpaid Leave
+      "annual",      
+      "maternity",   
+      "sick",      
+      "paternity",   
+      "marriage",    
+      "bereavement", 
+      "hajj",        
+      "unpaid",      
     ],
   },
 
@@ -37,8 +38,8 @@ const LeaveSchema = new mongoose.Schema({
   /* ===== Annual Leave Rules ===== */
   annualRules: [
     {
-      categoryName: String,
 
+      categoryName: String,
       servicePeriod: {
         from: {
           value: Number,
@@ -55,7 +56,6 @@ const LeaveSchema = new mongoose.Schema({
     },
   ],
 
-  /* ===== Sick Leave Rules ===== */
   sickRules: [
     {
       stageName: String,
@@ -66,15 +66,11 @@ const LeaveSchema = new mongoose.Schema({
     },
   ],
 
-  /* ===== Maternity Leave Rules ===== */
   maternityRules: [
     {
       childOrder: Number,
-
       days: Number,
-
       payPercentage: Number,
-
       gender: {
         type: String,
         enum: ["Male", "Female"],
@@ -82,7 +78,6 @@ const LeaveSchema = new mongoose.Schema({
     },
   ],
 
-  /* ===== Single / Simple Leave Rules ===== */
   singleRules: {
     days: Number,
     payPercentage: Number,

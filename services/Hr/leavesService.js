@@ -15,7 +15,11 @@ exports.getAllLeaves = asyncHandler(async (req, res, next) => {
   const query = { companyId };
 
   if (policyId) {
-    query.policyId = new mongoose.Types.ObjectId(policyId);
+    if (!mongoose.Types.ObjectId.isValid(policyId)) {
+      return next(new ApiError("Invalid policyId format", 400));
+    }
+
+    query.policyId = policyId;
   }
 
   // Pagination

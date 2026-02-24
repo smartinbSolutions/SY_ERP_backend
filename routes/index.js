@@ -98,6 +98,10 @@ const ReconciliationRoute = require("./Stocks/reconciliation/reconciliationRoute
 const leaveRequestRoutes = require("./Hr/leaveRequestRoutes");
 const leavesPolicyRoute = require("./Hr/leavesPolicyRoute");
 const leaveLogsRoute = require("./Hr/leaveLogsRoute");
+const overtimeTypesRoute = require("./Hr/overtimeTypeRoute");
+const overtimePolicyRoute = require("./Hr/overtimePolicyRoute");
+const overtimeRequestRoute = require("./Hr/overtimeRequestRoute");
+const overtimeLogsRoute = require("./Hr/overtimeLogsRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -190,6 +194,10 @@ const mountRoutes = (app) => {
   app.use("/api/leaves-policy", leavesPolicyRoute);
   app.use("/api/leave-request", leaveRequestRoutes);
   app.use("/api/leave-logs", leaveLogsRoute);
+  app.use("/api/overtime-types", overtimeTypesRoute);
+  app.use("/api/overtime-policy", overtimePolicyRoute);
+  app.use("/api/overtime-request", overtimeRequestRoute);
+  app.use("/api/overtime-logs", overtimeLogsRoute);
 
   //Payment
   app.use("/api", paytrRouter);
