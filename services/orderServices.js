@@ -148,7 +148,7 @@ exports.DashBordSalse = asyncHandler(async (req, res, next) => {
   );
   req.body.type = "sales";
   req.body.counters = req.body.counter;
-  req.body.counter = Number(req.body.counter) + Number(nextCounterOrder.seq);
+  req.body.counter = req.body.counter + "" + Number(nextCounterOrder.seq);
   const financailSources = req.body.financailSource;
   req.body.financailFund = req.body.financailSource;
   let financialFunds;
