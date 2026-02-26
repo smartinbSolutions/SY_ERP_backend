@@ -48,7 +48,7 @@ exports.processLeaveAttachment = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLeaveRequest = asyncHandler(async (req, res) => {
-  const { leaveType, startDate, endDate, reason, attachment, managerId } =
+  const { leaveType, startDate, endDate, reason, attachment, managerId ,days } =
     req.body;
 
   if (!req.user) {
@@ -62,6 +62,7 @@ exports.createLeaveRequest = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     reason,
+    days,
     managerId,
     attachment: attachment || null,
   });

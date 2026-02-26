@@ -56,38 +56,51 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-  const pageSize = 20;
-  const page = parseInt(req.query.page) || 1;
-  const skip = (page - 1) * pageSize;
+  const { companyId } = req.query;
+
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  console.log("req.user.id:", req.user.id);
-  const totalItems = await fingerPrintModel.countDocuments({
+
+  const pageSize = 20;
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const skip = (page - 1) * pageSize;
+
+  // Base filter
+  const filter = {
     userID: req.user.id,
     companyId,
-  });
+  };
+
+  // Count total documents
+  const totalItems = await fingerPrintModel.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);
 
+  // If page exceeds totalPages, return empty safely
+  if (page > totalPages && totalPages !== 0) {
+    return res.status(200).json({
+      status: true,
+      Pages: totalPages,
+      results: totalItems,
+      data: [],
+    });
+  }
+
+  // Fetch paginated & sorted results (NEWEST FIRST)
   const fingerPrint = await fingerPrintModel
-    .find({
-      userID: req.user.id,
-      companyId,
-    })
+    .find(filter)
+    .sort({ createdAt: -1 }) 
     .skip(skip)
     .limit(pageSize);
 
-  if (!fingerPrint || fingerPrint.length === 0) {
-    return next(
-      new ApiError(`No fingerPrint found for id ${req.user.id}`, 404),
-    );
-  }
+
 
   res.status(200).json({
-    status: "true",
+    status: true,
     Pages: totalPages,
     results: totalItems,
+    currentPage: page,
+    pageSize,
     data: fingerPrint,
   });
 });

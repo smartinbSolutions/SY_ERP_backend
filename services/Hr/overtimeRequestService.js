@@ -58,7 +58,7 @@ exports.processOvertimeAttachment = asyncHandler(async (req, res, next) => {
 // ================= CREATE =================
 
 exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
-  const { overtimeTypeId, workDate, startTime, endTime, reason, managerId } =
+  const { overtimeTypeId, workDate, startTime, endTime,hours, reason, managerId } =
     req.body;
 
   if (!req.user) return next(new ApiError("Not logged in", 401));
@@ -72,6 +72,7 @@ exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
     endTime,
     reason,
     managerId,
+    hours,
     attachment: req.body.attachment || null,
   });
 

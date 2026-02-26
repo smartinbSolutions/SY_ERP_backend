@@ -27,6 +27,14 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
             path: "leavePolicy",
             model: "LeavePolicy",
           },
+          {
+            path: "locationId",
+            model: "hrlocation",
+          },
+          {
+            path: "overtimePolicy",
+            model: "OvertimePolicy",
+          },
         ],
       })
       .populate("roleId");
@@ -272,6 +280,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
   const resetCode = Math.floor(Math.random() * 1000000 + 1).toString();
   const hashedResetCode = await bcrypt.hash(resetCode, 10);
+console.log(resetCode);
 
   staff.passwordResetCode = hashedResetCode;
   //10 min

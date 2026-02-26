@@ -72,6 +72,12 @@ const groupsSchema = new mongoose.Schema(
       required: true,
     },
 
+    overtimePolicy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OvertimePolicy",
+      required: true,
+    },
+
     offDays: [{ type: String }],
 
     // ---------- FIXED ----------
