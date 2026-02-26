@@ -2,12 +2,9 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const OvertimePolicy = require("../../models/Hr/overtimePolicyModel");
 const mongoose = require("mongoose");
+const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
 
-/*
-==============================
-GET ALL POLICIES
-==============================
-*/
+
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
@@ -38,11 +35,7 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   });
 });
 
-/*
-==============================
-GET ONE POLICY
-==============================
-*/
+
 exports.getOnePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -67,14 +60,10 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
   });
 });
 
-/*
-==============================
-CREATE POLICY
-==============================
-*/
+
 exports.createPolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
-  const { policyName, code } = req.body;
+  const { policyName, code, types } = req.body;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -84,23 +73,44 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError("policyName is required", 400));
   }
 
+  const exists = await OvertimePolicy.findOne({
+    companyId,
+    policyName,
+  });
+
+  if (exists) {
+    return next(new ApiError("Policy name already exists", 400));
+  }
+
   const policy = await OvertimePolicy.create({
     policyName,
     code,
     companyId,
   });
 
+  let createdTypes = [];
+
+  if (types && Array.isArray(types) && types.length > 0) {
+    const docs = types.map((type) => ({
+      ...type,
+      companyId,
+      policyId: policy._id,
+    }));
+
+    createdTypes = await overtimeTypesModel.insertMany(docs);
+  }
+
   res.status(201).json({
     status: "success",
-    data: policy,
+    message: "Overtime policy created successfully",
+    data: {
+      policy,
+      types: createdTypes,
+    },
   });
 });
 
-/*
-==============================
-UPDATE POLICY
-==============================
-*/
+
 exports.updatePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -139,11 +149,7 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
   });
 });
 
-/*
-==============================
-DELETE POLICY
-==============================
-*/
+
 exports.deletePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;

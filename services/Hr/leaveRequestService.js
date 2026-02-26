@@ -95,8 +95,9 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const skip = (page - 1) * pageSize;
 
   const filter = { companyId };
-  if (managerId) 
-    {filter.managerId = managerId;}
+  if (managerId) {
+    filter.managerId = managerId;
+  }
 
   const totalItems = await LeaveRequest.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / pageSize);

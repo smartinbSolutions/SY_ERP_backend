@@ -55,11 +55,12 @@ const overtimeTypeSchema = new mongoose.Schema(
       enum: ["workday", "holiday", "both"],
       default: "workday",
     },
-
   },
   {
     timestamps: true,
   },
 );
+
+overtimeTypeSchema.index({ policyId: 1, typeKey: 1 }, { unique: true });
 
 module.exports = mongoose.model("OvertimeType", overtimeTypeSchema);

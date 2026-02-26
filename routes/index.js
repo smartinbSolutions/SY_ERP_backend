@@ -102,6 +102,10 @@ const overtimeTypesRoute = require("./Hr/overtimeTypeRoute");
 const overtimePolicyRoute = require("./Hr/overtimePolicyRoute");
 const overtimeRequestRoute = require("./Hr/overtimeRequestRoute");
 const overtimeLogsRoute = require("./Hr/overtimeLogsRoute");
+const advanceLogsRoute = require("./Hr/advanceLogsRoute");
+const advancePolicyRoute = require("./Hr/advancePolicyRoute");
+const advanceRequestRoute = require("./Hr/advanceRequestRoute");
+const advanceTypesRoute = require("./Hr/advanceTypesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -198,6 +202,10 @@ const mountRoutes = (app) => {
   app.use("/api/overtime-policy", overtimePolicyRoute);
   app.use("/api/overtime-request", overtimeRequestRoute);
   app.use("/api/overtime-logs", overtimeLogsRoute);
+  app.use("/api/advance-logs", advanceLogsRoute);
+  app.use("/api/advance-policy", advancePolicyRoute);
+  app.use("/api/advance-request", advanceRequestRoute);
+  app.use("/api/advance-types", advanceTypesRoute);
 
   //Payment
   app.use("/api", paytrRouter);
