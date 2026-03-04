@@ -5,6 +5,7 @@ const multer = require("multer");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
+const overtimeLogsModel = require("../../models/Hr/overtimeLogsModel");
 
 // ================= MULTER =================
 
@@ -58,8 +59,15 @@ exports.processOvertimeAttachment = asyncHandler(async (req, res, next) => {
 // ================= CREATE =================
 
 exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
-  const { overtimeTypeId, workDate, startTime, endTime,hours, reason, managerId } =
-    req.body;
+  const {
+    overtimeTypeId,
+    workDate,
+    startTime,
+    endTime,
+    hours,
+    reason,
+    managerId,
+  } = req.body;
 
   if (!req.user) return next(new ApiError("Not logged in", 401));
 
@@ -197,6 +205,19 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
   }
 
   if (action === "approve") {
+    await overtimeLogsModel.create({
+      userId: request.userId,
+      overtimeRequestId: request._id,
+      overtimeType: request.overtimeTypeId._id,
+      hours: request.hours,
+      rateMultiplier: request.overtimeTypeId?.rateMultiplier || 1,
+      calculatedPay: 0,
+      leaveEarned: 0,
+      approvedBy: req.user._id,
+      approvedAt: new Date(),
+      managerComment: reason || "",
+      companyId: request.companyId,
+    });
     request.status = "approved";
   } else if (action === "reject") {
     request.status = "rejected";
