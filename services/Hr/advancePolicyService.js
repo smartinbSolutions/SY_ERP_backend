@@ -16,9 +16,12 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
+  const keyword = req.query.keyword;
 
   const query = { companyId };
-
+  if (keyword) {
+    query.$or = [{ policyName: { $regex: keyword, $options: "i" } }];
+  }
   const total = await AdvancePolicy.countDocuments(query);
 
   const policies = await AdvancePolicy.find(query)
@@ -114,7 +117,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
         requiresAttachment: type.requiresAttachment ?? false,
         allowInstallments: type.allowInstallments ?? false,
         maxMonthsInstallments: type.maxMonthsInstallments ?? null,
-        maxInstallmentPercentage: type.maxInstallmentPercentage ?? 0.15,
+        maxInstallmentPercentage: type.maxInstallmentPercentage ?? 1,
         minMonthsAfterJoin: type.minMonthsAfterJoin ?? 3,
       }));
 
@@ -162,7 +165,7 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
     });
     if (exists) throw new ApiError("Policy name already exists", 400);
   }
-  
+
   const updateData = {};
 
   if (req.body.policyName !== undefined)

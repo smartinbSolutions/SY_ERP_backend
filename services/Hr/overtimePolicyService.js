@@ -4,7 +4,6 @@ const OvertimePolicy = require("../../models/Hr/overtimePolicyModel");
 const mongoose = require("mongoose");
 const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
 
-
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
@@ -15,8 +14,12 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
+  const keyword = req.query.keyword;
 
   const query = { companyId };
+  if (keyword) {
+    query.$or = [{ policyName: { $regex: keyword, $options: "i" } }];
+  }
 
   const total = await OvertimePolicy.countDocuments(query);
 
@@ -34,7 +37,6 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
     data: policies,
   });
 });
-
 
 exports.getOnePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
@@ -59,7 +61,6 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
     data: policy,
   });
 });
-
 
 exports.createPolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
@@ -110,7 +111,6 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 exports.updatePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -148,7 +148,6 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
     data: policy,
   });
 });
-
 
 exports.deletePolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;

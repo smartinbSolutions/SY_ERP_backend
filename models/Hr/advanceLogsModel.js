@@ -23,6 +23,7 @@ const advanceLogSchema = new mongoose.Schema(
       required: true,
     },
 
+    // salary when he request the advance
     salarySnapshot: {
       type: Number,
       required: true,

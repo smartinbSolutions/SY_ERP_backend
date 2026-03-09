@@ -80,6 +80,8 @@ exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
 
+  console.log("PATCH Request Body:", req.body); // <--- هذا يريك البيانات القادمة
+
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
   }
@@ -92,36 +94,35 @@ exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
     "allowInstallments",
     "maxMonthsInstallments",
     "maxInstallmentPercentage",
+    "minMonthsAfterJoin",
     "requiresAttachment",
     "requiresApproval",
     "maxPercentageOfSalary",
   ];
 
   const updates = {};
-
   allowedUpdates.forEach((field) => {
     if (req.body[field] !== undefined) {
       updates[field] = req.body[field];
     }
   });
 
-  const advanceType = await AdvanceType.findOneAndUpdate(
-    { _id: id, companyId },
-    updates,
-    {
-      new: true,
-      runValidators: true,
-    },
-  );
+  try {
+    const advanceType = await AdvanceType.findOneAndUpdate(
+      { _id: id, companyId },
+      updates,
+      { new: true, runValidators: true }
+    );
 
-  if (!advanceType) {
-    return next(new ApiError(`No advance type found with ID: ${id}`, 404));
+    if (!advanceType) {
+      return next(new ApiError(`No advance type found with ID: ${id}`, 404));
+    }
+
+    res.status(200).json({ status: "success", data: advanceType });
+  } catch (err) {
+    console.error("Update AdvanceType Error:", err); // <--- سجل الخطأ الكامل
+    next(err);
   }
-
-  res.status(200).json({
-    status: "success",
-    data: advanceType,
-  });
 });
 
 // @desc    Delete advance type

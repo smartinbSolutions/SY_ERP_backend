@@ -5,24 +5,26 @@ const advanceTypeSchema = new mongoose.Schema(
     policyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AdvancePolicy",
-      required: true,
+      required: [true, "Policy ID is required"],
     },
 
     companyId: {
       type: String,
-      required: true,
+      required: [true, "Company ID is required"],
       index: true,
     },
 
     typeKey: {
       type: String,
       enum: ["monthly", "emergency"],
-      required: true,
+      required: [true, "Type Key is required"],
     },
 
     maxPercentageOfSalary: {
       type: Number,
-      required: true,
+      required: [true, "Max percentage of salary is required"],
+      min: [0.01, "Must be greater than 0"],
+      max: [100, "Cannot exceed 100%"],
     },
 
     requiresAttachment: {
@@ -37,25 +39,18 @@ const advanceTypeSchema = new mongoose.Schema(
 
     maxMonthsInstallments: {
       type: Number,
-      default: null,
-      validate: {
-        validator: function (value) {
-          if (!this.allowInstallments) return value === null;
-          return value > 0;
-        },
-        message:
-          "maxMonthsInstallments required when allowInstallments is true",
-      },
+      default: 1,
     },
 
     maxInstallmentPercentage: {
       type: Number,
-      default: 0.15,
+      default: 1,
     },
 
     minMonthsAfterJoin: {
       type: Number,
       default: 3,
+      min: [0, "Must be at least 0 months"],
     },
   },
   {
