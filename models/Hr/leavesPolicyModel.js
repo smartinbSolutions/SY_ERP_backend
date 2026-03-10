@@ -6,6 +6,10 @@ const leavePolicySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    approvalFlow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalFlow",
+    },
     code: String,
     companyId: {
       type: String,

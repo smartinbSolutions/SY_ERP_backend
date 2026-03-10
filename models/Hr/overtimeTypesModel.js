@@ -12,6 +12,10 @@ const overtimeTypeSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    approvalFlow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalFlow",
+    },
     typeKey: {
       type: String,
       required: true,
@@ -68,7 +72,7 @@ overtimeTypeSchema.pre("save", function (next) {
 });
 
 overtimeTypeSchema.pre("findOneAndUpdate", function (next) {
-  this.options.runValidators = true; 
+  this.options.runValidators = true;
   const update = this.getUpdate();
 
   const weekly = update.weeklyLimit ?? update.$set?.weeklyLimit;

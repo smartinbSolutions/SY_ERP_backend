@@ -6,6 +6,10 @@ const advancePolicySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    approvalFlow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalFlow",
+    },
 
     code: String,
 

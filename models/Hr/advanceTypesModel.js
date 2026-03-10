@@ -7,6 +7,10 @@ const advanceTypeSchema = new mongoose.Schema(
       ref: "AdvancePolicy",
       required: [true, "Policy ID is required"],
     },
+    approvalFlow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalFlow",
+    },
 
     companyId: {
       type: String,

@@ -1,5 +1,7 @@
 const express = require("express");
 const authService = require("../../services/authService");
+const staffAuthService = require("../../services/Hr/hrAuthServices");
+
 const {
   deleteAdvanceType,
   getAllAdvanceTypes,
@@ -9,11 +11,13 @@ const {
 
 const advanceTypeRoute = express.Router();
 
-advanceTypeRoute.route("/").get(authService.protect, getAllAdvanceTypes);
+advanceTypeRoute
+  .route("/")
+  .get(staffAuthService.protectStaffOrERP, getAllAdvanceTypes);
 
 advanceTypeRoute
   .route("/:id")
-  .get(authService.protect, getOneAdvanceType)
+  .get(staffAuthService.protectStaffOrERP, getOneAdvanceType)
   .patch(authService.protect, updateAdvanceType)
   .delete(authService.protect, deleteAdvanceType);
 

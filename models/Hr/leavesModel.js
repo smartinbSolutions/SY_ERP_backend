@@ -1,32 +1,36 @@
 const mongoose = require("mongoose");
 
 const LeaveSchema = new mongoose.Schema({
-  
   /* ===== Policy Relation ===== */
   policyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "LeavePolicy",
     required: true,
   },
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
-    },
+  approvalFlow: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ApprovalFlow",
+  },
+  companyId: {
+    type: String,
+    required: true,
+    index: true,
+  },
   /* ===== Leave Type ===== */
 
-   typeKey: {
+  typeKey: {
     type: String,
     required: true,
     enum: [
-      "annual",      
-      "maternity",   
-      "sick",      
-      "paternity",   
-      "marriage",    
-      "bereavement", 
-      "hajj",        
-      "unpaid",      
+      "annual",
+      "maternity",
+      "sick",
+      "paternity",
+      "marriage",
+      "bereavement",
+      "hajj",
+      "unpaid",
+      "special",
     ],
   },
 
@@ -38,7 +42,6 @@ const LeaveSchema = new mongoose.Schema({
   /* ===== Annual Leave Rules ===== */
   annualRules: [
     {
-
       categoryName: String,
       servicePeriod: {
         from: {
@@ -86,8 +89,6 @@ const LeaveSchema = new mongoose.Schema({
       unit: String,
     },
   },
-
-  /* ===== Meta ===== */
   createdAt: {
     type: Date,
     default: Date.now,
