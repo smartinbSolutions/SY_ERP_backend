@@ -124,7 +124,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
     receiptNumber: String,
     invoiceType: { type: String, default: "Purchase" },
     journalCounter: String,
-    isDraft: { type: Boolean, default: false },
+    isDraft: { type: Boolean, default: false, index: true },
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,

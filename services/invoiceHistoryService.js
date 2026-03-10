@@ -33,30 +33,26 @@ exports.createInvoiceHistory = async (
   historyType,
   employeeId,
   formattedDate,
-  desc,
-  from
+  desc = "",
+  from = "",
+  session = null
 ) => {
   try {
-    const invoiceHistoryData = new invoiceHistoryModel({
+    const history = {
       companyId,
       invoiceId,
       historyType,
       employeeId,
       date: formattedDate,
-      desc: desc,
-      from: from,
-    });
-    const savedInvoiceHistory = await invoiceHistoryModel.create(
-      invoiceHistoryData
-    );
+      desc,
+      from,
+    };
 
-    return savedInvoiceHistory;
+    const saved = await invoiceHistoryModel.create([history], { session });
+
+    return saved[0];
   } catch (error) {
-    console.log(error.message);
-    return new ApiError(
-      `Error creating invoice history: ${error.message}`,
-      500
-    );
+    throw new ApiError(`Error creating invoice history: ${error.message}`, 500);
   }
 };
 

@@ -1,23 +1,33 @@
+// ===== Core / Third-Party Packages =====
+const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
+const multer = require("multer");
+
+// ===== Utilities =====
 const ApiError = require("../utils/apiError");
+const { createProductMovement } = require("../utils/productMovement");
+
+// ===== Services =====
+const { createInvoiceHistory } = require("./invoiceHistoryService");
+const { createPaymentHistory } = require("./paymentHistoryService");
+const { createProductBatch } = require("./productBatchServices");
+
+// ===== Models =====
 const PurchaseInvoicesModel = require("../models/purchaseinvoicesModel");
 const suppliersModel = require("../models/suppliersModel");
 const financialFundsModel = require("../models/financialFundsModel");
 const productModel = require("../models/productModel");
+const PaymentModel = require("../models/paymentModel");
 const reportsFinancialFunds = require("../models/reportsFinancialFunds");
 const refundPurchaseInviceModel = require("../models/refundPurchaseInviceModel");
-const { createProductMovement } = require("../utils/productMovement");
-const { createInvoiceHistory } = require("./invoiceHistoryService");
-const { createPaymentHistory } = require("./paymentHistoryService");
-const PaymentModel = require("../models/paymentModel");
 const paymentHistoryModel = require("../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
-const multer = require("multer");
 const ShortageModel = require("../models/ShortageModel");
-const { createProductBatch } = require("./productBatchServices");
-const counterModel = require("../models/Settings/counterModel");
 const prodcutBatchModel = require("../models/prodcutBatchModel");
+
+// ===== Settings / System Models =====
+const counterModel = require("../models/Settings/counterModel");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -45,13 +55,14 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed."),
+        new ApiError("Invalid file type. Only images and PDFs are allowed.")
       );
     }
   },
 });
 
 exports.uploadFile = upload.single("file");
+
 exports.findAllProductInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
@@ -189,13 +200,13 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const nextCounterPayment = await counterModel.findOneAndUpdate(
     { companyId, name: "Payment" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true },
+    { new: true, upsert: true }
   );
 
   const nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
     { companyId, name: "Purchase Invoice" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true },
+    { new: true, upsert: true }
   );
 
   function padZero(value) {
@@ -209,15 +220,15 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -241,6 +252,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     invoiceTax,
     counter,
   } = req.body;
+
   const isopurchasDate = `${req.body.date}T${formattedDate}Z`;
   req.body.date = isopurchasDate;
   let supplier,
@@ -274,7 +286,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
   // Create a map for quick product lookups by QR code
   const productMap = new Map(
-    products.map((prod) => [prod._id.toString(), prod]),
+    products.map((prod) => [prod._id.toString(), prod])
   );
   // Prepare and update invoice items with product data
 
@@ -370,6 +382,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         },
       ],
     });
+
     const reports = await reportsFinancialFunds.create({
       date: req.body.paymentDate || formattedDate,
       ref: newPurchaseInvoice._id,
@@ -383,6 +396,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       description: req.body.paymentDescription,
       companyId,
     });
+
     await newPurchaseInvoice.payments.push({
       payment: paymentInFundCurrency,
       paymentMainCurrency: req.body.paymentInMainCurrency,
@@ -415,7 +429,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "purchase",
-      financailFund.code,
+      financailFund.code
     );
 
     await financialFund.save();
@@ -519,7 +533,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       (item) =>
         item.type !== "unTracedproduct" &&
         item.type !== "expense" &&
-        item.type !== "variants",
+        item.type !== "variants"
     )
     .map((item) => {
       const product = productMap.get(item.id);
@@ -527,7 +541,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       const oldQty = product.stocks.reduce(
         (total, stock) => total + stock.productQuantity || 0,
-        0,
+        0
       );
 
       const oldCost = product.costBuyingPrice || 0;
@@ -631,7 +645,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       (item) =>
         item.type !== "unTracedproduct" &&
         item.type !== "expense" &&
-        item.type !== "variants",
+        item.type !== "variants"
     )
     .map((item) => ({
       updateOne: {
@@ -682,7 +696,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       const totalStockQuantity = product.stocks.reduce(
         (total, stock) => total + stock.productQuantity || 0,
-        0,
+        0
       );
 
       await createProductMovement({
@@ -758,7 +772,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       "",
       "",
       "",
-      currency.currencyCode,
+      currency.currencyCode
     );
   }
 
@@ -767,13 +781,13 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     newPurchaseInvoice._id,
     "create",
     req.user._id,
-    req.body.date,
+    req.body.date
   );
 
   if (req.body?.selectedId?.length > 0) {
     await ShortageModel.updateMany(
       { _id: { $in: req.body.selectedId } },
-      { status: "done" },
+      { status: "done" }
     );
   }
   res.status(201).json({
@@ -811,13 +825,13 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
   const futureDateOb = new Date(ts);
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
   const formattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
   const formattedDatePurchase = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   const isoDate = `${req.body.paymentDate}T${formattedDate}Z`;
@@ -873,7 +887,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         (item) =>
           item.type !== "unTracedproduct" &&
           item.type !== "expense" &&
-          item.type !== "variants",
+          item.type !== "variants"
       )
       .forEach((item) => {
         bulkProductUpdatesOriginal.push({
@@ -914,7 +928,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     // Applying quantities of updated items
     updatedItems
       .filter(
-        (item) => item.type !== "unTracedproduct" && item.type !== "expense",
+        (item) => item.type !== "unTracedproduct" && item.type !== "expense"
       )
       .forEach((item) => {
         const filterForUpdate = {
@@ -957,7 +971,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
 
         bulkProductUpdatesNew.push(
           { updateOne: { filter: filterForUpdate, update: updateIfExists } },
-          { updateOne: { filter: filterForInsert, update: updateIfMissing } },
+          { updateOne: { filter: filterForInsert, update: updateIfMissing } }
         );
       });
 
@@ -1018,7 +1032,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
               update: updateIfMissingVariant,
               arrayFilters: [{ "v.qr": item.qr }],
             },
-          },
+          }
         );
       });
 
@@ -1096,7 +1110,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         companyId,
         isDraft: false,
       },
-      { new: true },
+      { new: true }
     );
 
     payment = await PaymentModel.create({
@@ -1189,7 +1203,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "purchase",
-      financailFund.code,
+      financailFund.code
     );
   } else if (paid === "unpaid" && !invoiceDraft) {
     if (
@@ -1249,7 +1263,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         companyId,
         isDraft: false,
       },
-      { new: true },
+      { new: true }
     );
   } else if (paid === "unpaid" && invoiceDraft) {
     newPurchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
@@ -1288,7 +1302,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
         companyId,
         isDraft: true,
       },
-      { new: true },
+      { new: true }
     );
   } else {
     console.log("Invalid paid status or draft condition");
@@ -1301,7 +1315,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
       companyId,
     });
     const productMap = new Map(
-      products.map((prod) => [prod._id.toString(), prod]),
+      products.map((prod) => [prod._id.toString(), prod])
     );
     const movementMap = new Map();
 
@@ -1339,7 +1353,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
 
         const totalStockQuantity = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity || 0,
-          0,
+          0
         );
 
         await createProductMovement({
@@ -1368,7 +1382,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
             referenceType: "purchase",
           });
         }
-      }),
+      })
     );
   }
 
@@ -1377,7 +1391,7 @@ exports.updatePurchaseInvoices = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString(),
+    new Date().toISOString()
   );
 
   res.status(200).json({
@@ -1415,7 +1429,7 @@ exports.patchPurchaseInvoice = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString(),
+    new Date().toISOString()
   );
 
   res.status(200).json({
@@ -1424,8 +1438,6 @@ exports.patchPurchaseInvoice = asyncHandler(async (req, res, next) => {
     data: purchaseInv,
   });
 });
-
-const mongoose = require("mongoose");
 
 exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -1447,7 +1459,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
     const nextCounterPayment = await counterModel.findOneAndUpdate(
       { companyId, name: "payment" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     const formattedDate = new Date()
@@ -1463,19 +1475,19 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
     futureDateOb2.setSeconds(futureDateOb.getSeconds() + 1);
 
     const futureFormattedDate = `${padZero(futureDateOb2.getHours())}:${padZero(
-      futureDateOb2.getMinutes(),
+      futureDateOb2.getMinutes()
     )}:${padZero(futureDateOb2.getSeconds())}.${padZero(
       futureDateOb2.getMilliseconds(),
-      3,
+      3
     )}`;
 
     req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
 
     const futureFormatDate = `${padZero(futureDateOb.getHours())}:${padZero(
-      futureDateOb.getMinutes(),
+      futureDateOb.getMinutes()
     )}:${padZero(futureDateOb.getSeconds())}.${padZero(
       futureDateOb.getMilliseconds(),
-      3,
+      3
     )}`;
 
     req.body.date = `${req.body.date}T${futureFormatDate}Z`;
@@ -1528,13 +1540,13 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       .session(session);
 
     const productMap = new Map(
-      products.map((prod) => [prod._id.toString(), prod]),
+      products.map((prod) => [prod._id.toString(), prod])
     );
 
     const nextCounterrefundPurchaseInvict = await counterModel.findOneAndUpdate(
       { companyId, name: "refundPurchaseInvoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     // إنشاء الفاتورة + الدفع حسب الحالة
@@ -1584,7 +1596,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
             counter: Number(counter) + nextCounterrefundPurchaseInvict.seq,
           },
         ],
-        { session },
+        { session }
       );
       newPurchaseInvoice = createdInvoices[0];
 
@@ -1620,7 +1632,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
             },
           },
         ],
-        { session },
+        { session }
       );
       payment = createdPayments[0];
 
@@ -1639,7 +1651,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
             companyId,
           },
         ],
-        { session },
+        { session }
       );
       const reports = createdReports[0];
 
@@ -1701,7 +1713,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
             counter: Number(counter) + nextCounterrefundPurchaseInvict.seq,
           },
         ],
-        { session },
+        { session }
       );
       newPurchaseInvoice = createdInvoices[0];
     }
@@ -1741,7 +1753,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
         const oldQty = (product.stocks || []).reduce(
           (total, stock) => total + (Number(stock.productQuantity) || 0),
-          0,
+          0
         );
 
         if (returnQty > oldQty) {
@@ -1851,7 +1863,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
             },
           },
         };
-      }),
+      })
     );
 
     const bulkOps = ops.filter(Boolean);
@@ -1881,7 +1893,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
               companyId,
             },
           ],
-          { session },
+          { session }
         );
       } else if (item.type === "expense") {
         // ...
@@ -1909,7 +1921,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       "Deposit",
       "refund Purchase",
       currency.currencyCode,
-      { session }, // لازم الدالة تدعمه
+      { session } // لازم الدالة تدعمه
     );
 
     if (paid === "paid") {
@@ -1927,7 +1939,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         "Deposit",
         "refund Purchase",
         financailFund.code,
-        { session }, // لازم الدالة تدعمه
+        { session } // لازم الدالة تدعمه
       );
     }
 
@@ -1937,7 +1949,7 @@ exports.refundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       "create",
       req.user._id,
       req.body.date,
-      { session }, // لازم الدالة تدعمه
+      { session } // لازم الدالة تدعمه
     );
 
     await session.commitTransaction();
@@ -2145,7 +2157,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
           const totalStockQuantity = product.stocks.reduce(
             (total, stock) => total + stock.productQuantity,
-            0,
+            0
           );
 
           // Create one movement record per product
@@ -2166,12 +2178,12 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
             item.orginalBuyingPrice,
             0,
             item.stock._id,
-            product.costBuyingPrice,
+            product.costBuyingPrice
           );
         } catch (error) {
           console.error(`Error processing product ${item.qr}:`, error);
         }
-      }),
+      })
     );
 
     // Execute all promises at once
@@ -2188,7 +2200,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
         },
         { archives: true, paymentType: "Deposit" },
-        { new: true },
+        { new: true }
       );
     }
     await paymentHistoryModel.deleteMany({
@@ -2200,7 +2212,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       id,
       "cancel",
       req.user._id,
-      new Date().toISOString(),
+      new Date().toISOString()
     );
     purchaseInvoices.type = "purchase cancelled";
     purchaseInvoices.invoiceNumber =
@@ -2213,7 +2225,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
     res.status(200).json({ message: "cancel is success" });
   } else {
     return next(
-      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500),
+      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500)
     );
   }
 });
@@ -2262,7 +2274,7 @@ exports.archivePurchaseInvoice = asyncHandler(async (req, res, next) => {
   const purchaseInvoice = await PurchaseInvoicesModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true },
+    { new: true }
   );
 
   if (!purchaseInvoice) {
@@ -2274,3 +2286,76 @@ exports.archivePurchaseInvoice = asyncHandler(async (req, res, next) => {
     data: purchaseInvoice,
   });
 });
+
+//////
+
+exports.createPurchaseInvoiceDraftService = async ({
+  req,
+  companyId,
+  invoicesItem,
+  supllierObject,
+  currency,
+  taxDetails,
+  tag,
+  formattedDate,
+}) => {
+  const {
+    exchangeRate,
+    invoiceSubTotal,
+    invoiceDiscount,
+    invoiceGrandTotal,
+    ManualInvoiceDiscount,
+    ManualInvoiceDiscountValue,
+    invoiceName,
+    InvoiceDiscountType,
+    subtotalWithDiscount,
+    paymentDate,
+    invoiceTax,
+  } = req.body;
+
+  const newPurchaseInvoice = await PurchaseInvoicesModel.create({
+    employee: req.user._id,
+    date: req.body.date || formattedDate,
+    invoicesItems: invoicesItem,
+    supllier: supllierObject,
+    currency,
+    exchangeRate,
+
+    paid: "unpaid",
+
+    totalPurchasePriceMainCurrency: req.body.totalInMainCurrency,
+    invoiceSubTotal,
+    invoiceDiscount,
+    totalRemainder: req.body.totalRemainder,
+    totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+    invoiceGrandTotal,
+
+    taxDetails,
+    invoiceName,
+
+    ManualInvoiceDiscount,
+    ManualInvoiceDiscountValue,
+    InvoiceDiscountType,
+    subtotalWithDiscount,
+
+    paymentDate,
+    invoiceTax,
+    tag,
+
+    journalCounter: req.body.journalCounter,
+    type: "purchase",
+    dueDate: paymentDate,
+    description: req.body.description,
+    file: req.body.file,
+
+    companyId,
+
+    isDraft: true,
+
+    // important
+    counter: null,
+    invoiceNumber: null,
+  });
+
+  return newPurchaseInvoice;
+};

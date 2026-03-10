@@ -26,7 +26,7 @@ accountingRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    createJournal,
+    createJournal
   );
 accountingRoute
   .route("/openbalance")
@@ -34,7 +34,7 @@ accountingRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    createJournalOpenBalance,
+    createJournalOpenBalance
   );
 
 accountingRoute
@@ -47,7 +47,7 @@ accountingRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    updateJournal,
+    updateJournal
   );
 accountingRoute.route("/accountwithjournal/:id").get(getOneAccountAndJournal);
 accountingRoute
@@ -57,6 +57,6 @@ accountingRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    updateJournalForInvoice,
+    updateJournalForInvoice
   );
 module.exports = accountingRoute;

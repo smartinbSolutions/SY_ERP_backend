@@ -39,9 +39,9 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
   const cartItems = req.body.cartItems;
   req.body.date = date;
@@ -89,7 +89,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     {
       $inc: { sold: 1 },
     },
-    { new: true },
+    { new: true }
   );
 
   nextCounter = (await posReceiptsModel.countDocuments({ companyId })) + 1;
@@ -216,7 +216,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 
     const oldQty = product.stocks.reduce(
       (t, s) => t + (s.productQuantity || 0),
-      0,
+      0
     );
 
     if (soldQty > oldQty) {
@@ -309,7 +309,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
         $set: {
           costBuyingPrice: newAvgCost,
         },
-      },
+      }
     );
   }
   // Wait for all promises to resolve
@@ -321,7 +321,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     order._id,
     "create",
     req.user._id,
-    new Date().toISOString(),
+    new Date().toISOString()
   );
   res.status(201).json({ status: "success", data: order, history });
 });
@@ -531,7 +531,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
 
   if (!order) {
@@ -612,7 +612,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
     const product = await productModel.findOne({ qr: item.qr });
     const totalStockQuantity = product.stocks.reduce(
       (total, stock) => total + stock.productQuantity,
-      0,
+      0
     );
     await createProductMovement(
       product._id,
@@ -629,7 +629,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
       "",
       "",
       item.sellingPrice + item.taxValue / item.soldQuantity,
-      item.buyingpriceMainCurrence,
+      item.buyingpriceMainCurrence
     );
   });
 
@@ -638,7 +638,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString(),
+    new Date().toISOString()
   );
 
   res.status(200).json({
@@ -680,11 +680,11 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
 
     const currentDateTime = new Date();
     const formattedDate = `${currentDateTime.getFullYear()}-${padZero(
-      currentDateTime.getMonth() + 1,
+      currentDateTime.getMonth() + 1
     )}-${padZero(currentDateTime.getDate())}T${padZero(
-      currentDateTime.getHours(),
+      currentDateTime.getHours()
     )}:${padZero(currentDateTime.getMinutes())}:${padZero(
-      currentDateTime.getSeconds(),
+      currentDateTime.getSeconds()
     )}.${currentDateTime.getMilliseconds()}Z`;
 
     req.body.paidAt = formattedDate;
@@ -693,7 +693,7 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
     const nextCounterRefund = await counterModel.findOneAndUpdate(
       { companyId, name: "posRefund" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     // const nextCounterRefund =
@@ -737,13 +737,13 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     const returnCartItemUpdates = req.body.cartItems
       .map((incomingItem) => {
         const matchingIndex = orders.returnCartItem.findIndex(
-          (item) => item.id === incomingItem.id,
+          (item) => item.id === incomingItem.id
         );
 
         if (matchingIndex !== -1) {
@@ -811,7 +811,7 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
 
       const oldQty = product.stocks.reduce(
         (total, stock) => total + (stock.productQuantity || 0),
-        0,
+        0
       );
 
       const oldAvgCost = product.costBuyingPrice;
@@ -842,7 +842,7 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
         if (product && product.type !== "Service") {
           const totalStockQuantity = product.stocks.reduce(
             (total, stock) => total + (stock.productQuantity || 0),
-            0,
+            0
           );
 
           // ✅ RECOMMENDED: add session support in these helpers if you can
@@ -871,7 +871,7 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
             // session, // <-- only if your helper supports it
           });
         }
-      }),
+      })
     );
 
     const history = createInvoiceHistory(
@@ -879,7 +879,7 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
       orderId,
       "return",
       req.user._id,
-      req.body.paidAt,
+      req.body.paidAt
     );
 
     await session.commitTransaction();
@@ -980,9 +980,9 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
 
   const { id } = req.params;
@@ -1022,7 +1022,7 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
       const product = await productModel.findOne({ qr: item.qr });
       if (product && product.type !== "Service") {
         const stockEntry = product.stocks.find(
-          (stock) => stock.stockId === stockId,
+          (stock) => stock.stockId === stockId
         );
 
         if (stockEntry) {
@@ -1040,7 +1040,7 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
             "cancel",
             companyId,
             item.taxValue + item.totalWithoutTax,
-            item.buyingpriceMainCurrence,
+            item.buyingpriceMainCurrence
           );
           await product.save();
         }
@@ -1054,7 +1054,7 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
         date: date,
         counter: "cancel " + canceled.counter,
       },
-      { new: true },
+      { new: true }
     );
 
     createInvoiceHistory(companyId, id, "cancel", req.user._id, date);
@@ -1250,9 +1250,9 @@ exports.mergeRefundReceipts = asyncHandler(async (req, res, next) => {
   const date_ob = new Date(ts);
 
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
 
   const aggregatedFunds = Array.from(financialFundsMap.values());

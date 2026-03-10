@@ -154,21 +154,19 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   ];
   req.body.companyId = companyId;
 
-  const nextCounterPayment =
-    (await journalModel.countDocuments({ companyId })) + 1;
-  const accountingTreePayment =
+  const nextJournalNumber =
     (await journalModel.countDocuments({ companyId })) + 1;
 
-  if (typeof req.body.journalAccounts === "string") {
-    req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
-  }
-  req.body.counter = Number(req.body.counter) + nextCounterPayment;
+  req.body.counter = Number(req.body.counter) + nextJournalNumber;
+  req.body.journalRefNum = nextJournalNumber;
 
-  req.body.journalRefNum = accountingTreePayment;
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
 
+  if (typeof req.body.journalAccounts === "string") {
+    req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
+  }
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
@@ -251,6 +249,157 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     data: create,
   });
 });
+
+exports.createJournalService = async ({
+  journalInfo,
+  journalAccounts,
+  companyId,
+  session,
+}) => {
+  if (!companyId) {
+    throw new ApiError("companyId is required", 400);
+  }
+
+  if (!journalInfo) {
+    throw new ApiError("journalInfo is required", 400);
+  }
+
+  if (!Array.isArray(journalAccounts) || journalAccounts.length === 0) {
+    throw new ApiError("journalAccounts are required", 400);
+  }
+
+  const MONTHS = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
+  ];
+
+  const nextJournalNumber =
+    (await journalModel.countDocuments({ companyId }).session(session)) + 1;
+
+  const padZero = (value) => (value < 10 ? `0${value}` : value);
+
+  const ts = Date.now();
+  const dateOb = new Date(ts);
+  const formattedTime = `${padZero(dateOb.getHours())}:${padZero(
+    dateOb.getMinutes()
+  )}:${padZero(dateOb.getSeconds())}.${String(
+    dateOb.getMilliseconds()
+  ).padStart(3, "0")}`;
+
+  const isoJournalDate = `${journalInfo.journalDate}T${formattedTime}Z`;
+
+  const totalJournalDebit = journalAccounts.reduce(
+    (sum, account) => sum + Number(account.MainDebit || 0),
+    0
+  );
+
+  const totalJournalCredit = journalAccounts.reduce(
+    (sum, account) => sum + Number(account.MainCredit || 0),
+    0
+  );
+
+  const payload = {
+    ...journalInfo,
+    companyId,
+    journalDate: isoJournalDate,
+    journalAccounts,
+    filesArray: journalInfo.filesArray || [],
+    counter: Number(journalInfo.counter || 0) + nextJournalNumber,
+    journalRefNum: nextJournalNumber,
+    journalDebit: totalJournalDebit,
+    journalCredit: totalJournalCredit,
+  };
+
+  const [createdJournal] = await journalModel.create([payload], { session });
+
+  const updateOperations = journalAccounts.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id, companyId },
+      update: {
+        $inc: {
+          debtor: Number(item.MainDebit || 0),
+          creditor: Number(item.MainCredit || 0),
+        },
+      },
+    },
+  }));
+
+  if (updateOperations.length > 0) {
+    await AccountModel.bulkWrite(updateOperations, { session });
+  }
+
+  for (const item of journalAccounts) {
+    const date = new Date(payload.journalDate);
+    const year = date.getFullYear();
+    const monthName = MONTHS[date.getMonth()];
+    const monthAmount =
+      Number(item.MainDebit || 0) - Number(item.MainCredit || 0);
+
+    const existingPeriodic = await periodicJournalEntriesModel
+      .findOne({
+        accountId: item.id,
+        year,
+        companyId,
+      })
+      .session(session);
+
+    if (existingPeriodic) {
+      const existingMonth = existingPeriodic.months.find(
+        (x) => x.month === monthName
+      );
+
+      if (existingMonth) {
+        existingMonth.amount += monthAmount;
+      } else {
+        existingPeriodic.months.push({
+          month: monthName,
+          amount: monthAmount,
+        });
+      }
+
+      existingPeriodic.yearTotal = existingPeriodic.months.reduce(
+        (sum, mo) => sum + Number(mo.amount || 0),
+        0
+      );
+
+      await existingPeriodic.save({ session });
+    } else {
+      await periodicJournalEntriesModel.create(
+        [
+          {
+            name: item.name || "",
+            year,
+            months: [
+              {
+                month: monthName,
+                amount: monthAmount,
+              },
+            ],
+            accountId: item.id,
+            companyId,
+            yearTotal: monthAmount,
+            parentId: item.parentId || null,
+            parentCode: item.parentCode || null,
+            code: item.code || "",
+          },
+        ],
+        { session }
+      );
+    }
+  }
+
+  return createdJournal;
+};
 
 exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
@@ -553,10 +702,17 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
                 : accEntry.MainDebit - accEntry.MainCredit;
             totalDebtor += accEntry.MainDebit;
             totalCreditor += accEntry.MainCredit;
+            const debitValue = accEntry.isPrimary
+              ? accEntry.MainDebit
+              : accEntry.accountDebit;
+            const creditValue = accEntry.isPrimary
+              ? accEntry.MainCredit
+              : accEntry.accountCredit;
+
             runningBalance +=
               account.balanceType === "credit"
-                ? accEntry.accountCredit - accEntry.accountDebit
-                : accEntry.accountDebit - accEntry.accountCredit;
+                ? creditValue - debitValue
+                : debitValue - creditValue;
 
             const reconciliationInfo =
               reconciliationMap[`${journal.counter}-${accEntry.counter}`] ||
