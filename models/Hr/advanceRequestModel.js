@@ -9,6 +9,87 @@ const advanceRequestSchema = new mongoose.Schema(
       index: true,
     },
 
+    approval: {
+      flowId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ApprovalFlow",
+      },
+
+      currentStep: {
+        type: Number,
+        default: 1,
+      },
+
+      currentApprover: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "staff",
+        index: true,
+      },
+
+      steps: [
+        {
+          stepNumber: {
+            type: Number,
+            required: true,
+          },
+
+          stepName: String,
+
+          approverId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "staff",
+            default: null,
+          },
+
+          positionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Position",
+            default: null,
+          },
+
+          status: {
+            type: String,
+            enum: ["pending", "approved", "rejected", "skipped"],
+            default: "pending",
+          },
+
+          actedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "staff",
+            default: null,
+          },
+
+          actedAt: Date,
+
+          comment: String,
+        },
+      ],
+
+      //  use it later for quick reports and indexing for not updating the steps array
+      //   history: [
+      //     {
+      //       stepNumber: Number,
+
+      //       approverId: {
+      //         type: mongoose.Schema.Types.ObjectId,
+      //         ref: "staff",
+      //       },
+
+      //       action: {
+      //         type: String,
+      //         enum: ["approved", "rejected"],
+      //       },
+
+      //       comment: String,
+
+      //       actedAt: {
+      //         type: Date,
+      //         default: Date.now,
+      //       },
+      //     },
+      //   ],
+    },
+
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "staff",

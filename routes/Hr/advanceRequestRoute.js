@@ -9,6 +9,7 @@ const {
   processAdvanceAttachment,
   updateAdvanceRequest,
   uploadAdvanceAttachment,
+  getMyApprovals,
 } = require("../../services/Hr/advanceRequestService");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -18,6 +19,10 @@ const advanceRequestRouter = express.Router();
 advanceRequestRouter
   .route("/my-requests")
   .get(hrAuthServices.protectStaffOrERP, getMyAdvanceRequests);
+
+advanceRequestRouter
+  .route("/my-approvals")
+  .get(hrAuthServices.protectStaffOrERP, getMyApprovals);
 
 advanceRequestRouter
   .route("/")
@@ -43,6 +48,5 @@ advanceRequestRouter
     updateAdvanceRequest,
   )
   .delete(hrAuthServices.protectStaffOrERP, deleteAdvanceRequest);
-
 
 module.exports = advanceRequestRouter;

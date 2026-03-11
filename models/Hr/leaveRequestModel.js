@@ -14,6 +14,11 @@ const leaveRequestSchema = new mongoose.Schema(
       index: true,
     },
 
+    approvalFlow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalFlow",
+    },
+
     leaveType: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Leave",
@@ -30,7 +35,6 @@ const leaveRequestSchema = new mongoose.Schema(
       required: true,
     },
 
-  
     days: String,
 
     reason: {

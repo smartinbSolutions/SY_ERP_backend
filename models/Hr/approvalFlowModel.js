@@ -13,13 +13,7 @@ const approvalFlowSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-
-    module: {
-      type: String,
-      enum: ["leave", "advance", "overtime"],
-      required: true,
-    },
-
+    includeDirectManager: { type: Boolean, default: false },
     steps: [
       {
         stepNumber: {
@@ -28,20 +22,6 @@ const approvalFlowSchema = new mongoose.Schema(
         },
 
         approver: {
-     
-          employeeId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "staff",
-          },
-
-          positionId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Position",
-          },
-        },
-
-        delegate: {
-      
           employeeId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "staff",

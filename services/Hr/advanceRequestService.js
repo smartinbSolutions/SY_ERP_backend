@@ -6,6 +6,9 @@ const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const advanceLogsModel = require("../../models/Hr/advanceLogsModel");
+const { handleApproval } = require("./approvalService");
+const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
+const advanceTypesModel = require("../../models/Hr/advanceTypesModel");
 
 // ================= MULTER =================
 
@@ -59,39 +62,81 @@ exports.processAdvanceAttachment = asyncHandler(async (req, res, next) => {
 // ================= CREATE =================
 
 exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
-  const {
-    advanceTypeId,
-    amount,
-    reason,
-    managerId,
-    salarySnapshot,
-    installmentAmount,
-    totalInstallments,
-  } = req.body;
+  try {
+    const {
+      advanceTypeId,
+      amount,
+      reason,
+      managerId,
+      salarySnapshot,
+      installmentAmount,
+      totalInstallments,
+    } = req.body;
 
-  if (!req.user) return next(new ApiError("Not logged in", 401));
+    console.log("User:", req.user?._id);
+    if (!req.user) return next(new ApiError("Not logged in", 401));
+    if (!amount || amount <= 0)
+      return next(new ApiError("Valid amount is required", 400));
 
-  if (!amount || amount <= 0)
-    return next(new ApiError("Valid amount is required", 400));
+    console.log("Fetching advance type:", advanceTypeId);
+    const type = await advanceTypesModel
+      .findById(advanceTypeId)
+      .populate("policyId");
+    console.log("Type found:", !!type);
 
-  const request = await AdvanceRequest.create({
-    userId: req.user._id,
-    companyId: req.user.companyId,
-    advanceTypeId,
-    amount,
-    reason,
-    managerId,
-    salarySnapshot,
-    installmentAmount: installmentAmount || null,
-    totalInstallments: totalInstallments || null,
-    attachment: req.body.attachment || null,
-  });
+    if (!type) return next(new ApiError("Advance type not found", 404));
+    if (!type.approvalFlow && (!type.policyId || !type.policyId.approvalFlow))
+      return next(new ApiError("Approval flow not found", 404));
 
-  res.status(201).json({
-    status: true,
-    message: "Advance request submitted",
-    data: request,
-  });
+    const flowId = type.approvalFlow || type.policyId.approvalFlow;
+    console.log("Using approval flow ID:", flowId);
+    const flow = await approvalFlowModel.findById(flowId);
+    console.log("Flow found:", !!flow);
+
+    if (!flow) return next(new ApiError("Approval flow not found", 404));
+
+    const approvalSteps = flow.steps.map((step) => ({
+      stepNumber: step.stepNumber,
+      stepName: step.stepName || "",
+      approverId: step.approver.employeeId,
+      status: "pending",
+      actedBy: null,
+      actedAt: null,
+      comment: "",
+    }));
+    console.log("Approval steps:", approvalSteps);
+
+    const request = await AdvanceRequest.create({
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      advanceTypeId,
+      amount,
+      reason,
+      managerId,
+      salarySnapshot,
+      installmentAmount: installmentAmount || null,
+      totalInstallments: totalInstallments || null,
+      attachment: req.body.attachment || null,
+      approval: {
+        flowId: flow._id,
+        currentStep: 1,
+        currentApprover: approvalSteps[0]?.approverId || null,
+        steps: approvalSteps,
+        history: [],
+      },
+    });
+
+    console.log("Advance request created:", request._id);
+
+    res.status(201).json({
+      status: true,
+      message: "Advance request submitted",
+      data: request,
+    });
+  } catch (err) {
+    console.error("Error in createAdvanceRequest:", err);
+    return next(err);
+  }
 });
 
 // ================= MY REQUESTS =================
@@ -113,7 +158,7 @@ exports.getMyAdvanceRequests = asyncHandler(async (req, res) => {
 // ================= ALL COMPANY REQUESTS =================
 
 exports.getAllAdvanceRequests = asyncHandler(async (req, res) => {
-  const { companyId, managerId, status } = req.query;
+  const companyId = req.query.companyId;
 
   if (!companyId) {
     return res
@@ -122,38 +167,26 @@ exports.getAllAdvanceRequests = asyncHandler(async (req, res) => {
   }
 
   const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.limit) || 20;
-  const skip = (page - 1) * pageSize;
+  const limit = parseInt(req.query.limit) || 20;
+  const skip = (page - 1) * limit;
 
-  // Base filter
   const filter = { companyId };
 
-  // Filter by manager
-  if (managerId) {
-    filter.managerId = managerId;
-  }
-
-  // Optional: filter by status
-  if (status) {
-    filter.status = status;
-  }
-
   const totalItems = await AdvanceRequest.countDocuments(filter);
-  const totalPages = Math.ceil(totalItems / pageSize);
 
   const requests = await AdvanceRequest.find(filter)
     .populate("userId", "fullName email")
     .populate("advanceTypeId")
     .skip(skip)
-    .limit(pageSize)
+    .limit(limit)
     .sort({ createdAt: -1 });
 
   res.status(200).json({
     status: true,
     page,
-    totalPages,
     results: requests.length,
     totalItems,
+    totalPages: Math.ceil(totalItems / limit),
     data: requests,
   });
 });
@@ -201,51 +234,78 @@ exports.updateAdvanceRequest = asyncHandler(async (req, res, next) => {
   });
 });
 
-// ================= APPROVE / REJECT =================
+exports.getMyApprovals = asyncHandler(async (req, res) => {
+  const requests = await AdvanceRequest.find({
+    "approval.currentApprover": req.user._id,
+    status: "pending",
+  })
+    .populate("userId", "fullName email")
+    .populate("advanceTypeId")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: true,
+    results: requests.length,
+    data: requests,
+  });
+});
 
 exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
-  const request = await AdvanceRequest.findById(req.params.id);
+  console.log("User attempting approval:", req.user?._id);
+  console.log("Action:", action, "Reason:", reason);
+
+  const request = await AdvanceRequest.findById(req.params.id).populate(
+    "approval.flowId"
+  );
 
   if (!request) return next(new ApiError("Request not found", 404));
-
   if (request.status !== "pending")
     return next(new ApiError("Already processed", 400));
 
-  if (req.user._id.toString() !== request.managerId.toString()) {
-    return next(new ApiError("Not authorized", 403));
-  }
+  try {
+    console.log("Calling handleApproval for request:", request._id);
 
-  if (action === "approve") {
-    await advanceLogsModel.create({
-      userId: request.userId,
-      advanceRequestId: request._id,
-      advanceTypeId: request.advanceTypeId,
-      amount: request.amount,
-      installmentAmount: request.installmentAmount,
-      totalInstallments: request.installments,
-      approvedBy: req.user._id,
-      approvedAt: new Date(),
-      managerComment: reason || "",
-      companyId: request.companyId,
+    const updatedRequest = await handleApproval(
+      request,
+      req.user._id,
+      action === "approve" ? "approved" : "rejected",
+      reason
+    );
+
+    console.log("handleApproval returned, status:", updatedRequest.status);
+
+    // If fully approved, create the log
+    if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
+      updatedRequest.approvedAt = new Date();
+
+      await advanceLogsModel.create({
+        userId: updatedRequest.userId,
+        advanceRequestId: updatedRequest._id,
+        advanceTypeId: updatedRequest.advanceTypeId,
+        amount: updatedRequest.amount,
+        installmentAmount: updatedRequest.installmentAmount,
+        totalInstallments: updatedRequest.installments,
+        approvedBy: req.user._id,
+        approvedAt: updatedRequest.approvedAt,
+        managerComment: reason || "",
+        companyId: updatedRequest.companyId,
+      });
+
+      await updatedRequest.save();
+      console.log("Advance log created for approved request:", updatedRequest._id);
+    }
+
+    res.status(200).json({
+      status: true,
+      message: `Request ${action} successfully`,
+      data: updatedRequest,
     });
-
-    request.status = "approved";
-  } else if (action === "reject") {
-    request.status = "rejected";
-    request.rejectionReason = reason || "";
-  } else {
-    return next(new ApiError("Invalid action", 400));
+  } catch (err) {
+    console.error("Error in handleAdvanceRequest:", err);
+    return next(new ApiError(err.message, 400));
   }
-
-  await request.save();
-
-  res.status(200).json({
-    status: true,
-    message: `Request ${action} successfully`,
-    data: request,
-  });
 });
 
 // ================= DELETE =================

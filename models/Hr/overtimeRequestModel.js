@@ -14,6 +14,11 @@ const overtimeRequestSchema = new mongoose.Schema(
       required: true,
     },
 
+    approvalFlow: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalFlow",
+    },
+
     workDate: {
       type: Date,
       required: true,

@@ -70,7 +70,7 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
 
 exports.createPolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
-  const { policyName, code, types } = req.body;
+  const { policyName, code, types, approvalFlow } = req.body;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -100,6 +100,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
           policyName,
           code,
           companyId,
+          approvalFlow,
         },
       ],
       { session },
@@ -114,6 +115,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
 
         typeKey: type.typeKey,
         maxPercentageOfSalary: type.maxPercentageOfSalary,
+        approvalFlow: type.approvalFlow,
         requiresAttachment: type.requiresAttachment ?? false,
         allowInstallments: type.allowInstallments ?? false,
         maxMonthsInstallments: type.maxMonthsInstallments ?? null,

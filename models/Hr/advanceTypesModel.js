@@ -14,7 +14,6 @@ const advanceTypeSchema = new mongoose.Schema(
 
     companyId: {
       type: String,
-      required: [true, "Company ID is required"],
       index: true,
     },
 
