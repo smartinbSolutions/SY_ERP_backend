@@ -55,7 +55,8 @@ exports.getOneGroups = asyncHandler(async (req, res, next) => {
   })
   .populate("locationId")
   .populate("leavePolicy")
-  .populate("overtimePolicy");
+  .populate("overtimePolicy")
+  .populate("advancePolicy");
   res.status(200).json({ status: "success", data: groups });
 });
 

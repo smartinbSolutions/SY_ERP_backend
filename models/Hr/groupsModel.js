@@ -77,6 +77,11 @@ const groupsSchema = new mongoose.Schema(
       ref: "OvertimePolicy",
       required: true,
     },
+    advancePolicy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdvancePolicy",
+      required: true,
+    },
 
     offDays: [{ type: String }],
 

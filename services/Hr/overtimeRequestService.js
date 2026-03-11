@@ -94,15 +94,28 @@ exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
 // ================= MY REQUESTS =================
 
 exports.getMyOvertimeRequests = asyncHandler(async (req, res) => {
-  const requests = await OvertimeRequest.find({
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const totalRequests = await OvertimeRequest.countDocuments({
     userId: req.user._id,
-  })
+  });
+
+  const requests = await OvertimeRequest.find({ userId: req.user._id })
     .populate("overtimeTypeId")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  const totalPages = Math.ceil(totalRequests / limit);
 
   res.status(200).json({
     status: true,
     results: requests.length,
+    totalPages,
+    page,
+    limit,
     data: requests,
   });
 });
@@ -110,37 +123,51 @@ exports.getMyOvertimeRequests = asyncHandler(async (req, res) => {
 // ================= ALL COMPANY REQUESTS =================
 
 exports.getAllOvertimeRequests = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const { companyId, managerId, status, search, page: pageQuery, limit: limitQuery } = req.query;
 
   if (!companyId) {
-    return res
-      .status(400)
-      .json({ status: false, message: "companyId is required" });
+    return res.status(400).json({ status: false, message: "companyId is required" });
   }
 
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
-
+  const page = parseInt(pageQuery) || 1;
+  const limit = parseInt(limitQuery) || 20;
   const skip = (page - 1) * limit;
 
   const filter = { companyId };
+  if (managerId) filter.managerId = managerId;
+  if (status) filter.status = status;
 
-  const totalItems = await OvertimeRequest.countDocuments(filter);
-
-  const requests = await OvertimeRequest.find(filter)
-    .populate("userId", "fullName email")
+  let query = OvertimeRequest.find(filter)
     .populate("overtimeTypeId")
-    .skip(skip)
-    .limit(limit)
+    .populate("userId", "fullName email")
     .sort({ createdAt: -1 });
+
+  if (search) {
+    const regex = new RegExp(search, "i");
+    query = query.populate({
+      path: "userId",
+      match: { fullName: regex },
+      select: "fullName email",
+    });
+  }
+
+  let results = await query;
+
+  if (search) {
+    results = results.filter(r => r.userId); 
+  }
+
+  const totalItems = results.length;
+  const totalPages = Math.ceil(totalItems / limit);
+  const paginatedResults = results.slice(skip, skip + limit);
 
   res.status(200).json({
     status: true,
     page,
-    results: requests.length,
+    results: paginatedResults.length,
     totalItems,
-    totalPages: Math.ceil(totalItems / limit),
-    data: requests,
+    totalPages,
+    data: paginatedResults,
   });
 });
 

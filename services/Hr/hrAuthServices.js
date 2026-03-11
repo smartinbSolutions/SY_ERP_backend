@@ -35,6 +35,10 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
             path: "overtimePolicy",
             model: "OvertimePolicy",
           },
+          {
+            path: "advancePolicy",
+            model: "AdvancePolicy",
+          },
         ],
       })
       .populate("roleId");

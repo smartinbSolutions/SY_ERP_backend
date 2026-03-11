@@ -76,14 +76,33 @@ exports.createLeaveRequest = asyncHandler(async (req, res) => {
 
 /* ================= GET MY REQUESTS ================= */
 exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
-  const requests = await LeaveRequest.find({ userId: req.user._id }).populate(
-    "leaveType",
-  );
-  res.status(200).json({ status: true, data: requests });
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20;
+  const skip = (page - 1) * limit;
+
+  const filter = { userId: req.user._id };
+
+  const totalItems = await LeaveRequest.countDocuments(filter);
+  const totalPages = Math.ceil(totalItems / limit);
+
+  const requests = await LeaveRequest.find(filter)
+    .populate("leaveType")
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: true,
+    page,
+    totalPages,
+    results: requests.length,
+    totalItems,
+    data: requests,
+  });
 });
 /* ================= GET ALL COMPANY REQUESTS (ADMIN OR MANAGER) ================= */
 exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
-  const { companyId, managerId } = req.query;
+  const { companyId, managerId, status, leaveType, startDate, endDate, search } = req.query;
 
   if (!companyId) {
     return res
@@ -96,27 +115,44 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const skip = (page - 1) * pageSize;
 
   const filter = { companyId };
-  if (managerId) {
-    filter.managerId = managerId;
-  }
+  if (managerId) filter.managerId = managerId;
+  if (status) filter.status = status;
+  if (leaveType) filter.leaveType = leaveType;
+  if (startDate) filter.startDate = { $gte: new Date(startDate) };
+  if (endDate) filter.endDate = { $lte: new Date(endDate) };
 
-  const totalItems = await LeaveRequest.countDocuments(filter);
-  const totalPages = Math.ceil(totalItems / pageSize);
-
-  const requests = await LeaveRequest.find(filter)
+  let query = LeaveRequest.find(filter)
     .populate("leaveType")
     .populate("userId", "fullName email")
     .skip(skip)
     .limit(pageSize)
     .sort({ createdAt: -1 });
 
+  if (search) {
+    const regex = new RegExp(search, "i");
+    query = query.populate({
+      path: "userId",
+      match: { fullName: regex },
+      select: "fullName email"
+    });
+  }
+
+  const totalItems = await LeaveRequest.countDocuments(filter);
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const requests = await query;
+
+  const filteredRequests = search
+    ? requests.filter(r => r.userId) 
+    : requests;
+
   res.status(200).json({
     status: true,
     page,
     totalPages,
-    results: requests.length,
+    results: filteredRequests.length,
     totalItems,
-    data: requests,
+    data: filteredRequests,
   });
 });
 

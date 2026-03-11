@@ -64,7 +64,7 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
 
 exports.createPolicy = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
-  const { policyName, code, types } = req.body;
+  const { policyName, code, approvalFlow, types } = req.body;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -86,6 +86,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
   const policy = await OvertimePolicy.create({
     policyName,
     code,
+    approvalFlow,
     companyId,
   });
 

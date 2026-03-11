@@ -113,7 +113,7 @@ exports.getMyAdvanceRequests = asyncHandler(async (req, res) => {
 // ================= ALL COMPANY REQUESTS =================
 
 exports.getAllAdvanceRequests = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const { companyId, managerId, status } = req.query;
 
   if (!companyId) {
     return res
@@ -122,26 +122,38 @@ exports.getAllAdvanceRequests = asyncHandler(async (req, res) => {
   }
 
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
-  const skip = (page - 1) * limit;
+  const pageSize = parseInt(req.query.limit) || 20;
+  const skip = (page - 1) * pageSize;
 
+  // Base filter
   const filter = { companyId };
 
+  // Filter by manager
+  if (managerId) {
+    filter.managerId = managerId;
+  }
+
+  // Optional: filter by status
+  if (status) {
+    filter.status = status;
+  }
+
   const totalItems = await AdvanceRequest.countDocuments(filter);
+  const totalPages = Math.ceil(totalItems / pageSize);
 
   const requests = await AdvanceRequest.find(filter)
     .populate("userId", "fullName email")
     .populate("advanceTypeId")
     .skip(skip)
-    .limit(limit)
+    .limit(pageSize)
     .sort({ createdAt: -1 });
 
   res.status(200).json({
     status: true,
     page,
+    totalPages,
     results: requests.length,
     totalItems,
-    totalPages: Math.ceil(totalItems / limit),
     data: requests,
   });
 });
