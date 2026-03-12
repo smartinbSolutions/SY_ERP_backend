@@ -125,6 +125,19 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
     invoiceType: { type: String, default: "Purchase" },
     journalCounter: String,
     isDraft: { type: Boolean, default: false, index: true },
+    draftJournalSnapshot: {
+      journalMeta: { type: mongoose.Schema.Types.Mixed, default: null },
+      journalAccounts: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      totals: {
+        totalDebit: { type: Number, default: 0 },
+        totalCredit: { type: Number, default: 0 },
+        balanced: { type: Boolean, default: false },
+        _id: false,
+      },
+      generatedAt: { type: Date, default: null },
+      source: { type: String, default: "frontend" },
+      _id: false,
+    },
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,

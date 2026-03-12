@@ -12,10 +12,12 @@ const {
   applyPurchaseSupplierEffectsService,
   deletePurchaseInvoiceDraftService,
   updatePurchaseInvoiceDraftService,
-  handlePurchaseInvoiceJournalService,
+  preparePurchaseInvoiceDataFromDraftService,
+  debugAndCreatePurchaseDraftJournalService,
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice.service");
 
 const counterModel = require("../../../models/Settings/counterModel");
+const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
 
 /*
 |--------------------------------------------------------------------------
@@ -49,21 +51,17 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       session,
     });
 
-    const journalPayload = req.body.journalPayload
-      ? JSON.parse(req.body.journalPayload)
-      : null;
+    const newPurchaseInvoice = await createPurchaseInvoiceRecordService({
+      req,
+      invoiceDraft,
+      ...prepared,
+      companyId,
+      nextCounterPayment,
+      nextCounterPurchaseInvoices,
+      session,
+    });
 
-    const { newPurchaseInvoice, payment, financialFund, parsedFinancialFund } =
-      await createPurchaseInvoiceRecordService({
-        req,
-        invoiceDraft,
-        ...prepared,
-        companyId,
-        nextCounterPayment,
-        nextCounterPurchaseInvoices,
-        session,
-      });
-
+    // Apply effects only if not draft
     if (!invoiceDraft) {
       await applyPurchaseInventoryEffectsService({
         ...prepared,
@@ -77,22 +75,10 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         ...prepared,
         newPurchaseInvoice,
         companyId,
-        currency: prepared.currency,
         date: req.body.date,
         totalPurchasePriceMainCurrency: req.body.totalInMainCurrency,
-        totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-        paid: req.body.paid,
         session,
       });
-
-      if (journalPayload && !journalPayload.skip) {
-        await handlePurchaseInvoiceJournalService({
-          journalPayload,
-          newPurchaseInvoice,
-          companyId,
-          session,
-        });
-      }
     }
 
     await session.commitTransaction();
@@ -122,10 +108,12 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    const purchaseInvoice = await PurchaseInvoicesModel.findOne({
-      _id: invoiceId,
-      companyId,
-    }).session(session);
+    const purchaseInvoice = await purchaseinvoicesModel
+      .findOne({
+        _id: invoiceId,
+        companyId,
+      })
+      .session(session);
 
     if (!purchaseInvoice) {
       return next(new ApiError("Purchase invoice draft not found", 404));
@@ -135,7 +123,11 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
       return next(new ApiError("This invoice is already posted", 400));
     }
 
-    // if needed, re-prepare dependent data from stored invoice
+    const journalPreview =
+      typeof req.body.journalPreview === "string"
+        ? JSON.parse(req.body.journalPreview)
+        : req.body.journalPreview;
+
     const prepared = await preparePurchaseInvoiceDataFromDraftService({
       purchaseInvoice,
       companyId,
@@ -155,13 +147,26 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
       newPurchaseInvoice: purchaseInvoice,
       companyId,
       date: purchaseInvoice.date,
-      totalPurchasePriceMainCurrency: purchaseInvoice.totalInMainCurrency,
+      totalPurchasePriceMainCurrency:
+        purchaseInvoice.totalPurchasePriceMainCurrency,
+      totalRemainderMainCurrency: purchaseInvoice.totalRemainderMainCurrency,
+      paid: purchaseInvoice.paid,
+      session,
+    });
+
+    const { createdJournal } = await debugAndCreatePurchaseDraftJournalService({
+      companyId,
+      purchaseInvoice,
+      journalPreview,
       session,
     });
 
     purchaseInvoice.isDraft = false;
     purchaseInvoice.postedAt = new Date();
     purchaseInvoice.paid = purchaseInvoice.paid || "unpaid";
+    purchaseInvoice.draftJournalSnapshot = purchaseInvoice.draftJournalSnapshot;
+    purchaseInvoice.journalCounter =
+      createdJournal?.counter || purchaseInvoice?.journalCounter;
 
     await purchaseInvoice.save({ session });
 
@@ -171,6 +176,7 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
       status: "success",
       message: "Purchase invoice draft posted successfully",
       data: purchaseInvoice,
+      journal: createdJournal,
     });
   } catch (error) {
     await session.abortTransaction();

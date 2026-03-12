@@ -637,6 +637,7 @@ exports.getOneAccountingTree = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ status: "success", data: findOneAccount });
 });
+
 exports.calculateBalance = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
   if (!companyId)

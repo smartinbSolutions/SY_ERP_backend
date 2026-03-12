@@ -30,7 +30,7 @@ PurchaseInvoices.route("/refund")
 PurchaseInvoices.route("/supplierinvoices/:id").get(findSupplier);
 
 PurchaseInvoices.route("/refund/:id").get(getOneReturnPurchase);
-PurchaseInvoices.route("/post/:id").get(postPurchaseInvoiceDraft);
+PurchaseInvoices.route("/post/:id").put(postPurchaseInvoiceDraft);
 PurchaseInvoices.route("/")
   .post(authService.checkCompanyEditable, uploadFile, createPurchaseInvoice)
   .get(findAllProductInvoices);

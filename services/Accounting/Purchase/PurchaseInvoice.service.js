@@ -25,6 +25,7 @@ const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
 const ShortageModel = require("../../../models/ShortageModel");
 const prodcutBatchModel = require("../../../models/prodcutBatchModel");
+const { createJournalService } = require("../../journalEntryServices");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -124,6 +125,12 @@ exports.preparePurchaseInvoiceDataService = async ({
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
 
+  const draftJournalSnapshot = req.body.draftJournalSnapshot
+    ? typeof req.body.draftJournalSnapshot === "string"
+      ? JSON.parse(req.body.draftJournalSnapshot)
+      : req.body.draftJournalSnapshot
+    : null;
+
   return {
     supplier,
     invoicesItem,
@@ -132,6 +139,50 @@ exports.preparePurchaseInvoiceDataService = async ({
     currency,
     tag,
     formattedDate,
+    productMap,
+    draftJournalSnapshot,
+  };
+};
+
+exports.preparePurchaseInvoiceDataFromDraftService = async ({
+  purchaseInvoice,
+  companyId,
+  session,
+}) => {
+  const supllierObject = purchaseInvoice.supllier || {};
+  const taxDetails = purchaseInvoice.taxDetails || [];
+  const invoicesItem = purchaseInvoice.invoicesItems || [];
+  const currency = purchaseInvoice.currency || {};
+  const tag = purchaseInvoice.tag || [];
+
+  const supplier = await suppliersModel
+    .findOne({
+      _id: supllierObject.id,
+      companyId,
+    })
+    .session(session);
+
+  const productIds = invoicesItem
+    .filter((item) => item.type === "product" || item.type === "variants")
+    .map((item) => item.id)
+    .filter(Boolean);
+
+  const products = await productModel
+    .find({
+      _id: { $in: productIds },
+      companyId,
+    })
+    .session(session);
+
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+  return {
+    supplier,
+    invoicesItem,
+    supllierObject,
+    taxDetails,
+    currency,
+    tag,
     productMap,
   };
 };
@@ -148,6 +199,7 @@ exports.createPurchaseInvoiceRecordService = async ({
   formattedDate,
   companyId,
   nextCounterPayment,
+  draftJournalSnapshot,
   nextCounterPurchaseInvoices,
   session,
 }) => {
@@ -206,6 +258,10 @@ exports.createPurchaseInvoiceRecordService = async ({
       =============================
     */
   if (!invoiceDraft) {
+    if (!supplier) {
+      throw new ApiError("Supplier not found", 404);
+    }
+
     supplier.total += Number(totalInMainCurrency || 0);
 
     if (paid === "unpaid") {
@@ -260,6 +316,13 @@ exports.createPurchaseInvoiceRecordService = async ({
 
   if (invoiceDraft) {
     invoicePayload.isDraft = true;
+    invoicePayload.draftJournalSnapshot = draftJournalSnapshot
+      ? {
+          ...draftJournalSnapshot,
+          generatedAt: new Date(),
+          source: draftJournalSnapshot?.source || "frontend",
+        }
+      : null;
   }
 
   if (paid === "paid" && !invoiceDraft) {
@@ -316,7 +379,7 @@ exports.createPurchaseInvoiceRecordService = async ({
           paymentType: "Withdrawal",
           description: req.body.paymentDescription,
           date: req.body.paymentDate || formattedDate,
-          counter: Number(req.body.counters || 0) + nextCounterPayment.seq,
+          counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
           companyId,
           payid: [
             {
@@ -604,57 +667,141 @@ exports.applyPurchaseSupplierEffectsService = async ({
   );
 };
 
-exports.handlePurchaseInvoiceJournalService = async ({
-  journalPayload,
-  newPurchaseInvoice,
+exports.debugAndCreatePurchaseDraftJournalService = async ({
+  companyId,
+  purchaseInvoice,
+  journalPreview,
+  session,
+}) => {
+  if (!companyId) {
+    throw new ApiError("companyId is required", 400);
+  }
+
+  if (!purchaseInvoice) {
+    throw new ApiError("purchase invoice is required", 400);
+  }
+
+  if (!journalPreview) {
+    throw new ApiError("journal preview is required", 400);
+  }
+
+  const journalMeta = journalPreview?.journalMeta || {};
+  const journalAccounts = journalPreview?.journalAccounts || [];
+
+  if (!journalMeta?.journalName) {
+    throw new ApiError("journal name is missing", 400);
+  }
+
+  if (!journalMeta?.journalDate) {
+    throw new ApiError("journal date is missing", 400);
+  }
+
+  if (!Array.isArray(journalAccounts) || journalAccounts.length === 0) {
+    throw new ApiError("journal accounts are missing", 400);
+  }
+
+  for (const line of journalAccounts) {
+    if (!line?.id) {
+      throw new ApiError(
+        `journal account id is missing in line type ${
+          line?.accountType || "unknown"
+        }`,
+        400
+      );
+    }
+  }
+
+  const totalDebit = journalAccounts.reduce(
+    (sum, item) => sum + Number(item?.MainDebit || 0),
+    0
+  );
+
+  const totalCredit = journalAccounts.reduce(
+    (sum, item) => sum + Number(item?.MainCredit || 0),
+    0
+  );
+
+  const balanced =
+    Number(totalDebit.toFixed(6)) === Number(totalCredit.toFixed(6));
+
+  if (!balanced) {
+    throw new ApiError(
+      `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
+      400
+    );
+  }
+
+  const journalPayload = {
+    ...journalMeta,
+    journalAccounts,
+    journalDebit: totalDebit,
+    journalCredit: totalCredit,
+    filesArray: [],
+    refId: journalMeta?.refId || purchaseInvoice?._id,
+    refCounter: journalMeta?.refCounter || purchaseInvoice?.counter,
+    party: journalMeta?.party || purchaseInvoice?.supllier?.id || "",
+    journalType: journalMeta?.journalType || "Purchase",
+  };
+
+  console.group("Post Draft Invoice Journal Debug");
+  console.log("invoiceId:", purchaseInvoice?._id?.toString());
+  console.log("journalPayload:", journalPayload);
+  console.log("totalDebit:", totalDebit);
+  console.log("totalCredit:", totalCredit);
+  console.groupEnd();
+
+  const { journalAccounts: lines, ...journalInfo } = journalPayload;
+
+  const createdJournal = await createJournalService({
+    companyId,
+    journalInfo,
+    journalAccounts: lines,
+    session,
+  });
+
+  return {
+    createdJournal,
+    journalPayload,
+    totalDebit,
+    totalCredit,
+  };
+};
+
+exports.createJournalFromService = async ({
+  journalMeta,
+  journalAccounts,
   companyId,
   session,
 }) => {
-  if (!journalPayload || journalPayload.skip) return;
-
-  const { mode, journalLinkNum, journalRefNum, journalMeta, journalAccounts } =
-    journalPayload;
-
-  const totalJournalDebit = journalAccounts.reduce(
-    (sum, account) => sum + parseFloat(account.MainDebit || 0),
-    0
+  const created = await journalModel.create(
+    [
+      {
+        ...journalMeta,
+        journalAccounts,
+        companyId,
+      },
+    ],
+    { session }
   );
 
-  const totalJournalCredit = journalAccounts.reduce(
-    (sum, account) => sum + parseFloat(account.MainCredit || 0),
-    0
-  );
+  const createdJournal = created[0];
 
-  const finalJournalInfo = {
-    ...journalMeta,
-    refCounter: newPurchaseInvoice.counter,
-    refId: newPurchaseInvoice._id,
-    journalRefNum: journalRefNum || journalMeta?.journalRefNum || "",
-    journalDebit: totalJournalDebit,
-    journalCredit: totalJournalCredit,
-  };
+  const updateOperations = journalAccounts.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id },
+      update: {
+        $inc: {
+          debtor: item.MainDebit || 0,
+          creditor: item.MainCredit || 0,
+        },
+      },
+    },
+  }));
 
-  if (mode === "update" && journalLinkNum) {
-    await updateJournalForInvoicesService({
-      linkNum: journalLinkNum,
-      journalInfo: finalJournalInfo,
-      journalAccounts,
-      companyId,
-      session,
-    });
-  } else {
-    await createJournalService({
-      journalInfo: finalJournalInfo,
-      journalAccounts,
-      companyId,
-      session,
-    });
-  }
+  await AccountModel.bulkWrite(updateOperations, { session });
+
+  return createdJournal;
 };
-
-const fs = require("fs");
-const path = require("path");
-const { createJournalService } = require("../../journalEntryServices");
 
 exports.updatePurchaseInvoiceDraftService = async ({
   req,

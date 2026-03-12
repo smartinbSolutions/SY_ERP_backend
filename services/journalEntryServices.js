@@ -584,6 +584,177 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
   });
 });
 
+// exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
+//   try {
+//     const {
+//       companyId,
+//       limit,
+//       page,
+//       keyword,
+//       filters: filtersRaw,
+//       gotoLastMatched,
+//     } = req.query;
+//     const { id } = req.params;
+
+//     if (!companyId) {
+//       return res.status(400).json({ message: "companyId is required" });
+//     }
+
+//     const filters = filtersRaw ? JSON.parse(filtersRaw) : {};
+//     const pageSize = parseInt(limit, 10) || 10;
+//     let currentPage = parseInt(page, 10) || 1;
+
+//     const account = await AccountModel.findOne({ _id: id, companyId })
+//       .populate("currency")
+//       .lean();
+
+//     if (!account) {
+//       return res.status(404).json({ message: "Account not found" });
+//     }
+
+//     const query = { companyId, "journalAccounts.id": id };
+
+//     if (filters.partyId) query.party = filters.partyId;
+//     if (filters.journalType) query.journalType = filters.journalType;
+//     if (filters.auditing) query.auditing = filters.auditing;
+
+//     if (filters.startDate || filters.endDate) {
+//       query.journalDate = {};
+//       if (filters.startDate) {
+//         query.journalDate.$gte = `${filters.startDate}T00:00:00.000Z`;
+//       }
+//       if (filters.endDate) {
+//         query.journalDate.$lte = `${filters.endDate}T23:59:59.999Z`;
+//       }
+//     }
+
+//     if (keyword) {
+//       query.$or = [
+//         { journalName: { $regex: keyword, $options: "i" } },
+//         { journalRefNum: { $regex: keyword, $options: "i" } },
+//         { counter: { $regex: keyword, $options: "i" } },
+//         { refCounter: { $regex: keyword, $options: "i" } },
+//       ];
+//     }
+
+//     const totalItems = await journalModel.countDocuments(query);
+//     const totalPages = Math.ceil(totalItems / pageSize);
+
+//     const allJournals = await journalModel.find(query).lean();
+
+//     const reconciliations = await reconciliationModel
+//       .find({ companyId })
+//       .sort({ createdAt: -1 })
+//       .select("journalLineCounter journalEntryId desc matchedBy matchedAt")
+//       .lean();
+
+//     const reconciliationMap = {};
+//     reconciliations.forEach((rec) => {
+//       reconciliationMap[rec.journalLineCounter] = rec;
+//     });
+
+//     if (gotoLastMatched === "true" && reconciliations.length > 0) {
+//       const lastRec = reconciliations[0];
+//       const beforeDash = lastRec.journalLineCounter.split("-")[0];
+//       const lastJournal = await journalModel
+//         .findOne({ counter: beforeDash, companyId })
+//         .lean();
+
+//       const journalsSorted = allJournals.sort(
+//         (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
+//       );
+
+//       const index = journalsSorted.findIndex(
+//         (j) => j._id.toString() === lastJournal._id.toString()
+//       );
+
+//       if (index >= 0) {
+//         currentPage = Math.floor(index / pageSize) + 1;
+//       } else {
+//         currentPage = 1; // fallback
+//       }
+//     }
+
+//     const skip = (currentPage - 1) * pageSize;
+//     let runningBalanceMaine = 0,
+//       totalDebtor = 0,
+//       totalCreditor = 0,
+//       runningBalance = 0;
+
+//     const filteredJournals = allJournals
+//       .sort((a, b) => new Date(a.journalDate) - new Date(b.journalDate))
+//       .map((journal) => {
+//         const filteredAccounts = journal.journalAccounts
+//           .filter((acc) => {
+//             let match = acc.id === id && acc.posted !== false;
+//             if (filters.currency) {
+//               match =
+//                 match && acc.accountCurrency?.toString() === filters.currency;
+//             }
+//             return match;
+//           })
+//           .map((accEntry) => {
+//             if (filters.currency) query.accountCurrency = filters.currency;
+
+//             runningBalanceMaine +=
+//               account.balanceType === "credit"
+//                 ? accEntry.MainCredit - accEntry.MainDebit
+//                 : accEntry.MainDebit - accEntry.MainCredit;
+//             totalDebtor += accEntry.MainDebit;
+//             totalCreditor += accEntry.MainCredit;
+//             const debitValue = accEntry.isPrimary
+//               ? accEntry.MainDebit
+//               : accEntry.accountDebit;
+//             const creditValue = accEntry.isPrimary
+//               ? accEntry.MainCredit
+//               : accEntry.accountCredit;
+
+//             runningBalance +=
+//               account.balanceType === "credit"
+//                 ? creditValue - debitValue
+//                 : debitValue - creditValue;
+
+//             const reconciliationInfo =
+//               reconciliationMap[`${journal.counter}-${accEntry.counter}`] ||
+//               null;
+
+//             return {
+//               ...accEntry,
+//               runningBalanceMaine,
+//               runningBalance,
+//               reconciliation: reconciliationInfo,
+//             };
+//           });
+
+//         return {
+//           ...journal,
+//           journalAccounts: filteredAccounts,
+//           runningBalanceMaine,
+//           runningBalance,
+//           totalDebtor,
+//           totalCreditor,
+//         };
+//       });
+
+//     const paginatedJournals = filteredJournals
+//       .sort((a, b) => new Date(b.journalDate) - new Date(a.journalDate))
+//       .slice(skip, skip + pageSize);
+
+//     return res.status(200).json({
+//       pages: totalPages,
+//       results: totalItems,
+//       currentPage,
+//       runningBalanceMaine,
+//       runningBalance,
+//       totalDebtor,
+//       totalCreditor,
+//       data: account,
+//       journals: paginatedJournals,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
   try {
     const {
@@ -594,6 +765,7 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
       filters: filtersRaw,
       gotoLastMatched,
     } = req.query;
+
     const { id } = req.params;
 
     if (!companyId) {
@@ -612,7 +784,10 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
       return res.status(404).json({ message: "Account not found" });
     }
 
-    const query = { companyId, "journalAccounts.id": id };
+    const query = {
+      companyId,
+      "journalAccounts.id": id,
+    };
 
     if (filters.partyId) query.party = filters.partyId;
     if (filters.journalType) query.journalType = filters.journalType;
@@ -620,9 +795,11 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 
     if (filters.startDate || filters.endDate) {
       query.journalDate = {};
+
       if (filters.startDate) {
         query.journalDate.$gte = `${filters.startDate}T00:00:00.000Z`;
       }
+
       if (filters.endDate) {
         query.journalDate.$lte = `${filters.endDate}T23:59:59.999Z`;
       }
@@ -655,64 +832,74 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 
     if (gotoLastMatched === "true" && reconciliations.length > 0) {
       const lastRec = reconciliations[0];
-      const beforeDash = lastRec.journalLineCounter.split("-")[0];
-      const lastJournal = await journalModel
-        .findOne({ counter: beforeDash, companyId })
-        .lean();
+      const beforeDash = lastRec.journalLineCounter?.split("-")[0];
 
-      const journalsSorted = allJournals.sort(
-        (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
-      );
+      if (beforeDash) {
+        const lastJournal = await journalModel
+          .findOne({ counter: beforeDash, companyId })
+          .lean();
 
-      const index = journalsSorted.findIndex(
-        (j) => j._id.toString() === lastJournal._id.toString()
-      );
+        if (lastJournal) {
+          const journalsSorted = [...allJournals].sort(
+            (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
+          );
 
-      if (index >= 0) {
-        currentPage = Math.floor(index / pageSize) + 1;
+          const index = journalsSorted.findIndex(
+            (j) => j._id.toString() === lastJournal._id.toString()
+          );
+
+          currentPage = index >= 0 ? Math.floor(index / pageSize) + 1 : 1;
+        } else {
+          currentPage = 1;
+        }
       } else {
-        currentPage = 1; // fallback
+        currentPage = 1;
       }
     }
 
     const skip = (currentPage - 1) * pageSize;
-    let runningBalanceMaine = 0,
-      totalDebtor = 0,
-      totalCreditor = 0,
-      runningBalance = 0;
+
+    let runningBalanceMaine = 0;
+    let runningBalance = 0;
+    let totalDebtor = 0;
+    let totalCreditor = 0;
 
     const filteredJournals = allJournals
       .sort((a, b) => new Date(a.journalDate) - new Date(b.journalDate))
       .map((journal) => {
-        const filteredAccounts = journal.journalAccounts
+        const filteredAccounts = (journal.journalAccounts || [])
           .filter((acc) => {
-            let match = acc.id === id && acc.posted !== false;
+            let match =
+              acc.id?.toString() === id.toString() && acc.posted !== false;
+
             if (filters.currency) {
               match =
                 match && acc.accountCurrency?.toString() === filters.currency;
             }
+
             return match;
           })
           .map((accEntry) => {
-            if (filters.currency) query.accountCurrency = filters.currency;
+            const mainDebit = Number(accEntry.MainDebit || 0);
+            const mainCredit = Number(accEntry.MainCredit || 0);
+            const accountDebit = Number(accEntry.accountDebit || 0);
+            const accountCredit = Number(accEntry.accountCredit || 0);
 
             runningBalanceMaine +=
               account.balanceType === "credit"
-                ? accEntry.MainCredit - accEntry.MainDebit
-                : accEntry.MainDebit - accEntry.MainCredit;
-            totalDebtor += accEntry.MainDebit;
-            totalCreditor += accEntry.MainCredit;
-            const debitValue = accEntry.isPrimary
-              ? accEntry.MainDebit
-              : accEntry.accountDebit;
-            const creditValue = accEntry.isPrimary
-              ? accEntry.MainCredit
-              : accEntry.accountCredit;
+                ? mainCredit - mainDebit
+                : mainDebit - mainCredit;
 
+            totalDebtor += mainDebit;
+            totalCreditor += mainCredit;
+
+            // IMPORTANT:
+            // runningBalance should always be in account currency,
+            // so do not switch to main currency based on isPrimary.
             runningBalance +=
               account.balanceType === "credit"
-                ? creditValue - debitValue
-                : debitValue - creditValue;
+                ? accountCredit - accountDebit
+                : accountDebit - accountCredit;
 
             const reconciliationInfo =
               reconciliationMap[`${journal.counter}-${accEntry.counter}`] ||
@@ -734,7 +921,8 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
           totalDebtor,
           totalCreditor,
         };
-      });
+      })
+      .filter((journal) => journal.journalAccounts.length > 0);
 
     const paginatedJournals = filteredJournals
       .sort((a, b) => new Date(b.journalDate) - new Date(a.journalDate))
@@ -755,7 +943,6 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
     next(error);
   }
 });
-
 exports.updateJournal = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
