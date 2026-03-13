@@ -34,6 +34,10 @@ exports.getAllLeaves = asyncHandler(async (req, res, next) => {
     .skip(skip)
     .limit(limit)
     .populate("policyId")
+    .populate({
+      path: "approvalFlow", 
+      select: "name steps createdBy", 
+    })
     .sort({ createdAt: -1 });
 
   res.status(200).json({

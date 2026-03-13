@@ -52,13 +52,17 @@ exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError("companyId is required", 400));
   }
 
-  const policy = await leavesPolicyModel.findOne({
-    _id: id,
-    companyId,
-  });
+  const policy = await leavesPolicyModel
+    .findOne({
+      _id: id,
+      companyId,
+    })
+    .populate({
+      path: "approvalFlow",      
+      select: "name steps createdBy", 
+    });
 
   if (!policy) {
-    
     return next(new ApiError(`No policy found with this ID: ${id}`, 404));
   }
 
@@ -67,7 +71,6 @@ exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
     data: policy,
   });
 });
-
 // @desc    Create leave policy
 // @route   POST /api/leaves-policy
 exports.createLeavePolicy = asyncHandler(async (req, res, next) => {

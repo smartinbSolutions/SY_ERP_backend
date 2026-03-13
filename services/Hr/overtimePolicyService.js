@@ -26,6 +26,10 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   const policies = await OvertimePolicy.find(query)
     .skip(skip)
     .limit(limit)
+    .populate({
+      path: "approvalFlow",
+      select: "name steps createdBy",
+    })
     .sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -50,7 +54,10 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Invalid ID format", 400));
   }
 
-  const policy = await OvertimePolicy.findOne({ _id: id, companyId });
+  const policy = await OvertimePolicy.findOne({ _id: id, companyId }).populate({
+    path: "approvalFlow",
+    select: "name steps createdBy",
+  });
 
   if (!policy) {
     return next(new ApiError(`No policy found with ID: ${id}`, 404));

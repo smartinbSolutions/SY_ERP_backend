@@ -29,7 +29,7 @@ const approvalFlowSchema = new mongoose.Schema(
 
           positionId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Position",
+            ref: "Positions",
           },
         },
       },

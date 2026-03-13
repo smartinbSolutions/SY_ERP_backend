@@ -120,7 +120,7 @@ exports.getStaff = asyncHandler(async (req, res) => {
   // =========================
   if (req.query.keyword) {
     query.$or = [
-      { name: { $regex: req.query.keyword, $options: "i" } },
+      { fullName: { $regex: req.query.keyword, $options: "i" } },
       { email: { $regex: req.query.keyword, $options: "i" } },
       { phoneNumber: { $regex: req.query.keyword, $options: "i" } },
     ];
@@ -131,6 +131,13 @@ exports.getStaff = asyncHandler(async (req, res) => {
   // =========================
   if (req.query.branch) {
     query.branch = req.query.branch;
+  }
+
+  // =========================
+  //  Filter by Position
+  // =========================
+  if (req.query.position) {
+    query.position = req.query.position;
   }
 
   // =========================

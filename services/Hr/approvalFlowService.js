@@ -64,7 +64,15 @@ const getAllApprovalFlows = async ({
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageLimit)
-    // .populate("Positions", "name");
+    .populate({
+      path: "steps.approver.employeeId",
+      select: "fullName ",
+    })
+    .populate({
+      path: "steps.approver.positionId",
+      select: "name",
+    });
+  // .populate("Positions", "name");
 
   return {
     page: pageNumber,

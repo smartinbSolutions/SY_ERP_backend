@@ -33,6 +33,10 @@ exports.getAllAdvanceTypes = asyncHandler(async (req, res, next) => {
   const advanceTypes = await AdvanceType.find(query)
     .skip(skip)
     .limit(limit)
+    .populate({
+      path: "approvalFlow",
+      select: "name steps createdBy",
+    })
     .sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -111,7 +115,7 @@ exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
     const advanceType = await AdvanceType.findOneAndUpdate(
       { _id: id, companyId },
       updates,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!advanceType) {

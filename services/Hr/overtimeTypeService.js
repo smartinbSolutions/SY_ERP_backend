@@ -32,6 +32,10 @@ exports.getAllOvertimeTypes = asyncHandler(async (req, res, next) => {
   const overtimeTypes = await OvertimeType.find(query)
     .skip(skip)
     .limit(limit)
+    .populate({
+      path: "approvalFlow",
+      select: "name steps createdBy",
+    })
     // .populate("policyId")
     .sort({ createdAt: -1 });
 
@@ -62,8 +66,8 @@ exports.getOneOvertimeType = asyncHandler(async (req, res, next) => {
   const overtimeType = await OvertimeType.findOne({
     _id: id,
     companyId,
-  })
-//   .populate("policyId");
+  });
+  //   .populate("policyId");
 
   if (!overtimeType) {
     return next(new ApiError(`No overtime type found with ID: ${id}`, 404));
@@ -94,6 +98,7 @@ exports.createOvertimeType = asyncHandler(async (req, res, next) => {
     leaveMultiplier,
     requiresAttachment,
     applicableDayType,
+    approvalFlow
   } = req.body;
 
   const overtimeType = await OvertimeType.create({
@@ -106,6 +111,7 @@ exports.createOvertimeType = asyncHandler(async (req, res, next) => {
     leaveMultiplier,
     requiresAttachment,
     applicableDayType,
+    approvalFlow,
     companyId,
   });
 
@@ -137,6 +143,7 @@ exports.updateOvertimeType = asyncHandler(async (req, res, next) => {
     "leaveMultiplier",
     "requiresAttachment",
     "applicableDayType",
+    "approvalFlow",
   ];
 
   const updates = {};
