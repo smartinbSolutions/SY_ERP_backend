@@ -9,6 +9,7 @@ const {
   processOvertimeAttachment,
   updateOvertimeRequest,
   uploadOvertimeAttachment,
+  getMyApprovals,
 } = require("../../services/Hr/overtimeRequestService");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -18,6 +19,10 @@ const overtimeRequestRouter = express.Router();
 overtimeRequestRouter
   .route("/my-requests")
   .get(hrAuthServices.protectStaffOrERP, getMyOvertimeRequests);
+
+overtimeRequestRouter
+  .route("/my-approvals")
+  .get(hrAuthServices.protectStaffOrERP, getMyApprovals);
 
 overtimeRequestRouter
   .route("/")
@@ -43,6 +48,5 @@ overtimeRequestRouter
     updateOvertimeRequest,
   )
   .delete(hrAuthServices.protectStaffOrERP, deleteOvertimeRequest);
-
 
 module.exports = overtimeRequestRouter;

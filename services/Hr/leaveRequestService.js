@@ -9,6 +9,7 @@ const path = require("path");
 const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
 const leavesModel = require("../../models/Hr/leavesModel");
 const { handleApproval } = require("./approvalService");
+const leaveRequestModel = require("../../models/Hr/leaveRequestModel");
 const multerStorage = multer.memoryStorage();
 
 const attachmentFilter = function (req, file, cb) {
@@ -230,6 +231,23 @@ exports.getLeaveRequestById = asyncHandler(async (req, res, next) => {
   if (!request) return next(new ApiError("Leave request not found", 404));
 
   res.status(200).json({ status: true, data: request });
+});
+
+exports.getMyApprovals = asyncHandler(async (req, res) => {
+  const requests = await leaveRequestModel
+    .find({
+      "approval.currentApprover": req.user._id,
+      status: "pending",
+    })
+    .populate("userId", "fullName email")
+    .populate("leaveType")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: true,
+    results: requests.length,
+    data: requests,
+  });
 });
 
 /* ================= UPDATE REQUEST ================= */

@@ -9,6 +9,7 @@ const {
   handleLeaveRequest,
   processLeaveAttachment,
   uploadLeaveAttachment,
+  getMyApprovals,
 } = require("../../services/Hr/leaveRequestService");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -18,6 +19,10 @@ const LeaveRequestRouter = express.Router();
 LeaveRequestRouter.route("/my-requests").get(
   hrAuthServices.protectStaffOrERP,
   getMyLeaveRequests,
+);
+LeaveRequestRouter.route("/my-approvals").get(
+  hrAuthServices.protectStaffOrERP,
+  getMyApprovals,
 );
 
 LeaveRequestRouter.route("/")

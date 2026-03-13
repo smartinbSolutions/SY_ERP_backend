@@ -9,6 +9,7 @@ const overtimeLogsModel = require("../../models/Hr/overtimeLogsModel");
 const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
 const { handleApproval } = require("./approvalService");
 const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
+const overtimeRequestModel = require("../../models/Hr/overtimeRequestModel");
 
 // ================= MULTER =================
 
@@ -244,6 +245,23 @@ exports.getOvertimeRequestById = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: true,
     data: request,
+  });
+});
+
+exports.getMyApprovals = asyncHandler(async (req, res) => {
+  const requests = await overtimeRequestModel
+    .find({
+      "approval.currentApprover": req.user._id,
+      status: "pending",
+    })
+    .populate("userId", "fullName email")
+    .populate("overtimeTypeId")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    status: true,
+    results: requests.length,
+    data: requests,
   });
 });
 
