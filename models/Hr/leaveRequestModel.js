@@ -14,10 +14,46 @@ const leaveRequestSchema = new mongoose.Schema(
       index: true,
     },
 
-    approvalFlow: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "ApprovalFlow",
+    approval: {
+      flowId: { type: mongoose.Schema.Types.ObjectId, ref: "ApprovalFlow" },
+      currentStep: { type: Number, default: 1 },
+      currentApprover: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "staff",
+        index: true,
+      },
+      steps: [
+        {
+          stepNumber: { type: Number, required: true },
+          stepName: { type: String },
+          approverId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "staff",
+            default: null,
+          },
+          positionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Position",
+            default: null,
+          },
+          status: {
+            type: String,
+            enum: ["pending", "approved", "rejected", "skipped"],
+            default: "pending",
+          },
+          actedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "staff",
+            default: null,
+          },
+          actedAt: Date,
+          comment: String,
+        },
+      ],
     },
+
+    approvedAt: Date,
+    rejectionReason: String,
 
     leaveType: {
       type: mongoose.Schema.Types.ObjectId,

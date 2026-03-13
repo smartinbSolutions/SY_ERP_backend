@@ -6,6 +6,9 @@ const multer = require("multer");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
+const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
+const leavesModel = require("../../models/Hr/leavesModel");
+const { handleApproval } = require("./approvalService");
 const multerStorage = multer.memoryStorage();
 
 const attachmentFilter = function (req, file, cb) {
@@ -47,31 +50,87 @@ exports.processLeaveAttachment = asyncHandler(async (req, res, next) => {
   next();
 });
 
-exports.createLeaveRequest = asyncHandler(async (req, res) => {
-  const { leaveType, startDate, endDate, reason, attachment, managerId ,days } =
-    req.body;
+exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
+  try {
+    const {
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+      attachment,
+      managerId,
+      days,
+    } = req.body;
 
-  if (!req.user) {
-    return res.status(401).json({ status: "fail", message: "Not logged in" });
+    if (!req.user) return next(new ApiError("Not logged in", 401));
+
+    const leave = await leavesModel
+      .findById(leaveType)
+      .populate("approvalFlow policyId");
+    if (!leave) return next(new ApiError("Leave type not found", 404));
+
+    const flowId = leave.approvalFlow || leave.policyId?.approvalFlow;
+    if (!flowId) return next(new ApiError("Approval flow not found", 404));
+
+    const flow = await approvalFlowModel.findById(flowId);
+    if (!flow) return next(new ApiError("Approval flow not found", 404));
+
+    let approvalSteps = [];
+    let stepCounter = 1;
+
+    if (flow.includeDirectManager && managerId) {
+      approvalSteps.push({
+        stepNumber: stepCounter,
+        stepName: "Direct Manager Approval",
+        approverId: managerId,
+        status: "pending",
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+      stepCounter++;
+    }
+
+    flow.steps.forEach((step) => {
+      approvalSteps.push({
+        stepNumber: stepCounter,
+        stepName: step.stepName || "",
+        approverId: step.approver.employeeId,
+        status: "pending",
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+      stepCounter++;
+    });
+
+    const newRequest = await LeaveRequest.create({
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+      days,
+      managerId,
+      attachment: attachment || null,
+      approval: {
+        flowId: flow._id,
+        currentStep: 1,
+        currentApprover: approvalSteps[0]?.approverId || null,
+        steps: approvalSteps,
+      },
+    });
+
+    res.status(201).json({
+      status: true,
+      data: newRequest,
+      message: "Leave request submitted successfully",
+    });
+  } catch (err) {
+    console.error("Error in createLeaveRequest:", err);
+    return next(err);
   }
-
-  const newRequest = await LeaveRequest.create({
-    userId: req.user._id,
-    companyId: req.user.companyId,
-    leaveType,
-    startDate,
-    endDate,
-    reason,
-    days,
-    managerId,
-    attachment: attachment || null,
-  });
-
-  res.status(201).json({
-    status: true,
-    data: newRequest,
-    message: "Leave request submitted successfully",
-  });
 });
 
 /* ================= GET MY REQUESTS ================= */
@@ -102,7 +161,15 @@ exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
 });
 /* ================= GET ALL COMPANY REQUESTS (ADMIN OR MANAGER) ================= */
 exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
-  const { companyId, managerId, status, leaveType, startDate, endDate, search } = req.query;
+  const {
+    companyId,
+    managerId,
+    status,
+    leaveType,
+    startDate,
+    endDate,
+    search,
+  } = req.query;
 
   if (!companyId) {
     return res
@@ -133,7 +200,7 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
     query = query.populate({
       path: "userId",
       match: { fullName: regex },
-      select: "fullName email"
+      select: "fullName email",
     });
   }
 
@@ -142,9 +209,7 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
 
   const requests = await query;
 
-  const filteredRequests = search
-    ? requests.filter(r => r.userId) 
-    : requests;
+  const filteredRequests = search ? requests.filter((r) => r.userId) : requests;
 
   res.status(200).json({
     status: true,
@@ -200,49 +265,58 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
 exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
-  const request = await LeaveRequest.findById(req.params.id);
-
+  const request = await LeaveRequest.findById(req.params.id).populate(
+    "approval.flowId",
+  );
   if (!request) return next(new ApiError("Leave request not found", 404));
-
-  console.log(request.status);
 
   if (request.status !== "pending")
     return next(new ApiError("Already processed", 400));
 
-  // Only manager can handle
-  if (req.user._id.toString() !== request.managerId.toString()) {
-    return next(new ApiError("Not authorized", 403));
-  }
+  try {
+    console.log("Calling handleApproval for leave request:", request._id);
 
-  if (action === "approve") {
-    await leavesLogsModel.create({
-      userId: request.userId,
-      leaveRequestId: request._id,
-      leaveType: request.leaveType,
-      startDate: request.startDate,
-      endDate: request.endDate,
-      days: request.days,
-      approvedBy: req.user._id,
-      companyId: request.companyId,
+    const updatedRequest = await handleApproval(
+      request,
+      req.user._id,
+      action,
+      reason,
+    );
+
+    console.log("handleApproval returned, status:", updatedRequest.status);
+
+    if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
+      updatedRequest.approvedAt = new Date();
+
+      await leavesLogsModel.create({
+        userId: updatedRequest.userId,
+        leaveRequestId: updatedRequest._id,
+        leaveType: updatedRequest.leaveType,
+        startDate: updatedRequest.startDate,
+        endDate: updatedRequest.endDate,
+        days: updatedRequest.days,
+        approvedBy: req.user._id,
+        approvedAt: updatedRequest.approvedAt,
+        managerComment: reason || "",
+        companyId: updatedRequest.companyId,
+      });
+
+      await updatedRequest.save();
+      console.log(
+        "Leave log created for approved request:",
+        updatedRequest._id,
+      );
+    }
+
+    res.status(200).json({
+      status: true,
+      message: `Leave request ${action} successfully`,
+      data: updatedRequest,
     });
-
-    request.status = "approved";
-    request.approvedAt = Date.now();
-  } else if (action === "reject") {
-    request.status = "rejected";
-    request.rejectionReason = reason || "";
-    request.rejectedAt = Date.now();
-  } else {
-    return next(new ApiError("Invalid action", 400));
+  } catch (err) {
+    console.error("Error in handleLeaveRequest:", err);
+    return next(new ApiError(err.message, 400));
   }
-
-  await request.save();
-
-  res.status(200).json({
-    status: true,
-    message: `Leave ${action} successfully`,
-    data: request,
-  });
 });
 
 /* ================= DELETE REQUEST ================= */

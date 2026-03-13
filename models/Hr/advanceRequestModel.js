@@ -33,8 +33,6 @@ const advanceRequestSchema = new mongoose.Schema(
             required: true,
           },
 
-          stepName: String,
-
           approverId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "staff",

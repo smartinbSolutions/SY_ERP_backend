@@ -6,6 +6,9 @@ const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const overtimeLogsModel = require("../../models/Hr/overtimeLogsModel");
+const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
+const { handleApproval } = require("./approvalService");
+const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
 
 // ================= MULTER =================
 
@@ -59,36 +62,85 @@ exports.processOvertimeAttachment = asyncHandler(async (req, res, next) => {
 // ================= CREATE =================
 
 exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
-  const {
-    overtimeTypeId,
-    workDate,
-    startTime,
-    endTime,
-    hours,
-    reason,
-    managerId,
-  } = req.body;
+  try {
+    const {
+      overtimeTypeId,
+      workDate,
+      startTime,
+      endTime,
+      hours,
+      reason,
+      managerId,
+    } = req.body;
 
-  if (!req.user) return next(new ApiError("Not logged in", 401));
+    if (!req.user) return next(new ApiError("Not logged in", 401));
 
-  const request = await OvertimeRequest.create({
-    userId: req.user._id,
-    companyId: req.user.companyId,
-    overtimeTypeId,
-    workDate,
-    startTime,
-    endTime,
-    reason,
-    managerId,
-    hours,
-    attachment: req.body.attachment || null,
-  });
+    const type = await overtimeTypesModel
+      .findById(overtimeTypeId)
+      .populate("policyId");
+    if (!type) return next(new ApiError("Overtime type not found", 404));
 
-  res.status(201).json({
-    status: true,
-    message: "Overtime request submitted",
-    data: request,
-  });
+    const flowId = type.approvalFlow || type.policyId?.approvalFlow;
+    const flow = await approvalFlowModel.findById(flowId);
+    if (!flow) return next(new ApiError("Approval flow not found", 404));
+
+    let approvalSteps = [];
+    let stepCounter = 1;
+
+    if (flow.includeDirectManager && managerId) {
+      approvalSteps.push({
+        stepNumber: stepCounter,
+        stepName: "Direct Manager Approval",
+        approverId: managerId,
+        status: "pending",
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+      stepCounter++;
+    }
+
+    flow.steps.forEach((step) => {
+      approvalSteps.push({
+        stepNumber: stepCounter,
+        stepName: step.stepName || "",
+        approverId: step.approver.employeeId,
+        status: "pending",
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+      stepCounter++;
+    });
+
+    const request = await OvertimeRequest.create({
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      overtimeTypeId,
+      workDate,
+      startTime,
+      endTime,
+      hours,
+      reason,
+      managerId,
+      attachment: req.body.attachment || null,
+      approval: {
+        flowId: flow._id,
+        currentStep: 1,
+        currentApprover: approvalSteps[0]?.approverId || null,
+        steps: approvalSteps,
+      },
+    });
+
+    res.status(201).json({
+      status: true,
+      message: "Overtime request submitted",
+      data: request,
+    });
+  } catch (err) {
+    console.error("Error in createOvertimeRequest:", err);
+    return next(err);
+  }
 });
 
 // ================= MY REQUESTS =================
@@ -123,10 +175,19 @@ exports.getMyOvertimeRequests = asyncHandler(async (req, res) => {
 // ================= ALL COMPANY REQUESTS =================
 
 exports.getAllOvertimeRequests = asyncHandler(async (req, res) => {
-  const { companyId, managerId, status, search, page: pageQuery, limit: limitQuery } = req.query;
+  const {
+    companyId,
+    managerId,
+    status,
+    search,
+    page: pageQuery,
+    limit: limitQuery,
+  } = req.query;
 
   if (!companyId) {
-    return res.status(400).json({ status: false, message: "companyId is required" });
+    return res
+      .status(400)
+      .json({ status: false, message: "companyId is required" });
   }
 
   const page = parseInt(pageQuery) || 1;
@@ -154,7 +215,7 @@ exports.getAllOvertimeRequests = asyncHandler(async (req, res) => {
   let results = await query;
 
   if (search) {
-    results = results.filter(r => r.userId); 
+    results = results.filter((r) => r.userId);
   }
 
   const totalItems = results.length;
@@ -220,46 +281,59 @@ exports.updateOvertimeRequest = asyncHandler(async (req, res, next) => {
 exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
-  const request = await OvertimeRequest.findById(req.params.id);
+  const request = await OvertimeRequest.findById(req.params.id).populate(
+    "approval.flowId",
+  );
 
   if (!request) return next(new ApiError("Request not found", 404));
 
   if (request.status !== "pending")
     return next(new ApiError("Already processed", 400));
 
-  if (req.user._id.toString() !== request.managerId.toString()) {
-    return next(new ApiError("Not authorized", 403));
-  }
+  try {
+    console.log("User attempting approval:", req.user?._id);
+    console.log("Action:", action, "Reason:", reason);
 
-  if (action === "approve") {
-    await overtimeLogsModel.create({
-      userId: request.userId,
-      overtimeRequestId: request._id,
-      overtimeType: request.overtimeTypeId._id,
-      hours: request.hours,
-      rateMultiplier: request.overtimeTypeId?.rateMultiplier || 1,
-      calculatedPay: 0,
-      leaveEarned: 0,
-      approvedBy: req.user._id,
-      approvedAt: new Date(),
-      managerComment: reason || "",
-      companyId: request.companyId,
+    const updatedRequest = await handleApproval(
+      request,
+      req.user._id,
+      action,
+      reason,
+    );
+
+    if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
+      updatedRequest.approvedAt = new Date();
+
+      await overtimeLogsModel.create({
+        userId: updatedRequest.userId,
+        overtimeRequestId: updatedRequest._id,
+        overtimeType: updatedRequest.overtimeTypeId._id,
+        hours: updatedRequest.hours,
+        rateMultiplier: updatedRequest.overtimeTypeId?.rateMultiplier || 1,
+        calculatedPay: 0,
+        leaveEarned: 0,
+        approvedBy: req.user._id,
+        approvedAt: updatedRequest.approvedAt,
+        managerComment: reason || "",
+        companyId: updatedRequest.companyId,
+      });
+
+      await updatedRequest.save();
+      console.log(
+        "Overtime log created for approved request:",
+        updatedRequest._id,
+      );
+    }
+
+    res.status(200).json({
+      status: true,
+      message: `Request ${action} successfully`,
+      data: updatedRequest,
     });
-    request.status = "approved";
-  } else if (action === "reject") {
-    request.status = "rejected";
-    request.rejectionReason = reason || "";
-  } else {
-    return next(new ApiError("Invalid action", 400));
+  } catch (err) {
+    console.error("Error in handleOvertimeRequest:", err);
+    return next(new ApiError(err.message, 400));
   }
-
-  await request.save();
-
-  res.status(200).json({
-    status: true,
-    message: `Request ${action} successfully`,
-    data: request,
-  });
 });
 
 // ================= DELETE =================

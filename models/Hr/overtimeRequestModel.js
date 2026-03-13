@@ -13,10 +13,46 @@ const overtimeRequestSchema = new mongoose.Schema(
       ref: "OvertimeType",
       required: true,
     },
+    approval: {
+      flowId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ApprovalFlow",
+      },
 
-    approvalFlow: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "ApprovalFlow",
+      currentStep: {
+        type: Number,
+        default: 1,
+      },
+
+      currentApprover: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "staff",
+      },
+
+      steps: [
+        {
+          stepNumber: { type: Number, required: true },
+          stepName: String,
+          approverId: { type: mongoose.Schema.Types.ObjectId, ref: "staff" },
+          positionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Position",
+            default: null,
+          },
+          status: {
+            type: String,
+            enum: ["pending", "approved", "rejected", "skipped"],
+            default: "pending",
+          },
+          actedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "staff",
+            default: null,
+          },
+          actedAt: Date,
+          comment: String,
+        },
+      ],
     },
 
     workDate: {

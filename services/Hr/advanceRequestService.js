@@ -73,39 +73,52 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       totalInstallments,
     } = req.body;
 
-    console.log("User:", req.user?._id);
     if (!req.user) return next(new ApiError("Not logged in", 401));
     if (!amount || amount <= 0)
       return next(new ApiError("Valid amount is required", 400));
 
-    console.log("Fetching advance type:", advanceTypeId);
     const type = await advanceTypesModel
       .findById(advanceTypeId)
       .populate("policyId");
-    console.log("Type found:", !!type);
 
     if (!type) return next(new ApiError("Advance type not found", 404));
     if (!type.approvalFlow && (!type.policyId || !type.policyId.approvalFlow))
       return next(new ApiError("Approval flow not found", 404));
 
     const flowId = type.approvalFlow || type.policyId.approvalFlow;
-    console.log("Using approval flow ID:", flowId);
     const flow = await approvalFlowModel.findById(flowId);
-    console.log("Flow found:", !!flow);
 
     if (!flow) return next(new ApiError("Approval flow not found", 404));
 
-    const approvalSteps = flow.steps.map((step) => ({
-      stepNumber: step.stepNumber,
-      stepName: step.stepName || "",
-      approverId: step.approver.employeeId,
-      status: "pending",
-      actedBy: null,
-      actedAt: null,
-      comment: "",
-    }));
-    console.log("Approval steps:", approvalSteps);
+    let approvalSteps = [];
+    let stepCounter = 1;
 
+    if (flow.includeDirectManager && managerId) {
+      approvalSteps.push({
+        stepNumber: stepCounter,
+        approverId: managerId,
+        status: "pending",
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+      stepCounter++;
+    }
+
+    flow.steps.forEach((step) => {
+      approvalSteps.push({
+        stepNumber: stepCounter,
+        approverId: step.approver.employeeId,
+        status: "pending",
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+      stepCounter++;
+    });
+
+
+    // ===================== إنشاء الطلب =====================
     const request = await AdvanceRequest.create({
       userId: req.user._id,
       companyId: req.user.companyId,
@@ -122,11 +135,9 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
         currentStep: 1,
         currentApprover: approvalSteps[0]?.approverId || null,
         steps: approvalSteps,
-        history: [],
       },
     });
 
-    console.log("Advance request created:", request._id);
 
     res.status(201).json({
       status: true,
@@ -257,7 +268,7 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
   console.log("Action:", action, "Reason:", reason);
 
   const request = await AdvanceRequest.findById(req.params.id).populate(
-    "approval.flowId"
+    "approval.flowId",
   );
 
   if (!request) return next(new ApiError("Request not found", 404));
@@ -270,8 +281,8 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
     const updatedRequest = await handleApproval(
       request,
       req.user._id,
-      action === "approve" ? "approved" : "rejected",
-      reason
+      action,
+      reason,
     );
 
     console.log("handleApproval returned, status:", updatedRequest.status);
@@ -294,7 +305,10 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       });
 
       await updatedRequest.save();
-      console.log("Advance log created for approved request:", updatedRequest._id);
+      console.log(
+        "Advance log created for approved request:",
+        updatedRequest._id,
+      );
     }
 
     res.status(200).json({
