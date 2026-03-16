@@ -57,7 +57,10 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Invalid ID format", 400));
   }
 
-  const policy = await AdvancePolicy.findOne({ _id: id, companyId });
+  const policy = await AdvancePolicy.findOne({ _id: id, companyId }).populate({
+    path: "approvalFlow",
+    select: "name",
+  });
 
   if (!policy) {
     return next(new ApiError(`No policy found with ID: ${id}`, 404));

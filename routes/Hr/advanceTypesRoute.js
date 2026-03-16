@@ -7,13 +7,15 @@ const {
   getAllAdvanceTypes,
   getOneAdvanceType,
   updateAdvanceType,
+  createAdvanceType,
 } = require("../../services/Hr/advanceTypesService");
 
 const advanceTypeRoute = express.Router();
 
 advanceTypeRoute
   .route("/")
-  .get(staffAuthService.protectStaffOrERP, getAllAdvanceTypes);
+  .get(staffAuthService.protectStaffOrERP, getAllAdvanceTypes)
+  .post(authService.protect, createAdvanceType);
 
 advanceTypeRoute
   .route("/:id")

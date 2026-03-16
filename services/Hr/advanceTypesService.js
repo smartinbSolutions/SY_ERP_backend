@@ -5,6 +5,48 @@ const AdvancePolicy = require("../../models/Hr/advancePolicyModel");
 
 const { default: mongoose } = require("mongoose");
 
+exports.createAdvanceType = asyncHandler(async (req, res, next) => {
+  const {
+    policyId,
+    typeKey,
+    approvalFlow,
+    maxPercentageOfSalary,
+    minMonthsAfterJoin,
+    requiresAttachment,
+    allowInstallments,
+    maxMonthsInstallments,
+    maxInstallmentPercentage,
+  } = req.body;
+  const companyId = req.query.companyId;
+
+  if (!companyId) return next(new ApiError("companyId is required", 400));
+  if (!policyId) return next(new ApiError("policyId is required", 400));
+  if (!typeKey) return next(new ApiError("typeKey is required", 400));
+
+  const existing = await AdvanceType.findOne({ policyId, typeKey, companyId });
+  if (existing)
+    return next(
+      new ApiError("This advance type already exists for this policy", 400),
+    );
+
+  const newAdvanceType = await AdvanceType.create({
+    policyId,
+    companyId,
+    typeKey,
+    approvalFlow: approvalFlow || null,
+    maxPercentageOfSalary,
+    minMonthsAfterJoin,
+    requiresAttachment,
+    allowInstallments,
+    maxMonthsInstallments,
+    maxInstallmentPercentage,
+  });
+
+  res.status(201).json({
+    status: "success",
+    data: newAdvanceType,
+  });
+});
 // @desc    Get all advance types
 // @route   GET /api/advance-types
 exports.getAllAdvanceTypes = asyncHandler(async (req, res, next) => {
@@ -84,7 +126,7 @@ exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
 
-  console.log("PATCH Request Body:", req.body); // <--- هذا يريك البيانات القادمة
+  console.log("PATCH Request Body:", req.body);
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -102,6 +144,7 @@ exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
     "requiresAttachment",
     "requiresApproval",
     "maxPercentageOfSalary",
+    "approvalFlow",
   ];
 
   const updates = {};

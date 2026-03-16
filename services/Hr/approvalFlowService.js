@@ -94,7 +94,13 @@ const getApprovalFlowById = async ({ companyId, id }) => {
     throw new Error("Invalid ID format");
   }
 
-  const flow = await ApprovalFlow.findOne({ _id: id, companyId });
+  const flow = await ApprovalFlow.findOne({ _id: id, companyId }).populate({
+    path: "steps.approver.employeeId",
+    select: "fullName ",
+  }).populate({
+    path: "steps.approver.positionId",
+    select: "name",
+  });
   if (!flow) throw new Error(`No approval flow found with ID: ${id}`);
   return flow;
 };
