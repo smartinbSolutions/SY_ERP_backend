@@ -13,8 +13,9 @@ exports.createProductBatch = async function createProductBatch({
   costBuyingPrice,
   referenceType,
   batchDate,
+  session,
 }) {
-  const batch = await prodcutBatchModel.create({
+  const batchPayload = {
     productId,
     companyId,
     stockId,
@@ -25,9 +26,14 @@ exports.createProductBatch = async function createProductBatch({
     costBuyingPrice,
     sourceType: referenceType,
     batchDate: batchDate ? new Date(batchDate) : new Date(),
-  });
+    status: "active",
+  };
 
-  await productLedgerModel.create({
+  const [batch] = session
+    ? await prodcutBatchModel.create([batchPayload], { session })
+    : await prodcutBatchModel.create([batchPayload]);
+
+  const ledgerPayload = {
     productId,
     companyId,
     stockId,
@@ -39,7 +45,13 @@ exports.createProductBatch = async function createProductBatch({
     referenceId: sourceId,
     costBuyingPrice,
     movementDate: batchDate ? new Date(batchDate) : new Date(),
-  });
+  };
+
+  if (session) {
+    await productLedgerModel.create([ledgerPayload], { session });
+  } else {
+    await productLedgerModel.create(ledgerPayload);
+  }
 
   return batch;
 };

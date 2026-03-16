@@ -16,14 +16,18 @@ const createPaymentHistory = async (
   idPaymet,
   paymentText,
   refText,
-  transactionCurrency
+  transactionCurrency,
+  session = null
 ) => {
   try {
-    // Create a new payment history object
+    const normalizedDate = date
+      ? new Date(date).toISOString()
+      : new Date().toISOString();
+
     const newPaymentHistoryData = {
       companyId,
       type,
-      date,
+      date: normalizedDate,
       rest,
       amount,
       ref,
@@ -33,7 +37,7 @@ const createPaymentHistory = async (
       refText,
       transactionCurrency,
     };
-    // Dynamically assign supplierId or customerId based on the taker value
+
     if (taker === "supplier") {
       newPaymentHistoryData.supplierId = id;
     } else {
@@ -41,7 +45,11 @@ const createPaymentHistory = async (
     }
 
     const newPaymentHistory = new PaymentHistoryModel(newPaymentHistoryData);
-    const savedPaymentHistory = await newPaymentHistory.save();
+
+    const savedPaymentHistory = session
+      ? await newPaymentHistory.save({ session })
+      : await newPaymentHistory.save();
+
     return savedPaymentHistory;
   } catch (error) {
     throw new ApiError(`Error creating payment history: ${error.message}`, 500);

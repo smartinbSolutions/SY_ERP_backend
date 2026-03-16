@@ -19,6 +19,7 @@ const {
   updatePurchaseInvoice,
   deletePurchaseInvoiceDraft,
   postPurchaseInvoiceDraft,
+  cancelPurchaseInvoice,
 } = require("../controllers/Accounting/Purchase/PurchaseInvoice.controller");
 
 const PurchaseInvoices = express.Router();
@@ -31,6 +32,7 @@ PurchaseInvoices.route("/supplierinvoices/:id").get(findSupplier);
 
 PurchaseInvoices.route("/refund/:id").get(getOneReturnPurchase);
 PurchaseInvoices.route("/post/:id").put(postPurchaseInvoiceDraft);
+PurchaseInvoices.route("/cancel/:id").put(cancelPurchaseInvoice);
 PurchaseInvoices.route("/")
   .post(authService.checkCompanyEditable, uploadFile, createPurchaseInvoice)
   .get(findAllProductInvoices);

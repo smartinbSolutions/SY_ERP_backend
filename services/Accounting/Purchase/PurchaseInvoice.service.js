@@ -26,6 +26,8 @@ const unTracedproductLogModel = require("../../../models/unTracedproductLogModel
 const ShortageModel = require("../../../models/ShortageModel");
 const prodcutBatchModel = require("../../../models/prodcutBatchModel");
 const { createJournalService } = require("../../journalEntryServices");
+const productLedgerModel = require("../../../models/productLedgerModel");
+const journalEntryModel = require("../../../models/journalEntryModel");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -254,27 +256,6 @@ exports.createPurchaseInvoiceRecordService = async ({
 
   /*
       =============================
-      SUPPLIER BALANCE UPDATE
-      =============================
-    */
-  if (!invoiceDraft) {
-    if (!supplier) {
-      throw new ApiError("Supplier not found", 404);
-    }
-
-    supplier.total += Number(totalInMainCurrency || 0);
-
-    if (paid === "unpaid") {
-      supplier.TotalUnpaid += Number(totalInMainCurrency || 0);
-    }
-
-    if (paid === "paid") {
-      supplier.TotalUnpaid += Number(totalRemainderMainCurrency || 0);
-    }
-  }
-
-  /*
-      =============================
       BUILD INVOICE PAYLOAD
       =============================
     */
@@ -307,6 +288,10 @@ exports.createPurchaseInvoiceRecordService = async ({
     totalRemainder,
     totalRemainderMainCurrency,
     type: "purchase",
+    status: invoiceDraft ? "draft" : "posted",
+    isDraft: invoiceDraft,
+    postedBy: invoiceDraft ? null : req.user._id,
+    postedAt: invoiceDraft ? null : new Date(),
   };
 
   if (!invoiceDraft) {
@@ -339,6 +324,7 @@ exports.createPurchaseInvoiceRecordService = async ({
       CREATE INVOICE
       =============================
     */
+
   const createdInvoice = await PurchaseInvoicesModel.create([invoicePayload], {
     session,
   });
@@ -355,12 +341,12 @@ exports.createPurchaseInvoiceRecordService = async ({
       [
         {
           source: {
-            id: supllierObject.id,
-            name: supllierObject.name,
-          },
-          destination: {
             id: financialFund._id,
             name: financialFund.fundName,
+          },
+          destination: {
+            id: supllierObject.id,
+            name: supllierObject.name,
           },
           sourceType: "purchase",
           destinationType: "fund",
@@ -452,15 +438,6 @@ exports.createPurchaseInvoiceRecordService = async ({
 
   /*
       =============================
-      SAVE SUPPLIER
-      =============================
-    */
-  if (!invoiceDraft) {
-    await supplier.save({ session });
-  }
-
-  /*
-      =============================
       INVOICE HISTORY
       =============================
     */
@@ -492,7 +469,264 @@ exports.createPurchaseInvoiceRecordService = async ({
 
   return newPurchaseInvoice;
 };
+// Purchase Inventory Effects
 
+exports.upsertPurchaseInvoiceRecordService = async ({
+  mode = "create",
+  req,
+  existingInvoice = null,
+  invoiceDraft,
+  supplier,
+  invoicesItem,
+  supllierObject,
+  currency,
+  taxDetails,
+  tag,
+  formattedDate,
+  companyId,
+  nextCounterPayment,
+  draftJournalSnapshot,
+  nextCounterPurchaseInvoices,
+  session,
+}) => {
+  const {
+    paid,
+    exchangeRate,
+    totalInMainCurrency,
+    invoiceSubTotal,
+    subtotalWithDiscount,
+    invoiceDiscount,
+    InvoiceDiscountType,
+    ManualInvoiceDiscount,
+    ManualInvoiceDiscountValue,
+    invoiceGrandTotal,
+    invoiceName,
+    invoiceTax,
+    paymentInFundCurrency,
+    invoiceNumber,
+    journalCounter,
+    paymentDate,
+    description,
+    totalRemainder,
+    totalRemainderMainCurrency,
+  } = req.body;
+
+  let financialFund = null;
+  let parsedFinancialFund = null;
+
+  if (req.body.financailFund) {
+    parsedFinancialFund =
+      typeof req.body.financailFund === "string"
+        ? JSON.parse(req.body.financailFund)
+        : req.body.financailFund;
+  }
+
+  if (paid === "paid" && !invoiceDraft) {
+    financialFund = await financialFundsModel
+      .findOne({ _id: parsedFinancialFund?.id, companyId })
+      .session(session);
+
+    if (!financialFund) {
+      throw new ApiError("Financial fund not found", 404);
+    }
+
+    financialFund.fundBalance -= Number(paymentInFundCurrency || 0);
+  }
+
+  const invoicePayload = {
+    employee: req.user._id,
+    invoicesItems: invoicesItem,
+    supllier: supllierObject,
+    currency,
+    exchangeRate,
+    invoiceNumber,
+    paid: invoiceDraft ? "unpaid" : paid,
+    totalPurchasePriceMainCurrency: totalInMainCurrency,
+    invoiceSubTotal,
+    subtotalWithDiscount,
+    invoiceDiscount,
+    InvoiceDiscountType,
+    ManualInvoiceDiscount,
+    ManualInvoiceDiscountValue,
+    invoiceGrandTotal,
+    taxDetails,
+    invoiceTax,
+    invoiceName,
+    tag,
+    companyId,
+    date: req.body.date || formattedDate,
+    journalCounter,
+    description,
+    file: req.body.file,
+    paymentDate,
+    totalRemainder,
+    totalRemainderMainCurrency,
+    type: "purchase",
+    status: invoiceDraft ? "draft" : "posted",
+    isDraft: invoiceDraft,
+  };
+
+  if (mode === "create" && !invoiceDraft) {
+    invoicePayload.counter =
+      Number(req.body.counter || 0) + nextCounterPurchaseInvoices.seq;
+    invoicePayload.postedBy = req.user._id;
+    invoicePayload.postedAt = new Date();
+  }
+
+  if (mode === "update") {
+    invoicePayload.postedBy = existingInvoice?.postedBy || req.user._id;
+    invoicePayload.postedAt = existingInvoice?.postedAt || new Date();
+    invoicePayload.cancelledAt = null;
+    invoicePayload.cancelledBy = null;
+    invoicePayload.cancellationReason = "";
+    invoicePayload.payments = [];
+    invoicePayload.reportsBalanceId = null;
+  }
+
+  if (mode === "create" && invoiceDraft) {
+    invoicePayload.draftJournalSnapshot = draftJournalSnapshot
+      ? {
+          ...draftJournalSnapshot,
+          generatedAt: new Date(),
+          source: draftJournalSnapshot?.source || "frontend",
+        }
+      : null;
+  }
+
+  if (paid === "paid" && !invoiceDraft) {
+    invoicePayload.financailFund = parsedFinancialFund;
+    invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
+  }
+
+  if (paid === "unpaid") {
+    invoicePayload.dueDate = paymentDate;
+  }
+
+  let invoiceDoc;
+
+  if (mode === "create") {
+    const createdInvoice = await PurchaseInvoicesModel.create(
+      [invoicePayload],
+      {
+        session,
+      }
+    );
+    invoiceDoc = createdInvoice[0];
+  } else if (mode === "update") {
+    if (!existingInvoice) {
+      throw new ApiError("existingInvoice is required for update mode", 400);
+    }
+
+    Object.assign(existingInvoice, invoicePayload);
+    await existingInvoice.save({ session });
+    invoiceDoc = existingInvoice;
+  } else {
+    throw new ApiError("Invalid mode", 400);
+  }
+
+  if (paid === "paid" && !invoiceDraft) {
+    const payment = await PaymentModel.create(
+      [
+        {
+          source: {
+            id: financialFund._id,
+            name: financialFund.fundName,
+          },
+          destination: {
+            id: supllierObject.id,
+            name: supllierObject.name,
+          },
+          sourceType: "purchase", // keep old model for now
+          destinationType: "fund",
+          totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
+          totalMainCurrency: req.body.paymentInMainCurrency,
+          paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+          paymentCurrency: {
+            id: currency?.id,
+            name: currency?.name,
+            code: currency?.currencyCode,
+            exchangeRate: currency?.exchangeRate,
+          },
+          destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
+          destinationCurrencyCode: parsedFinancialFund?.code,
+          type: "purchase",
+          paymentType: "Withdrawal",
+          description: req.body.paymentDescription,
+          date: req.body.paymentDate || formattedDate,
+          counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
+          companyId,
+          payid: [
+            {
+              id: invoiceDoc._id,
+              status: req.body.paid,
+              invoiceTotal: req.body.invoiceGrandTotal,
+              invoiceName: req.body.invoiceName,
+              invoiceCurrencyCode: currency?.currencyCode,
+              paymentInFundCurrency: paymentInFundCurrency,
+              paymentMainCurrency: req.body.paymentInMainCurrency,
+              paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+            },
+          ],
+        },
+      ],
+      { session }
+    );
+
+    await createPaymentHistory(
+      "payment",
+      req.body.paymentDate || formattedDate,
+      req.body.paymentInMainCurrency,
+      paymentInFundCurrency,
+      "supplier",
+      supllierObject.id,
+      invoiceDoc._id,
+      companyId,
+      req.body.paymentDescription,
+      payment[0]._id,
+      "Deposit",
+      "purchase",
+      parsedFinancialFund?.code,
+      session
+    );
+
+    const reports = await reportsFinancialFunds.create(
+      [
+        {
+          date: req.body.paymentDate || formattedDate,
+          ref: invoiceDoc._id,
+          amount: paymentInFundCurrency,
+          type: "purchase",
+          exchangeRate,
+          financialFundId: parsedFinancialFund?.id,
+          financialFundRest: financialFund.fundBalance,
+          paymentType: "Withdrawal",
+          payment: payment[0]._id,
+          description: req.body.paymentDescription,
+          companyId,
+        },
+      ],
+      { session }
+    );
+
+    invoiceDoc.payments.push({
+      payment: paymentInFundCurrency,
+      paymentMainCurrency: req.body.paymentInMainCurrency,
+      financialFunds: financialFund.fundName,
+      financialFundsCurrencyCode: parsedFinancialFund?.code,
+      date: req.body.paymentDate || formattedDate,
+      paymentID: payment[0]._id,
+      paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+      financialFundsId: parsedFinancialFund?.id,
+    });
+
+    invoiceDoc.reportsBalanceId = reports[0]._id;
+
+    await invoiceDoc.save({ session });
+    await financialFund.save({ session });
+  }
+
+  return invoiceDoc;
+};
 exports.applyPurchaseInventoryEffectsService = async ({
   invoicesItem,
   productMap,
@@ -501,6 +735,14 @@ exports.applyPurchaseInventoryEffectsService = async ({
   date,
   session,
 }) => {
+  const resolveItemCost = (item) =>
+    Number(
+      item?.draftCostBuyingPrice ??
+        item?.oldCostBuyingPrice ??
+        item?.orginalBuyingPrice ??
+        0
+    );
+
   const bulkProductUpdates = invoicesItem
     .filter(
       (item) => item.type !== "unTracedproduct" && item.type !== "expense"
@@ -510,13 +752,13 @@ exports.applyPurchaseInventoryEffectsService = async ({
       if (!product || !item.stock?._id) return null;
 
       const oldQty = (product.stocks || []).reduce(
-        (total, stock) => total + (stock.productQuantity || 0),
+        (total, stock) => total + Number(stock.productQuantity || 0),
         0
       );
 
-      const oldCost = product.costBuyingPrice || 0;
-      const newQty = Number(item.quantity) || 0;
-      const newCost = Number(item.oldCostBuyingPrice) || 0;
+      const oldCost = Number(product.costBuyingPrice || 0);
+      const newQty = Number(item.quantity || 0);
+      const newCost = resolveItemCost(item);
 
       const newAvgCost =
         oldQty + newQty > 0
@@ -535,7 +777,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
               "stocks.$.productQuantity": newQty,
             },
             $set: {
-              buyingprice: item.orginalBuyingPrice,
+              buyingprice: Number(item.orginalBuyingPrice || 0),
               costBuyingPrice: newAvgCost,
             },
           },
@@ -558,7 +800,8 @@ exports.applyPurchaseInventoryEffectsService = async ({
         },
         update: {
           $set: {
-            buyingprice: item.orginalBuyingPrice,
+            buyingprice: Number(item.orginalBuyingPrice || 0),
+            costBuyingPrice: resolveItemCost(item),
           },
           $push: {
             stocks: {
@@ -584,9 +827,11 @@ exports.applyPurchaseInventoryEffectsService = async ({
     if (!product) continue;
 
     const totalStockQuantity = (product.stocks || []).reduce(
-      (total, stock) => total + (stock.productQuantity || 0),
+      (total, stock) => total + Number(stock.productQuantity || 0),
       0
     );
+
+    const movementCost = resolveItemCost(item);
 
     await createProductMovement({
       productId: item.id,
@@ -596,7 +841,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
       movementType: "in",
       source: "Purchase Invoice",
       companyId,
-      enterPrice: item.oldCostBuyingPrice,
+      enterPrice: movementCost,
       stockId: item.stock?._id,
       buyingPrice: item.orginalBuyingPrice,
       exchangeRate: item.exchangeRate,
@@ -611,7 +856,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
       quantity: item.quantity,
       buyingprice: item.orginalBuyingPrice,
       sourceId: newPurchaseInvoice._id,
-      costBuyingPrice: item.oldCostBuyingPrice,
+      costBuyingPrice: movementCost,
       exchangeRate: item.exchangeRate,
       referenceType: "purchase",
       batchDate: date,
@@ -619,7 +864,204 @@ exports.applyPurchaseInventoryEffectsService = async ({
     });
   }
 };
+exports.reversePurchaseInventoryEffectsService = async ({
+  invoicesItem,
+  productMap,
+  purchaseInvoice,
+  companyId,
+  session,
+  reversedBy = null,
+  reverseReason = "Purchase invoice cancellation",
+  cancellationDate,
+}) => {
+  const resolveItemCost = (item, batch) =>
+    Number(
+      batch?.costBuyingPrice ??
+        item?.draftCostBuyingPrice ??
+        item?.oldCostBuyingPrice ??
+        item?.orginalBuyingPrice ??
+        0
+    );
 
+  const bulkProductUpdates = [];
+
+  for (const item of invoicesItem) {
+    if (item.type === "unTracedproduct" || item.type === "expense") continue;
+
+    const product = productMap.get(item.id);
+    if (!product) {
+      throw new ApiError(`Product not found for item ${item.name}`, 404);
+    }
+
+    if (!item.stock?._id) {
+      throw new ApiError(`Stock is missing for item ${item.name}`, 400);
+    }
+
+    const stockRow = (product.stocks || []).find(
+      (stock) => String(stock.stockId) === String(item.stock._id)
+    );
+
+    if (!stockRow) {
+      throw new ApiError(
+        `Stock row not found for product ${item.name} in selected stock`,
+        400
+      );
+    }
+
+    const reverseQty = Number(item.quantity || 0);
+    const currentStockQty = Number(stockRow.productQuantity || 0);
+
+    if (currentStockQty < reverseQty) {
+      throw new ApiError(
+        `Cannot cancel invoice. Product "${item.name}" does not have enough stock to reverse.`,
+        400
+      );
+    }
+
+    const batch = await prodcutBatchModel
+      .findOne({
+        productId: item.id,
+        companyId,
+        stockId: item.stock._id,
+        sourceId: purchaseInvoice._id,
+        sourceType: "purchase",
+        status: "active",
+      })
+      .session(session);
+
+    if (!batch) {
+      throw new ApiError(
+        `Active purchase batch not found for product "${item.name}"`,
+        404
+      );
+    }
+
+    if (Number(batch.remaining || 0) < reverseQty) {
+      throw new ApiError(
+        `Cannot cancel invoice. Batch for product "${item.name}" has already been used.`,
+        400
+      );
+    }
+
+    const currentAvgCost = Number(product.costBuyingPrice || 0);
+    const cancelledCost = resolveItemCost(item, batch);
+    const remainingQtyAfterReverse = currentStockQty - reverseQty;
+
+    const reversedAvgCost =
+      remainingQtyAfterReverse > 0
+        ? (currentStockQty * currentAvgCost - reverseQty * cancelledCost) /
+          remainingQtyAfterReverse
+        : 0;
+
+    bulkProductUpdates.push({
+      updateOne: {
+        filter: {
+          _id: item.id,
+          companyId,
+          "stocks.stockId": item.stock._id,
+        },
+        update: {
+          $inc: {
+            "stocks.$.productQuantity": -reverseQty,
+          },
+          $set: {
+            costBuyingPrice: reversedAvgCost < 0 ? 0 : reversedAvgCost,
+          },
+        },
+      },
+    });
+  }
+
+  if (bulkProductUpdates.length > 0) {
+    await productModel.bulkWrite(bulkProductUpdates, { session });
+  }
+
+  for (const item of invoicesItem) {
+    if (item.type === "unTracedproduct" || item.type === "expense") continue;
+
+    const product = productMap.get(item.id);
+    if (!product) continue;
+
+    const stockRow = (product.stocks || []).find(
+      (stock) => String(stock.stockId) === String(item.stock._id)
+    );
+
+    const reverseQty = Number(item.quantity || 0);
+    const currentStockQty = Number(stockRow?.productQuantity || 0);
+
+    const batch = await prodcutBatchModel
+      .findOne({
+        productId: item.id,
+        companyId,
+        stockId: item.stock._id,
+        sourceId: purchaseInvoice._id,
+        sourceType: "purchase",
+        status: "active",
+      })
+      .session(session);
+
+    if (!batch) {
+      throw new ApiError(
+        `Active purchase batch not found for product "${item.name}"`,
+        404
+      );
+    }
+
+    const movementCost = Number(
+      batch.costBuyingPrice ??
+        item?.draftCostBuyingPrice ??
+        item?.oldCostBuyingPrice ??
+        item?.orginalBuyingPrice ??
+        0
+    );
+
+    batch.status = "reversed";
+    batch.reversedAt = cancellationDate;
+    batch.reversedBy = reversedBy || null;
+    batch.reverseReason = reverseReason;
+    batch.reverseSourceId = purchaseInvoice._id;
+    batch.remaining = 0;
+
+    await batch.save({ session });
+
+    await productLedgerModel.create(
+      [
+        {
+          productId: item.id,
+          companyId,
+          stockId: item.stock?._id,
+          type: "out",
+          quantity: reverseQty,
+          cost: reverseQty * Number(item.orginalBuyingPrice || 0),
+          batchId: batch._id,
+          referenceType: "purchase_cancel",
+          referenceId: purchaseInvoice._id,
+          costBuyingPrice: movementCost,
+          movementDate: cancellationDate,
+        },
+      ],
+      { session }
+    );
+
+    await createProductMovement({
+      productId: item.id,
+      reference: purchaseInvoice._id,
+      newQuantity: currentStockQty - reverseQty,
+      quantity: reverseQty,
+      movementType: "out",
+      source: "Purchase Invoice Cancellation",
+      companyId,
+      outPrice: movementCost,
+      stockId: item.stock?._id,
+      buyingPrice: item.orginalBuyingPrice,
+      exchangeRate: item.exchangeRate,
+      movementDate: cancellationDate,
+      session,
+    });
+  }
+};
+
+//  Purchase Supplier Effects
 exports.applyPurchaseSupplierEffectsService = async ({
   invoicesItem,
   supplier,
@@ -628,8 +1070,27 @@ exports.applyPurchaseSupplierEffectsService = async ({
   currency,
   date,
   totalPurchasePriceMainCurrency,
+  totalRemainderMainCurrency,
+  paid,
   session,
 }) => {
+  if (!supplier) {
+    throw new ApiError("Supplier not found", 404);
+  }
+
+  const totalMain = Number(totalPurchasePriceMainCurrency || 0);
+  const remainderMain = Number(totalRemainderMainCurrency || 0);
+
+  supplier.total += totalMain;
+
+  if (paid === "unpaid") {
+    supplier.TotalUnpaid += totalMain;
+  }
+
+  if (paid === "paid") {
+    supplier.TotalUnpaid += remainderMain;
+  }
+
   for (const item of invoicesItem) {
     if (item.type === "unTracedproduct") {
       await unTracedproductLogModel.create(
@@ -652,7 +1113,7 @@ exports.applyPurchaseSupplierEffectsService = async ({
   await createPaymentHistory(
     "invoice",
     date,
-    totalPurchasePriceMainCurrency,
+    totalMain,
     newPurchaseInvoice.invoiceGrandTotal,
     "supplier",
     supplier._id,
@@ -666,21 +1127,62 @@ exports.applyPurchaseSupplierEffectsService = async ({
     session
   );
 };
+exports.reversePurchaseSupplierEffectsService = async ({
+  supplier,
+  purchaseInvoice,
+  companyId,
+  currency,
+  session,
+  cancellationDate,
+}) => {
+  if (!supplier) {
+    throw new ApiError("Supplier not found", 404);
+  }
 
+  const totalMain = Number(purchaseInvoice.totalPurchasePriceMainCurrency || 0);
+  const remainderMain = Number(purchaseInvoice.totalRemainderMainCurrency || 0);
+
+  supplier.total -= totalMain;
+
+  if (purchaseInvoice.paid === "unpaid") {
+    supplier.TotalUnpaid -= totalMain;
+  }
+
+  if (purchaseInvoice.paid === "paid") {
+    supplier.TotalUnpaid -= remainderMain;
+  }
+
+  if (supplier.total < 0) supplier.total = 0;
+  if (supplier.TotalUnpaid < 0) supplier.TotalUnpaid = 0;
+
+  await supplier.save({ session });
+
+  await createPaymentHistory(
+    "invoice_cancel",
+    cancellationDate,
+    totalMain,
+    Number(purchaseInvoice.invoiceGrandTotal || 0),
+    "supplier",
+    supplier._id,
+    purchaseInvoice._id,
+    companyId,
+    "Purchase invoice cancellation",
+    "",
+    "",
+    "",
+    currency?.currencyCode || "",
+    session
+  );
+};
+//  Purchase Journal Effects
 exports.debugAndCreatePurchaseDraftJournalService = async ({
   companyId,
   purchaseInvoice,
   journalPreview,
+  refCounter,
+  journalLink,
   session,
 }) => {
-  if (!companyId) {
-    throw new ApiError("companyId is required", 400);
-  }
-
-  if (!purchaseInvoice) {
-    throw new ApiError("purchase invoice is required", 400);
-  }
-
   if (!journalPreview) {
     throw new ApiError("journal preview is required", 400);
   }
@@ -700,17 +1202,6 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
     throw new ApiError("journal accounts are missing", 400);
   }
 
-  for (const line of journalAccounts) {
-    if (!line?.id) {
-      throw new ApiError(
-        `journal account id is missing in line type ${
-          line?.accountType || "unknown"
-        }`,
-        400
-      );
-    }
-  }
-
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
     0
@@ -721,10 +1212,7 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
     0
   );
 
-  const balanced =
-    Number(totalDebit.toFixed(6)) === Number(totalCredit.toFixed(6));
-
-  if (!balanced) {
+  if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
       400
@@ -733,22 +1221,16 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
 
   const journalPayload = {
     ...journalMeta,
-    journalAccounts,
-    journalDebit: totalDebit,
-    journalCredit: totalCredit,
-    filesArray: [],
-    refId: journalMeta?.refId || purchaseInvoice?._id,
-    refCounter: journalMeta?.refCounter || purchaseInvoice?.counter,
+    refCounter,
+    refId: purchaseInvoice?._id,
+    linkCounter: journalLink,
     party: journalMeta?.party || purchaseInvoice?.supllier?.id || "",
     journalType: journalMeta?.journalType || "Purchase",
+    filesArray: [],
+    journalDebit: totalDebit,
+    journalCredit: totalCredit,
+    journalAccounts,
   };
-
-  console.group("Post Draft Invoice Journal Debug");
-  console.log("invoiceId:", purchaseInvoice?._id?.toString());
-  console.log("journalPayload:", journalPayload);
-  console.log("totalDebit:", totalDebit);
-  console.log("totalCredit:", totalCredit);
-  console.groupEnd();
 
   const { journalAccounts: lines, ...journalInfo } = journalPayload;
 
@@ -762,45 +1244,109 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
   return {
     createdJournal,
     journalPayload,
-    totalDebit,
-    totalCredit,
   };
 };
-
-exports.createJournalFromService = async ({
-  journalMeta,
-  journalAccounts,
+exports.reversePurchaseJournalEffectsService = async ({
   companyId,
+  purchaseInvoice,
   session,
+  cancellationDate,
 }) => {
-  const created = await journalModel.create(
-    [
-      {
-        ...journalMeta,
-        journalAccounts,
-        companyId,
-      },
-    ],
-    { session }
-  );
+  if (!purchaseInvoice?.journalCounter) {
+    throw new ApiError("journal counter is missing on purchase invoice", 400);
+  }
 
-  const createdJournal = created[0];
+  const originalJournal = await journalEntryModel
+    .findOne({
+      companyId,
+      linkCounter: purchaseInvoice.journalCounter,
+    })
+    .session(session);
 
-  const updateOperations = journalAccounts.map((item) => ({
-    updateOne: {
-      filter: { _id: item.id },
-      update: {
-        $inc: {
-          debtor: item.MainDebit || 0,
-          creditor: item.MainCredit || 0,
-        },
-      },
-    },
+  if (!originalJournal) {
+    throw new ApiError("original journal not found", 404);
+  }
+
+  if (originalJournal?.status === "reversed") {
+    throw new ApiError("original journal is already reversed", 400);
+  }
+
+  const originalLines = originalJournal.journalAccounts || [];
+
+  if (!Array.isArray(originalLines) || originalLines.length === 0) {
+    throw new ApiError("original journal accounts are missing", 400);
+  }
+
+  const reversedLines = originalLines.map((line, index) => ({
+    ...line,
+    MainDebit: Number(line?.MainCredit || 0),
+    MainCredit: Number(line?.MainDebit || 0),
+    accountDebit: Number(line?.accountCredit || 0),
+    accountCredit: Number(line?.accountDebit || 0),
+    counter: index + 1,
   }));
 
-  await AccountModel.bulkWrite(updateOperations, { session });
+  const totalDebit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainDebit || 0),
+    0
+  );
 
-  return createdJournal;
+  const totalCredit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainCredit || 0),
+    0
+  );
+
+  if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
+    throw new ApiError(
+      `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
+      400
+    );
+  }
+
+  const reversalLinkCounter = `${purchaseInvoice.journalCounter}-reversal`;
+
+  const reversalJournalPayload = {
+    journalName: `Reverse - ${
+      originalJournal?.journalName || purchaseInvoice?.invoiceName || ""
+    }`,
+    journalDate: cancellationDate,
+    journalDesc: `Reverse purchase invoice ${
+      purchaseInvoice?.invoiceName || ""
+    }`,
+    journalType: "Purchase Reversal",
+    counter: originalJournal?.counter || purchaseInvoice?.counter || "",
+    refCounter: purchaseInvoice?.counter || "",
+    refId: purchaseInvoice?._id,
+    linkCounter: reversalLinkCounter,
+    party: originalJournal?.party || purchaseInvoice?.supllier?.id || "",
+    receiptNumber:
+      originalJournal?.receiptNumber || purchaseInvoice?.invoiceNumber || "",
+    filesArray: [],
+    journalDebit: totalDebit,
+    journalCredit: totalCredit,
+  };
+
+  const createdReversalJournal = await createJournalService({
+    companyId,
+    journalInfo: reversalJournalPayload,
+    journalAccounts: reversedLines,
+    session,
+  });
+
+  originalJournal.status = "reversed";
+  originalJournal.reversedAt = cancellationDate;
+  originalJournal.reverseJournalId = createdReversalJournal?._id || null;
+
+  await originalJournal.save({ session });
+
+  return {
+    originalJournal,
+    createdReversalJournal,
+    reversalJournalPayload: {
+      ...reversalJournalPayload,
+      journalAccounts: reversedLines,
+    },
+  };
 };
 
 exports.updatePurchaseInvoiceDraftService = async ({

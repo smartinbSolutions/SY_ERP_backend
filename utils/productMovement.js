@@ -18,9 +18,10 @@ const createProductMovement = async ({
   buyingPrice,
   exchangeRate,
   movementDate,
+  session,
 }) => {
   try {
-    const newMovement = new ProductMovementSchema({
+    const movementPayload = {
       productId,
       reference,
       quantity,
@@ -29,8 +30,8 @@ const createProductMovement = async ({
       source,
       desc,
       companyId,
-      enterPrice: enterPrice,
-      outPrice: outPrice,
+      enterPrice,
+      outPrice,
       exchangeRate,
       referenceModel:
         source === "Sales Invoice"
@@ -53,13 +54,18 @@ const createProductMovement = async ({
           ? "refundpurchaseinvoices"
           : source === "Refund Sales Invoice"
           ? "returnOrder"
+          : source === "Purchase Invoice Cancellation"
+          ? "PurchaseInvoices"
           : null,
       stockId,
       sellingPrice,
       buyingPrice,
       movementDate: movementDate ? new Date(movementDate) : new Date(),
-    });
-    const savedMovement = await newMovement.save();
+    };
+
+    const [savedMovement] = session
+      ? await ProductMovementSchema.create([movementPayload], { session })
+      : await ProductMovementSchema.create([movementPayload]);
 
     return savedMovement;
   } catch (error) {

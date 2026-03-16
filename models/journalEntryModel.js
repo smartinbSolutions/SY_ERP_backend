@@ -44,6 +44,13 @@ const journalEntrySchema = new mongoose.Schema(
     receiptNumber: String,
     refId: String,
     auditing: { type: Boolean, default: false },
+    status: { type: String, enum: ["active", "reversed"], default: "active" },
+    reversedAt: { type: Date, default: null },
+    reverseJournalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Journal",
+      default: null,
+    },
   },
   { timestamps: true }
 );

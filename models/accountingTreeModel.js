@@ -43,7 +43,7 @@ const AccountingTreeSchema = new mongoose.Schema(
 
     balanceType: {
       type: String,
-      enum: ["debit", "credit"],
+      enum: ["debit", "credit", "debit/credit"],
       default: "debit",
     },
 

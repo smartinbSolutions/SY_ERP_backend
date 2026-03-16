@@ -16,7 +16,6 @@ const PaymentSchema = new mongoose.Schema(
       default: 0,
     },
     paymentInDestinationCurrency: String,
-
     destinationExchangeRate: {
       type: Number,
       default: 1,

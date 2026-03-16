@@ -405,6 +405,124 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
   });
 });
 
+// exports.getProductCostLedger = asyncHandler(async (req, res) => {
+//   const { companyId, startDate, endDate, page = 1, limit = 20 } = req.query;
+//   const { id } = req.params;
+
+//   if (!companyId) {
+//     return res.status(400).json({ message: "companyId is required" });
+//   }
+
+//   const currentPage = Number(page);
+//   const pageLimit = Number(limit);
+//   const skip = (currentPage - 1) * pageLimit;
+
+//   let filters = {
+//     companyId,
+//     productId: id,
+//   };
+
+//   if (startDate && endDate) {
+//     filters.createdAt = {
+//       $gte: new Date(startDate + "T00:00:00.000Z"),
+//       $lte: new Date(endDate + "T23:59:59.999Z"),
+//     };
+//   }
+
+//   const movements = await ProductMovement.find(filters)
+//     .sort({ createdAt: -1 })
+//     .populate("productId", "name")
+//     .populate("reference", "counter")
+//     .populate("stockId", "name")
+//     .lean();
+
+//   const movementsForCalc = [...movements].reverse();
+
+//   let qty = 0;
+//   let avgCost = 0;
+//   let value = 0;
+
+//   const calculatedMap = new Map();
+
+//   for (const mv of movementsForCalc) {
+//     if (mv.movementType === "in") {
+//       const newQty = Number(mv.quantity) || 0;
+//       const newPrice = Number(mv.enterPrice) || 0;
+
+//       if (qty + newQty > 0) {
+//         avgCost = (qty * avgCost + newQty * newPrice) / (qty + newQty);
+//       }
+
+//       qty += newQty;
+//       value = qty * avgCost;
+//     }
+
+//     if (mv.movementType === "out") {
+//       const outQty = Number(mv.quantity) || 0;
+//       const soldAvgCost = mv.outPrice;
+//       avgCost = (qty * avgCost - outQty * soldAvgCost) / (qty - outQty);
+
+//       if (outQty > qty) {
+//         throw new Error("Not enough stock");
+//       }
+
+//       qty -= outQty;
+//       value = qty * avgCost;
+//     }
+
+//     calculatedMap.set(mv._id.toString(), {
+//       qtyAfter: qty,
+//       avgCostAfter: Number(avgCost),
+//       valueAfter: Number(value),
+//       avgCostAfterMainCurrency: Number(avgCost / mv.exchangeRate),
+//       valueAfterMainCurrency: Number(value / mv.exchangeRate),
+//     });
+//   }
+
+//   const calculated = movements.map((mv) => {
+//     const calc = calculatedMap.get(mv._id.toString());
+
+//     return {
+//       name: mv.productId.name,
+//       movementId: mv._id,
+//       movementType: mv.movementType,
+//       newQuantity: calc.qtyAfter,
+//       avgCostAfter: calc.avgCostAfter,
+//       valueAfter: calc.valueAfter,
+//       avgCostAfterMainCurrency: calc.avgCostAfterMainCurrency,
+//       valueAfterMainCurrency: calc.valueAfterMainCurrency,
+//       enterPrice: Number(mv.enterPrice),
+//       date: mv.createdAt,
+//       source: mv.source,
+//       quantity: mv.quantity,
+//       reference: mv.reference,
+//       source: mv.source,
+//       outPrice: mv.outPrice,
+//       sellingPrice: mv.sellingPrice,
+//       exchangeRate: mv.exchangeRate,
+//       stockId: mv.stockId,
+//     };
+//   });
+
+//   // 🔹 Pagination
+//   const paginatedMovements = calculated.slice(skip, skip + pageLimit);
+
+//   res.json({
+//     status: "success",
+//     data: {
+//       finalQty: qty,
+//       finalAvgCost: Number(avgCost),
+//       finalValue: Number(value),
+//       movements: paginatedMovements,
+//       pagination: {
+//         page: currentPage,
+//         limit: pageLimit,
+//         total: calculated.length,
+//         totalPages: Math.ceil(calculated.length / pageLimit),
+//       },
+//     },
+//   });
+// });
 exports.getProductCostLedger = asyncHandler(async (req, res) => {
   const { companyId, startDate, endDate, page = 1, limit = 20 } = req.query;
   const { id } = req.params;
@@ -417,7 +535,7 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
   const pageLimit = Number(limit);
   const skip = (currentPage - 1) * pageLimit;
 
-  let filters = {
+  const filters = {
     companyId,
     productId: id,
   };
@@ -444,13 +562,19 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
 
   const calculatedMap = new Map();
 
+  const safeNumber = (num) => (Number.isFinite(num) ? Number(num) : 0);
+
   for (const mv of movementsForCalc) {
+    const exchangeRate = Number(mv.exchangeRate) || 1;
+
     if (mv.movementType === "in") {
       const newQty = Number(mv.quantity) || 0;
       const newPrice = Number(mv.enterPrice) || 0;
 
       if (qty + newQty > 0) {
         avgCost = (qty * avgCost + newQty * newPrice) / (qty + newQty);
+      } else {
+        avgCost = 0;
       }
 
       qty += newQty;
@@ -459,31 +583,45 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
 
     if (mv.movementType === "out") {
       const outQty = Number(mv.quantity) || 0;
-      const soldAvgCost = mv.outPrice;
-      avgCost = (qty * avgCost - outQty * soldAvgCost) / (qty - outQty);
+      const soldAvgCost = Number(mv.outPrice) || 0;
 
       if (outQty > qty) {
         throw new Error("Not enough stock");
       }
 
-      qty -= outQty;
-      value = qty * avgCost;
+      const remainingQty = qty - outQty;
+
+      if (remainingQty === 0) {
+        qty = 0;
+        avgCost = 0;
+        value = 0;
+      } else {
+        avgCost = (qty * avgCost - outQty * soldAvgCost) / remainingQty;
+        qty = remainingQty;
+        value = qty * avgCost;
+      }
     }
 
     calculatedMap.set(mv._id.toString(), {
-      qtyAfter: qty,
-      avgCostAfter: Number(avgCost),
-      valueAfter: Number(value),
-      avgCostAfterMainCurrency: Number(avgCost / mv.exchangeRate),
-      valueAfterMainCurrency: Number(value / mv.exchangeRate),
+      qtyAfter: safeNumber(qty),
+      avgCostAfter: safeNumber(avgCost),
+      valueAfter: safeNumber(value),
+      avgCostAfterMainCurrency: safeNumber(avgCost / exchangeRate),
+      valueAfterMainCurrency: safeNumber(value / exchangeRate),
     });
   }
 
   const calculated = movements.map((mv) => {
-    const calc = calculatedMap.get(mv._id.toString());
+    const calc = calculatedMap.get(mv._id.toString()) || {
+      qtyAfter: 0,
+      avgCostAfter: 0,
+      valueAfter: 0,
+      avgCostAfterMainCurrency: 0,
+      valueAfterMainCurrency: 0,
+    };
 
     return {
-      name: mv.productId.name,
+      name: mv.productId?.name || "",
       movementId: mv._id,
       movementType: mv.movementType,
       newQuantity: calc.qtyAfter,
@@ -491,28 +629,26 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
       valueAfter: calc.valueAfter,
       avgCostAfterMainCurrency: calc.avgCostAfterMainCurrency,
       valueAfterMainCurrency: calc.valueAfterMainCurrency,
-      enterPrice: Number(mv.enterPrice),
+      enterPrice: Number(mv.enterPrice) || 0,
       date: mv.createdAt,
       source: mv.source,
-      quantity: mv.quantity,
+      quantity: Number(mv.quantity) || 0,
       reference: mv.reference,
-      source: mv.source,
-      outPrice: mv.outPrice,
-      sellingPrice: mv.sellingPrice,
-      exchangeRate: mv.exchangeRate,
+      outPrice: Number(mv.outPrice) || 0,
+      sellingPrice: Number(mv.sellingPrice) || 0,
+      exchangeRate: Number(mv.exchangeRate) || 1,
       stockId: mv.stockId,
     };
   });
 
-  // 🔹 Pagination
   const paginatedMovements = calculated.slice(skip, skip + pageLimit);
 
   res.json({
     status: "success",
     data: {
-      finalQty: qty,
-      finalAvgCost: Number(avgCost),
-      finalValue: Number(value),
+      finalQty: safeNumber(qty),
+      finalAvgCost: safeNumber(avgCost),
+      finalValue: safeNumber(value),
       movements: paginatedMovements,
       pagination: {
         page: currentPage,
@@ -523,7 +659,6 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
     },
   });
 });
-
 exports.getProductMovementReport = asyncHandler(async (req, res) => {
   const { companyId, startDate, endDate, id, category, filter } = req.query;
 

@@ -10,9 +10,21 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
       phoneNumber: String,
       address: String,
     },
+
     archives: { type: Boolean, default: false },
 
-    type: { type: String, default: "normal" },
+    type: {
+      type: String,
+      default: "normal",
+    },
+
+    status: {
+      type: String,
+      enum: ["draft", "posted", "cancelled"],
+      default: "draft",
+      index: true,
+    },
+
     invoicesItems: [
       {
         id: String,
@@ -37,6 +49,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
         discountAmount: { type: Number },
         discount: { type: Number },
         convertedBuyingPrice: { type: Number },
+        draftCostBuyingPrice: { type: Number },
         totalWithoutTax: { type: Number },
         total: { type: Number },
         taxValue: { type: Number },
@@ -47,18 +60,23 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+
     exchangeRate: Number,
+
     currency: {
       currencyCode: String,
       exchangeRate: Number,
       id: String,
       currencyName: String,
     },
+
     invoiceGrandTotal: Number,
     invoiceSubTotal: Number,
     invoiceDiscount: Number,
     ManualInvoiceDiscount: Number,
+    ManualInvoiceDiscountValue: Number,
     invoiceTax: Number,
+
     taxDetails: [
       {
         taxRate: Number,
@@ -67,6 +85,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+
     tag: [
       {
         id: String,
@@ -75,19 +94,26 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+
     invoiceName: String,
+    invoiceNumber: String,
+    invoiceType: { type: String, default: "Purchase" },
 
     financailFund: { value: String, label: String },
     paymentInFundCurrency: String,
+
     totalPurchasePrice: Number,
     totalPurchasePriceMainCurrency: Number,
-    ManualInvoiceDiscountValue: Number,
+
     date: String,
-    description: String,
-    invoiceType: String,
     dueDate: String,
+    paymentDate: String,
+    description: String,
+    receiptNumber: String,
+
     totalRemainderMainCurrency: { type: Number, default: 0 },
     totalRemainder: { type: Number, default: 0 },
+
     payments: [
       {
         payment: Number,
@@ -96,35 +122,58 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
         financialFundsId: String,
         financialFundsCurrencyCode: String,
         exchangeRate: String,
-
         date: String,
         paymentID: String,
         paymentInInvoiceCurrency: Number,
         _id: false,
       },
     ],
+
     counter: String,
     InvoiceDiscountType: String,
+
     paid: {
       type: String,
       default: "unpaid",
       enum: ["paid", "unpaid"],
     },
+
     employee: {
       type: mongoose.Schema.ObjectId,
       ref: "Employee",
     },
-    invoiceNumber: {
-      type: String,
+
+    postedBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Employee",
+      default: null,
     },
+    postedAt: {
+      type: Date,
+      default: null,
+    },
+
+    cancelledBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
+      default: "",
+    },
+
     openingBalanceId: String,
     reportsBalanceId: String,
     file: String,
-    paymentDate: String,
-    receiptNumber: String,
-    invoiceType: { type: String, default: "Purchase" },
     journalCounter: String,
+
     isDraft: { type: Boolean, default: false, index: true },
+
     draftJournalSnapshot: {
       journalMeta: { type: mongoose.Schema.Types.Mixed, default: null },
       journalAccounts: { type: [mongoose.Schema.Types.Mixed], default: [] },
@@ -138,17 +187,18 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
       source: { type: String, default: "frontend" },
       _id: false,
     },
+
     sync: { type: Boolean, default: false },
+
     companyId: {
       type: String,
       required: true,
       index: true,
     },
+
     auditing: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
-
-//When findOne, findAll and update
 
 module.exports = mongoose.model("PurchaseInvoices", PurchaseInvoicesSchema);
