@@ -50,9 +50,13 @@ const getAllApprovalFlows = async ({
   module,
   page = 1,
   limit = 10,
+  keyword,
 }) => {
   const query = { companyId };
   if (module) query.module = module;
+  if (keyword) {
+    query.name = { $regex: keyword, $options: "i" };
+  }
 
   const pageNumber = parseInt(page, 10);
   const pageLimit = parseInt(limit, 10);

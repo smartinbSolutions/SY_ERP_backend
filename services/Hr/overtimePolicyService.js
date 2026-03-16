@@ -178,6 +178,8 @@ exports.deletePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`No policy found with ID: ${id}`, 404));
   }
 
+  await overtimeTypesModel.deleteMany({ policyId: id });
+
   res.status(200).json({
     status: "success",
     message: "Policy deleted successfully",

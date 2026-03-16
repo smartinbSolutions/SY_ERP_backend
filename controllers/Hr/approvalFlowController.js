@@ -28,7 +28,7 @@ exports.createApprovalFlow = asyncHandler(async (req, res, next) => {
 
 // ===== Get All Approval Flows =====
 exports.getAllApprovalFlows = asyncHandler(async (req, res, next) => {
-  const { companyId, module } = req.query;
+  const { companyId, module, keyword } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
 
@@ -40,6 +40,7 @@ exports.getAllApprovalFlows = asyncHandler(async (req, res, next) => {
       module,
       page,
       limit,
+      keyword,
     });
 
     res.status(200).json({

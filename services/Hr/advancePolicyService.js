@@ -221,7 +221,6 @@ exports.deletePolicy = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`No policy found with ID: ${id}`, 404));
   }
 
-  // optional: delete related advance types
   await AdvanceType.deleteMany({ policyId: id });
 
   res.status(200).json({

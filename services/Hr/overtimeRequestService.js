@@ -2,6 +2,7 @@ const OvertimeRequest = require("../../models/Hr/overtimeRequestModel");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const multer = require("multer");
+const mongoose = require("mongoose");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
@@ -299,18 +300,26 @@ exports.updateOvertimeRequest = asyncHandler(async (req, res, next) => {
 exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
-  const request = await OvertimeRequest.findById(req.params.id).populate(
-    "approval.flowId",
-  );
-
-  if (!request) return next(new ApiError("Request not found", 404));
-
-  if (request.status !== "pending")
-    return next(new ApiError("Already processed", 400));
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    console.log("User attempting approval:", req.user?._id);
-    console.log("Action:", action, "Reason:", reason);
+    const request = await OvertimeRequest.findById(req.params.id)
+      .populate("approval.flowId")
+      .populate("overtimeTypeId")
+      .session(session);
+
+    if (!request) {
+      await session.abortTransaction();
+      session.endSession();
+      return next(new ApiError("Request not found", 404));
+    }
+
+    if (request.status !== "pending") {
+      await session.abortTransaction();
+      session.endSession();
+      return next(new ApiError("Already processed", 400));
+    }
 
     const updatedRequest = await handleApproval(
       request,
@@ -322,26 +331,30 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
     if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
       updatedRequest.approvedAt = new Date();
 
-      await overtimeLogsModel.create({
-        userId: updatedRequest.userId,
-        overtimeRequestId: updatedRequest._id,
-        overtimeType: updatedRequest.overtimeTypeId._id,
-        hours: updatedRequest.hours,
-        rateMultiplier: updatedRequest.overtimeTypeId?.rateMultiplier || 1,
-        calculatedPay: 0,
-        leaveEarned: 0,
-        approvedBy: req.user._id,
-        approvedAt: updatedRequest.approvedAt,
-        managerComment: reason || "",
-        companyId: updatedRequest.companyId,
-      });
-
-      await updatedRequest.save();
-      console.log(
-        "Overtime log created for approved request:",
-        updatedRequest._id,
+      await overtimeLogsModel.create(
+        [
+          {
+            userId: updatedRequest.userId,
+            overtimeRequestId: updatedRequest._id,
+            overtimeType: updatedRequest.overtimeTypeId._id,
+            hours: updatedRequest.hours,
+            rateMultiplier: updatedRequest.overtimeTypeId?.rateMultiplier || 1,
+            calculatedPay: 0,
+            leaveEarned: 0,
+            approvedBy: req.user._id,
+            approvedAt: updatedRequest.approvedAt,
+            managerComment: reason || "",
+            companyId: updatedRequest.companyId,
+          },
+        ],
+        { session },
       );
+
+      await updatedRequest.save({ session });
     }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       status: true,
@@ -349,7 +362,10 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       data: updatedRequest,
     });
   } catch (err) {
-    console.error("Error in handleOvertimeRequest:", err);
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("Transaction error:", err);
     return next(new ApiError(err.message, 400));
   }
 });

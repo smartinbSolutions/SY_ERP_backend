@@ -11,6 +11,7 @@ const leavesModel = require("../../models/Hr/leavesModel");
 const { handleApproval } = require("./approvalService");
 const leaveRequestModel = require("../../models/Hr/leaveRequestModel");
 const multerStorage = multer.memoryStorage();
+const mongoose = require("mongoose");
 
 const attachmentFilter = function (req, file, cb) {
   const allowedTypes = [
@@ -283,15 +284,26 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
 exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
-  const request = await LeaveRequest.findById(req.params.id).populate(
-    "approval.flowId",
-  );
-  if (!request) return next(new ApiError("Leave request not found", 404));
-
-  if (request.status !== "pending")
-    return next(new ApiError("Already processed", 400));
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
+    const request = await LeaveRequest.findById(req.params.id)
+      .populate("approval.flowId")
+      .session(session);
+
+    if (!request) {
+      await session.abortTransaction();
+      session.endSession();
+      return next(new ApiError("Leave request not found", 404));
+    }
+
+    if (request.status !== "pending") {
+      await session.abortTransaction();
+      session.endSession();
+      return next(new ApiError("Already processed", 400));
+    }
+
     console.log("Calling handleApproval for leave request:", request._id);
 
     const updatedRequest = await handleApproval(
@@ -299,6 +311,7 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       req.user._id,
       action,
       reason,
+      session,
     );
 
     console.log("handleApproval returned, status:", updatedRequest.status);
@@ -306,25 +319,33 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
     if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
       updatedRequest.approvedAt = new Date();
 
-      await leavesLogsModel.create({
-        userId: updatedRequest.userId,
-        leaveRequestId: updatedRequest._id,
-        leaveType: updatedRequest.leaveType,
-        startDate: updatedRequest.startDate,
-        endDate: updatedRequest.endDate,
-        days: updatedRequest.days,
-        approvedBy: req.user._id,
-        approvedAt: updatedRequest.approvedAt,
-        managerComment: reason || "",
-        companyId: updatedRequest.companyId,
-      });
+      await leavesLogsModel.create(
+        [
+          {
+            userId: updatedRequest.userId,
+            leaveRequestId: updatedRequest._id,
+            leaveType: updatedRequest.leaveType,
+            startDate: updatedRequest.startDate,
+            endDate: updatedRequest.endDate,
+            days: updatedRequest.days,
+            approvedBy: req.user._id,
+            approvedAt: updatedRequest.approvedAt,
+            managerComment: reason || "",
+            companyId: updatedRequest.companyId,
+          },
+        ],
+        { session },
+      );
 
-      await updatedRequest.save();
+      await updatedRequest.save({ session });
       console.log(
         "Leave log created for approved request:",
         updatedRequest._id,
       );
     }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       status: true,
@@ -332,7 +353,10 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       data: updatedRequest,
     });
   } catch (err) {
-    console.error("Error in handleLeaveRequest:", err);
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("Transaction error in handleLeaveRequest:", err);
     return next(new ApiError(err.message, 400));
   }
 });

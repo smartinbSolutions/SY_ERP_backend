@@ -117,7 +117,6 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       stepCounter++;
     });
 
-
     // ===================== إنشاء الطلب =====================
     const request = await AdvanceRequest.create({
       userId: req.user._id,
@@ -137,7 +136,6 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
         steps: approvalSteps,
       },
     });
-
 
     res.status(201).json({
       status: true,
@@ -264,52 +262,62 @@ exports.getMyApprovals = asyncHandler(async (req, res) => {
 exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
-  console.log("User attempting approval:", req.user?._id);
-  console.log("Action:", action, "Reason:", reason);
-
-  const request = await AdvanceRequest.findById(req.params.id).populate(
-    "approval.flowId",
-  );
-
-  if (!request) return next(new ApiError("Request not found", 404));
-  if (request.status !== "pending")
-    return next(new ApiError("Already processed", 400));
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    console.log("Calling handleApproval for request:", request._id);
+    const request = await AdvanceRequest.findById(req.params.id)
+      .populate("approval.flowId")
+      .session(session);
 
+    if (!request) {
+      await session.abortTransaction();
+      session.endSession();
+      return next(new ApiError("Request not found", 404));
+    }
+
+    if (request.status !== "pending") {
+      await session.abortTransaction();
+      session.endSession();
+      return next(new ApiError("Already processed", 400));
+    }
+
+    // تمرير session لـ handleApproval
     const updatedRequest = await handleApproval(
       request,
       req.user._id,
       action,
       reason,
+      session,
     );
 
-    console.log("handleApproval returned, status:", updatedRequest.status);
-
-    // If fully approved, create the log
+    // إذا تم الموافقة بالكامل، إنشاء log
     if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
       updatedRequest.approvedAt = new Date();
 
-      await advanceLogsModel.create({
-        userId: updatedRequest.userId,
-        advanceRequestId: updatedRequest._id,
-        advanceTypeId: updatedRequest.advanceTypeId,
-        amount: updatedRequest.amount,
-        installmentAmount: updatedRequest.installmentAmount,
-        totalInstallments: updatedRequest.installments,
-        approvedBy: req.user._id,
-        approvedAt: updatedRequest.approvedAt,
-        managerComment: reason || "",
-        companyId: updatedRequest.companyId,
-      });
-
-      await updatedRequest.save();
-      console.log(
-        "Advance log created for approved request:",
-        updatedRequest._id,
+      await advanceLogsModel.create(
+        [
+          {
+            userId: updatedRequest.userId,
+            advanceRequestId: updatedRequest._id,
+            advanceTypeId: updatedRequest.advanceTypeId,
+            amount: updatedRequest.amount,
+            installmentAmount: updatedRequest.installmentAmount,
+            totalInstallments: updatedRequest.installments,
+            approvedBy: req.user._id,
+            approvedAt: updatedRequest.approvedAt,
+            managerComment: reason || "",
+            companyId: updatedRequest.companyId,
+          },
+        ],
+        { session },
       );
+
+      await updatedRequest.save({ session });
     }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       status: true,
@@ -317,7 +325,10 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       data: updatedRequest,
     });
   } catch (err) {
-    console.error("Error in handleAdvanceRequest:", err);
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("Transaction error in handleAdvanceRequest:", err);
     return next(new ApiError(err.message, 400));
   }
 });
