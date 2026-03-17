@@ -138,7 +138,7 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
 /* ================= GET MY REQUESTS ================= */
 exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
   const filter = { userId: req.user._id };
@@ -180,7 +180,7 @@ exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   }
 
   const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.limit) || 20;
+  const pageSize = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * pageSize;
 
   const filter = { companyId };
@@ -316,7 +316,7 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
 
     console.log("handleApproval returned, status:", updatedRequest.status);
 
-    if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
+    if (updatedRequest.status === "approved") {
       updatedRequest.approvedAt = new Date();
 
       await leavesLogsModel.create(

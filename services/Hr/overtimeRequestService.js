@@ -328,7 +328,7 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       reason,
     );
 
-    if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
+    if (updatedRequest.status === "approved") {
       updatedRequest.approvedAt = new Date();
 
       await overtimeLogsModel.create(

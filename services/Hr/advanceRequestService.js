@@ -9,6 +9,7 @@ const advanceLogsModel = require("../../models/Hr/advanceLogsModel");
 const { handleApproval } = require("./approvalService");
 const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
 const advanceTypesModel = require("../../models/Hr/advanceTypesModel");
+const { default: mongoose } = require("mongoose");
 
 // ================= MULTER =================
 
@@ -282,7 +283,6 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Already processed", 400));
     }
 
-    // تمرير session لـ handleApproval
     const updatedRequest = await handleApproval(
       request,
       req.user._id,
@@ -291,9 +291,8 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       session,
     );
 
-    // إذا تم الموافقة بالكامل، إنشاء log
-    if (updatedRequest.status === "approved" && !updatedRequest.approvedAt) {
-      updatedRequest.approvedAt = new Date();
+    if (updatedRequest.status === "approved") {
+      if (!updatedRequest.approvedAt) updatedRequest.approvedAt = new Date();
 
       await advanceLogsModel.create(
         [
@@ -301,9 +300,10 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
             userId: updatedRequest.userId,
             advanceRequestId: updatedRequest._id,
             advanceTypeId: updatedRequest.advanceTypeId,
-            amount: updatedRequest.amount,
-            installmentAmount: updatedRequest.installmentAmount,
-            totalInstallments: updatedRequest.installments,
+            salarySnapshot: updatedRequest.salarySnapshot, 
+            approvedAmount: updatedRequest.amount, 
+            installments: updatedRequest.installments || null,
+            installmentAmount: updatedRequest.installmentAmount || null,
             approvedBy: req.user._id,
             approvedAt: updatedRequest.approvedAt,
             managerComment: reason || "",

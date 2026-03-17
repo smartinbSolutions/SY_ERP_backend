@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 
 const handleApproval = asyncHandler(
-  async (request, userId, action, comment) => {
+  async (request, userId, action, comment, session = null) => {
     if (!request.approval || !request.approval.currentApprover)
       throw new Error("Approval not configured");
 
@@ -22,7 +22,8 @@ const handleApproval = asyncHandler(
       request.status = "rejected";
       request.rejectionReason = comment || "";
       request.approval.currentApprover = null;
-      await request.save();
+
+      await request.save({ session });
       return request;
     }
 
@@ -39,7 +40,7 @@ const handleApproval = asyncHandler(
       request.approvedAt = new Date();
     }
 
-    await request.save();
+    await request.save({ session });
     return request;
   },
 );
