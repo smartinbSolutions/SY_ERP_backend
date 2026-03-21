@@ -153,7 +153,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     "dec",
   ];
   req.body.companyId = companyId;
-
+  console.log(req.body);
   const nextJournalNumber =
     (await journalModel.countDocuments({ companyId })) + 1;
 
@@ -307,7 +307,8 @@ exports.createJournalService = async ({
     (sum, account) => sum + Number(account.MainCredit || 0),
     0
   );
-
+  console.log(journalInfo?.counter);
+  console.log(nextJournalNumber);
   const payload = {
     ...journalInfo,
     companyId,

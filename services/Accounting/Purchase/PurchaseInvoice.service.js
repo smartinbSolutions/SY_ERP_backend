@@ -871,8 +871,9 @@ exports.reversePurchaseInventoryEffectsService = async ({
   companyId,
   session,
   reversedBy = null,
-  reverseReason = "Purchase invoice cancellation",
+  reverseReason,
   cancellationDate,
+  mode = "cancel",
 }) => {
   const resolveItemCost = (item, batch) =>
     Number(
@@ -882,6 +883,28 @@ exports.reversePurchaseInventoryEffectsService = async ({
         item?.orginalBuyingPrice ??
         0
     );
+
+  const reversalConfig = {
+    cancel: {
+      reverseReason: reverseReason || "Purchase invoice cancellation",
+      referenceType: "purchase_cancel",
+      movementSource: "Purchase Invoice Cancellation",
+      reverseSourceType: "purchase_cancel",
+      batchStatus: "reversed",
+    },
+    reverse_update: {
+      reverseReason: reverseReason || "Purchase invoice reverse update",
+      referenceType: "purchase_reverse_update",
+      movementSource: "Purchase Invoice Reverse Update",
+      reverseSourceType: "purchase_reverse_update",
+      batchStatus: "reversed_for_update",
+    },
+  };
+
+  const currentMode = reversalConfig[mode];
+  if (!currentMode) {
+    throw new ApiError(`Invalid reversal mode: ${mode}`, 400);
+  }
 
   const bulkProductUpdates = [];
 
@@ -913,7 +936,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
 
     if (currentStockQty < reverseQty) {
       throw new ApiError(
-        `Cannot cancel invoice. Product "${item.name}" does not have enough stock to reverse.`,
+        `Cannot reverse invoice. Product "${item.name}" does not have enough stock to reverse.`,
         400
       );
     }
@@ -938,7 +961,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
 
     if (Number(batch.remaining || 0) < reverseQty) {
       throw new ApiError(
-        `Cannot cancel invoice. Batch for product "${item.name}" has already been used.`,
+        `Cannot reverse invoice. Batch for product "${item.name}" has already been used.`,
         400
       );
     }
@@ -1015,10 +1038,10 @@ exports.reversePurchaseInventoryEffectsService = async ({
         0
     );
 
-    batch.status = "reversed";
+    batch.status = currentMode.batchStatus;
     batch.reversedAt = cancellationDate;
     batch.reversedBy = reversedBy || null;
-    batch.reverseReason = reverseReason;
+    batch.reverseReason = currentMode.reverseReason;
     batch.reverseSourceId = purchaseInvoice._id;
     batch.remaining = 0;
 
@@ -1032,9 +1055,9 @@ exports.reversePurchaseInventoryEffectsService = async ({
           stockId: item.stock?._id,
           type: "out",
           quantity: reverseQty,
-          cost: reverseQty * Number(item.orginalBuyingPrice || 0),
+          cost: reverseQty * movementCost,
           batchId: batch._id,
-          referenceType: "purchase_cancel",
+          referenceType: currentMode.referenceType,
           referenceId: purchaseInvoice._id,
           costBuyingPrice: movementCost,
           movementDate: cancellationDate,
@@ -1049,7 +1072,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
       newQuantity: currentStockQty - reverseQty,
       quantity: reverseQty,
       movementType: "out",
-      source: "Purchase Invoice Cancellation",
+      source: currentMode.movementSource,
       companyId,
       outPrice: movementCost,
       stockId: item.stock?._id,
@@ -1127,6 +1150,12 @@ exports.applyPurchaseSupplierEffectsService = async ({
     session
   );
 };
+
+const PURCHASE_SUPPLIER_REVERSAL_MODES = {
+  CANCEL: "cancel",
+  REVERSE_UPDATE: "reverse_update",
+};
+
 exports.reversePurchaseSupplierEffectsService = async ({
   supplier,
   purchaseInvoice,
@@ -1134,22 +1163,40 @@ exports.reversePurchaseSupplierEffectsService = async ({
   currency,
   session,
   cancellationDate,
+  mode = PURCHASE_SUPPLIER_REVERSAL_MODES.CANCEL,
 }) => {
   if (!supplier) {
     throw new ApiError("Supplier not found", 404);
   }
 
+  const reversalConfig = {
+    [PURCHASE_SUPPLIER_REVERSAL_MODES.CANCEL]: {
+      historyType: "invoice_cancel",
+      sourceLabel: "Purchase invoice cancellation",
+    },
+    [PURCHASE_SUPPLIER_REVERSAL_MODES.REVERSE_UPDATE]: {
+      historyType: "invoice_reverse_update",
+      sourceLabel: "Purchase invoice reverse update",
+    },
+  };
+
+  const currentMode = reversalConfig[mode];
+
+  if (!currentMode) {
+    throw new ApiError(`Invalid supplier reversal mode: ${mode}`, 400);
+  }
+
   const totalMain = Number(purchaseInvoice.totalPurchasePriceMainCurrency || 0);
   const remainderMain = Number(purchaseInvoice.totalRemainderMainCurrency || 0);
 
-  supplier.total -= totalMain;
+  supplier.total = Number(supplier.total || 0) - totalMain;
 
   if (purchaseInvoice.paid === "unpaid") {
-    supplier.TotalUnpaid -= totalMain;
+    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - totalMain;
   }
 
   if (purchaseInvoice.paid === "paid") {
-    supplier.TotalUnpaid -= remainderMain;
+    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - remainderMain;
   }
 
   if (supplier.total < 0) supplier.total = 0;
@@ -1158,7 +1205,7 @@ exports.reversePurchaseSupplierEffectsService = async ({
   await supplier.save({ session });
 
   await createPaymentHistory(
-    "invoice_cancel",
+    currentMode.historyType,
     cancellationDate,
     totalMain,
     Number(purchaseInvoice.invoiceGrandTotal || 0),
@@ -1166,7 +1213,7 @@ exports.reversePurchaseSupplierEffectsService = async ({
     supplier._id,
     purchaseInvoice._id,
     companyId,
-    "Purchase invoice cancellation",
+    currentMode.sourceLabel,
     "",
     "",
     "",
@@ -1179,8 +1226,9 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
   companyId,
   purchaseInvoice,
   journalPreview,
-  refCounter,
-  journalLink,
+  counterFormat,
+  invoiceRefCounter,
+  journalLinkCounter,
   session,
 }) => {
   if (!journalPreview) {
@@ -1221,9 +1269,10 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
 
   const journalPayload = {
     ...journalMeta,
-    refCounter,
+    linkCounter: String(journalLinkCounter),
+    refCounter: String(invoiceRefCounter || ""),
+    counter: counterFormat,
     refId: purchaseInvoice?._id,
-    linkCounter: journalLink,
     party: journalMeta?.party || purchaseInvoice?.supllier?.id || "",
     journalType: journalMeta?.journalType || "Purchase",
     filesArray: [],
@@ -1246,14 +1295,43 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
     journalPayload,
   };
 };
+
 exports.reversePurchaseJournalEffectsService = async ({
   companyId,
   purchaseInvoice,
   session,
+  counterFormat,
   cancellationDate,
+  reversalJournalLinkCounter,
+  mode = "cancel",
 }) => {
   if (!purchaseInvoice?.journalCounter) {
-    throw new ApiError("journal counter is missing on purchase invoice", 400);
+    throw new ApiError(
+      "journal link reference is missing on purchase invoice",
+      400
+    );
+  }
+
+  const modeConfig = {
+    cancel: {
+      journalType: "Purchase Reversal",
+      journalNamePrefix: "Purchase Invoice Cancellation",
+      journalDescPrefix:
+        "Journal entry created to reverse the accounting effect of the cancelled purchase invoice",
+      originalStatus: "reversed",
+    },
+    reverse_update: {
+      journalType: "Purchase Reverse Update",
+      journalNamePrefix: "Purchase Invoice Update Reversal",
+      journalDescPrefix:
+        "Journal entry created to reverse the previous accounting effect before reposting the updated purchase invoice",
+      originalStatus: "reversed",
+    },
+  };
+
+  const currentMode = modeConfig[mode];
+  if (!currentMode) {
+    throw new ApiError(`Invalid journal reversal mode: ${mode}`, 400);
   }
 
   const originalJournal = await journalEntryModel
@@ -1267,7 +1345,7 @@ exports.reversePurchaseJournalEffectsService = async ({
     throw new ApiError("original journal not found", 404);
   }
 
-  if (originalJournal?.status === "reversed") {
+  if (originalJournal.status === "reversed") {
     throw new ApiError("original journal is already reversed", 400);
   }
 
@@ -1303,21 +1381,19 @@ exports.reversePurchaseJournalEffectsService = async ({
     );
   }
 
-  const reversalLinkCounter = `${purchaseInvoice.journalCounter}-reversal`;
-
   const reversalJournalPayload = {
-    journalName: `Reverse - ${
+    journalName: `${currentMode.journalNamePrefix} - ${
       originalJournal?.journalName || purchaseInvoice?.invoiceName || ""
     }`,
     journalDate: cancellationDate,
-    journalDesc: `Reverse purchase invoice ${
+    journalDesc: `${currentMode.journalDescPrefix} ${
       purchaseInvoice?.invoiceName || ""
     }`,
-    journalType: "Purchase Reversal",
-    counter: originalJournal?.counter || purchaseInvoice?.counter || "",
-    refCounter: purchaseInvoice?.counter || "",
+    journalType: currentMode.journalType,
+    linkCounter: String(reversalJournalLinkCounter),
+    refCounter: String(purchaseInvoice?.counter || ""),
+    counter: counterFormat,
     refId: purchaseInvoice?._id,
-    linkCounter: reversalLinkCounter,
     party: originalJournal?.party || purchaseInvoice?.supllier?.id || "",
     receiptNumber:
       originalJournal?.receiptNumber || purchaseInvoice?.invoiceNumber || "",
@@ -1333,7 +1409,7 @@ exports.reversePurchaseJournalEffectsService = async ({
     session,
   });
 
-  originalJournal.status = "reversed";
+  originalJournal.status = currentMode.originalStatus;
   originalJournal.reversedAt = cancellationDate;
   originalJournal.reverseJournalId = createdReversalJournal?._id || null;
 

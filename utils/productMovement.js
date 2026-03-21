@@ -56,6 +56,8 @@ const createProductMovement = async ({
           ? "returnOrder"
           : source === "Purchase Invoice Cancellation"
           ? "PurchaseInvoices"
+          : source === "Purchase Invoice Reverse Update"
+          ? "PurchaseInvoices"
           : null,
       stockId,
       sellingPrice,

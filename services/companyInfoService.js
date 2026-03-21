@@ -471,7 +471,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     profitloseAccounts,
     type,
   } = req.body;
-
+  const debugRollback = false;
   if (!endDates || !startDates) {
     throw new ApiError(
       "Journal date and price method are required to continue rollover",
@@ -936,6 +936,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     // ------------------------------------------------------------------
     // Opening Journal
     // ------------------------------------------------------------------
+    console.log("manualJournal", manualJournal);
     if (!manualJournal) {
       const openingJournalAccounts = [];
 
@@ -1101,31 +1102,49 @@ exports.rollover = asyncHandler(async (req, res, next) => {
           isPrimary: (acc.exchRate || 1) === 1,
         });
       }
-
+      console.log(
+        "openingJournalAccountsbefore",
+        openingJournalAccounts.length
+      );
       if (openingJournalAccounts.length > 0) {
-        await journalEntryModel.create(
+        console.log(
+          "openingJournalAccountsAfter",
+          openingJournalAccounts.length
+        );
+        const createdOpeningJournal = await journalEntryModel.create(
           [
             {
               companyId: newCompanyId,
               journalName: "Opening Balance",
               journalDate: new Date(Date.UTC(year, 0, 1)),
-              journalRefNum: counter + 1,
+              journalRefNum: String(Number(counter) + 1),
               journalDesc: "Opening Balance",
               journalType: "Opening Balance",
               journalAccounts: openingJournalAccounts,
-              counter: counter + 1,
+              counter: String(Number(counter) + 1),
               journalDebit: openingJournalAccounts.reduce(
-                (sum, acc) => sum + acc.MainDebit,
+                (sum, acc) => sum + Number(acc.MainDebit || 0),
                 0
               ),
               journalCredit: openingJournalAccounts.reduce(
-                (sum, acc) => sum + acc.MainCredit,
+                (sum, acc) => sum + Number(acc.MainCredit || 0),
                 0
               ),
             },
           ],
           { session }
         );
+
+        console.log("createdOpeningJournal", createdOpeningJournal);
+
+        const checkOpeningJournal = await journalEntryModel
+          .find({
+            companyId: newCompanyId,
+            journalType: "Opening Balance",
+          })
+          .session(session);
+
+        console.log("checkOpeningJournal", checkOpeningJournal);
       }
     }
 
@@ -1317,7 +1336,7 @@ exports.rollover = asyncHandler(async (req, res, next) => {
     if (ops.length) {
       await salesPointModel.bulkWrite(ops, { session });
     }
-
+    console.log("BEFORE BeginningInvoice");
     await BeginningInvoice({
       companyId,
       newCompanyId,
@@ -1335,6 +1354,23 @@ exports.rollover = asyncHandler(async (req, res, next) => {
       currencyMap,
       brandMap,
     });
+
+    console.log("AFTER BeginningInvoice");
+
+    const journalsAfterBeginningInvoice = await journalEntryModel
+      .find({ companyId: newCompanyId })
+      .session(session);
+
+    console.log("journalsAfterBeginningInvoice", journalsAfterBeginningInvoice);
+
+    if (debugRollback === true || debugRollback === "true") {
+      throw new ApiError(
+        "Debug rollback: transaction aborted intentionally",
+        499
+      );
+    }
+
+    console.log("journalsAfterBeginningInvoice", journalsAfterBeginningInvoice);
 
     await session.commitTransaction();
     session.endSession();

@@ -58,7 +58,7 @@ const ProductBatchSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["active", "reversed"],
+      enum: ["active", "reversed", "reversed_for_update"],
       default: "active",
       index: true,
     },

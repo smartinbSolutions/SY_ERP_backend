@@ -8,11 +8,13 @@ exports.createCashQuotation = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-
+  console.log("before", req.body.counter);
   req.body.companyId = companyId;
   const nextCounter = (await quotationModel.countDocuments({ companyId })) + 1;
   req.body.counter = Number(req.body.counter) + nextCounter;
-  const quotation = await quotationModel.create(req.body);
+  console.log(nextCounter);
+  console.log("After", req.body.counter);
+  // const quotation = await quotationModel.create(req.body);
   if (!quotation) {
     return next(new ApiError("The cart is empty", 400));
   }
