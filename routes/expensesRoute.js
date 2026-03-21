@@ -15,6 +15,7 @@ const {
   getExpenseAndPurchaseForSupplier,
   archiveExpense,
   patchExpense,
+  createNoSupplierExpenses,
 } = require("../services/expenseService");
 
 const expensesRoute = express.Router();
@@ -24,7 +25,7 @@ expensesRoute
   .route("/")
   .post(authService.checkCompanyEditable, uploadFile, createInvoiceExpenses)
   .get(getInvoiceExpenses);
-
+expensesRoute.route("/cash").post(uploadFile, createNoSupplierExpenses);
 expensesRoute
   .route("/archive/:id")
   .put(authService.checkCompanyEditable, archiveExpense);

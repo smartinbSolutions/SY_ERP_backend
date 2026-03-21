@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const multer = require("multer");
 const ApiError = require("../utils/apiError");
 const { v4: uuidv4 } = require("uuid");
@@ -41,7 +42,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed."),
+        new ApiError("Invalid file type. Only images and PDFs are allowed.")
       );
     }
   },
@@ -67,21 +68,21 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
   const date_ob = new Date(ts);
   const futureDateOb = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth(),
+    date_ob.getMonth()
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}:${padZero(date_ob.getMilliseconds())}`;
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const formattedPayment = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const formattedDateAdd3 = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   let expense;
   const isoDate = `${req.body.date}T${formattedDateAdd3}Z`;
@@ -203,7 +204,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
             paymentID: payment._id,
           },
         ],
-      },
+      }
     );
     await createPaymentHistory(
       "payment",
@@ -218,7 +219,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "expense",
-      financialFunds.fundCurrency.currencyCode,
+      financialFunds.fundCurrency.currencyCode
     );
   } else {
     expense = await expensesModel.create(req.body);
@@ -242,7 +243,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     "",
     "",
     "expence",
-    req.body.currency.currencyCode,
+    req.body.currency.currencyCode
   );
   supplier.save();
   await createInvoiceHistory(
@@ -250,7 +251,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     expense._id,
     "create",
     req.user._id,
-    req.body.date,
+    req.body.date
   );
 
   // Send response
@@ -336,6 +337,53 @@ exports.getInvoiceExpenses = asyncHandler(async (req, res, next) => {
 
 //Get One invoice Expense
 //@rol: who has rol can Get the Expense's Data
+// exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
+//   const { id } = req.params;
+//   const companyId = req.query.companyId;
+
+//   if (!companyId) {
+//     return res.status(400).json({ message: "companyId is required" });
+//   }
+
+//   const expense = await expensesModel
+//     .findOne({
+//       _id: id,
+//       companyId,
+//     })
+//     .populate({
+//       path: "expenseCategory",
+//       select: "expenseCategoryName expenseCategoryDescription _id",
+//     });
+
+//   if (!expense) {
+//     return next(
+//       new ApiError(`There is no expense with this id or counter: ${id}`, 404)
+//     );
+//   }
+
+//   const pageSize = req.query.limit || 20;
+//   const page = parseInt(req.query.page) || 1;
+//   const skip = (page - 1) * pageSize;
+//   const totalItems = await invoiceHistoryModel.countDocuments({
+//     invoiceId: expense._id, // Always use the actual MongoID
+//   });
+
+//   const totalPages = Math.ceil(totalItems / pageSize);
+//   const casehistory = await invoiceHistoryModel
+//     .find({ invoiceId: expense._id, companyId })
+//     .populate({ path: "employeeId", select: "name email" })
+//     .sort({ createdAt: -1 })
+//     .skip(skip)
+//     .limit(pageSize);
+
+//   res.status(200).json({
+//     status: "true",
+//     Pages: totalPages,
+//     data: expense,
+//     history: casehistory,
+//   });
+// });
+
 exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const companyId = req.query.companyId;
@@ -344,19 +392,13 @@ exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const expense = await expensesModel
-    .findOne({
-      _id: id,
-      companyId,
-    })
-    .populate({
-      path: "expenseCategory",
-      select: "expenseCategoryName expenseCategoryDescription _id",
-    });
-
+  const expense = await expensesModel.findOne({
+    _id: id,
+    companyId,
+  });
   if (!expense) {
     return next(
-      new ApiError(`There is no expense with this id or counter: ${id}`, 404),
+      new ApiError(`There is no expense with this id or counter: ${id}`, 404)
     );
   }
 
@@ -411,7 +453,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds())}`;
   req.body.supllier = JSON.parse(req.body.supllier);
   req.body.currency = JSON.parse(req.body.currency);
@@ -421,9 +463,9 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds(),
+    futureDateOb.getMilliseconds()
   )}`;
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
 
@@ -450,7 +492,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     "",
     "",
     "expence",
-    req.body.currency.currencyCode,
+    req.body.currency.currencyCode
   );
 
   if (req.body.paymentStatus === "paid") {
@@ -464,7 +506,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      },
+      }
     );
     const financialFunds = await FinancialFundsModel.findById({
       _id: req.body.financialFund,
@@ -546,7 +588,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
           },
         },
       },
-      { new: true },
+      { new: true }
     );
 
     await createPaymentHistory(
@@ -562,7 +604,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "expence",
-      financialFunds.fundCurrency.currencyCode,
+      financialFunds.fundCurrency.currencyCode
     );
 
     if (req.body.supllier.id === expence.supllier.id) {
@@ -602,7 +644,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      },
+      }
     );
   }
 
@@ -611,7 +653,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString(),
+    new Date().toISOString()
   );
   res.status(200).json({ status: "true", message: "Expense updated" });
 });
@@ -643,7 +685,7 @@ exports.patchExpense = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString(),
+    new Date().toISOString()
   );
 
   res.status(200).json({
@@ -676,7 +718,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
             total: -expensesInvoices.expenceTotalMainCurrency,
             TotalUnpaid: -expensesInvoices.totalRemainderMainCurrency,
           },
-        },
+        }
       );
 
       await PaymentHistoryModel.deleteMany({
@@ -687,7 +729,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
         id,
         "cancel",
         req.user._id,
-        new Date().toISOString(),
+        new Date().toISOString()
       );
       expensesInvoices.type = "expenses cancelled";
       expensesInvoices.totalRemainderMainCurrency = 0;
@@ -700,7 +742,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
     }
   } else {
     return next(
-      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500),
+      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500)
     );
   }
 });
@@ -748,7 +790,7 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
 
     // Merge both arrays and sort by date if needed
     const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-      (a, b) => new Date(b.date) - new Date(a.date),
+      (a, b) => new Date(b.date) - new Date(a.date)
     );
 
     // Paginate the combined result
@@ -762,7 +804,7 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
       totalPages,
       data: paginatedData,
     });
-  },
+  }
 );
 
 exports.archiveExpense = asyncHandler(async (req, res, next) => {
@@ -775,7 +817,7 @@ exports.archiveExpense = asyncHandler(async (req, res, next) => {
   const expense = await expensesModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true },
+    { new: true }
   );
 
   if (!expense) {
@@ -786,6 +828,235 @@ exports.archiveExpense = asyncHandler(async (req, res, next) => {
     status: "success",
     data: expense,
   });
+});
+
+exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    /* -------------------- Counters -------------------- */
+    const expenseCounter = await counterModel.findOneAndUpdate(
+      { companyId, name: "expenses" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session }
+    );
+
+    const paymentCounter = await counterModel.findOneAndUpdate(
+      { companyId, name: "payments" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session }
+    );
+
+    function padZero(value) {
+      return value < 10 ? `0${value}` : value;
+    }
+
+    const ts = Date.now();
+    const date_ob = new Date(ts);
+    const futureDateOb = new Date(ts);
+    const formattedDate = `${date_ob.getFullYear()}-${padZero(
+      date_ob.getMonth()
+    )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
+      date_ob.getMinutes()
+    )}:${padZero(date_ob.getSeconds())}:${padZero(date_ob.getMilliseconds())}`;
+    futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
+
+    const formattedPayment = `${padZero(futureDateOb.getHours())}:${padZero(
+      futureDateOb.getMinutes()
+    )}:${padZero(futureDateOb.getSeconds())}.${padZero(
+      futureDateOb.getMilliseconds(),
+      3
+    )}`;
+
+    const formattedDateAdd3 = `${padZero(date_ob.getHours())}:${padZero(
+      date_ob.getMinutes()
+    )}:${padZero(date_ob.getSeconds())}.${padZero(
+      date_ob.getMilliseconds(),
+      3
+    )}`;
+    const isoDate = `${req.body.date}T${formattedDateAdd3}Z`;
+    req.body.date = isoDate;
+    const isoPaymentDate = `${req.body.paymentDate}T${formattedPayment}Z`;
+    req.body.paymentDate = isoPaymentDate;
+    /* -------------------- Dates -------------------- */
+    const expenseDate = req.body.date;
+    const paymentDate = req.body.paymentDate;
+
+    /* -------------------- Prepare Expense Data -------------------- */
+    const expenseData = {
+      ...req.body,
+      companyId,
+      invoiceNumber: Number(req.body.counter) + expenseCounter.seq,
+      expenseFile: req.file?.filename,
+      currency: JSON.parse(req.body.currency),
+      tag: JSON.parse(req.body.tag),
+      employeeID: req.user._id,
+      employeeName: req.user.name,
+      counters: req.body.counter,
+      counter: Number(req.body.counter) + expenseCounter.seq,
+      date: expenseDate,
+      paymentDate,
+      isCash: true,
+      categorts: JSON.parse(req.body.categorts),
+    };
+
+    /* -------------------- Financial Fund -------------------- */
+    const financialFunds = await FinancialFundsModel.findOne({
+      _id: req.body.financialFund,
+      companyId,
+    })
+      .populate("fundCurrency")
+      .session(session);
+
+    if (!financialFunds) {
+      throw new Error("Financial fund not found");
+    }
+    console.log(expenseData);
+
+    /* -------------------- Create Expense -------------------- */
+    const [expense] = await expensesModel.create([expenseData], { session });
+
+    /* -------------------- Update Fund Balance -------------------- */
+    financialFunds.fundBalance -= Number(expenseData.paymentInFundCurrency);
+    await financialFunds.save({ session });
+
+    /* -------------------- Create Payment -------------------- */
+    const [payment] = await paymentModel.create(
+      [
+        {
+          supplierId: "",
+          supplierName: "",
+          total: expenseData.paymentInInvoiceCurrency,
+          totalMainCurrency: expenseData.paymentInMainCurrency,
+          exchangeRate: financialFunds.fundCurrency.exchangeRate,
+          financialFundsCurrencyCode: financialFunds.fundCurrency.currencyCode,
+          financialFundsName: financialFunds.fundName,
+          financialFundsID: financialFunds._id,
+          date: paymentDate,
+          invoiceNumber: expenseCounter.seq,
+          invoiceID: expense._id,
+          counter: Number(expenseData.counters) + paymentCounter.seq,
+          type: "expense",
+          description: expenseData.paymentDisc,
+          invoiceCurrencyCode: expenseData.currency.currencyCode,
+          paymentInFundCurrency: expenseData.paymentInFundCurrency,
+          paymentText: "Withdrawal",
+          companyId,
+          payid: {
+            id: expense._id,
+            status: expenseData.paymentStatus,
+            invoiceTotal: expenseData.expenceTotal,
+            invoiceName: expenseData.expenseName,
+            invoiceCurrencyCode: expenseData.currency.currencyCode,
+            paymentInFundCurrency: expenseData.paymentInFundCurrency,
+            paymentMainCurrency: expenseData.paymentInMainCurrency,
+            paymentInvoiceCurrency: expenseData.paymentInInvoiceCurrency,
+          },
+        },
+      ],
+      { session }
+    );
+    console.log(paymentDate);
+
+    /* -------------------- Financial Fund Report -------------------- */
+    await ReportsFinancialFundsModel.create(
+      [
+        {
+          date: paymentDate,
+          amount: expenseData.paymentInFundCurrency,
+          ref: expense._id,
+          type: "expense",
+          financialFundId: financialFunds._id,
+          financialFundRest: financialFunds.fundBalance,
+          exchangeRate: expenseData.currencyExchangeRate,
+          paymentType: "Withdrawal",
+          payment: payment._id,
+          description: expenseData.paymentDisc,
+          companyId,
+        },
+      ],
+      { session }
+    );
+
+    /* -------------------- Update Expense Payments -------------------- */
+    await expensesModel.updateOne(
+      { _id: expense._id, companyId },
+      {
+        $push: {
+          payments: {
+            payment: expenseData.paymentInFundCurrency,
+            paymentInInvoiceCurrency: expenseData.paymentInInvoiceCurrency,
+            paymentMainCurrency: expenseData.paymentInMainCurrency,
+            financialFunds: financialFunds.fundName,
+            financialFundsCurrencyCode:
+              financialFunds.fundCurrency.currencyCode,
+            date: paymentDate,
+            paymentID: payment._id,
+          },
+        },
+      },
+      { session }
+    );
+
+    /* -------------------- Histories -------------------- */
+    await createPaymentHistory(
+      "payment",
+      paymentDate,
+      expenseData.paymentInMainCurrency,
+      expenseData.paymentInFundCurrency,
+      "",
+      "",
+      expense._id,
+      companyId,
+      expenseData.description,
+      payment._id,
+      "Deposit",
+      "expense",
+      financialFunds.fundCurrency.currencyCode,
+      session
+    );
+
+    await createPaymentHistory(
+      "invoice",
+      expenseDate,
+      expenseData.expenceTotalMainCurrency,
+      expenseData.expenceTotal,
+      "",
+      "",
+      expense._id,
+      companyId,
+      expenseData.description,
+      "",
+      "",
+      "expense",
+      expenseData.currency.currencyCode,
+      session
+    );
+
+    await createInvoiceHistory(
+      companyId,
+      expense._id,
+      "create",
+      req.user._id,
+      expenseDate
+    );
+
+    /* -------------------- Commit -------------------- */
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({ status: "success", data: expense });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    next(err);
+  }
 });
 
 /*
