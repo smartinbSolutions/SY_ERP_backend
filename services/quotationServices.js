@@ -14,7 +14,7 @@ exports.createCashQuotation = asyncHandler(async (req, res, next) => {
   req.body.counter = Number(req.body.counter) + nextCounter;
   console.log(nextCounter);
   console.log("After", req.body.counter);
-  // const quotation = await quotationModel.create(req.body);
+  const quotation = await quotationModel.create(req.body);
   if (!quotation) {
     return next(new ApiError("The cart is empty", 400));
   }
