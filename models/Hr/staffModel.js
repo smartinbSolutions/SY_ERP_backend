@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const StaffSchema = new mongoose.Schema(
   {
-    /* ================= BASIC INFO ================= */
     fullName: {
       type: String,
       trim: true,
@@ -28,22 +27,8 @@ const StaffSchema = new mongoose.Schema(
     dateOfBirth: Date,
 
     gender: {
-      String,
+      type: String,
     },
-    leaveBalances: [
-      {
-        leaveType: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "leaves",
-          required: true,
-        },
-        remainingDays: {
-          type: Number,
-          required: true,
-        },
-        _id: false,
-      },
-    ],
 
     nationality: String,
     maritalStatus: String,
@@ -53,14 +38,11 @@ const StaffSchema = new mongoose.Schema(
       default: "",
     },
 
-    /* ================= IMAGES ================= */
     profileImage: String,
 
-    /* ================= ADDRESS ================= */
     city: String,
     homeAddress: String,
 
-    /* ================= COMPANY STRUCTURE ================= */
     branch: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "branches",
@@ -81,7 +63,6 @@ const StaffSchema = new mongoose.Schema(
       ref: "Groups",
     },
 
-    /* ================= AUTH ================= */
     roleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Roles",
@@ -99,16 +80,14 @@ const StaffSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    /* ================= MANAGEMENT ================= */
+
     directManager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "staff",
     },
 
-    /* ================= HR DATA ================= */
-    hireDate: {
-      String,
-    },
+    hireDate: Date,
+
     probationPeriod: String,
     probationEndDate: Date,
 
@@ -130,18 +109,15 @@ const StaffSchema = new mongoose.Schema(
       ref: "Currency",
     },
 
-    dateSalaryDue: String,
+    dateSalaryDue: Number,
 
-    /* ================= EMERGENCY CONTACT ================= */
     emergencyContact: {
       name: String,
       phone: String,
     },
 
-    /* ================= TAGS ================= */
     tags: [String],
 
-    /* ================= BANK DETAILS ================= */
     bankDetails: {
       bankName: String,
       accountName: String,
@@ -150,7 +126,6 @@ const StaffSchema = new mongoose.Schema(
       iban: String,
     },
 
-    /* ================= EDUCATION ================= */
     education: {
       highestLevel: String,
       degreeMajor: String,
@@ -158,7 +133,7 @@ const StaffSchema = new mongoose.Schema(
       graduationYear: Number,
       licenseNumbers: [String],
     },
-    /* ================= CUSTOM ATTRIBUTES ================= */
+
     customAttributes: [
       {
         key: {
@@ -173,7 +148,6 @@ const StaffSchema = new mongoose.Schema(
       },
     ],
 
-    /* ================= SYSTEM ================= */
     companyId: {
       type: String,
       required: true,
@@ -188,7 +162,6 @@ const StaffSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-/* ================= FILE URL FORMATTER ================= */
 const setProfileImageURL = (doc) => {
   if (doc.profileImage) {
     doc.profileImage = doc.profileImage.startsWith("http")
@@ -197,7 +170,6 @@ const setProfileImageURL = (doc) => {
   }
 };
 
-/* ================= STAFF HOOKS ================= */
 StaffSchema.post("init", function (doc) {
   setProfileImageURL(doc);
 });

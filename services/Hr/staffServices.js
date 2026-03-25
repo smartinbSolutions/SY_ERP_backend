@@ -78,7 +78,6 @@ exports.processStaffFiles = asyncHandler(async (req, res, next) => {
       ? "png"
       : file.originalname.split(".").pop().toLowerCase();
 
-    // ✅ اسم الملف فقط (بدون مسار)
     const filename = `staffFile-${uuidv4()}-${Date.now()}.${extension}`;
     const filepath = `${dir}/${filename}`;
 
@@ -92,7 +91,7 @@ exports.processStaffFiles = asyncHandler(async (req, res, next) => {
     }
 
     req.savedFiles.push({
-      fileUrl: `hrDocs/${filename}`, // ✅ بدون uploads
+      fileUrl: `hrDocs/${filename}`,
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
@@ -115,9 +114,6 @@ exports.getStaff = asyncHandler(async (req, res) => {
 
   let query = { companyId };
 
-  // =========================
-  //  Search by keyword
-  // =========================
   if (req.query.keyword) {
     query.$or = [
       { fullName: { $regex: req.query.keyword, $options: "i" } },
@@ -126,28 +122,16 @@ exports.getStaff = asyncHandler(async (req, res) => {
     ];
   }
 
-  // =========================
-  //  Filter by Branch
-  // =========================
   if (req.query.branch) {
     query.branch = req.query.branch;
   }
 
-  // =========================
-  //  Filter by Position
-  // =========================
   if (req.query.position) {
     query.position = req.query.position;
   }
 
-  // =========================
-  //  Count
-  // =========================
   const totalItems = await StaffsModel.countDocuments(query);
 
-  // =========================
-  // Fetch Data
-  // =========================
   const staffs = await StaffsModel.find(query)
     .skip(skip)
     .limit(limit)
@@ -176,29 +160,34 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
   req.body.companyId = companyId;
 
-  // if (req.body.tags) {
-  //   req.body.tags = JSON.parse(req.body.tags);
-  // }
-
   const employeePass = generatePassword();
 
-  await sendEmail({
-    email: req.body.email,
-    subject: "New Account Password",
-    message: `Hello ${req.body.name}, your password is: ${employeePass}`,
-  });
+  if (req.body.email) {
+    await sendEmail({
+      email: req.body.email,
+      subject: "New Account Password",
+      message: `Hello ${req.body.fullName}, your password is: ${employeePass}`,
+    });
+  }
 
   req.body.password = await bcrypt.hash(employeePass, 12);
+
   if (
     req.body.customAttributes &&
     typeof req.body.customAttributes === "string"
   ) {
-    req.body.customAttributes = JSON.parse(req.body.customAttributes);
+    try {
+      req.body.customAttributes = JSON.parse(req.body.customAttributes);
+    } catch (err) {
+      return res.status(400).json({
+        message: "Invalid customAttributes JSON",
+      });
+    }
   }
 
   const staff = await StaffsModel.create(req.body);
 
-  if (req.body.staffFilesMeta && req.savedFiles.length) {
+  if (req.body.staffFilesMeta && req.savedFiles && req.savedFiles.length) {
     const filesMeta = JSON.parse(req.body.staffFilesMeta);
 
     const staffFilesDocs = req.savedFiles.map((file, index) => ({
@@ -250,8 +239,15 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
+  // 🔧 CHANGE 5: protect JSON.parse for tags
   if (req.body.tags) {
-    req.body.tags = JSON.parse(req.body.tags);
+    try {
+      req.body.tags = JSON.parse(req.body.tags);
+    } catch {
+      return res.status(400).json({
+        message: "Invalid tags format",
+      });
+    }
   }
 
   const staff = await StaffsModel.findOneAndUpdate(
