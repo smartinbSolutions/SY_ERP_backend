@@ -107,6 +107,7 @@ const advancePolicyRoute = require("./Hr/advancePolicyRoute");
 const advanceRequestRoute = require("./Hr/advanceRequestRoute");
 const advanceTypesRoute = require("./Hr/advanceTypesRoute");
 const approvalFlowRoute = require("./Hr/approvalFlowRoute");
+const manufacturingRoute = require("./manufacturing/manufacturingRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -239,5 +240,7 @@ const mountRoutes = (app) => {
   app.use("/api/v1/income-statement", incomeStatementRoute);
   app.use("/api/v1/balance-sheet-statement", balanceSheetsStatementRoute);
   app.use("/api/v1/cash-flow", cashFlowRoute);
+  //Manufacturing
+  app.use("/api/manufacturing", manufacturingRoute);
 };
 module.exports = mountRoutes;

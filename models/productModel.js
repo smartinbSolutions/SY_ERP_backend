@@ -16,6 +16,7 @@ const productSchema = new mongoose.Schema(
     },
     type: {
       type: String,
+      enum: ["Normal", "Service", "rawmaterial", "manufactured"],
       default: "Normal",
     },
     description: {
