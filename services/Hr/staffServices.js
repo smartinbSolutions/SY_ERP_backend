@@ -220,6 +220,8 @@ exports.getOneStaff = asyncHandler(async (req, res, next) => {
     companyId,
   })
     .populate("currency")
+    .populate("branch")
+    .populate("department")
     .populate("position");
 
   if (!staff) {
@@ -246,6 +248,18 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
     } catch {
       return res.status(400).json({
         message: "Invalid tags format",
+      });
+    }
+  }
+  if (
+    req.body.customAttributes &&
+    typeof req.body.customAttributes === "string"
+  ) {
+    try {
+      req.body.customAttributes = JSON.parse(req.body.customAttributes);
+    } catch (err) {
+      return res.status(400).json({
+        message: "Invalid customAttributes JSON",
       });
     }
   }

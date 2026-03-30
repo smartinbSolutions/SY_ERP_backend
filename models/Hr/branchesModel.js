@@ -15,11 +15,11 @@ const branchesSchema = new mongoose.Schema(
       name: String,
       latitude: {
         type: Number,
-        required: true,
+        // required: true,
       },
       longitude: {
         type: Number,
-        required: true,
+        // required: true,
       },
     },
     email: String,
