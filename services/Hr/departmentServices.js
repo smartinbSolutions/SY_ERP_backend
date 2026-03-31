@@ -31,8 +31,8 @@ exports.getAllDepartments = asyncHandler(async (req, res, next) => {
   }
 
   // Pagination
-  const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const page = parseInt(req.query.page) || 1;
+const limit = parseInt(req.query.limit) || 0;
   const skip = (page - 1) * limit;
 
   const total = await departmentModel.countDocuments(query);
@@ -41,7 +41,7 @@ exports.getAllDepartments = asyncHandler(async (req, res, next) => {
     .find(query)
     .skip(skip)
     .limit(limit)
-    .sort({ createdAt: -1 })
+    // .sort({ createdAt: -1 })
     .populate("branchId");
 
   res.status(200).json({

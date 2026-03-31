@@ -1,16 +1,16 @@
+const e = require("express");
 const ApprovalFlow = require("../../models/Hr/approvalFlowModel");
 const { default: mongoose } = require("mongoose");
 
 // ===== Validation Function =====
 const validateApprovalSteps = (steps) => {
-  if (!Array.isArray(steps) || steps.length === 0) {
-    throw new Error("Approval flow must contain at least one step");
-  }
-
   const stepNumbers = new Set();
+  let directManagerCount = 0;
 
   for (const step of steps) {
-    if (!step.stepNumber) throw new Error("Each step must have a stepNumber");
+    if (!step.stepNumber) {
+      throw new Error("Each step must have a stepNumber");
+    }
 
     if (stepNumbers.has(step.stepNumber)) {
       throw new Error(`Duplicate stepNumber: ${step.stepNumber}`);
@@ -18,34 +18,42 @@ const validateApprovalSteps = (steps) => {
 
     stepNumbers.add(step.stepNumber);
 
+    if (step.isDirectManager) {
+      directManagerCount++;
+      continue; 
+    }
+
     if (!step.approver) {
       throw new Error(`Approver is required for step ${step.stepNumber}`);
     }
 
     const { employeeId, positionId } = step.approver;
 
-    if (!employeeId) {
+    if (!employeeId || !positionId) {
       throw new Error(
-        `employeeId is required in approver for step ${step.stepNumber}`,
+        `Both employeeId and positionId are required in step ${step.stepNumber}`,
       );
     }
+  }
 
-    if (!positionId) {
-      throw new Error(
-        `positionId is required in approver for step ${step.stepNumber}`,
-      );
-    }
+  if (directManagerCount > 1) {
+    throw new Error("Only one direct manager step is allowed");
   }
 };
 
 // ===== Create Approval Flow =====
-const createApprovalFlow = async ({ name, module, steps, companyId }) => {
+exports.createApprovalFlow = async ({ name, companyId, steps }) => {
   validateApprovalSteps(steps);
-  const flow = await ApprovalFlow.create({ name, module, steps, companyId });
+  const flow = await ApprovalFlow.create({
+    name,
+    companyId,
+    steps,
+  });
+
   return flow;
 };
 
-const getAllApprovalFlows = async ({
+exports.getAllApprovalFlows = async ({
   companyId,
   module,
   page = 1,
@@ -89,32 +97,33 @@ const getAllApprovalFlows = async ({
 };
 
 // ===== Get Single Approval Flow =====
-const getApprovalFlowById = async ({ companyId, id }) => {
+exports.getApprovalFlowById = async ({ companyId, id }) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid ID format");
   }
 
-  const flow = await ApprovalFlow.findOne({ _id: id, companyId }).populate({
-    path: "steps.approver.employeeId",
-    select: "fullName ",
-  }).populate({
-    path: "steps.approver.positionId",
-    select: "name",
-  });
+  const flow = await ApprovalFlow.findOne({ _id: id, companyId })
+    .populate({
+      path: "steps.approver.employeeId",
+      select: "fullName ",
+    })
+    .populate({
+      path: "steps.approver.positionId",
+      select: "name",
+    });
   if (!flow) throw new Error(`No approval flow found with ID: ${id}`);
   return flow;
 };
 
 // ===== Update Approval Flow =====
-const updateApprovalFlow = async ({ companyId, id, updates }) => {
+exports.updateApprovalFlow = async ({ id, companyId, updates }) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid ID format");
   }
 
-  if (updates.steps) validateApprovalSteps(updates.steps);
-
-  // Prevent changing companyId
-  delete updates.companyId;
+  if (updates.steps) {
+    validateApprovalSteps(updates.steps);
+  }
 
   const flow = await ApprovalFlow.findOneAndUpdate(
     { _id: id, companyId },
@@ -123,11 +132,12 @@ const updateApprovalFlow = async ({ companyId, id, updates }) => {
   );
 
   if (!flow) throw new Error("Approval flow not found");
+
   return flow;
 };
 
 // ===== Delete Approval Flow =====
-const deleteApprovalFlow = async ({ companyId, id }) => {
+exports.deleteApprovalFlow = async ({ companyId, id }) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid ID format");
   }
@@ -135,12 +145,4 @@ const deleteApprovalFlow = async ({ companyId, id }) => {
   const flow = await ApprovalFlow.findOneAndDelete({ _id: id, companyId });
   if (!flow) throw new Error("Approval flow not found");
   return flow;
-};
-
-module.exports = {
-  createApprovalFlow,
-  getAllApprovalFlows,
-  getApprovalFlowById,
-  updateApprovalFlow,
-  deleteApprovalFlow,
 };

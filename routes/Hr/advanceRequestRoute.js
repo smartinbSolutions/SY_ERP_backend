@@ -6,11 +6,11 @@ const {
   getAllAdvanceRequests,
   getMyAdvanceRequests,
   handleAdvanceRequest,
-  processAdvanceAttachment,
   updateAdvanceRequest,
-  uploadAdvanceAttachment,
   getMyApprovals,
-} = require("../../services/Hr/advanceRequestService");
+  processAdvanceAttachment,
+  uploadAdvanceAttachment,
+} = require("../../controllers/Hr/advanceRequest.controller");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 

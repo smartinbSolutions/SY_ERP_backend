@@ -9,11 +9,11 @@ const positionsSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "departments",
     },
-    jobgradeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "jobgrades",
-      required: true,
-    },
+    // jobgradeId: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "jobgrades",
+    //   required: true,
+    // },
     parentPositions: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Positions",
@@ -23,7 +23,7 @@ const positionsSchema = new mongoose.Schema(
       min: String,
       max: String,
     },
-    children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Positions" }],
+    // children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Positions" }],
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,
@@ -31,7 +31,7 @@ const positionsSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Positions", positionsSchema);

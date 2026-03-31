@@ -6,7 +6,7 @@ const {
   getAllApprovalFlows,
   getOneApprovalFlow,
   updateApprovalFlow,
-} = require("../../controllers/Hr/approvalFlowController");
+} = require("../../controllers/Hr/approvalFlow.controller");
 
 const approvalFlowRoute = express.Router();
 

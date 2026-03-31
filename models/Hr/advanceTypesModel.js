@@ -27,7 +27,6 @@ const advanceTypeSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Max percentage of salary is required"],
       min: [0.01, "Must be greater than 0"],
-      max: [100, "Cannot exceed 100%"],
     },
 
     requiresAttachment: {

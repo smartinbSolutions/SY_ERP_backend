@@ -10,8 +10,15 @@ const {
 
 const leavesRoute = express.Router();
 
-leavesRoute.route("/").get(getAllLeaves).post(createLeave);
+leavesRoute
+  .route("/")
+  .get(authService.protect, getAllLeaves)
+  .post(authService.protect, createLeave);
 
-leavesRoute.route("/:id").get(getOneLeave).put(updateLeave).delete(deleteLeave);
+leavesRoute
+  .route("/:id")
+  .get(authService.protect, getOneLeave)
+  .put(authService.protect, updateLeave)
+  .delete(authService.protect, deleteLeave);
 
 module.exports = leavesRoute;

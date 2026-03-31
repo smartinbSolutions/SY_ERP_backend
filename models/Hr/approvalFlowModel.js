@@ -13,12 +13,17 @@ const approvalFlowSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    includeDirectManager: { type: Boolean, default: false },
+
     steps: [
       {
         stepNumber: {
           type: Number,
           required: true,
+        },
+
+        isDirectManager: {
+          type: Boolean,
+          default: false,
         },
 
         approver: {
@@ -35,7 +40,9 @@ const approvalFlowSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 module.exports = mongoose.model("ApprovalFlow", approvalFlowSchema);

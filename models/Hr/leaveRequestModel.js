@@ -92,14 +92,8 @@ const leaveRequestSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
-
-    managerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "staff",
-      required: true,
-    },
   },
-  {
+  { 
     timestamps: true,
   },
 );

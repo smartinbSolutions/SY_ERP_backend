@@ -6,7 +6,7 @@ const {
   getAllPolicies,
   getOnePolicy,
   updatePolicy,
-} = require("../../services/Hr/advancePolicyService");
+} = require("../../controllers/Hr/advancePolicy.controller");
 
 const advancePolicyRoute = express.Router();
 

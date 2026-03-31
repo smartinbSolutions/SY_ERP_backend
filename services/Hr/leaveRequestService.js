@@ -12,6 +12,7 @@ const { handleApproval } = require("./approvalService");
 const leaveRequestModel = require("../../models/Hr/leaveRequestModel");
 const multerStorage = multer.memoryStorage();
 const mongoose = require("mongoose");
+const NotificationModel = require("../../models/Hr/NotificationModel");
 
 const attachmentFilter = function (req, file, cb) {
   const allowedTypes = [
@@ -114,7 +115,6 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
       endDate,
       reason,
       days,
-      managerId,
       attachment: attachment || null,
       approval: {
         flowId: flow._id,
@@ -304,7 +304,6 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Already processed", 400));
     }
 
-    console.log("Calling handleApproval for leave request:", request._id);
 
     const updatedRequest = await handleApproval(
       request,
@@ -314,7 +313,6 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       session,
     );
 
-    console.log("handleApproval returned, status:", updatedRequest.status);
 
     if (updatedRequest.status === "approved") {
       updatedRequest.approvedAt = new Date();
@@ -343,6 +341,14 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
         updatedRequest._id,
       );
     }
+
+    await NotificationModel.create({
+      recipient: updatedRequest.userId,
+      actor: req.user._id,
+      title: `Leave ${updatedRequest.status.charAt(0).toUpperCase() + updatedRequest.status.slice(1)}`,
+      message: `Your leave request status changed to ${updatedRequest.status}`,
+      entity: { id: updatedRequest._id, model: "LeaveRequest" },
+    });
 
     await session.commitTransaction();
     session.endSession();
