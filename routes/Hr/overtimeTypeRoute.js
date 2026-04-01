@@ -1,6 +1,6 @@
 const express = require("express");
 const authService = require("../../services/authService");
-// const staffAuthService = require("../../services/Hr/hrAuthServices");
+const staffAuthService = require("../../services/Hr/hrAuthServices");
 
 const {
   createOvertimeType,
@@ -16,6 +16,10 @@ overtimeTypeRoute
   .route("/")
   .get(authService.protect, getAllOvertimeTypes)
   .post(authService.protect, createOvertimeType);
+
+overtimeTypeRoute
+  .route("/staff")
+  .get(staffAuthService.protectStaffOrERP, getAllOvertimeTypes);
 
 overtimeTypeRoute
   .route("/:id")

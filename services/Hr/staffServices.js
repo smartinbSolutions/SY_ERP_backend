@@ -222,8 +222,10 @@ exports.getOneStaff = asyncHandler(async (req, res, next) => {
     .populate("currency")
     .populate("branch")
     .populate("department")
-    .populate("position");
-
+    .populate("position")
+    .populate("directManager")
+    .populate("groupId");
+    
   if (!staff) {
     return next(new ApiError("Staff not found", 404));
   }

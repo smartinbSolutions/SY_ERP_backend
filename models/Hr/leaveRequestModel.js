@@ -53,8 +53,6 @@ const leaveRequestSchema = new mongoose.Schema(
     },
 
     approvedAt: Date,
-    rejectionReason: String,
-
     leaveType: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Leave",

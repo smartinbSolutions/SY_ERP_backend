@@ -11,6 +11,7 @@ const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
 const { handleApproval } = require("./approvalService");
 const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
 const overtimeRequestModel = require("../../models/Hr/overtimeRequestModel");
+const NotificationModel = require("../../models/Hr/NotificationModel");
 
 // ================= MULTER =================
 
@@ -83,7 +84,13 @@ exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
     if (!type) return next(new ApiError("Overtime type not found", 404));
 
     const flowId = type.approvalFlow || type.policyId?.approvalFlow;
+
+    console.log(flowId);
+    
     const flow = await approvalFlowModel.findById(flowId);
+
+    console.log(flow);
+    
     if (!flow) return next(new ApiError("Approval flow not found", 404));
 
     let approvalSteps = [];
@@ -326,6 +333,7 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       req.user._id,
       action,
       reason,
+      session,
     );
 
     if (updatedRequest.status === "approved") {
@@ -353,6 +361,24 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       await updatedRequest.save({ session });
     }
 
+    await NotificationModel.create(
+      [
+        {
+          recipient: updatedRequest.userId,
+          actor: req.user._id,
+          title: `Overtime ${
+            updatedRequest.status.charAt(0).toUpperCase() +
+            updatedRequest.status.slice(1)
+          }`,
+          message: `Your overtime request status changed to ${updatedRequest.status}`,
+          entity: {
+            id: updatedRequest._id,
+            model: "OvertimeRequest",
+          },
+        },
+      ],
+      { session },
+    );
     await session.commitTransaction();
     session.endSession();
 

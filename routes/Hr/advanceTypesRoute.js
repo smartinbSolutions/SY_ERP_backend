@@ -1,6 +1,6 @@
 const express = require("express");
 const authService = require("../../services/authService");
-// const staffAuthService = require("../../services/Hr/hrAuthServices");
+const staffAuthService = require("../../services/Hr/hrAuthServices");
 
 const {
   deleteAdvanceType,
@@ -16,6 +16,10 @@ advanceTypeRoute
   .route("/")
   .get(authService.protect, getAllAdvanceTypes)
   .post(authService.protect, createAdvanceType);
+
+advanceTypeRoute
+  .route("/staff")
+  .get(staffAuthService.protectStaffOrERP, getAllAdvanceTypes);
 
 advanceTypeRoute
   .route("/:id")

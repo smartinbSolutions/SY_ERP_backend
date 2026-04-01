@@ -74,9 +74,12 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
 
     const flowId = leave.approvalFlow || leave.policyId?.approvalFlow;
     if (!flowId) return next(new ApiError("Approval flow not found", 404));
-
+      console.log(flowId);
+      
     const flow = await approvalFlowModel.findById(flowId);
     if (!flow) return next(new ApiError("Approval flow not found", 404));
+      console.log(flowId);
+      
 
     let approvalSteps = [];
     let stepCounter = 1;
@@ -281,6 +284,9 @@ exports.updateLeaveRequest = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: true, data: request });
 });
 
+///
+///
+
 exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
@@ -304,7 +310,6 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Already processed", 400));
     }
 
-
     const updatedRequest = await handleApproval(
       request,
       req.user._id,
@@ -312,7 +317,6 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       reason,
       session,
     );
-
 
     if (updatedRequest.status === "approved") {
       updatedRequest.approvedAt = new Date();
@@ -342,13 +346,18 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       );
     }
 
-    await NotificationModel.create({
-      recipient: updatedRequest.userId,
-      actor: req.user._id,
-      title: `Leave ${updatedRequest.status.charAt(0).toUpperCase() + updatedRequest.status.slice(1)}`,
-      message: `Your leave request status changed to ${updatedRequest.status}`,
-      entity: { id: updatedRequest._id, model: "LeaveRequest" },
-    });
+    await NotificationModel.create(
+      [
+        {
+          recipient: updatedRequest.userId,
+          actor: req.user._id,
+          title: `Leave ${updatedRequest.status.charAt(0).toUpperCase() + updatedRequest.status.slice(1)}`,
+          message: `Your leave request status changed to ${updatedRequest.status}`,
+          entity: { id: updatedRequest._id, model: "LeaveRequest" },
+        },
+      ],
+      { session },
+    );
 
     await session.commitTransaction();
     session.endSession();

@@ -4,6 +4,7 @@ const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
 const advanceTypesModel = require("../../models/Hr/advanceTypesModel");
 const { default: mongoose } = require("mongoose");
 const { handleApproval } = require("./approvalService");
+const NotificationModel = require("../../models/Hr/NotificationModel");
 
 // ================= CREATE =================
 exports.createAdvanceRequest = async (data) => {
@@ -85,7 +86,9 @@ exports.handleApprovalTransaction = async (
   );
 
   if (updatedRequest.status === "approved") {
-    if (!updatedRequest.approvedAt) updatedRequest.approvedAt = new Date();
+    if (!updatedRequest.approvedAt) {
+      updatedRequest.approvedAt = new Date();
+    }
 
     await advanceLogsModel.create(
       [
@@ -108,6 +111,25 @@ exports.handleApprovalTransaction = async (
 
     await updatedRequest.save({ session });
   }
+
+  await NotificationModel.create(
+    [
+      {
+        recipient: updatedRequest.userId,
+        actor: userId,
+        title: `Advance ${
+          updatedRequest.status.charAt(0).toUpperCase() +
+          updatedRequest.status.slice(1)
+        }`,
+        message: `Your advance request status changed to ${updatedRequest.status}`,
+        entity: {
+          id: updatedRequest._id,
+          model: "AdvanceRequest",
+        },
+      },
+    ],
+    { session },
+  );
 
   return updatedRequest;
 };
