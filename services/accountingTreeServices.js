@@ -196,16 +196,39 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
 
   try {
     /* ============================================
-       1) GET ACCOUNTS (lean + populate)
+       1) GET ACCOUNTS
     ============================================ */
     const accounts = await AccountingTree.find({ companyId })
       .populate("currency")
       .lean();
 
     /* ============================================
-       2) JOURNAL AGGREGATION (server-side)
-       NOTE: journalDate is String in your schema, so we must parse it.
-       Long-term: store journalDate as Date for index usage.
+       2) OPTIONAL DATA HEALTH CHECK
+       - detect duplicate codes inside same company
+       - should not break request, but log loudly
+    ============================================ */
+    const codeCounts = Object.create(null);
+
+    for (const acc of accounts) {
+      const code = String(acc.code || "").trim();
+      if (!code) continue;
+      codeCounts[code] = (codeCounts[code] || 0) + 1;
+    }
+
+    const duplicateCodes = Object.entries(codeCounts)
+      .filter(([, count]) => count > 1)
+      .map(([code, count]) => ({ code, count }));
+
+    if (duplicateCodes.length) {
+      console.error(
+        "Duplicate account codes found in AccountingTree:",
+        duplicateCodes
+      );
+    }
+
+    /* ============================================
+       3) JOURNAL AGGREGATION
+       NOTE: journalDate is String in schema
     ============================================ */
     const pipeline = [
       { $match: { companyId } },
@@ -237,9 +260,11 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
       { $unwind: "$journalAccounts" },
       {
         $group: {
-          _id: { $toString: "$journalAccounts.id" }, // normalize
-          totalDebit: { $sum: "$journalAccounts.MainDebit" },
-          totalCredit: { $sum: "$journalAccounts.MainCredit" },
+          _id: { $toString: "$journalAccounts.id" },
+          totalDebit: { $sum: { $ifNull: ["$journalAccounts.MainDebit", 0] } },
+          totalCredit: {
+            $sum: { $ifNull: ["$journalAccounts.MainCredit", 0] },
+          },
         },
       }
     );
@@ -247,9 +272,10 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     const journalSums = await journalEntryModel.aggregate(pipeline);
 
     /* ============================================
-       3) BALANCE MAP (accountId -> totals)
+       4) BALANCE MAP (accountId -> totals)
     ============================================ */
     const balanceMap = Object.create(null);
+
     for (const j of journalSums) {
       balanceMap[String(j._id)] = {
         totalDebit: Number(j.totalDebit || 0),
@@ -258,70 +284,127 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     }
 
     /* ============================================
-       4) BUILD ACCOUNT MAP (code -> node)
-       ✅ Project only needed fields (lighter payload)
-       ✅ Normalize initial balance using balanceType
+       5) BUILD NODE MAPS
+       - nodeById: true node identity
+       - idByCode: fallback lookup only
     ============================================ */
-    const accountMap = Object.create(null);
+    const nodeById = Object.create(null);
+    const idByCode = Object.create(null);
 
     for (const acc of accounts) {
       const idStr = String(acc._id);
+      const codeStr = String(acc.code || "").trim();
+      const parentCodeStr = acc.parentCode
+        ? String(acc.parentCode).trim()
+        : null;
+      const parentIdStr = acc.parentId ? String(acc.parentId).trim() : null;
+
       const bal = balanceMap[idStr] || { totalDebit: 0, totalCredit: 0 };
+      const totalDebit = Number(bal.totalDebit || 0);
+      const totalCredit = Number(bal.totalCredit || 0);
 
-      const totalDebit = bal.totalDebit;
-      const totalCredit = bal.totalCredit;
-      const balance = calcBalanceByType(acc, totalDebit, totalCredit);
-
-      accountMap[String(acc.code)] = {
+      nodeById[idStr] = {
         _id: acc._id,
         name: acc.name,
         nameAr: acc.nameAr,
         nameTr: acc.nameTr,
-        code: acc.code,
+        code: codeStr,
         accountType: acc.accountType,
         balanceType: acc.balanceType,
-        parentId: acc.parentId,
-        parentCode: acc.parentCode,
+        parentId: parentIdStr,
+        parentCode: parentCodeStr,
         currency: acc.currency || null,
-
-        // ✅ calculated fields (leaf base totals)
         totalDebit,
         totalCredit,
-        balance,
-
+        balance: calcBalanceByType(acc, totalDebit, totalCredit),
         children: [],
       };
-    }
 
-    /* ============================================
-       5) BUILD TREE STRUCTURE
-    ============================================ */
-    const tree = [];
-    for (const acc of accounts) {
-      const node = accountMap[String(acc.code)];
-      if (!node) continue;
-
-      if (acc.parentCode && accountMap[String(acc.parentCode)]) {
-        accountMap[String(acc.parentCode)].children.push(node);
-      } else {
-        tree.push(node);
+      // keep first seen code as fallback reference
+      if (codeStr && !idByCode[codeStr]) {
+        idByCode[codeStr] = idStr;
       }
     }
 
     /* ============================================
-       6) RECURSIVE ROLLUP (parent totals)
-       ✅ parent totals include children totals
-       ✅ balanceType normalization for every node
+       6) BUILD TREE STRUCTURE
+       - prefer parentId
+       - fallback to parentCode
+       - prevent duplicate attachment
     ============================================ */
-    const rollup = (node) => {
+    const tree = [];
+    const attachedNodeIds = new Set();
+
+    for (const acc of accounts) {
+      const idStr = String(acc._id);
+      const node = nodeById[idStr];
+      if (!node) continue;
+
+      const rawParentId = acc.parentId ? String(acc.parentId).trim() : null;
+      const rawParentCode = acc.parentCode
+        ? String(acc.parentCode).trim()
+        : null;
+
+      let parentNode = null;
+
+      if (rawParentId && nodeById[rawParentId]) {
+        parentNode = nodeById[rawParentId];
+      } else if (rawParentCode && idByCode[rawParentCode]) {
+        parentNode = nodeById[idByCode[rawParentCode]];
+      }
+
+      if (parentNode) {
+        const alreadyInParent = parentNode.children.some(
+          (child) => String(child._id) === idStr
+        );
+
+        if (!alreadyInParent) {
+          parentNode.children.push(node);
+        }
+
+        attachedNodeIds.add(idStr);
+      } else {
+        if (!attachedNodeIds.has(idStr)) {
+          const alreadyInTree = tree.some((root) => String(root._id) === idStr);
+          if (!alreadyInTree) {
+            tree.push(node);
+          }
+          attachedNodeIds.add(idStr);
+        }
+      }
+    }
+
+    /* ============================================
+       7) ROLLUP
+       - protect against accidental cycles
+    ============================================ */
+    const rollup = (node, visited = new Set()) => {
+      const nodeId = String(node._id);
+
+      if (visited.has(nodeId)) {
+        console.error("Cycle detected in accounting tree at node:", {
+          _id: nodeId,
+          code: node.code,
+          name: node.name,
+        });
+
+        return {
+          totalDebit: Number(node.totalDebit || 0),
+          totalCredit: Number(node.totalCredit || 0),
+        };
+      }
+
+      visited.add(nodeId);
+
       let debitSum = Number(node.totalDebit || 0);
       let creditSum = Number(node.totalCredit || 0);
 
-      const kids = node.children || [];
+      const kids = Array.isArray(node.children) ? node.children : [];
+
       for (const child of kids) {
-        const childTotals = rollup(child);
-        debitSum += childTotals.totalDebit;
-        creditSum += childTotals.totalCredit;
+        const childTotals = rollup(child, new Set(visited));
+        debitSum += Number(childTotals.totalDebit || 0);
+        creditSum += Number(childTotals.totalCredit || 0);
       }
 
       node.totalDebit = debitSum;
@@ -331,18 +414,17 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
       return { totalDebit: debitSum, totalCredit: creditSum };
     };
 
-    for (const node of tree) rollup(node);
+    for (const node of tree) {
+      rollup(node);
+    }
 
     /* ============================================
-       7) SORT TREE (server-side)
+       8) SORT TREE
     ============================================ */
     const sortedTree = sortNodesByCode(tree);
 
     /* ============================================
-       8) GLOBAL TOTALS
-       ✅ IMPORTANT: totals should be summed as raw debit/credit
-       ✅ totalBalance here is "debit - credit" in main currency sense.
-       If you want a different convention, adjust here.
+       9) GLOBAL TOTALS
     ============================================ */
     let totalDebit = 0;
     let totalCredit = 0;
@@ -353,7 +435,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     }
 
     /* ============================================
-       9) RESPONSE
+       10) RESPONSE
     ============================================ */
     return res.status(200).json({
       status: "success",
@@ -367,6 +449,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
         totalCredit,
         totalBalance: totalDebit - totalCredit,
       },
+      duplicateCodes, // optional, remove in production if you do not want to expose it
       data: sortedTree,
     });
   } catch (error) {

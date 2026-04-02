@@ -60,6 +60,10 @@ const financailSource = async (
   req,
   ref = ""
 ) => {
+  console.log("destinationType", destinationType);
+  console.log("destination", destination);
+  console.log("companyId", companyId);
+  console.log("data", data);
   try {
     let fund = 0,
       amount = 0;
@@ -121,16 +125,17 @@ const financailSource = async (
         companyId,
       });
     } else if (destinationType === "fund") {
+      console.log("fund", fund);
       const financialFunds = await financialFundsModel.findOneAndUpdate(
         { _id: destination.id, companyId },
         { $inc: { fundBalance: fund } },
         { new: true }
       );
-
+      console.log("financialFunds", financialFunds);
       await ReportsFinancialFundsModel.create({
         date: data.date,
         amount: paymentInFundCurrency,
-        ref: data._id,
+        ref: data.invoiceId,
         type: data.paymentType,
         financialFundId: financialFunds._id,
         financialFundRest: financialFunds.fundBalance,
@@ -450,6 +455,7 @@ const handlePurchasePayment = async (req, companyId, next) => {
   try {
     const {
       source,
+      invoiceId,
       totalMainCurrency,
       totalInPaymentCurrency,
       paymentInFundCurrency,
@@ -460,14 +466,14 @@ const handlePurchasePayment = async (req, companyId, next) => {
       destinationCurrencyCode,
       destinationType,
     } = req.body;
-
+    console.log(req.body);
     const purchase = await purchaseinvoicesModel.findOne({
-      _id: source.id,
+      _id: invoiceId,
       status: { $nin: ["cancelled", "draft"] },
       companyId,
     });
     if (!purchase) throw new Error("Purchase invoice not found");
-
+    console.log("purchase", purchase);
     const supplier = await suppliersModel.findOne({
       _id: purchase.supllier.id,
       companyId,
@@ -539,7 +545,7 @@ const handlePurchasePayment = async (req, companyId, next) => {
     );
     await financailSource(
       destinationType,
-      destination,
+      source,
       companyId,
       req.body,
       next,

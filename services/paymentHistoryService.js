@@ -78,16 +78,25 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
 
   // console.log(allTransactions);
   let runningBalance = 0;
+
   allTransactions.forEach((transaction) => {
+    const rest = Number(transaction.rest || 0);
+
     if (
-      (transaction.type === "payment" ||
-        transaction.type === "Refund Invoice") &
-      (transaction.paymentText === "Deposit")
+      transaction.type === "invoice_cancel" ||
+      transaction.type === "invoice_reverse_update"
     ) {
-      runningBalance -= transaction?.rest;
+      runningBalance -= rest;
+    } else if (
+      (transaction.type === "payment" ||
+        transaction.type === "Refund Invoice") &&
+      transaction.paymentText === "Deposit"
+    ) {
+      runningBalance -= rest;
     } else {
-      runningBalance += transaction?.rest;
+      runningBalance += rest;
     }
+
     transaction.runningBalance = runningBalance;
   });
 

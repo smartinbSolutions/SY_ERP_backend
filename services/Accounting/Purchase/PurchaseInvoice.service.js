@@ -61,6 +61,26 @@ const upload = multer({
   },
 });
 
+const resolveInvoiceDate = (existingDate, incomingDate) => {
+  if (!incomingDate) return existingDate;
+
+  const existingDateOnly = existingDate
+    ? new Date(existingDate).toISOString().split("T")[0]
+    : null;
+
+  const incomingDateObj = new Date(incomingDate);
+
+  if (Number.isNaN(incomingDateObj.getTime())) {
+    return existingDate;
+  }
+
+  const incomingDateOnly = incomingDateObj.toISOString().split("T")[0];
+
+  return existingDateOnly === incomingDateOnly
+    ? existingDate
+    : incomingDateObj.toISOString();
+};
+
 exports.uploadFile = upload.single("file");
 
 exports.preparePurchaseInvoiceDataService = async ({
@@ -1436,31 +1456,18 @@ exports.updatePurchaseInvoiceDraftService = async ({
     throw new ApiError("Invoice id is required", 400);
   }
 
-  /*
-  =============================
-  PARSE BODY DATA
-  =============================
-  */
-
   const invoicesItem = req.body.invoicesItems
     ? JSON.parse(req.body.invoicesItems)
     : [];
 
+  console.log("invoicesItem", invoicesItem);
+
   const currency = req.body.currency ? JSON.parse(req.body.currency) : {};
-
   const tag = req.body.tag ? JSON.parse(req.body.tag) : [];
-
   const taxDetails = req.body.taxDetails ? JSON.parse(req.body.taxDetails) : [];
-
   const supllierObject = req.body.supllierObject
     ? JSON.parse(req.body.supllierObject)
     : {};
-
-  /*
-  =============================
-  FIND EXISTING INVOICE
-  =============================
-  */
 
   const existingInvoice = await PurchaseInvoicesModel.findOne({
     _id: invoiceId,
@@ -1471,12 +1478,6 @@ exports.updatePurchaseInvoiceDraftService = async ({
   if (!existingInvoice) {
     throw new ApiError("Draft invoice not found", 404);
   }
-
-  /*
-  =============================
-  DELETE OLD FILE IF REPLACED
-  =============================
-  */
 
   if (req.file?.filename && existingInvoice.file) {
     const oldFilePath = path.join(
@@ -1490,11 +1491,28 @@ exports.updatePurchaseInvoiceDraftService = async ({
     }
   }
 
-  /*
-  =============================
-  BUILD UPDATE PAYLOAD
-  =============================
-  */
+  const exchangeRate = Number(req.body.exchangeRate || 1);
+  const totalInMainCurrency = Number(req.body.totalInMainCurrency || 0);
+  const invoiceSubTotal = Number(req.body.invoiceSubTotal || 0);
+  const subtotalWithDiscount = Number(req.body.subtotalWithDiscount || 0);
+  const invoiceDiscount = Number(req.body.invoiceDiscount || 0);
+  const invoiceGrandTotal = Number(req.body.invoiceGrandTotal || 0);
+  const invoiceTax = Number(req.body.invoiceTax || 0);
+  const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
+  const manualInvoiceDiscountValue = Number(
+    req.body.ManualInvoiceDiscountValue || 0
+  );
+
+  const paid = "unpaid";
+  const paymentInInvoiceCurrency = 0;
+  const paymentInMainCurrency = 0;
+  const totalRemainder = invoiceGrandTotal;
+  const totalRemainderMainCurrency = totalInMainCurrency;
+
+  const normalizedDate = resolveInvoiceDate(
+    existingInvoice.date,
+    req.body.date
+  );
 
   const updatePayload = {
     invoicesItems: invoicesItem,
@@ -1505,30 +1523,30 @@ exports.updatePurchaseInvoiceDraftService = async ({
 
     invoiceName: req.body.invoiceName,
     invoiceNumber: req.body.invoiceNumber,
-    exchangeRate: req.body.exchangeRate,
+    exchangeRate,
 
-    totalPurchasePriceMainCurrency: req.body.totalInMainCurrency,
-    invoiceSubTotal: req.body.invoiceSubTotal,
-    subtotalWithDiscount: req.body.subtotalWithDiscount,
-    invoiceDiscount: req.body.invoiceDiscount,
-    invoiceGrandTotal: req.body.invoiceGrandTotal,
-    invoiceTax: req.body.invoiceTax,
+    totalPurchasePriceMainCurrency: totalInMainCurrency,
+    invoiceSubTotal,
+    subtotalWithDiscount,
+    invoiceDiscount,
+    invoiceGrandTotal,
+    invoiceTax,
 
     InvoiceDiscountType: req.body.InvoiceDiscountType,
-    ManualInvoiceDiscount: req.body.ManualInvoiceDiscount,
-    ManualInvoiceDiscountValue: req.body.ManualInvoiceDiscountValue,
+    ManualInvoiceDiscount: manualInvoiceDiscount,
+    ManualInvoiceDiscountValue: manualInvoiceDiscountValue,
 
-    date: req.body.date,
-    description: req.body.description,
+    paid,
+    paymentInInvoiceCurrency,
+    paymentInMainCurrency,
+    totalRemainder,
+    totalRemainderMainCurrency,
+
+    date: normalizedDate,
+    description: req.body.description || "",
 
     ...(req.file?.filename && { file: req.file.filename }),
   };
-
-  /*
-  =============================
-  UPDATE INVOICE
-  =============================
-  */
 
   const invoice = await PurchaseInvoicesModel.findOneAndUpdate(
     {
@@ -1543,18 +1561,12 @@ exports.updatePurchaseInvoiceDraftService = async ({
     }
   );
 
-  /*
-  =============================
-  CREATE HISTORY RECORD
-  =============================
-  */
-
   await createInvoiceHistory(
     companyId,
     invoice._id,
     "edit",
     req.user._id,
-    req.body.date,
+    normalizedDate,
     "Draft purchase invoice updated",
     "purchase",
     session

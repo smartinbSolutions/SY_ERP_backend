@@ -100,7 +100,9 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
   req.body.counters = req.body.counter;
   req.body.counter = Number(req.body.counter) + nextCounter;
   // Create the expense document
-
+  if (typeof req.body.categorts === "string") {
+    req.body.categorts = JSON.parse(req.body.categorts);
+  }
   const supplier = await SupplierModel.findOne({
     _id: req.body.supllier.id,
     companyId,
@@ -126,18 +128,20 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     if (req.body.totalRemainderMainCurrency > 0.5) {
       req.body.paymentStatus = "unpaid";
     }
+
     expense = await expensesModel.create(req.body);
 
     const paymentInFundCurrency = req.body.paymentInFundCurrency;
     financialFunds.fundBalance -= Number(paymentInFundCurrency);
+
     const payment = await paymentModel.create({
       source: {
-        id: expense._id,
-        name: expense.expenseName,
+        id: financialFunds._id,
+        name: financialFunds.fundName,
       },
       destination: {
-        id: req.body.financialFund,
-        name: financialFunds.fundName,
+        id: supplier._id,
+        name: supplier.name,
       },
       sourceType: "expense",
       destinationType: "fund",
@@ -917,7 +921,6 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
     if (!financialFunds) {
       throw new Error("Financial fund not found");
     }
-    console.log(expenseData);
 
     /* -------------------- Create Expense -------------------- */
     const [expense] = await expensesModel.create([expenseData], { session });
@@ -930,39 +933,50 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
     const [payment] = await paymentModel.create(
       [
         {
-          supplierId: "",
-          supplierName: "",
-          total: expenseData.paymentInInvoiceCurrency,
-          totalMainCurrency: expenseData.paymentInMainCurrency,
-          exchangeRate: financialFunds.fundCurrency.exchangeRate,
-          financialFundsCurrencyCode: financialFunds.fundCurrency.currencyCode,
-          financialFundsName: financialFunds.fundName,
-          financialFundsID: financialFunds._id,
-          date: paymentDate,
-          invoiceNumber: expenseCounter.seq,
-          invoiceID: expense._id,
-          counter: Number(expenseData.counters) + paymentCounter.seq,
-          type: "expense",
-          description: expenseData.paymentDisc,
-          invoiceCurrencyCode: expenseData.currency.currencyCode,
-          paymentInFundCurrency: expenseData.paymentInFundCurrency,
-          paymentText: "Withdrawal",
-          companyId,
-          payid: {
-            id: expense._id,
-            status: expenseData.paymentStatus,
-            invoiceTotal: expenseData.expenceTotal,
-            invoiceName: expenseData.expenseName,
-            invoiceCurrencyCode: expenseData.currency.currencyCode,
-            paymentInFundCurrency: expenseData.paymentInFundCurrency,
-            paymentMainCurrency: expenseData.paymentInMainCurrency,
-            paymentInvoiceCurrency: expenseData.paymentInInvoiceCurrency,
+          source: {
+            id: financialFunds?._id,
+            name: financialFunds?.fundName,
           },
+          destination: {
+            id: "",
+            name: "",
+          },
+
+          sourceType: "expense",
+          destinationType: "fund",
+          totalInPaymentCurrency: req.body.expenceTotal,
+          totalMainCurrency: req.body.paymentInMainCurrency,
+          paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+          paymentCurrency: {
+            id: req.body.currency.id,
+            name: req.body.currency.name,
+            code: req.body.currency.currencyCode,
+            exchangeRate: req.body.currency.exchangeRate,
+          },
+          destinationExchangeRate: financialFunds.fundCurrency.exchangeRate,
+          destinationCurrencyCode: financialFunds.fundCurrency.currencyCode,
+          type: "expense",
+          paymentType: "Withdrawal",
+          description: req.body.paymentDisc,
+          date: req.body.paymentDate || formattedDate,
+          counter: Number(expenseData.counters) + paymentCounter.seq,
+          companyId,
+          payid: [
+            {
+              id: expense._id,
+              status: expenseData.paymentStatus,
+              invoiceTotal: expenseData.expenceTotal,
+              invoiceName: expenseData.expenseName,
+              invoiceCurrencyCode: expenseData.currency.currencyCode,
+              paymentInFundCurrency: expenseData.paymentInFundCurrency,
+              paymentMainCurrency: expenseData.paymentInMainCurrency,
+              paymentInvoiceCurrency: expenseData.paymentInInvoiceCurrency,
+            },
+          ],
         },
       ],
       { session }
     );
-    console.log(paymentDate);
 
     /* -------------------- Financial Fund Report -------------------- */
     await ReportsFinancialFundsModel.create(

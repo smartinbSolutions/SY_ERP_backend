@@ -80,6 +80,7 @@ const groupsRoute = require("./Hr/groupsRoute");
 const locationRoute = require("./Hr/locationRoute");
 const jobRoute = require("./Hr/jobManagementRoute");
 const paymentRoute = require("./paymentRoute");
+const paymentRouteV2 = require("./Accounting/CurrentAssets/payment.route");
 const paymentRouteOld = require("./paymentRouteOld");
 const incomeStatementRoute = require("./reports/incomeStatementRoute");
 const balanceSheetsStatementRoute = require("./reports/balanceSheetsStatementRoute");
@@ -142,6 +143,7 @@ const mountRoutes = (app) => {
   app.use("/api/invoicehistory", invoiceHistoryRoute);
   app.use("/api/payment", paymentRouteOld);
   app.use("/api/v1/payment", paymentRoute);
+  app.use("/api/v2/payment", paymentRouteV2);
   app.use("/api/payment-history", paymentHistoryRout);
   app.use("/api/stock", stockRout);
   app.use("/api/offers", offersRouter);
