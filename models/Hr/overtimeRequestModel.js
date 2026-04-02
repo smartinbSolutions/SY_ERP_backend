@@ -95,12 +95,6 @@ const overtimeRequestSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    managerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "staff",
-      required: true,
-    },
-
     companyId: String,
   },
 

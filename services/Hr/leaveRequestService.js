@@ -13,6 +13,7 @@ const leaveRequestModel = require("../../models/Hr/leaveRequestModel");
 const multerStorage = multer.memoryStorage();
 const mongoose = require("mongoose");
 const NotificationModel = require("../../models/Hr/NotificationModel");
+const staffModel = require("../../models/Hr/staffModel");
 
 const attachmentFilter = function (req, file, cb) {
   const allowedTypes = [
@@ -55,17 +56,13 @@ exports.processLeaveAttachment = asyncHandler(async (req, res, next) => {
 
 exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
   try {
-    const {
-      leaveType,
-      startDate,
-      endDate,
-      reason,
-      attachment,
-      managerId,
-      days,
-    } = req.body;
+    const { leaveType, startDate, endDate, reason, attachment, days } =
+      req.body;
 
     if (!req.user) return next(new ApiError("Not logged in", 401));
+
+    const requester = await staffModel.findById(req.user._id);
+    if (!requester) return next(new ApiError("User not found", 404));
 
     const leave = await leavesModel
       .findById(leaveType)
@@ -74,45 +71,47 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
 
     const flowId = leave.approvalFlow || leave.policyId?.approvalFlow;
     if (!flowId) return next(new ApiError("Approval flow not found", 404));
-      console.log(flowId);
-      
+
     const flow = await approvalFlowModel.findById(flowId);
     if (!flow) return next(new ApiError("Approval flow not found", 404));
-      console.log(flowId);
-      
 
     let approvalSteps = [];
-    let stepCounter = 1;
+    for (const step of flow.steps) {
+      let approverId = null;
 
-    if (flow.includeDirectManager && managerId) {
+      if (step.isDirectManager) {
+        const managerId = requester.directManager;
+        const managerAlreadyInFlow = flow.steps.some(
+          (s) => s.approver?.employeeId?.toString() === managerId?.toString(),
+        );
+        if (managerId && !managerAlreadyInFlow) {
+          approverId = managerId;
+        }
+      } else if (step.approver?.employeeId) {
+        approverId = step.approver.employeeId;
+        if (approverId.toString() === requester._id.toString()) {
+          approverId = null; // skip self-approval
+        }
+      }
+
       approvalSteps.push({
-        stepNumber: stepCounter,
-        stepName: "Direct Manager Approval",
-        approverId: managerId,
-        status: "pending",
+        stepNumber: step.stepNumber,
+        stepName: step.stepName || "",
+        approverId,
+        status: approverId ? "pending" : "skipped",
         actedBy: null,
         actedAt: null,
         comment: "",
       });
-      stepCounter++;
     }
 
-    flow.steps.forEach((step) => {
-      approvalSteps.push({
-        stepNumber: stepCounter,
-        stepName: step.stepName || "",
-        approverId: step.approver.employeeId,
-        status: "pending",
-        actedBy: null,
-        actedAt: null,
-        comment: "",
-      });
-      stepCounter++;
-    });
+    const firstPending = approvalSteps.find((s) => s.status === "pending");
+    const currentApprover = firstPending?.approverId || null;
+    const currentStep = firstPending?.stepNumber || null;
 
     const newRequest = await LeaveRequest.create({
-      userId: req.user._id,
-      companyId: req.user.companyId,
+      userId: requester._id,
+      companyId: requester.companyId,
       leaveType,
       startDate,
       endDate,
@@ -121,10 +120,12 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
       attachment: attachment || null,
       approval: {
         flowId: flow._id,
-        currentStep: 1,
-        currentApprover: approvalSteps[0]?.approverId || null,
+        currentStep,
+        currentApprover,
         steps: approvalSteps,
       },
+      status: currentApprover ? "pending" : "approved",
+      approvedAt: currentApprover ? null : new Date(),
     });
 
     res.status(201).json({
@@ -133,7 +134,6 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
       message: "Leave request submitted successfully",
     });
   } catch (err) {
-    console.error("Error in createLeaveRequest:", err);
     return next(err);
   }
 });

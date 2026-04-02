@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const multer = require("multer");
 const service = require("../../services/Hr/advanceRequestService");
 const { default: mongoose } = require("mongoose");
+const staffModel = require("../../models/Hr/staffModel");
 
 // ================= MULTER =================
 const multerStorage = multer.memoryStorage();
@@ -52,7 +53,6 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       advanceTypeId,
       amount,
       reason,
-      managerId,
       salarySnapshot,
       installmentAmount,
       totalInstallments,
@@ -62,6 +62,11 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
     if (!amount || amount <= 0)
       return next(new ApiError("Valid amount is required", 400));
 
+    // 1️⃣ جلب بيانات الموظف
+    const requester = await staffModel.findById(req.user._id);
+    if (!requester) return next(new ApiError("User not found", 404));
+
+    // 2️⃣ جلب نوع السلفة والـ flow
     const type = await service.getAdvanceTypeById(advanceTypeId);
     if (!type) return next(new ApiError("Advance type not found", 404));
 
@@ -71,57 +76,67 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
     const flow = await service.getApprovalFlowById(flowId);
     if (!flow) return next(new ApiError("Approval flow not found", 404));
 
+    // 3️⃣ بناء خطوات الموافقة مع تجاوز self-approval والمدير المباشر
     let approvalSteps = [];
-    let stepCounter = 1;
-    if (flow.includeDirectManager && managerId) {
-      approvalSteps.push({
-        stepNumber: stepCounter,
-        approverId: managerId,
-        status: "pending",
-        actedBy: null,
-        actedAt: null,
-        comment: "",
-      });
-      stepCounter++;
-    }
-    flow.steps.forEach((step) => {
-      approvalSteps.push({
-        stepNumber: stepCounter,
-        approverId: step.approver.employeeId,
-        status: "pending",
-        actedBy: null,
-        actedAt: null,
-        comment: "",
-      });
-      stepCounter++;
-    });
 
+    for (const step of flow.steps) {
+      let approverId = null;
+
+      // المدير المباشر
+      if (step.isDirectManager) {
+        approverId = requester.directManager;
+      } else if (step.approver?.employeeId) {
+        approverId = step.approver.employeeId;
+      }
+
+      // تجاوز self-approval
+      if (approverId && approverId.toString() === requester._id.toString()) {
+        approverId = null;
+      }
+
+      const status = approverId ? "pending" : "skipped";
+
+      approvalSteps.push({
+        stepNumber: step.stepNumber,
+        approverId,
+        status,
+        actedBy: null,
+        actedAt: null,
+        comment: "",
+      });
+    }
+
+    // 4️⃣ تحديد أول approver فعلي
+    const firstPending = approvalSteps.find((s) => s.status === "pending");
+    const currentApprover = firstPending?.approverId || null;
+    const currentStep = firstPending?.stepNumber || null;
+
+    // 5️⃣ إنشاء طلب السلفة عن طريق الخدمة
     const request = await service.createAdvanceRequest({
-      userId: req.user._id,
-      companyId: req.user.companyId,
+      userId: requester._id,
+      companyId: requester.companyId,
       advanceTypeId,
       amount,
       reason,
-      managerId,
       salarySnapshot,
       installmentAmount: installmentAmount || null,
       totalInstallments: totalInstallments || null,
       attachment: req.body.attachment || null,
       approval: {
         flowId: flow._id,
-        currentStep: 1,
-        currentApprover: approvalSteps[0]?.approverId || null,
+        currentStep,
+        currentApprover,
         steps: approvalSteps,
       },
+      status: currentApprover ? "pending" : "approved",
+      approvedAt: currentApprover ? null : new Date(),
     });
 
-    res
-      .status(201)
-      .json({
-        status: true,
-        message: "Advance request submitted",
-        data: request,
-      });
+    res.status(201).json({
+      status: true,
+      message: "Advance request submitted",
+      data: request,
+    });
   } catch (err) {
     console.error("Error in createAdvanceRequest:", err);
     return next(err);
@@ -154,16 +169,14 @@ exports.getAllAdvanceRequests = asyncHandler(async (req, res) => {
     limit,
   );
 
-  res
-    .status(200)
-    .json({
-      status: true,
-      page,
-      results: requests.length,
-      totalItems: total,
-      totalPages: Math.ceil(total / limit),
-      data: requests,
-    });
+  res.status(200).json({
+    status: true,
+    page,
+    results: requests.length,
+    totalItems: total,
+    totalPages: Math.ceil(total / limit),
+    data: requests,
+  });
 });
 
 // ================= GET ONE =================
@@ -222,13 +235,11 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    res
-      .status(200)
-      .json({
-        status: true,
-        message: `Request ${action} successfully`,
-        data: updatedRequest,
-      });
+    res.status(200).json({
+      status: true,
+      message: `Request ${action} successfully`,
+      data: updatedRequest,
+    });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();

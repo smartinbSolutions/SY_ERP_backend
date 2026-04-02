@@ -12,6 +12,7 @@ const { handleApproval } = require("./approvalService");
 const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
 const overtimeRequestModel = require("../../models/Hr/overtimeRequestModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
+const staffModel = require("../../models/Hr/staffModel");
 
 // ================= MULTER =================
 
@@ -66,81 +67,86 @@ exports.processOvertimeAttachment = asyncHandler(async (req, res, next) => {
 
 exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
   try {
-    const {
-      overtimeTypeId,
-      workDate,
-      startTime,
-      endTime,
-      hours,
-      reason,
-      managerId,
-    } = req.body;
+    const { overtimeTypeId, workDate, startTime, endTime, hours, reason } =
+      req.body;
 
+    // 1️⃣ التحقق من تسجيل الدخول
     if (!req.user) return next(new ApiError("Not logged in", 401));
 
+    // 2️⃣ جلب بيانات الموظف
+    const requester = await staffModel.findById(req.user._id);
+    if (!requester) return next(new ApiError("User not found", 404));
+
+    // 3️⃣ جلب نوع الـ overtime والـ flow
     const type = await overtimeTypesModel
       .findById(overtimeTypeId)
       .populate("policyId");
     if (!type) return next(new ApiError("Overtime type not found", 404));
 
     const flowId = type.approvalFlow || type.policyId?.approvalFlow;
+    if (!flowId) return next(new ApiError("Approval flow not found", 404));
 
-    console.log(flowId);
-    
     const flow = await approvalFlowModel.findById(flowId);
-
-    console.log(flow);
-    
     if (!flow) return next(new ApiError("Approval flow not found", 404));
 
+    // 4️⃣ بناء خطوات الموافقة مع تجاوز self-approval والمدير المباشر
     let approvalSteps = [];
-    let stepCounter = 1;
+    for (const step of flow.steps) {
+      let approverId = null;
 
-    if (flow.includeDirectManager && managerId) {
+      // المدير المباشر
+      if (step.isDirectManager) {
+        approverId = requester.directManager;
+      } else if (step.approver?.employeeId) {
+        approverId = step.approver.employeeId;
+      }
+
+      // تجاوز self-approval
+      if (approverId && approverId.toString() === requester._id.toString()) {
+        approverId = null;
+      }
+
+      // حالة skip إذا ما في approver
+      const status = approverId ? "pending" : "skipped";
+
       approvalSteps.push({
-        stepNumber: stepCounter,
-        stepName: "Direct Manager Approval",
-        approverId: managerId,
-        status: "pending",
+        stepNumber: step.stepNumber,
+        stepName: step.stepName || "",
+        approverId,
+        status,
         actedBy: null,
         actedAt: null,
         comment: "",
       });
-      stepCounter++;
     }
 
-    flow.steps.forEach((step) => {
-      approvalSteps.push({
-        stepNumber: stepCounter,
-        stepName: step.stepName || "",
-        approverId: step.approver.employeeId,
-        status: "pending",
-        actedBy: null,
-        actedAt: null,
-        comment: "",
-      });
-      stepCounter++;
-    });
+    // 5️⃣ تحديد أول approver فعلي
+    const firstPending = approvalSteps.find((s) => s.status === "pending");
+    const currentApprover = firstPending?.approverId || null;
+    const currentStep = firstPending?.stepNumber || null;
 
+    // 6️⃣ إنشاء طلب الـ overtime
     const request = await OvertimeRequest.create({
-      userId: req.user._id,
-      companyId: req.user.companyId,
+      userId: requester._id,
+      companyId: requester.companyId,
       overtimeTypeId,
       workDate,
       startTime,
       endTime,
       hours,
       reason,
-      managerId,
       attachment: req.body.attachment || null,
       approval: {
         flowId: flow._id,
-        currentStep: 1,
-        currentApprover: approvalSteps[0]?.approverId || null,
+        currentStep,
+        currentApprover,
         steps: approvalSteps,
       },
+      status: currentApprover ? "pending" : "approved",
+      approvedAt: currentApprover ? null : new Date(),
     });
 
+    // 7️⃣ الرد
     res.status(201).json({
       status: true,
       message: "Overtime request submitted",
@@ -151,7 +157,6 @@ exports.createOvertimeRequest = asyncHandler(async (req, res, next) => {
     return next(err);
   }
 });
-
 // ================= MY REQUESTS =================
 
 exports.getMyOvertimeRequests = asyncHandler(async (req, res) => {

@@ -88,11 +88,7 @@ const advanceRequestSchema = new mongoose.Schema(
       //   ],
     },
 
-    managerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "staff",
-      required: true,
-    },
+
 
     advanceTypeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -101,10 +97,10 @@ const advanceRequestSchema = new mongoose.Schema(
     },
 
     // salary when he request the advance
-    salarySnapshot: {
-      type: Number,
-      required: true,
-    },
+    // salarySnapshot: {
+    //   type: Number,
+    //   required: true,
+    // },
 
     amount: {
       type: Number,
