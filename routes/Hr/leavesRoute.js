@@ -19,7 +19,9 @@ leavesRoute
 
 leavesRoute
   .route("/staff")
-  .get(staffAuthService.protectStaffOrERP, getAllLeaves);
+  .get(
+    staffAuthService.protectStaffOrERP, 
+    getAllLeaves);
 
 leavesRoute
   .route("/:id")

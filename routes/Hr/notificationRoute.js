@@ -1,20 +1,22 @@
 const express = require("express");
 const router = express.Router();
 
-const notificationController = require("../controllers/Hr/notification.controller");
+const notificationController = require("../../controllers/Hr/notification.controller");
 const authService = require("../../services/authService");
+const staffAuthService = require("../../services/Hr/hrAuthServices");
 
-router.get("/", authService.protect, notificationController.getMyNotifications);
+
+router.get("/", staffAuthService.protectStaff, notificationController.getMyNotifications);
 
 router.get(
   "/unread-count",
-  authService.protect,
+  staffAuthService.protectStaff,
   notificationController.getUnreadCount,
 );
 
 router.patch(
   "/:id/read",
-  authService.protect,
+  staffAuthService.protectStaff,
   notificationController.markAsRead,
 );
 

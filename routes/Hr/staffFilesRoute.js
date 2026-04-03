@@ -5,11 +5,12 @@ const {
   getAllStaffFiles,
   getOneStaffFile,
   updateStaffFile,
+  createStaffFile,
 } = require("../../services/Hr/staffFilesService");
 
 const staffFilesRoute = express.Router();
 
-staffFilesRoute.route("/").get(getAllStaffFiles);
+staffFilesRoute.route("/").get(getAllStaffFiles).post(createStaffFile);
 
 staffFilesRoute
   .route("/:id")

@@ -72,7 +72,9 @@ const StaffSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
+    isActive: {
+      type: Boolean,
+    },
     password: String,
     passwordResetCode: String,
     passwordResetExpires: Date,

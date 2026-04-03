@@ -2,7 +2,58 @@ const StaffFiles = require("../../models/Hr/staffFilesModel");
 const ApiError = require("../../utils/apiError");
 const asyncHandler = require("express-async-handler");
 
+exports.createStaffFile = asyncHandler(async (req, res, next) => {
+  const { companyId } = req.query;
 
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { staffId, fileTypeId, expiryDate } = req.body;
+  console.log("staffId:", staffId);
+  console.log("fileTypeId:", fileTypeId);
+  // ================= Validation =================
+  if (!staffId || !fileTypeId) {
+    return res.status(400).json({
+      message: "staffId and fileTypeId are required",
+    });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({
+      message: "File is required",
+    });
+  }
+
+  // ================= Prepare Data =================
+  let fileUrl = req.file.path;
+
+  // normalize URL (حل مشكلة inconsistency)
+  if (fileUrl && !fileUrl.startsWith("http")) {
+    fileUrl = `${process.env.BASE_URL}/${fileUrl}`;
+  }
+
+  const newFile = await StaffFiles.create({
+    staffId,
+    fileTypeId,
+    companyId,
+    fileUrl,
+    originalName: req.file.originalname,
+    mimeType: req.file.mimetype,
+    size: req.file.size,
+    expiryDate: expiryDate || null,
+  });
+
+  // ================= Populate (optional but useful) =================
+  const populatedFile = await StaffFiles.findById(newFile._id)
+    .populate("fileTypeId", "name hasExpiry")
+    .populate("staffId", "name");
+
+  res.status(201).json({
+    status: "success",
+    data: populatedFile,
+  });
+});
 exports.getAllStaffFiles = asyncHandler(async (req, res, next) => {
   const { companyId, staffId, keyword } = req.query;
 

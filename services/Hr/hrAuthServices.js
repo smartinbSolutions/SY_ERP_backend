@@ -213,10 +213,6 @@ exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
       path: "groupId",
       populate: [
         {
-          path: "leaveType",
-          model: "leaves",
-        },
-        {
           path: "locationId",
           model: "hrlocation",
         },
@@ -284,7 +280,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
   const resetCode = Math.floor(Math.random() * 1000000 + 1).toString();
   const hashedResetCode = await bcrypt.hash(resetCode, 10);
-console.log(resetCode);
+  console.log(resetCode);
 
   staff.passwordResetCode = hashedResetCode;
   //10 min

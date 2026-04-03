@@ -109,6 +109,7 @@ const advanceRequestRoute = require("./Hr/advanceRequestRoute");
 const advanceTypesRoute = require("./Hr/advanceTypesRoute");
 const approvalFlowRoute = require("./Hr/approvalFlowRoute");
 const manufacturingRoute = require("./manufacturing/manufacturingRoute");
+const noticesRoute = require("./Hr/notificationRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -211,6 +212,7 @@ const mountRoutes = (app) => {
   app.use("/api/advance-request", advanceRequestRoute);
   app.use("/api/advance-types", advanceTypesRoute);
   app.use("/api/approval-flow", approvalFlowRoute);
+  app.use("/api/notification", noticesRoute);
 
   //Payment
   app.use("/api", paytrRouter);

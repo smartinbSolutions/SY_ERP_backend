@@ -1,6 +1,6 @@
 // controllers/notification.controller.js
 
-const Notification = require("../models/notification.model");
+const Notification = require("../../models/Hr/NotificationModel");
 
 /**
  * @desc    Get logged-in user's notifications with pagination
