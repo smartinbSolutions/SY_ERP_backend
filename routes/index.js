@@ -110,6 +110,8 @@ const advanceTypesRoute = require("./Hr/advanceTypesRoute");
 const approvalFlowRoute = require("./Hr/approvalFlowRoute");
 const manufacturingRoute = require("./manufacturing/manufacturingRoute");
 const noticesRoute = require("./Hr/notificationRoute");
+const deductionPolicyRoute = require("./Hr/deductionPolicyRoute");
+const deductionTypesRoute = require("./Hr/deductionTypesRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -213,6 +215,8 @@ const mountRoutes = (app) => {
   app.use("/api/advance-types", advanceTypesRoute);
   app.use("/api/approval-flow", approvalFlowRoute);
   app.use("/api/notification", noticesRoute);
+  app.use("/api/deduction-policy", deductionPolicyRoute);
+  app.use("/api/deduction-types", deductionTypesRoute);
 
   //Payment
   app.use("/api", paytrRouter);

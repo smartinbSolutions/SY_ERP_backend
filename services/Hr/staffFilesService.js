@@ -54,6 +54,9 @@ exports.createStaffFile = asyncHandler(async (req, res, next) => {
     data: populatedFile,
   });
 });
+
+
+
 exports.getAllStaffFiles = asyncHandler(async (req, res, next) => {
   const { companyId, staffId, keyword } = req.query;
 

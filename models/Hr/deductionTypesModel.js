@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const deductionRuleSchema = new mongoose.Schema(
+const deductionTypesSchema = new mongoose.Schema(
   {
     companyId: {
       type: String,
@@ -41,10 +41,7 @@ const deductionRuleSchema = new mongoose.Schema(
       default: false,
     },
 
-    requiresApproval: {
-      type: Boolean,
-      default: false,
-    },
+ 
 
     note: String,
   },
@@ -53,9 +50,9 @@ const deductionRuleSchema = new mongoose.Schema(
   },
 );
 
-deductionRuleSchema.index(
+deductionTypesSchema.index(
   { companyId: 1, violationType: 1, occurrence: 1 },
   { unique: true },
 );
 
-module.exports = mongoose.model("DeductionRule", deductionRuleSchema);
+module.exports = mongoose.model("DeductionTypes", deductionTypesSchema);

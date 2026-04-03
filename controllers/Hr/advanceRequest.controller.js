@@ -76,7 +76,7 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
     const flow = await service.getApprovalFlowById(flowId);
     if (!flow) return next(new ApiError("Approval flow not found", 404));
 
-    // 3️⃣ بناء خطوات الموافقة مع تجاوز self-approval والمدير المباشر
+    // بناء خطوات الموافقة مع تجاوز self-approval والمدير المباشر
     let approvalSteps = [];
 
     for (const step of flow.steps) {
@@ -106,12 +106,12 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       });
     }
 
-    // 4️⃣ تحديد أول approver فعلي
+    // تحديد أول approver فعلي
     const firstPending = approvalSteps.find((s) => s.status === "pending");
     const currentApprover = firstPending?.approverId || null;
     const currentStep = firstPending?.stepNumber || null;
 
-    // 5️⃣ إنشاء طلب السلفة عن طريق الخدمة
+    //  إنشاء طلب السلفة عن طريق الخدمة
     const request = await service.createAdvanceRequest({
       userId: requester._id,
       companyId: requester.companyId,
