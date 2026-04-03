@@ -53,7 +53,7 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       advanceTypeId,
       amount,
       reason,
-      salarySnapshot,
+      // salarySnapshot,
       installmentAmount,
       totalInstallments,
     } = req.body;
@@ -118,7 +118,7 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       advanceTypeId,
       amount,
       reason,
-      salarySnapshot,
+      // salarySnapshot,
       installmentAmount: installmentAmount || null,
       totalInstallments: totalInstallments || null,
       attachment: req.body.attachment || null,

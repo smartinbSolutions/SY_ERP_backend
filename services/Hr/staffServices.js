@@ -139,6 +139,7 @@ exports.getStaff = asyncHandler(async (req, res) => {
     .populate("currency")
     .populate("position")
     .populate("branch")
+    .populate("groupId")
     .populate("department");
 
   res.status(200).json({
@@ -222,6 +223,7 @@ exports.getOneStaff = asyncHandler(async (req, res, next) => {
     .populate("currency")
     .populate("branch")
     .populate("department")
+    .populate("groupId")
     .populate("position");
 
   if (!staff) {
