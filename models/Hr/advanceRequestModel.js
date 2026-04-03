@@ -62,33 +62,7 @@ const advanceRequestSchema = new mongoose.Schema(
           comment: String,
         },
       ],
-
-      //  use it later for quick reports and indexing for not updating the steps array
-      //   history: [
-      //     {
-      //       stepNumber: Number,
-
-      //       approverId: {
-      //         type: mongoose.Schema.Types.ObjectId,
-      //         ref: "staff",
-      //       },
-
-      //       action: {
-      //         type: String,
-      //         enum: ["approved", "rejected"],
-      //       },
-
-      //       comment: String,
-
-      //       actedAt: {
-      //         type: Date,
-      //         default: Date.now,
-      //       },
-      //     },
-      //   ],
     },
-
-
 
     advanceTypeId: {
       type: mongoose.Schema.Types.ObjectId,
