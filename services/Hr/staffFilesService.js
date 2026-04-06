@@ -116,7 +116,9 @@ exports.updateStaffFile = asyncHandler(async (req, res, next) => {
 
   if (req.savedFiles && req.savedFiles.length > 0) {
     const file = req.savedFiles[0];
-    updateData.fileUrl = file.fileUrl;
+    updateData.fileUrl = file.fileUrl.startsWith("http")
+      ? file.fileUrl
+      : `${process.env.BASE_URL}/${file.fileUrl}`;
     updateData.originalName = file.originalName;
     updateData.mimeType = file.mimeType;
     updateData.size = file.size;
@@ -130,10 +132,6 @@ exports.updateStaffFile = asyncHandler(async (req, res, next) => {
 
   if (!file) {
     return next(new ApiError("Staff file not found", 404));
-  }
-
-  if (file.fileUrl && !file.fileUrl.startsWith("http")) {
-    file.fileUrl = `${process.env.BASE_URL}/${file.fileUrl}`;
   }
 
   res.status(200).json({
