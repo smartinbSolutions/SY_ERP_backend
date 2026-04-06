@@ -2,60 +2,39 @@ const StaffFiles = require("../../models/Hr/staffFilesModel");
 const ApiError = require("../../utils/apiError");
 const asyncHandler = require("express-async-handler");
 
+// services/Hr/staffFilesService.js
 exports.createStaffFile = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
+  const { staffId, fileTypeId, expiryDate } = req.body;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const { staffId, fileTypeId, expiryDate } = req.body;
-  console.log("staffId:", staffId);
-  console.log("fileTypeId:", fileTypeId);
-  // ================= Validation =================
-  if (!staffId || !fileTypeId) {
-    return res.status(400).json({
-      message: "staffId and fileTypeId are required",
-    });
+  if (!staffId || !fileTypeId || !req.savedFiles || !req.savedFiles[0]) {
+    return res.status(400).json({ message: "staffId, fileTypeId, and file are required" });
   }
 
-  if (!req.file) {
-    return res.status(400).json({
-      message: "File is required",
-    });
-  }
-
-  // ================= Prepare Data =================
-  let fileUrl = req.file.path;
-
-  // normalize URL (حل مشكلة inconsistency)
-  if (fileUrl && !fileUrl.startsWith("http")) {
-    fileUrl = `${process.env.BASE_URL}/${fileUrl}`;
-  }
-
-  const newFile = await StaffFiles.create({
+  let fileDoc = {
     staffId,
     fileTypeId,
-    companyId,
-    fileUrl,
-    originalName: req.file.originalname,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
     expiryDate: expiryDate || null,
-  });
+    companyId,
+    ...req.savedFiles[0],
+  };
 
-  // ================= Populate (optional but useful) =================
-  const populatedFile = await StaffFiles.findById(newFile._id)
-    .populate("fileTypeId", "name hasExpiry")
-    .populate("staffId", "name");
+  if (fileDoc.fileUrl && !fileDoc.fileUrl.startsWith("http")) {
+    fileDoc.fileUrl = `${process.env.BASE_URL}/${fileDoc.fileUrl}`;
+  }
+
+  const newFile = await StaffFiles.create(fileDoc);
 
   res.status(201).json({
     status: "success",
-    data: populatedFile,
+    message: "Staff file created successfully",
+    data: newFile,
   });
 });
-
-
 
 exports.getAllStaffFiles = asyncHandler(async (req, res, next) => {
   const { companyId, staffId, keyword } = req.query;
@@ -86,8 +65,7 @@ exports.getAllStaffFiles = asyncHandler(async (req, res, next) => {
     .populate("staffId", "name")
     .skip(skip)
     .limit(limit)
-    .sort({ createdAt: -1 })
-    
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     status: "success",
@@ -121,7 +99,6 @@ exports.getOneStaffFile = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", data: file });
 });
 
-
 /* =====================================================
    UPDATE STAFF FILE
 ===================================================== */
@@ -145,7 +122,7 @@ exports.updateStaffFile = asyncHandler(async (req, res, next) => {
   const file = await StaffFiles.findOneAndUpdate(
     { _id: id, companyId },
     updateData,
-    { new: true }
+    { new: true },
   );
 
   if (!file) {

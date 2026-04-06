@@ -33,6 +33,45 @@ exports.uploadStaffAssets = upload.fields([
   { name: "files", maxCount: 10 },
 ]);
 
+exports.uploadSingleStaffFile = upload.single("file");
+exports.processSingleStaffFile = asyncHandler(async (req, res, next) => {
+  if (!req.file) {
+    req.savedFiles = [];
+    return next();
+  }
+
+  const dir = "uploads/hrDocs";
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const isImage = req.file.mimetype.startsWith("image");
+  const extension = isImage
+    ? "png"
+    : req.file.originalname.split(".").pop().toLowerCase();
+
+  const filename = `staffFile-${uuidv4()}-${Date.now()}.${extension}`;
+  const filepath = `${dir}/${filename}`;
+
+  if (isImage) {
+    await sharp(req.file.buffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .png({ quality: 70 })
+      .toFile(filepath);
+  } else {
+    fs.writeFileSync(filepath, req.file.buffer);
+  }
+
+  req.savedFiles = [
+    {
+      fileUrl: `hrDocs/${filename}`,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    },
+  ];
+
+  next();
+});
+
 /* ======================================================
    PROCESS PROFILE IMAGE
 ====================================================== */

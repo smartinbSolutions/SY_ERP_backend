@@ -1,16 +1,24 @@
+// routes/Hr/staffFilesRoute.js
 const express = require("express");
-const authService = require("../../services/authService");
 const {
-  deleteStaffFile,
   getAllStaffFiles,
   getOneStaffFile,
   updateStaffFile,
+  deleteStaffFile,
   createStaffFile,
 } = require("../../services/Hr/staffFilesService");
 
+const {
+  uploadSingleStaffFile,
+  processSingleStaffFile,
+} = require("../../services/Hr/staffServices");
+
 const staffFilesRoute = express.Router();
 
-staffFilesRoute.route("/").get(getAllStaffFiles).post(createStaffFile);
+staffFilesRoute
+  .route("/")
+  .get(getAllStaffFiles)
+  .post(uploadSingleStaffFile, processSingleStaffFile, createStaffFile);
 
 staffFilesRoute
   .route("/:id")
