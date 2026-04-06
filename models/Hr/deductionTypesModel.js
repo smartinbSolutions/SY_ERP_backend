@@ -41,8 +41,6 @@ const deductionTypesSchema = new mongoose.Schema(
       default: false,
     },
 
- 
-
     note: String,
   },
   {
@@ -50,9 +48,9 @@ const deductionTypesSchema = new mongoose.Schema(
   },
 );
 
-deductionTypesSchema.index(
-  { companyId: 1, violationType: 1, occurrence: 1 },
-  { unique: true },
-);
+// deductionTypesSchema.index(
+//   { companyId: 1, violationType: 1, occurrence: 1 },
+//   { unique: true },
+// );
 
 module.exports = mongoose.model("DeductionTypes", deductionTypesSchema);

@@ -23,7 +23,7 @@ staffFilesRoute
 staffFilesRoute
   .route("/:id")
   .get(getOneStaffFile)
-  .put(updateStaffFile)
+  .put(uploadSingleStaffFile, processSingleStaffFile, updateStaffFile)
   .delete(deleteStaffFile);
 
 module.exports = staffFilesRoute;

@@ -12,7 +12,9 @@ exports.createStaffFile = asyncHandler(async (req, res, next) => {
   }
 
   if (!staffId || !fileTypeId || !req.savedFiles || !req.savedFiles[0]) {
-    return res.status(400).json({ message: "staffId, fileTypeId, and file are required" });
+    return res
+      .status(400)
+      .json({ message: "staffId, fileTypeId, and file are required" });
   }
 
   let fileDoc = {
@@ -112,11 +114,12 @@ exports.updateStaffFile = asyncHandler(async (req, res, next) => {
 
   const updateData = { ...req.body };
 
-  if (req.file) {
-    updateData.fileUrl = req.file.path;
-    updateData.originalName = req.file.originalname;
-    updateData.mimeType = req.file.mimetype;
-    updateData.size = req.file.size;
+  if (req.savedFiles && req.savedFiles.length > 0) {
+    const file = req.savedFiles[0];
+    updateData.fileUrl = file.fileUrl;
+    updateData.originalName = file.originalName;
+    updateData.mimeType = file.mimeType;
+    updateData.size = file.size;
   }
 
   const file = await StaffFiles.findOneAndUpdate(
@@ -127,6 +130,10 @@ exports.updateStaffFile = asyncHandler(async (req, res, next) => {
 
   if (!file) {
     return next(new ApiError("Staff file not found", 404));
+  }
+
+  if (file.fileUrl && !file.fileUrl.startsWith("http")) {
+    file.fileUrl = `${process.env.BASE_URL}/${file.fileUrl}`;
   }
 
   res.status(200).json({
