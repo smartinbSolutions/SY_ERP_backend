@@ -66,12 +66,7 @@ const orderSchema = new mongoose.Schema(
       name: String,
       phone: String,
       email: String,
-      address: String,
       company: String,
-      taxAdministration: String,
-      taxNumber: String,
-      country: String,
-      city: String,
       linkAccount: String,
       _id: false,
     },
@@ -148,7 +143,7 @@ const orderSchema = new mongoose.Schema(
     ManualInvoiceDiscountValue: Number,
 
     currencyExchangeRate: { type: Number, default: 1 },
-    orderDate: String,
+    orderDate: Date,
     orderNumber: String,
     SeriNumber: String,
     SiraNumber: String,
@@ -178,11 +173,6 @@ const orderSchema = new mongoose.Schema(
     ],
 
     description: String,
-    type: {
-      type: String,
-      default: "sales",
-    },
-
     receipts: [String],
     counter: String,
     totalRemainderMainCurrency: { type: Number, default: 0 },
@@ -204,10 +194,30 @@ const orderSchema = new mongoose.Schema(
       phone: String,
       address: String,
     },
-    status: { type: String, default: "Draft" },
+    status: {
+      type: String,
+      enum: ["draft", "posted", "cancelled"],
+      default: "draft",
+      index: true,
+    },
     shipmentNumber: String,
     shipmentDate: String,
     file: String,
+
+    draftJournalSnapshot: {
+      journalMeta: { type: mongoose.Schema.Types.Mixed, default: null },
+      journalAccounts: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      totals: {
+        totalDebit: { type: Number, default: 0 },
+        totalCredit: { type: Number, default: 0 },
+        balanced: { type: Boolean, default: false },
+        _id: false,
+      },
+      generatedAt: { type: Date, default: null },
+      source: { type: String, default: "frontend" },
+      _id: false,
+    },
+
     companyId: {
       type: String,
       required: true,
@@ -216,7 +226,7 @@ const orderSchema = new mongoose.Schema(
     auditing: { type: Boolean, default: false },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Sales", orderSchema);
