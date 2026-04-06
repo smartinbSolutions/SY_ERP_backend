@@ -1,5 +1,4 @@
-const mongoose = require("mongoose");
-
+mongoose = require("mongoose");
 const deductionTypesSchema = new mongoose.Schema(
   {
     companyId: {
@@ -14,43 +13,43 @@ const deductionTypesSchema = new mongoose.Schema(
       required: true,
     },
 
-    occurrence: {
-      type: String, // "1", "2", ">3"
-      required: true,
-    },
+    stages: [
+      {
+        occurrence: {
+          type: String, // "1", "2", ">3"
+          required: true,
+        },
 
-    actionType: {
-      type: String,
-      enum: ["warning", "deduction", "escalation"],
-      required: true,
-    },
+        actions: [
+          {
+            actionType: {
+              type: String,
+              enum: ["warning", "deduction", "escalation"],
+              required: true,
+            },
 
-    deductionUnit: {
-      type: String,
-      enum: ["day", "hour", "fixed"],
-      default: null,
-    },
+            deductionUnit: {
+              type: String,
+              enum: ["day", "hour", "fixed"],
+            },
 
-    deductionValue: {
-      type: Number,
-      default: null,
-    },
+            deductionValue: {
+              type: Number,
+              default: null,
+            },
 
-    escalateToHR: {
-      type: Boolean,
-      default: false,
-    },
+            escalateToHR: {
+              type: Boolean,
+              default: false,
+            },
 
-    note: String,
+            note: String,
+          },
+        ],
+      },
+    ],
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
-
-// deductionTypesSchema.index(
-//   { companyId: 1, violationType: 1, occurrence: 1 },
-//   { unique: true },
-// );
 
 module.exports = mongoose.model("DeductionTypes", deductionTypesSchema);

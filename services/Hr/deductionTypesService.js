@@ -1,10 +1,11 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const DeductionType = require("../../models/Hr/deductionTypesModel");
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 
-// @desc    Get all deduction types
-// @route   GET /api/deduction-types
+/* =====================================================
+   GET ALL
+===================================================== */
 exports.getAllDeductionTypes = asyncHandler(async (req, res, next) => {
   const { companyId, policyId } = req.query;
 
@@ -18,18 +19,16 @@ exports.getAllDeductionTypes = asyncHandler(async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(policyId)) {
       return next(new ApiError("Invalid policyId format", 400));
     }
-
     query.policyId = policyId;
   }
 
-  // pagination
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
   const total = await DeductionType.countDocuments(query);
 
-  const deductionTypes = await DeductionType.find(query)
+  const data = await DeductionType.find(query)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
@@ -39,13 +38,14 @@ exports.getAllDeductionTypes = asyncHandler(async (req, res, next) => {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    results: deductionTypes.length,
-    data: deductionTypes,
+    results: data.length,
+    data,
   });
 });
 
-// @desc    Get single deduction type
-// @route   GET /api/deduction-types/:id
+/* =====================================================
+   GET ONE
+===================================================== */
 exports.getOneDeductionType = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -58,23 +58,21 @@ exports.getOneDeductionType = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Invalid ID format", 400));
   }
 
-  const deductionType = await DeductionType.findOne({
-    _id: id,
-    companyId,
-  });
+  const doc = await DeductionType.findOne({ _id: id, companyId });
 
-  if (!deductionType) {
-    return next(new ApiError(`No deduction type found with ID: ${id}`, 404));
+  if (!doc) {
+    return next(new ApiError("Deduction type not found", 404));
   }
 
   res.status(200).json({
     status: "success",
-    data: deductionType,
+    data: doc,
   });
 });
 
-// @desc    Create deduction type
-// @route   POST /api/deduction-types
+/* =====================================================
+   CREATE
+===================================================== */
 exports.createDeductionType = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
@@ -82,36 +80,29 @@ exports.createDeductionType = asyncHandler(async (req, res, next) => {
     return next(new ApiError("companyId is required", 400));
   }
 
-  const {
+  const { policyId, violationType, stages } = req.body;
+
+  if (!violationType || !stages) {
+    return next(new ApiError("violationType and stages are required", 400));
+  }
+
+  const doc = await DeductionType.create({
     policyId,
     violationType,
-    occurrence,
-    actionType,
-    deductionUnit,
-    deductionValue,
-    escalateToHR,
-  } = req.body;
-
-  const deductionType = await DeductionType.create({
-    policyId,
-    violationType,
-    occurrence,
-    actionType,
-    deductionUnit,
-    deductionValue,
-    escalateToHR,
-
+    stages,
     companyId,
   });
 
   res.status(201).json({
-    status: "deduction type created successfully",
-    data: deductionType,
+    status: "success",
+    message: "Deduction policy created",
+    data: doc,
   });
 });
 
-// @desc    Update deduction type
-// @route   PATCH /api/deduction-types/:id
+/* =====================================================
+   UPDATE
+===================================================== */
 exports.updateDeductionType = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -124,45 +115,31 @@ exports.updateDeductionType = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Invalid ID format", 400));
   }
 
-  const allowedUpdates = [
-    "occurrence",
-    "actionType",
-    "deductionUnit",
-    "deductionValue",
-    "escalateToHR",
-    "requiresApproval",
-    "approvalFlow",
-  ];
+  const { violationType, stages } = req.body;
 
   const updates = {};
+  if (violationType) updates.violationType = violationType;
+  if (stages) updates.stages = stages;
 
-  allowedUpdates.forEach((field) => {
-    if (req.body[field] !== undefined) {
-      updates[field] = req.body[field];
-    }
-  });
-
-  const deductionType = await DeductionType.findOneAndUpdate(
+  const doc = await DeductionType.findOneAndUpdate(
     { _id: id, companyId },
     updates,
-    {
-      new: true,
-      runValidators: true,
-    },
+    { new: true, runValidators: true },
   );
 
-  if (!deductionType) {
-    return next(new ApiError(`No deduction type found with ID: ${id}`, 404));
+  if (!doc) {
+    return next(new ApiError("Deduction type not found", 404));
   }
 
   res.status(200).json({
     status: "success",
-    data: deductionType,
+    data: doc,
   });
 });
 
-// @desc    Delete deduction type
-// @route   DELETE /api/deduction-types/:id
+/* =====================================================
+   DELETE
+===================================================== */
 exports.deleteDeductionType = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
   const { id } = req.params;
@@ -175,17 +152,17 @@ exports.deleteDeductionType = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Invalid ID format", 400));
   }
 
-  const deductionType = await DeductionType.findOneAndDelete({
+  const doc = await DeductionType.findOneAndDelete({
     _id: id,
     companyId,
   });
 
-  if (!deductionType) {
-    return next(new ApiError(`No deduction type found with ID: ${id}`, 404));
+  if (!doc) {
+    return next(new ApiError("Deduction type not found", 404));
   }
 
   res.status(200).json({
     status: "success",
-    message: "Deduction type deleted successfully",
+    message: "Deleted successfully",
   });
 });
