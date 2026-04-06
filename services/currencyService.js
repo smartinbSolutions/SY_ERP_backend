@@ -84,13 +84,13 @@ exports.updataCurrency = asyncHandler(async (req, res, next) => {
   if (
     !req.body.is_primary ||
     req.body.is_primary == "" ||
-    req.body.is_primary == "false" ||
+    req.body.is_primary == false ||
     req.body.is_primary === undefined
   ) {
     const currency = await currencyModel.findOneAndUpdate(
       { _id: req.params.id, companyId },
       req.body,
-      { new: true }
+      { new: true },
     );
     await currencyLogModel.create({
       currencyId: req.params.id,
@@ -102,23 +102,23 @@ exports.updataCurrency = asyncHandler(async (req, res, next) => {
     });
     if (!currency) {
       return next(
-        new ApiError(`No currency for this id ${req.params.id}`, 404)
+        new ApiError(`No currency for this id ${req.params.id}`, 404),
       );
     }
     res
       .status(200)
       .json({ status: "true", message: "Currency updated", data: currency });
-  } else if (req.body.is_primary == "true") {
+  } else if (req.body.is_primary == true) {
     // Update all other currency documents to is_primary to false
     await currencyModel.updateMany({ is_primary: true }, { is_primary: false });
     const currency = await currencyModel.findOneAndUpdate(
       { _id: req.params.id, companyId },
       req.body,
-      { new: true }
+      { new: true },
     );
     if (!currency) {
       return next(
-        new ApiError(`No currency for this id ${req.params.id}`, 404)
+        new ApiError(`No currency for this id ${req.params.id}`, 404),
       );
     }
     res
@@ -158,7 +158,7 @@ exports.deleteCurrency = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`Currency in use`, 404));
   } else {
     // Add a condition to check if is_primary is not true before deleting
-    if (currency.is_primary !== "true") {
+    if (currency.is_primary !== true) {
       await currencyModel.findOneAndDelete({ _id: id, companyId });
       res.status(200).json({ status: true, message: "Currency Deleted" });
     } else {
