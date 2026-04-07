@@ -23,6 +23,7 @@ const {
 const { uploadFile } = require("../services/purchaseInvoicesServices");
 const {
   createSalesInvoice,
+  postSalesInvoiceDraft,
 } = require("../controllers/Accounting/Sales/SalesInvoıce.controller");
 
 const OrderRout = express.Router();
@@ -67,6 +68,11 @@ OrderRout.route("/:id")
     uploadFile,
     patchOrder,
   );
+
+OrderRout.route("/post/:id").put(
+  authService.checkCompanyEditable,
+  postSalesInvoiceDraft,
+);
 
 OrderRout.route("/integrate/sales").post(
   authService.protect,

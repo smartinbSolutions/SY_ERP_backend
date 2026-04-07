@@ -5,6 +5,7 @@ const paymentModel = require("../../../models/paymentModel");
 const prodcutBatchModel = require("../../../models/prodcutBatchModel");
 const productModel = require("../../../models/productModel");
 const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
+const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createJournalService } = require("../../journalEntryServices");
@@ -411,13 +412,15 @@ exports.applySalesInventoryEffectsService = async ({
 
     const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
-    const oldQty = (product.stocks || []).reduce(
-      (total, stock) => total + Number(stock.productQuantity || 0),
-      0,
-    );
+    const oldQty =
+      (product.stocks || []).find((s) => s._id === item.stock._id)
+        ?.productQuantity || 0;
 
     if (soldQty > oldQty) {
-      throw new Error("Insufficient stock");
+      throw new ApiError(
+        `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
+        400,
+      );
     }
 
     let qtyToSell = soldQty;
@@ -451,7 +454,10 @@ exports.applySalesInventoryEffectsService = async ({
     }
 
     if (qtyToSell > 0) {
-      throw new Error("Not enough batch stock");
+      throw new ApiError(
+        `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
+        400,
+      );
     }
 
     let soldTotalCost = 0;

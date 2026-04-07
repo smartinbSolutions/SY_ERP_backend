@@ -10,6 +10,7 @@ const {
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
+const orderModel = require("../../../models/orderModel");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -98,7 +99,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    const salesInvoice = await ordersModel
+    const salesInvoice = await orderModel
       .findOne({ _id: invoiceId, companyId })
       .session(session);
 
@@ -167,9 +168,11 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       session,
     });
 
+    console.log(req.user);
+
     salesInvoice.status = "posted";
     salesInvoice.isDraft = false;
-    salesInvoice.postedBy = req.user._id;
+    salesInvoice.postedBy = req.user?._id;
     salesInvoice.postedAt = new Date();
     salesInvoice.paid = salesInvoice.paid || "unpaid";
     salesInvoice.journalCounter = journalLink;
