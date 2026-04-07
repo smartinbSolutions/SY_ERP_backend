@@ -7,6 +7,7 @@ const {
   applySalesInventoryEffectsService,
   applySalesCustomerEffectsService,
   debugAndCreateSalesDraftJournalService,
+  deleteSalesInvoiceDraftService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
@@ -167,9 +168,6 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       journalLinkCounter: journalLink,
       session,
     });
-
-    console.log(req.user);
-
     salesInvoice.status = "posted";
     salesInvoice.isDraft = false;
     salesInvoice.postedBy = req.user?._id;
@@ -192,5 +190,37 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
     next(error);
   } finally {
     session.endSession();
+  }
+});
+
+exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const invoiceId = req.params.id;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    await deleteSalesInvoiceDraftService({
+      invoiceId,
+      companyId,
+      session,
+    });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      status: "success",
+      message: "Draft invoice deleted successfully",
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
   }
 });

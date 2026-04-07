@@ -27,47 +27,30 @@ const {
 } = require("../controllers/Accounting/Sales/SalesInvoıce.controller");
 
 const OrderRout = express.Router();
+OrderRout.use(authService.protect);
 
-OrderRout.route("/return").post(
-  authService.protect,
-  authService.checkCompanyEditable,
-  returnOrder,
-);
-OrderRout.route("/getReturnOrder").get(authService.protect, getReturnOrder);
-OrderRout.route("/calculate-profit").post(authService.protect, calculateProfit);
-OrderRout.route("/getReturnOrder/:id").get(
-  authService.protect,
-  getOneReturnOrder,
-);
-OrderRout.route("/customerorder/:id").get(authService.protect, findCustomer);
+OrderRout.route("/return").post(authService.checkCompanyEditable, returnOrder);
+OrderRout.route("/getReturnOrder").get(getReturnOrder);
+OrderRout.route("/calculate-profit").post(calculateProfit);
+OrderRout.route("/getReturnOrder/:id").get(getOneReturnOrder);
+OrderRout.route("/customerorder/:id").get(findCustomer);
 
-OrderRout.route("/").get(authService.protect, findAllOrder);
+OrderRout.route("/").get(findAllOrder);
 
 OrderRout.route("/salesDashbord").post(
-  authService.protect,
   authService.checkCompanyEditable,
   createSalesInvoice,
 );
 OrderRout.route("/archive/:id").put(
-  authService.protect,
   authService.checkCompanyEditable,
   archiveOrder,
 );
-OrderRout.route("/merge").post(
-  authService.protect,
-  authService.checkCompanyEditable,
-  mergeReceipts,
-);
+OrderRout.route("/merge").post(authService.checkCompanyEditable, mergeReceipts);
 OrderRout.route("/:id")
   .get(findOneOrder)
-  .put(authService.protect, authService.checkCompanyEditable, editOrderInvoice)
-  .delete(authService.protect, authService.checkCompanyEditable, canceledOrder)
-  .patch(
-    authService.protect,
-    authService.checkCompanyEditable,
-    uploadFile,
-    patchOrder,
-  );
+  .put(authService.checkCompanyEditable, editOrderInvoice)
+  .delete(authService.checkCompanyEditable, canceledOrder)
+  .patch(authService.checkCompanyEditable, uploadFile, patchOrder);
 
 OrderRout.route("/post/:id").put(
   authService.checkCompanyEditable,
@@ -75,7 +58,6 @@ OrderRout.route("/post/:id").put(
 );
 
 OrderRout.route("/integrate/sales").post(
-  authService.protect,
   // EcommerceOrderIntegration
   EcommerceOrderIntegrationFull,
 );

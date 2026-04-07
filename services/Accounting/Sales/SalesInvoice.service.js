@@ -644,3 +644,32 @@ exports.debugAndCreateSalesDraftJournalService = async ({
     journalPayload,
   };
 };
+
+exports.deleteSalesInvoiceDraftService = async ({
+  invoiceId,
+  companyId,
+  session,
+}) => {
+  const invoice = await orderModel
+    .findOne({
+      _id: invoiceId,
+      companyId,
+      isDraft: true,
+    })
+    .session(session);
+
+  if (!invoice) {
+    throw new ApiError("Draft invoice not found", 404);
+  }
+
+  await orderModel.deleteOne(
+    {
+      _id: invoiceId,
+      companyId,
+      isDraft: true,
+    },
+    { session },
+  );
+
+  return true;
+};
