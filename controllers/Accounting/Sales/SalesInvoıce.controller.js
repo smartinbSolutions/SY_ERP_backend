@@ -53,6 +53,27 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
       session,
     });
 
+    if (!invoiceDraft) {
+      await applySalesCustomerEffectsService({
+        ...prepared,
+        newSalesInvoice,
+        companyId,
+        date: req.body.date,
+        session,
+      });
+
+      await applySalesInventoryEffectsService({
+        ...prepared,
+        newSalesInvoice,
+        companyId,
+        date: req.body.date,
+        totalInMainCurrency: req.body.totalInMainCurrency,
+        totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+        paid: req.body.paid,
+        session,
+      });
+    }
+
     await session.commitTransaction();
 
     res.status(201).json({
