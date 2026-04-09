@@ -1,8 +1,20 @@
 const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
 const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
-const ProductBatchModel = require("../../../models/prodcutBatchModel");
+const ProductBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const ApiError = require("../../../utils/apiError");
+const productModel = require("../../../models/productModel");
+const financialFundsModel = require("../../../models/financialFundsModel");
+const paymentModel = require("../../../models/paymentModel");
+const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
+const suppliersModel = require("../../../models/suppliersModel");
+const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
+const { createProductMovement } = require("../../../utils/productMovement");
+const { createPaymentHistory } = require("../../paymentHistoryService");
+
+function padZero(value) {
+  return value < 10 ? `0${value}` : value;
+}
 
 exports.findAllPurchaseRefundsService = async ({ req, companyId }) => {
   const pageSize = Number(req.query.limit) || 20;
@@ -175,10 +187,18 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
         batches = await ProductBatchModel.find({
           companyId,
           productId,
-          sourceType: "purchase",
-          sourceId: invoice._id,
           status: "active",
           remaining: { $gt: 0 },
+          $or: [
+            {
+              sourceType: "purchase",
+              sourceId: invoice._id,
+            },
+            {
+              originType: "purchase",
+              originId: invoice._id,
+            },
+          ],
         }).lean();
       }
 
@@ -220,6 +240,9 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
           status: batch.status || "",
           sourceId: batch.sourceId || null,
           sourceType: batch.sourceType || "",
+          originId: batch.originId || null,
+          originType: batch.originType || "",
+          parentBatchId: batch.parentBatchId || null,
         })),
       });
     }
@@ -228,5 +251,586 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
   return {
     refundableItems,
     purchaseInvoicesCount: purchaseInvoices.length,
+  };
+};
+
+exports.prepareRefundPurchaseInvoiceDataService = async ({
+  req,
+  companyId,
+  session,
+}) => {
+  const ts = Date.now();
+
+  const futureTs = ts + 5000;
+  const futureDateOb = new Date(futureTs);
+  const futureDateOb2 = new Date(ts);
+
+  futureDateOb2.setSeconds(futureDateOb.getSeconds() + 1);
+
+  const futureFormattedDate = `${padZero(futureDateOb2.getHours())}:${padZero(
+    futureDateOb2.getMinutes()
+  )}:${padZero(futureDateOb2.getSeconds())}.${padZero(
+    futureDateOb2.getMilliseconds()
+  )}`;
+
+  const futureFormatDate = `${padZero(futureDateOb.getHours())}:${padZero(
+    futureDateOb.getMinutes()
+  )}:${padZero(futureDateOb.getSeconds())}.${padZero(
+    futureDateOb.getMilliseconds()
+  )}`;
+
+  if (req.body.paymentDate) {
+    req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
+  }
+
+  if (req.body.date) {
+    req.body.date = `${req.body.date}T${futureFormatDate}Z`;
+  }
+
+  const formattedDate = new Date().toISOString().replace("T", " ").slice(0, 19);
+
+  const rawSupplierPayload =
+    typeof req.body.supplier === "string"
+      ? JSON.parse(req.body.supplier)
+      : req.body.supplier || {};
+
+  const rawInvoicesItems =
+    typeof req.body.invoicesItems === "string"
+      ? JSON.parse(req.body.invoicesItems)
+      : req.body.invoicesItems || [];
+
+  const rawSourcePurchaseInvoices =
+    typeof req.body.sourcePurchaseInvoices === "string"
+      ? JSON.parse(req.body.sourcePurchaseInvoices)
+      : req.body.sourcePurchaseInvoices || [];
+
+  const supplierPayload = {
+    id: rawSupplierPayload.id || "",
+    name: rawSupplierPayload.name || "",
+    phone: rawSupplierPayload.phone || "",
+    email: rawSupplierPayload.email || "",
+    address: rawSupplierPayload.address || "",
+    company: rawSupplierPayload.company || rawSupplierPayload.Company || "",
+    taxAdministration: rawSupplierPayload.taxAdministration || "",
+    taxNumber: rawSupplierPayload.taxNumber || "",
+    country: rawSupplierPayload.country || "",
+    city: rawSupplierPayload.city || "",
+    linkAccount: rawSupplierPayload.linkAccount || "",
+  };
+
+  const invoicesItems = rawInvoicesItems.map((item) => ({
+    id: item.id || "",
+    type: item.type || "product",
+    qr: item.qr || "",
+    name: item.name || "",
+    orginalBuyingPrice: Number(item.orginalBuyingPrice || 0),
+
+    tax: item.tax
+      ? {
+          _id: item.tax._id || null,
+          tax: Number(item.tax.tax || 0),
+          name: item.tax.name || "",
+        }
+      : {
+          _id: null,
+          tax: 0,
+          name: "",
+        },
+
+    stock: item.stock
+      ? {
+          _id: item.stock._id || null,
+          stock: item.stock.stock || "",
+        }
+      : {
+          _id: null,
+          stock: "",
+        },
+
+    unit: item.unit || "",
+    exchangeRate: Number(item.exchangeRate || 1),
+
+    discountType: item.discountType || "percentage",
+    discountPercentege: Number(item.discountPercentege || 0),
+    discountAmount: Number(item.discountAmount || 0),
+    discount: Number(item.discount || 0),
+
+    convertedBuyingPrice: Number(item.convertedBuyingPrice || 0),
+    totalWithoutTax: Number(item.totalWithoutTax || 0),
+    total: Number(item.total || 0),
+    taxValue: Number(item.taxValue || 0),
+    profitRatio: Number(item.profitRatio || 0),
+
+    sourceInvoiceId: item.sourceInvoiceId || null,
+    sourceInvoiceNumber: item.sourceInvoiceNumber || "",
+    sourceInvoiceName: item.sourceInvoiceName || "",
+    sourceInvoiceDate: item.sourceInvoiceDate || "",
+    sourceInvoiceItemIndex:
+      item.sourceInvoiceItemIndex !== undefined &&
+      item.sourceInvoiceItemIndex !== null
+        ? Number(item.sourceInvoiceItemIndex)
+        : null,
+
+    refundedQuantity: Number(item.refundedQuantity || 0),
+    remainingQuantityBeforeRefund: Number(
+      item.remainingQuantityBeforeRefund || 0
+    ),
+    remainingQuantityAfterRefund: Number(
+      item.remainingQuantityAfterRefund || 0
+    ),
+
+    selectedBatchId: item.selectedBatchId || null,
+    selectedBatchStockId: item.selectedBatchStockId || null,
+    selectedBatchDate: item.selectedBatchDate || null,
+    selectedBatchRemainingAtRefund: Number(
+      item.selectedBatchRemainingAtRefund || 0
+    ),
+  }));
+
+  const sourcePurchaseInvoices = rawSourcePurchaseInvoices.map((invoice) => ({
+    invoiceId: invoice.invoiceId || null,
+    invoiceNumber: invoice.invoiceNumber || "",
+    invoiceName: invoice.invoiceName || "",
+    invoiceDate: invoice.invoiceDate || "",
+  }));
+
+  const supplier = await suppliersModel
+    .findOne({ _id: supplierPayload.id, companyId })
+    .session(session);
+
+  if (!supplier) {
+    throw new ApiError("Supplier not found", 404);
+  }
+
+  const productIds = invoicesItems
+    .filter(
+      (item) =>
+        item.type !== "unTracedproduct" &&
+        item.type !== "expense" &&
+        item.type !== "Service"
+    )
+    .map((item) => item.id);
+
+  const products = await productModel
+    .find({
+      _id: { $in: productIds },
+      companyId,
+    })
+    .session(session);
+
+  const productMap = new Map(
+    products.map((product) => [product._id.toString(), product])
+  );
+
+  return {
+    formattedDate,
+    supplier,
+    supplierPayload,
+    invoicesItems,
+    sourcePurchaseInvoices,
+    productMap,
+  };
+};
+
+exports.createRefundPurchaseInvoiceRecordService = async ({
+  req,
+  companyId,
+  session,
+  supplierPayload,
+  invoicesItems,
+  sourcePurchaseInvoices,
+  formattedDate,
+  nextCounterRefundPurchaseInvoice,
+}) => {
+  const {
+    paid,
+    financailFund,
+    exchangeRate,
+    totalInMainCurrency: totalPurchasePriceMainCurrency,
+    currency,
+    invoiceNumber,
+    invoiceSubTotal,
+    invoiceDiscount,
+    invoiceGrandTotal,
+    ManualInvoiceDiscount,
+    taxDetails,
+    invoiceName,
+    paymentInFundCurrency,
+    InvoiceDiscountType,
+    subtotalWithDiscount,
+    paymentDate,
+    counter,
+  } = req.body;
+
+  const createdInvoices = await refundPurchaseInviceModel.create(
+    [
+      {
+        employee: req.user?._id,
+        supplier: supplierPayload,
+        type: "refund purchase",
+
+        invoicesItems,
+        sourcePurchaseInvoices,
+
+        exchangeRate: Number(exchangeRate || 1),
+        currency: currency || {},
+
+        invoiceGrandTotal: Number(invoiceGrandTotal || 0),
+        invoiceSubTotal: Number(invoiceSubTotal || 0),
+        invoiceDiscount: Number(invoiceDiscount || 0),
+        ManualInvoiceDiscount: Number(ManualInvoiceDiscount || 0),
+        invoiceTax: Number(req.body.invoiceTax || 0),
+
+        taxDetails: taxDetails || [],
+
+        invoiceName: invoiceName || "",
+        invoiceNumber: invoiceNumber || "",
+
+        financailFund: financailFund || {},
+        paymentInFundCurrency: paymentInFundCurrency || "",
+        totalPurchasePriceMainCurrency: Number(
+          totalPurchasePriceMainCurrency || 0
+        ),
+
+        date: req.body.date || formattedDate,
+        description: req.body.description || "",
+        invoiceType: req.body.invoiceType || "",
+        totalRemainderMainCurrency: Number(
+          req.body.totalRemainderMainCurrency ?? totalPurchasePriceMainCurrency
+        ),
+        totalRemainder: Number(req.body.totalRemainder ?? invoiceGrandTotal),
+
+        tag: req.body.tag || [],
+        InvoiceDiscountType: InvoiceDiscountType || "value",
+        paid: paid === "paid" ? "paid" : "unpaid",
+
+        journalCounter: req.body.journalCounter,
+        counter: Number(counter) + nextCounterRefundPurchaseInvoice.seq,
+        companyId,
+      },
+    ],
+    { session }
+  );
+
+  return createdInvoices[0];
+};
+
+exports.applyRefundPurchaseSupplierEffectsService = async ({
+  supplier,
+  newRefundPurchaseInvoice,
+  companyId,
+  currency,
+  session,
+}) => {
+  if (!supplier) {
+    throw new ApiError("Supplier not found", 404);
+  }
+
+  const totalMain = Number(
+    newRefundPurchaseInvoice.totalPurchasePriceMainCurrency || 0
+  );
+  const remainderMain = Number(
+    newRefundPurchaseInvoice.totalRemainderMainCurrency || 0
+  );
+
+  supplier.total = Number(supplier.total || 0) - totalMain;
+
+  if (newRefundPurchaseInvoice.paid === "unpaid") {
+    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - totalMain;
+  }
+
+  if (newRefundPurchaseInvoice.paid === "paid") {
+    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - remainderMain;
+  }
+
+  await supplier.save({ session });
+
+  await createPaymentHistory(
+    "refund_invoice",
+    newRefundPurchaseInvoice.date,
+    totalMain,
+    Number(newRefundPurchaseInvoice.invoiceGrandTotal || 0),
+    "supplier",
+    supplier._id,
+    newRefundPurchaseInvoice._id,
+    companyId,
+    "Refund purchase invoice",
+    "",
+    "",
+    "",
+    currency?.currencyCode || "",
+    session
+  );
+};
+
+exports.applyRefundPurchaseInventoryEffectsService = async ({
+  companyId,
+  session,
+  invoicesItems,
+  productMap,
+  newRefundPurchaseInvoice,
+}) => {
+  const bulkProductUpdates = [];
+
+  for (const item of invoicesItems) {
+    if (
+      item.type === "unTracedproduct" ||
+      item.type === "expense" ||
+      item.type === "Service"
+    ) {
+      continue;
+    }
+
+    const product = productMap.get(String(item.id));
+    if (!product) {
+      throw new ApiError(`Product not found for item ${item.name}`, 404);
+    }
+
+    if (!item.selectedBatchId) {
+      throw new ApiError(
+        `Selected batch is required for product "${item.name}"`,
+        400
+      );
+    }
+
+    if (!item.selectedBatchStockId) {
+      throw new ApiError(
+        `Selected batch stock is required for product "${item.name}"`,
+        400
+      );
+    }
+
+    const refundedQuantity = Number(item.refundedQuantity || 0);
+    if (!Number.isFinite(refundedQuantity) || refundedQuantity <= 0) {
+      throw new ApiError(
+        `Refunded quantity is invalid for product "${item.name}"`,
+        400
+      );
+    }
+
+    const selectedBatch = await ProductBatchModel.findOne({
+      _id: item.selectedBatchId,
+      productId: item.id,
+      companyId,
+      status: "active",
+    }).session(session);
+
+    if (!selectedBatch) {
+      throw new ApiError(
+        `Selected batch not found for product "${item.name}"`,
+        404
+      );
+    }
+
+    if (
+      String(selectedBatch.stockId || "") !==
+      String(item.selectedBatchStockId || "")
+    ) {
+      throw new ApiError(
+        `Selected batch stock mismatch for product "${item.name}"`,
+        400
+      );
+    }
+
+    const batchRemaining = Number(selectedBatch.remaining || 0);
+    if (batchRemaining < refundedQuantity) {
+      throw new ApiError(
+        `Batch remaining is not enough for product "${item.name}"`,
+        400
+      );
+    }
+
+    const stockRow = (product.stocks || []).find(
+      (stock) => String(stock.stockId) === String(item.selectedBatchStockId)
+    );
+
+    if (!stockRow) {
+      throw new ApiError(`Stock row not found for product "${item.name}"`, 400);
+    }
+
+    const currentStockQty = Number(stockRow.productQuantity || 0);
+    if (currentStockQty < refundedQuantity) {
+      throw new ApiError(`Insufficient stock for product "${item.name}"`, 400);
+    }
+
+    selectedBatch.remaining = batchRemaining - refundedQuantity;
+    await selectedBatch.save({ session });
+
+    await batchLedgerModel.create(
+      [
+        {
+          productId: item.id,
+          companyId,
+          stockId: item.selectedBatchStockId,
+          type: "out",
+          quantity: refundedQuantity,
+          batchId: selectedBatch._id,
+          referenceType: "refund_purchase",
+          referenceId: newRefundPurchaseInvoice._id,
+          movementDate: new Date(newRefundPurchaseInvoice.date),
+        },
+      ],
+      { session }
+    );
+
+    await createProductMovement({
+      productId: item.id,
+      reference: newRefundPurchaseInvoice._id,
+      newQuantity: currentStockQty - refundedQuantity,
+      quantity: refundedQuantity,
+      movementType: "out",
+      source: "Refund Purchase Invoice",
+      companyId,
+      outPrice: Number(selectedBatch.costBuyingPrice || 0),
+      stockId: item.selectedBatchStockId,
+      buyingPrice: item.orginalBuyingPrice,
+      exchangeRate: item.exchangeRate,
+      movementDate: new Date(newRefundPurchaseInvoice.date),
+      batchId: selectedBatch._id,
+      session,
+    });
+
+    const remainingBatches = await ProductBatchModel.find({
+      productId: item.id,
+      companyId,
+      stockId: item.selectedBatchStockId,
+      status: "active",
+      remaining: { $gt: 0 },
+    }).session(session);
+
+    let remainingTotalQty = 0;
+    let remainingTotalCost = 0;
+
+    for (const batch of remainingBatches) {
+      const qty = Number(batch.remaining || 0);
+      remainingTotalQty += qty;
+      remainingTotalCost += qty * Number(batch.costBuyingPrice || 0);
+    }
+
+    const newAvgCost =
+      remainingTotalQty > 0 ? remainingTotalCost / remainingTotalQty : 0;
+
+    bulkProductUpdates.push({
+      updateOne: {
+        filter: {
+          _id: item.id,
+          companyId,
+          "stocks.stockId": item.selectedBatchStockId,
+        },
+        update: {
+          $inc: {
+            "stocks.$.productQuantity": -refundedQuantity,
+          },
+          $set: {
+            costBuyingPrice: newAvgCost < 0 ? 0 : newAvgCost,
+          },
+        },
+      },
+    });
+  }
+
+  if (bulkProductUpdates.length > 0) {
+    await productModel.bulkWrite(bulkProductUpdates, { session });
+  }
+};
+exports.applyRefundPurchaseFinancialEffectsService = async ({
+  req,
+  companyId,
+  session,
+  supplier,
+  newRefundPurchaseInvoice,
+  formattedDate,
+  nextCounterPayment,
+}) => {
+  const financailFund = req.body.financailFund;
+  const paymentInFundCurrency = Number(req.body.paymentInFundCurrency || 0);
+  const counter = req.body.counter;
+  const exchangeRate = req.body.exchangeRate;
+
+  const financialFund = await financialFundsModel
+    .findOne({ _id: financailFund?.id, companyId })
+    .session(session);
+
+  if (!financialFund) {
+    throw new ApiError("Financial fund not found", 404);
+  }
+
+  financialFund.fundBalance += paymentInFundCurrency;
+  await financialFund.save({ session });
+
+  const createdPayments = await paymentModel.create(
+    [
+      {
+        supplierId: supplier._id,
+        supplierName: supplier.supplierName || supplier.name,
+        total: req.body.paymentInInvoiceCurrency,
+        totalMainCurrency: req.body.paymentInMainCurrency,
+        paymentInFundCurrency,
+        exchangeRate: financialFund?.fundCurrency?.exchangeRate || 1,
+        financialFundsCurrencyCode: financailFund?.code,
+        date: req.body.paymentDate || formattedDate,
+        financialFundsName: financialFund?.fundName,
+        financialFundsId: financailFund?.id,
+        invoiceNumber: req.body.invoiceNumber,
+        invoiceID: newRefundPurchaseInvoice._id,
+        counter: Number(counter) + nextCounterPayment.seq,
+        description: req.body.paymentDescription,
+        invoiceCurrencyCode: req.body.currency?.currencyCode,
+        paymentText: "Deposit",
+        companyId,
+        payid: {
+          id: newRefundPurchaseInvoice._id,
+          status: req.body.paid,
+          invoiceTotal: req.body.invoiceGrandTotal,
+          invoiceName: req.body.invoiceName,
+          invoiceCurrencyCode: req.body.currency?.currencyCode,
+          paymentInFundCurrency,
+          paymentMainCurrency: req.body.paymentInMainCurrency,
+          paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+        },
+      },
+    ],
+    { session }
+  );
+
+  const payment = createdPayments[0];
+
+  const createdReports = await reportsFinancialFunds.create(
+    [
+      {
+        date: req.body.paymentDate || formattedDate,
+        ref: newRefundPurchaseInvoice._id,
+        amount: paymentInFundCurrency,
+        type: "refund-purchase",
+        exchangeRate,
+        financialFundId: financailFund?.id,
+        financialFundRest: financialFund.fundBalance,
+        paymentType: "Deposit",
+        payment: payment._id,
+        companyId,
+      },
+    ],
+    { session }
+  );
+
+  const reports = createdReports[0];
+
+  newRefundPurchaseInvoice.payments.push({
+    payment: paymentInFundCurrency,
+    paymentMainCurrency: req.body.paymentInMainCurrency,
+    financialFunds: financialFund.fundName,
+    financialFundsCurrencyCode: req.body.financailFund?.code,
+    date: req.body.paymentDate || formattedDate,
+    paymentID: payment._id,
+    paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+    financialFundsId: financailFund?.id,
+  });
+
+  newRefundPurchaseInvoice.reportsBalanceId = reports._id;
+  await newRefundPurchaseInvoice.save({ session });
+
+  return {
+    payment,
+    financialFund,
   };
 };

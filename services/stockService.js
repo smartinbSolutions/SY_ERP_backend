@@ -10,7 +10,7 @@ const productMovementModel = require("../models/productMovementModel");
 const ShortageModel = require("../models/ShortageModel");
 const { default: mongoose } = require("mongoose");
 const { createProductBatch } = require("./productBatchServices");
-const prodcutBatchModel = require("../models/prodcutBatchModel");
+const prodcutBatchModel = require("../models/Stocks/products/prodcutBatchModel");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -103,7 +103,7 @@ exports.getOneStock = asyncHandler(async (req, res, next) => {
   let filteredProducts = products
     .map((product) => {
       const filteredStocks = product.stocks.filter(
-        (s) => s.stockId.toString() === stockId,
+        (s) => s.stockId.toString() === stockId
       );
       return {
         ...product._doc,
@@ -166,7 +166,7 @@ exports.updateStock = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
   if (!Stock) {
     return next(new ApiError(`No Stock found for id ${req.params.id}`, 404));
@@ -254,10 +254,10 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
       }).session(session);
 
       const fromStock = stocks.find(
-        (s) => s._id.toString() === String(fromStockId),
+        (s) => s._id.toString() === String(fromStockId)
       );
       const toStock = stocks.find(
-        (s) => s._id.toString() === String(toStockId),
+        (s) => s._id.toString() === String(toStockId)
       );
 
       if (!fromStock || !toStock) {
@@ -279,7 +279,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
             counter: Number(counter) + nextCounterForTransfer,
           },
         ],
-        { session },
+        { session }
       );
 
       const transferDoc = transferStock[0];
@@ -308,28 +308,28 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
 
         // Ensure from stock exists in product
         const fromStockExists = stocksArr.some(
-          (st) => st?.stockId?.toString() === String(fromStockId),
+          (st) => st?.stockId?.toString() === String(fromStockId)
         );
         if (!fromStockExists) {
           throw Object.assign(
             new Error(
-              `Stock ID ${fromStockId} not found in product ${productId}`,
+              `Stock ID ${fromStockId} not found in product ${productId}`
             ),
-            { statusCode: 400 },
+            { statusCode: 400 }
           );
         }
 
         // Prevent negative quantity in fromStock
         const fromEntry = stocksArr.find(
-          (st) => st?.stockId?.toString() === String(fromStockId),
+          (st) => st?.stockId?.toString() === String(fromStockId)
         );
         const fromQty = Number(fromEntry?.productQuantity) || 0;
         if (fromQty < quantity) {
           throw Object.assign(
             new Error(
-              `Not enough quantity in fromStock for product ${productId}. Available=${fromQty}, Requested=${quantity}`,
+              `Not enough quantity in fromStock for product ${productId}. Available=${fromQty}, Requested=${quantity}`
             ),
-            { statusCode: 400 },
+            { statusCode: 400 }
           );
         }
 
@@ -347,7 +347,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
 
         // Bulk: increment toStock or push if missing
         const toStockExists = stocksArr.some(
-          (st) => st?.stockId?.toString() === String(toStockId),
+          (st) => st?.stockId?.toString() === String(toStockId)
         );
 
         if (toStockExists) {
@@ -481,9 +481,9 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
         if (Math.abs(totalMovedQty - quantity) > 1e-9) {
           throw Object.assign(
             new Error(
-              `FIFO moved qty mismatch. Moved=${totalMovedQty}, Requested=${quantity}`,
+              `FIFO moved qty mismatch. Moved=${totalMovedQty}, Requested=${quantity}`
             ),
-            { statusCode: 400 },
+            { statusCode: 400 }
           );
         }
 
@@ -522,7 +522,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
         await ShortageModel.updateMany(
           { _id: { $in: selectedId }, companyId },
           { status: "done" },
-          { session },
+          { session }
         );
       }
 

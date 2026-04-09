@@ -24,9 +24,9 @@ const paymentHistoryModel = require("../../../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
 const ShortageModel = require("../../../models/ShortageModel");
-const prodcutBatchModel = require("../../../models/prodcutBatchModel");
+const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const { createJournalService } = require("../../journalEntryServices");
-const productLedgerModel = require("../../../models/productLedgerModel");
+const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const journalEntryModel = require("../../../models/journalEntryModel");
 
 //Fixed Ourchse invoice
@@ -1049,9 +1049,10 @@ exports.applyPurchaseInventoryEffectsService = async ({
       quantity: item.quantity,
       buyingprice: item.orginalBuyingPrice,
       sourceId: newPurchaseInvoice._id,
+      sourceType: "purchase",
+      originId: newPurchaseInvoice._id,
+      originType: "purchase",
       costBuyingPrice: movementCost,
-      exchangeRate: item.exchangeRate,
-      referenceType: "purchase",
       batchDate: date,
       session,
     });
@@ -1240,7 +1241,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
 
     await batch.save({ session });
 
-    await productLedgerModel.create(
+    await batchLedgerModel.create(
       [
         {
           productId: item.id,
@@ -1248,11 +1249,9 @@ exports.reversePurchaseInventoryEffectsService = async ({
           stockId: item.stock?._id,
           type: "out",
           quantity: reverseQty,
-          cost: reverseQty * movementCost,
           batchId: batch._id,
           referenceType: currentMode.referenceType,
           referenceId: purchaseInvoice._id,
-          costBuyingPrice: movementCost,
           movementDate: cancellationDate,
         },
       ],

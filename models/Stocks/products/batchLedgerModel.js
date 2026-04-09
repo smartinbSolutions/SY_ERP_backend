@@ -1,12 +1,19 @@
-// models/inventoryLedgerModel.js
 const mongoose = require("mongoose");
 
-const productLedgerSchema = new mongoose.Schema(
+const batchLedgerSchema = new mongoose.Schema(
   {
+    batchId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "ProductBatch",
+      required: true,
+      index: true,
+    },
+
     productId: {
       type: mongoose.Schema.ObjectId,
       ref: "product",
       required: true,
+      index: true,
     },
 
     companyId: {
@@ -15,29 +22,34 @@ const productLedgerSchema = new mongoose.Schema(
       index: true,
     },
 
-    stockId: { type: mongoose.Schema.ObjectId, ref: "Stock" },
+    stockId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Stock",
+      index: true,
+    },
 
     type: {
       type: String,
       enum: ["in", "out"],
       required: true,
+      index: true,
     },
 
-    quantity: Number,
-    cost: Number,
-    costBuyingPrice: Number,
-    batchId: {
-      type: mongoose.Schema.ObjectId,
-      ref: "ProductBatch",
+    quantity: {
+      type: Number,
+      required: true,
     },
 
     referenceType: {
-      type: String, // sale, purchase, adjustment
+      type: String,
+      index: true,
     },
 
     referenceId: {
       type: mongoose.Schema.ObjectId,
+      index: true,
     },
+
     movementDate: {
       type: Date,
       required: true,
@@ -47,10 +59,15 @@ const productLedgerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-productLedgerSchema.index({
+batchLedgerSchema.index({
+  batchId: 1,
+  movementDate: 1,
+});
+
+batchLedgerSchema.index({
   productId: 1,
   companyId: 1,
   movementDate: 1,
 });
 
-module.exports = mongoose.model("ProductLedger", productLedgerSchema);
+module.exports = mongoose.model("BatchLedger", batchLedgerSchema);

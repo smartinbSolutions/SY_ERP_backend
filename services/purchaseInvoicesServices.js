@@ -24,7 +24,7 @@ const paymentHistoryModel = require("../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../models/unTracedproductLogModel");
 const ShortageModel = require("../models/ShortageModel");
-const prodcutBatchModel = require("../models/prodcutBatchModel");
+const prodcutBatchModel = require("../models/Stocks/products/prodcutBatchModel");
 
 // ===== Settings / System Models =====
 const counterModel = require("../models/Settings/counterModel");

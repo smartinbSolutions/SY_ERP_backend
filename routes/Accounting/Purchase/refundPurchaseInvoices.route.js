@@ -1,21 +1,18 @@
 const express = require("express");
 const authService = require("../../../services/authService");
 
-const {
-  findSupplier,
-  uploadFile,
-} = require("../../../services/purchaseInvoicesServices");
+const { uploadFile } = require("../../../services/purchaseInvoicesServices");
 
 const {
   findOnePurchaseRefund,
   findAllPurchaseRefunds,
   findRefundablePurchaseItemsByInvoices,
+  createRefundPurchaseInvoice,
 } = require("../../../controllers/Accounting/Purchase/PurchaseInvoice_Refund.controller");
 
 const RefundPurchaseInvoices = express.Router();
 
 RefundPurchaseInvoices.use(authService.protect);
-console.log("I am here");
 /*
 |--------------------------------------------------------------------------
 | Helper / Lookup Routes
@@ -25,20 +22,6 @@ RefundPurchaseInvoices.post(
   "/items-by-invoices",
   findRefundablePurchaseItemsByInvoices
 );
-
-/*
-|--------------------------------------------------------------------------
-| Draft Action Routes
-|--------------------------------------------------------------------------
-*/
-// PurchaseInvoices.route("/draft/:id")
-//   .put(authService.checkCompanyEditable, uploadFile, updatePurchaseDraftInvoice)
-//   .delete(authService.checkCompanyEditable, deletePurchaseInvoiceDraft);
-
-// PurchaseInvoices.route("/post/:id").put(
-//   authService.checkCompanyEditable,
-//   postPurchaseInvoiceDraft
-// );
 
 /*
 |--------------------------------------------------------------------------
@@ -62,7 +45,11 @@ RefundPurchaseInvoices.post(
 |--------------------------------------------------------------------------
 */
 RefundPurchaseInvoices.route("/")
-  //   .post(authService.checkCompanyEditable, uploadFile, createPurchaseInvoice)
+  .post(
+    authService.checkCompanyEditable,
+    uploadFile,
+    createRefundPurchaseInvoice
+  )
   .get(findAllPurchaseRefunds);
 
 /*

@@ -50,7 +50,24 @@ const ProductBatchSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       default: null,
     },
+    originSourceType: {
+      type: String,
+      default: null,
+      index: true,
+    },
 
+    originSourceId: {
+      type: mongoose.Schema.ObjectId,
+      default: null,
+      index: true,
+    },
+
+    parentBatchId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "ProductBatch",
+      default: null,
+      index: true,
+    },
     batchDate: {
       type: Date,
       index: true,

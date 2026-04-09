@@ -2,7 +2,7 @@ const customarModel = require("../../../models/customarModel");
 const financialFundsModel = require("../../../models/financialFundsModel");
 const orderModel = require("../../../models/orderModel");
 const paymentModel = require("../../../models/paymentModel");
-const prodcutBatchModel = require("../../../models/prodcutBatchModel");
+const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const productModel = require("../../../models/productModel");
 const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
 const ApiError = require("../../../utils/apiError");
@@ -27,16 +27,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -307,7 +307,7 @@ exports.createSalesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session },
+      { session }
     );
 
     await createPaymentHistory(
@@ -324,7 +324,7 @@ exports.createSalesInvoiceRecordService = async ({
       "Deposit",
       "sales",
       parsedFinancialFund?.code,
-      session,
+      session
     );
     const reports = await reportsFinancialFunds.create(
       [
@@ -342,7 +342,7 @@ exports.createSalesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     newSalesInvoice.payments.push({
@@ -370,7 +370,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session,
+    session
   );
 
   if (paid === "paid" && !invoiceDraft) {
@@ -382,7 +382,7 @@ exports.createSalesInvoiceRecordService = async ({
       req.body.paymentDate || formattedDate,
       "Invoice payment recorded",
       "sales",
-      session,
+      session
     );
   }
 
@@ -419,7 +419,7 @@ exports.applySalesInventoryEffectsService = async ({
     if (soldQty > oldQty) {
       throw new ApiError(
         `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
-        400,
+        400
       );
     }
 
@@ -456,7 +456,7 @@ exports.applySalesInventoryEffectsService = async ({
     if (qtyToSell > 0) {
       throw new ApiError(
         `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
-        400,
+        400
       );
     }
 
@@ -567,7 +567,7 @@ exports.applySalesCustomerEffectsService = async ({
     "",
     "",
     currency.currencyCode,
-    session,
+    session
   );
 };
 
@@ -601,18 +601,18 @@ exports.debugAndCreateSalesDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
 
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
@@ -668,7 +668,7 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session },
+    { session }
   );
 
   return true;
