@@ -14,6 +14,8 @@ const PaymentHistoryModel = require("../models/paymentHistoryModel");
 const PurchaseInvoicesModel = require("../models/purchaseinvoicesModel");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 const counterModel = require("../models/Settings/counterModel");
+const journalEntryModel = require("../models/journalEntryModel");
+const { createJournalService } = require("./journalEntryServices");
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, callback) {
@@ -42,7 +44,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -68,21 +70,21 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
   const date_ob = new Date(ts);
   const futureDateOb = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth()
+    date_ob.getMonth(),
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}:${padZero(date_ob.getMilliseconds())}`;
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const formattedPayment = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const formattedDateAdd3 = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   let expense;
   const isoDate = `${req.body.date}T${formattedDateAdd3}Z`;
@@ -208,7 +210,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
             paymentID: payment._id,
           },
         ],
-      }
+      },
     );
     await createPaymentHistory(
       "payment",
@@ -223,7 +225,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "expense",
-      financialFunds.fundCurrency.currencyCode
+      financialFunds.fundCurrency.currencyCode,
     );
   } else {
     expense = await expensesModel.create(req.body);
@@ -247,7 +249,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     "",
     "",
     "expence",
-    req.body.currency.currencyCode
+    req.body.currency.currencyCode,
   );
   supplier.save();
   await createInvoiceHistory(
@@ -255,7 +257,7 @@ exports.createInvoiceExpenses = asyncHandler(async (req, res, next) => {
     expense._id,
     "create",
     req.user._id,
-    req.body.date
+    req.body.date,
   );
 
   // Send response
@@ -339,55 +341,6 @@ exports.getInvoiceExpenses = asyncHandler(async (req, res, next) => {
   });
 });
 
-//Get One invoice Expense
-//@rol: who has rol can Get the Expense's Data
-// exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
-//   const { id } = req.params;
-//   const companyId = req.query.companyId;
-
-//   if (!companyId) {
-//     return res.status(400).json({ message: "companyId is required" });
-//   }
-
-//   const expense = await expensesModel
-//     .findOne({
-//       _id: id,
-//       companyId,
-//     })
-//     .populate({
-//       path: "expenseCategory",
-//       select: "expenseCategoryName expenseCategoryDescription _id",
-//     });
-
-//   if (!expense) {
-//     return next(
-//       new ApiError(`There is no expense with this id or counter: ${id}`, 404)
-//     );
-//   }
-
-//   const pageSize = req.query.limit || 20;
-//   const page = parseInt(req.query.page) || 1;
-//   const skip = (page - 1) * pageSize;
-//   const totalItems = await invoiceHistoryModel.countDocuments({
-//     invoiceId: expense._id, // Always use the actual MongoID
-//   });
-
-//   const totalPages = Math.ceil(totalItems / pageSize);
-//   const casehistory = await invoiceHistoryModel
-//     .find({ invoiceId: expense._id, companyId })
-//     .populate({ path: "employeeId", select: "name email" })
-//     .sort({ createdAt: -1 })
-//     .skip(skip)
-//     .limit(pageSize);
-
-//   res.status(200).json({
-//     status: "true",
-//     Pages: totalPages,
-//     data: expense,
-//     history: casehistory,
-//   });
-// });
-
 exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const companyId = req.query.companyId;
@@ -402,7 +355,7 @@ exports.getInvoiceExpense = asyncHandler(async (req, res, next) => {
   });
   if (!expense) {
     return next(
-      new ApiError(`There is no expense with this id or counter: ${id}`, 404)
+      new ApiError(`There is no expense with this id or counter: ${id}`, 404),
     );
   }
 
@@ -457,7 +410,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds())}`;
   req.body.supllier = JSON.parse(req.body.supllier);
   req.body.currency = JSON.parse(req.body.currency);
@@ -467,9 +420,9 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds()
+    futureDateOb.getMilliseconds(),
   )}`;
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
 
@@ -496,7 +449,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     "",
     "",
     "expence",
-    req.body.currency.currencyCode
+    req.body.currency.currencyCode,
   );
 
   if (req.body.paymentStatus === "paid") {
@@ -510,7 +463,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
     const financialFunds = await FinancialFundsModel.findById({
       _id: req.body.financialFund,
@@ -592,7 +545,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
           },
         },
       },
-      { new: true }
+      { new: true },
     );
 
     await createPaymentHistory(
@@ -608,7 +561,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       payment._id,
       "Deposit",
       "expence",
-      financialFunds.fundCurrency.currencyCode
+      financialFunds.fundCurrency.currencyCode,
     );
 
     if (req.body.supllier.id === expence.supllier.id) {
@@ -648,7 +601,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
   }
 
@@ -657,7 +610,7 @@ exports.updateInvoiceExpense = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
   res.status(200).json({ status: "true", message: "Expense updated" });
 });
@@ -689,7 +642,7 @@ exports.patchExpense = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
 
   res.status(200).json({
@@ -722,7 +675,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
             total: -expensesInvoices.expenceTotalMainCurrency,
             TotalUnpaid: -expensesInvoices.totalRemainderMainCurrency,
           },
-        }
+        },
       );
 
       await PaymentHistoryModel.deleteMany({
@@ -733,7 +686,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
         id,
         "cancel",
         req.user._id,
-        new Date().toISOString()
+        new Date().toISOString(),
       );
       expensesInvoices.type = "expenses cancelled";
       expensesInvoices.totalRemainderMainCurrency = 0;
@@ -746,7 +699,7 @@ exports.cancelExpense = asyncHandler(async (req, res, next) => {
     }
   } else {
     return next(
-      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500)
+      new ApiError("Have a Payment pless delete the Payment or Canceled ", 500),
     );
   }
 });
@@ -794,7 +747,7 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
 
     // Merge both arrays and sort by date if needed
     const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
+      (a, b) => new Date(b.date) - new Date(a.date),
     );
 
     // Paginate the combined result
@@ -808,7 +761,7 @@ exports.getExpenseAndPurchaseForSupplier = asyncHandler(
       totalPages,
       data: paginatedData,
     });
-  }
+  },
 );
 
 exports.archiveExpense = asyncHandler(async (req, res, next) => {
@@ -821,7 +774,7 @@ exports.archiveExpense = asyncHandler(async (req, res, next) => {
   const expense = await expensesModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true }
+    { new: true },
   );
 
   if (!expense) {
@@ -848,13 +801,13 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
     const expenseCounter = await counterModel.findOneAndUpdate(
       { companyId, name: "expenses" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     const paymentCounter = await counterModel.findOneAndUpdate(
       { companyId, name: "payments" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     function padZero(value) {
@@ -865,24 +818,24 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
     const date_ob = new Date(ts);
     const futureDateOb = new Date(ts);
     const formattedDate = `${date_ob.getFullYear()}-${padZero(
-      date_ob.getMonth()
+      date_ob.getMonth(),
     )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-      date_ob.getMinutes()
+      date_ob.getMinutes(),
     )}:${padZero(date_ob.getSeconds())}:${padZero(date_ob.getMilliseconds())}`;
     futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
     const formattedPayment = `${padZero(futureDateOb.getHours())}:${padZero(
-      futureDateOb.getMinutes()
+      futureDateOb.getMinutes(),
     )}:${padZero(futureDateOb.getSeconds())}.${padZero(
       futureDateOb.getMilliseconds(),
-      3
+      3,
     )}`;
 
     const formattedDateAdd3 = `${padZero(date_ob.getHours())}:${padZero(
-      date_ob.getMinutes()
+      date_ob.getMinutes(),
     )}:${padZero(date_ob.getSeconds())}.${padZero(
       date_ob.getMilliseconds(),
-      3
+      3,
     )}`;
     const isoDate = `${req.body.date}T${formattedDateAdd3}Z`;
     req.body.date = isoDate;
@@ -900,8 +853,8 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
       expenseFile: req.file?.filename,
       currency: JSON.parse(req.body.currency),
       tag: JSON.parse(req.body.tag),
-      employeeID: req.user._id,
-      employeeName: req.user.name,
+      employeeID: req.user?._id,
+      employeeName: req.user?.name,
       counters: req.body.counter,
       counter: Number(req.body.counter) + expenseCounter.seq,
       date: expenseDate,
@@ -975,7 +928,7 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     /* -------------------- Financial Fund Report -------------------- */
@@ -995,7 +948,7 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     /* -------------------- Update Expense Payments -------------------- */
@@ -1015,7 +968,7 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
           },
         },
       },
-      { session }
+      { session },
     );
 
     /* -------------------- Histories -------------------- */
@@ -1033,7 +986,7 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
       "Deposit",
       "expense",
       financialFunds.fundCurrency.currencyCode,
-      session
+      session,
     );
 
     await createPaymentHistory(
@@ -1050,7 +1003,7 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
       "",
       "expense",
       expenseData.currency.currencyCode,
-      session
+      session,
     );
 
     await createInvoiceHistory(
@@ -1058,7 +1011,7 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
       expense._id,
       "create",
       req.user._id,
-      expenseDate
+      expenseDate,
     );
 
     /* -------------------- Commit -------------------- */
@@ -1072,71 +1025,223 @@ exports.createNoSupplierExpenses = asyncHandler(async (req, res, next) => {
     next(err);
   }
 });
+const reverseExpenseJournalEffectsService = async ({
+  companyId,
+  expenceInvoice,
+  session,
+  counterFormat,
+  cancellationDate,
+  reversalJournalLinkCounter,
+  mode = "cancel",
+}) => {
+  if (!expenceInvoice?.journalCounter) {
+    throw new ApiError(
+      "journal link reference is missing on sales invoice",
+      400,
+    );
+  }
 
-/*
-// exports.createExpenses = asyncHandler(async (req, res, next) => {
-//   const dbName = req.query.databaseName;
-//   const db = mongoose.connection.useDb(dbName);
-//   const expensesModel = db.model("expenses", expensesSchema);
+  const modeConfig = {
+    cancel: {
+      journalType: "Expense Reversal",
+      journalNamePrefix: "Expense Invoice Cancellation",
+      journalDescPrefix:
+        "Journal entry created to reverse the accounting effect of the cancelled Expense invoice",
+      originalStatus: "reversed",
+    },
+    reverse_update: {
+      journalType: "Expense Reverse Update",
+      journalNamePrefix: "Expense Invoice Update Reversal",
+      journalDescPrefix:
+        "Journal entry created to reverse the previous accounting effect before reposting the updated Expense invoice",
+      originalStatus: "reversed",
+    },
+  };
+  const currentMode = modeConfig[mode];
+  if (!currentMode) {
+    throw new ApiError(`Invalid journal reversal mode: ${mode}`, 400);
+  }
+  const originalJournal = await journalEntryModel
+    .findOne({
+      companyId,
+      linkCounter: expenceInvoice.journalCounter,
+    })
+    .session(session);
+  if (!originalJournal) {
+    throw new ApiError("original journal not found", 404);
+  }
 
-//   const newExpense = await expensesModel.create(req.body);
+  if (originalJournal.status === "reversed") {
+    throw new ApiError("original journal is already reversed", 400);
+  }
 
-//   res.status(200).json({ status: "success", data: newExpense });
-// });
+  const originalLines = originalJournal.journalAccounts || [];
 
-// exports.getExpenses = asyncHandler(async (req, res, next) => {
-//   const dbName = req.query.databaseName;
-//   const db = mongoose.connection.useDb(dbName);
-//   const expensesModel = db.model("expenses", expensesSchema);
+  if (!Array.isArray(originalLines) || originalLines.length === 0) {
+    throw new ApiError("original journal accounts are missing", 400);
+  }
 
-//   // Search for product or qr
-//   const { totalPages, mongooseQuery } = await Search(expensesModel, req);
+  const reversedLines = originalLines.map((line, index) => ({
+    ...line,
+    MainDebit: Number(line?.MainCredit || 0),
+    MainCredit: Number(line?.MainDebit || 0),
+    accountDebit: Number(line?.accountCredit || 0),
+    accountCredit: Number(line?.accountDebit || 0),
+    counter: index + 1,
+  }));
 
-//   const expenses = await mongooseQuery.sort({ expenseDate: -1 });
-//   res.status(200).json({
-//     status: "true",
-//     Pages: totalPages,
-//     results: expenses.length,
-//     data: expenses,
-//   });
-// });
+  const totalDebit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainDebit || 0),
+    0,
+  );
 
-// //Get One Expense
-// //@rol: who has rol can Get the Expense's Data
-// exports.getExpense = asyncHandler(async (req, res, next) => {
-//   const { id } = req.params;
-//   const dbName = req.query.databaseName;
-//   const db = mongoose.connection.useDb(dbName);
-//   const expensesModel = db.model("expenses", expensesSchema);
-//   db.model("ExpensesCategory", expensesCategorySchama);
-//   const expense = await expensesModel.findById(id).populate({
-//     path: "expenseCategory",
-//     select: "expenseCategoryName expenseCategoryDescription _id",
-//   });
-//   if (!expense) {
-//     return next(new ApiError(`There is no expense with this id ${id}`, 404));
-//   }
-//   res.status(200).json({
-//     status: "true",
-//     data: expense,
-//   });
-// });
+  const totalCredit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainCredit || 0),
+    0,
+  );
 
-// exports.updateExpense = asyncHandler(async (req, res, next) => {
-//   const { id } = req.params;
-//   const dbName = req.query.databaseName;
-//   const db = mongoose.connection.useDb(dbName);
-//   const expensesModel = db.model("expenses", expensesSchema);
-//   db.model("ExpensesCategory", expensesCategorySchama);
-//   const expense = await expensesModel.findByIdAndUpdate(id, req.body, {
-//     new: true,
-//   });
-//   if (!expense) {
-//     return next(new ApiError(`There is no expense with this id ${id}`, 404));
-//   }
-//   res.status(200).json({
-//     status: "true",
-//     data: expense,
-//   });
-// });
-*/
+  if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
+    throw new ApiError(
+      `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
+      400,
+    );
+  }
+  const date = cancellationDate.split("T")[0];
+  const reversalJournalPayload = {
+    journalName: `${currentMode.journalNamePrefix} - ${
+      originalJournal?.journalName || expenceInvoice?.expenseName || ""
+    }`,
+    journalDate: date,
+    journalDesc: `${currentMode.journalDescPrefix} ${
+      expenceInvoice?.expenseName || ""
+    }`,
+    journalType: currentMode.journalType,
+    linkCounter: String(reversalJournalLinkCounter),
+    refCounter: String(expenceInvoice?.counter || ""),
+    counter: counterFormat,
+    refId: expenceInvoice?._id,
+    party: originalJournal?.party || "",
+    receiptNumber:
+      originalJournal?.receiptNumber || expenceInvoice?.invoiceNumber || "",
+    filesArray: [],
+    journalDebit: totalDebit,
+    journalCredit: totalCredit,
+  };
+
+  const createdReversalJournal = await createJournalService({
+    companyId,
+    journalInfo: reversalJournalPayload,
+    journalAccounts: reversedLines,
+    session,
+  });
+  originalJournal.status = currentMode.originalStatus;
+  originalJournal.reversedAt = cancellationDate;
+  originalJournal.reverseJournalId = createdReversalJournal?._id || null;
+
+  await originalJournal.save({ session });
+
+  return {
+    originalJournal,
+    createdReversalJournal,
+    reversalJournalPayload: {
+      ...reversalJournalPayload,
+      journalAccounts: reversedLines,
+    },
+  };
+};
+exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const companyId = req.query.companyId;
+  const session = await mongoose.startSession();
+  const padZero = (value) => String(value).padStart(2, "0");
+  const padMs = (value) => String(value).padStart(3, "0");
+  const now = new Date();
+  const cancellationDate = `${now.getFullYear()}-${padZero(
+    now.getMonth() + 1,
+  )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
+    now.getMinutes(),
+  )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
+
+  session.startTransaction();
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const expense = await expensesModel
+    .findOne({ _id: id, companyId })
+    .session(session);
+  if (!expense) {
+    return next(new ApiError(`No expense found with id ${id}`, 404));
+  }
+
+  try {
+    const findExpensePayment = await paymentModel
+      .findOne({
+        "payid.id": expense._id,
+        companyId,
+      })
+      .session(session);
+
+    const findFinancialFund = await FinancialFundsModel.findOne({
+      _id: findExpensePayment.source.id,
+      companyId,
+    })
+      .populate("fundCurrency")
+      .session(session);
+
+    if (!findFinancialFund) {
+      throw new Error("Financial fund not found");
+    }
+    findFinancialFund.fundBalance += Number(
+      findExpensePayment.paymentInDestinationCurrency,
+    );
+    await findFinancialFund.save({ session });
+
+    await ReportsFinancialFundsModel.create(
+      [
+        {
+          date: cancellationDate,
+          amount: expense.paymentInFundCurrency,
+          ref: expense._id,
+          type: "cancel expense",
+          financialFundId: findFinancialFund._id,
+          financialFundRest: findFinancialFund.fundBalance,
+          exchangeRate: expense.currencyExchangeRate,
+          paymentType: "Deposit",
+          payment: findExpensePayment._id,
+          description: expense.paymentDisc,
+          companyId,
+        },
+      ],
+      { session },
+    );
+
+    expense.payments.pop();
+    expense.type = "expenses cancelled";
+    expense.paymentStatus = "unpaid";
+    await expense.save({ session });
+
+    findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
+    findExpensePayment.payid.pop();
+    findExpensePayment.type = "cancelled payment";
+    await findExpensePayment.save({ session });
+
+    await reverseExpenseJournalEffectsService({
+      companyId,
+      expenceInvoice: expense,
+      session,
+      counterFormat: expense.counter,
+      cancellationDate,
+      reversalJournalLinkCounter: expense.counter,
+      mode: "cancel",
+    });
+
+    await session.commitTransaction();
+    res.status(200).json({ message: "Expense cancelled successfully" });
+  } catch (e) {
+    await session.abortTransaction();
+    return next(new ApiError(`Error cancelling expense: ${e.message}`, 500));
+  } finally {
+    session.endSession();
+  }
+});
