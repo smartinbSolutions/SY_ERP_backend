@@ -1,8 +1,16 @@
-mongoose = require("mongoose");
+const mongoose = require("mongoose");
+
 const deductionTypesSchema = new mongoose.Schema(
   {
     companyId: {
       type: String,
+      required: true,
+      index: true,
+    },
+
+    policyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeductionPolicy",
       required: true,
       index: true,
     },
@@ -13,11 +21,23 @@ const deductionTypesSchema = new mongoose.Schema(
       required: true,
     },
 
+    resetFrequency: {
+      type: String,
+      enum: ["daily", "weekly", "monthly", "yearly", "never"],
+      default: "monthly",
+    }, // How often the occurrence count resets
+
     stages: [
       {
         occurrence: {
-          type: String, // "1", "2", ">3"
-          required: true,
+          min: {
+            type: Number,
+            required: true,
+          },
+          max: {
+            type: Number,
+            default: null,
+          },
         },
 
         actions: [

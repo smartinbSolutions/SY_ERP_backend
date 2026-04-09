@@ -45,7 +45,6 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // @desc    Get single deduction policy
 // @route   GET /api/deduction-policies/:id
 exports.getOnePolicy = asyncHandler(async (req, res, next) => {
@@ -78,61 +77,80 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // @desc    Create deduction policy + types
 // @route   POST /api/deduction-policies
 exports.createPolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
-  const { policyName, code, approvalFlow, types } = req.body;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
+  try {
+    const { companyId } = req.query;
+    const { policyName, code, approvalFlow, types } = req.body;
 
-  if (!policyName) {
-    return next(new ApiError("policyName is required", 400));
-  }
+    // 🔴 validations
+    if (!companyId) {
+      throw new ApiError("companyId is required", 400);
+    }
 
-  const exists = await DeductionPolicy.findOne({
-    companyId,
-    policyName,
-  });
+    if (!policyName) {
+      throw new ApiError("policyName is required", 400);
+    }
 
-  if (exists) {
-    return next(new ApiError("Policy name already exists", 400));
-  }
-
-  // 1. create policy
-  const policy = await DeductionPolicy.create({
-    policyName,
-    code,
-    approvalFlow,
-    companyId,
-  });
-
-  let createdTypes = [];
-
-  // 2. insert types
-  if (types && Array.isArray(types) && types.length > 0) {
-    const docs = types.map((type) => ({
-      ...type,
+    // 🔍 check if exists
+    const exists = await DeductionPolicy.findOne({
       companyId,
-      policyId: policy._id,
-    }));
+      policyName,
+    }).session(session);
 
-    createdTypes = await DeductionType.insertMany(docs);
+    if (exists) {
+      throw new ApiError("Policy name already exists", 400);
+    }
+
+    // 🟢 create policy
+    const [policy] = await DeductionPolicy.create(
+      [
+        {
+          policyName,
+          code,
+          approvalFlow,
+          companyId,
+        },
+      ],
+      { session },
+    );
+
+    let createdTypes = [];
+
+    if (types && Array.isArray(types) && types.length > 0) {
+      const docs = types.map((type) => ({
+        ...type,
+        companyId,
+        policyId: policy._id,
+      }));
+
+      createdTypes = await DeductionType.insertMany(docs, {
+        session,
+      });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(201).json({
+      status: "success",
+      message: "Deduction policy created successfully",
+      data: {
+        policy,
+        types: createdTypes,
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    return next(error);
   }
-
-  res.status(201).json({
-    status: "success",
-    message: "Deduction policy created successfully",
-    data: {
-      policy,
-      types: createdTypes,
-    },
-  });
 });
-
 
 // @desc    Update deduction policy
 // @route   PATCH /api/deduction-policies/:id
@@ -153,8 +171,7 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
   if (req.body.policyName !== undefined)
     updateData.policyName = req.body.policyName;
 
-  if (req.body.code !== undefined)
-    updateData.code = req.body.code;
+  if (req.body.code !== undefined) updateData.code = req.body.code;
 
   const policy = await DeductionPolicy.findOneAndUpdate(
     { _id: id, companyId },
@@ -174,7 +191,6 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
     data: policy,
   });
 });
-
 
 // @desc    Delete deduction policy
 // @route   DELETE /api/deduction-policies/:id

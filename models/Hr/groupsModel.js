@@ -66,6 +66,11 @@ const groupsSchema = new mongoose.Schema(
       required: true,
     },
 
+    payrollgroupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PayrollGroup",
+    },
+
     leavePolicy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "LeavePolicy",
