@@ -1,23 +1,21 @@
 const express = require("express");
-const authService = require("../services/authService");
+const authService = require("../../../services/authService");
 
 const {
-  findAllProductInvoices,
-  findOneProductInvoices,
-  findSupplier,
   uploadFile,
-  patchPurchaseInvoice,
-} = require("../services/purchaseInvoicesServices");
+} = require("../../../services/Accounting/Purchase/PurchaseInvoice.service");
 
 const {
   createPurchaseInvoice,
-  updatePurchaseInvoice,
   deletePurchaseInvoiceDraft,
   postPurchaseInvoiceDraft,
   cancelPurchaseInvoice,
   updatePostedPurchaseInvoice,
   updatePurchaseDraftInvoice,
-} = require("../controllers/Accounting/Purchase/PurchaseInvoice.controller");
+  findAllPurchaseInvoices,
+  findOnePurchaseInvoice,
+  findSupplierPurchaseInvoicesForRefund,
+} = require("../../../controllers/Accounting/Purchase/PurchaseInvoice.controller");
 
 const PurchaseInvoices = express.Router();
 
@@ -28,7 +26,9 @@ PurchaseInvoices.use(authService.protect);
 | Helper / Lookup Routes
 |--------------------------------------------------------------------------
 */
-PurchaseInvoices.route("/supplierinvoices/:id").get(findSupplier);
+PurchaseInvoices.route("/supplier/:supplierId").get(
+  findSupplierPurchaseInvoicesForRefund
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -67,13 +67,13 @@ PurchaseInvoices.route("/update/:id").put(
 */
 PurchaseInvoices.route("/")
   .post(authService.checkCompanyEditable, uploadFile, createPurchaseInvoice)
-  .get(findAllProductInvoices);
+  .get(findAllPurchaseInvoices);
 
 /*
 |--------------------------------------------------------------------------
 | Single Invoice Routes
 |--------------------------------------------------------------------------
 */
-PurchaseInvoices.route("/:id").get(findOneProductInvoices);
+PurchaseInvoices.route("/:id").get(findOnePurchaseInvoice);
 
 module.exports = PurchaseInvoices;

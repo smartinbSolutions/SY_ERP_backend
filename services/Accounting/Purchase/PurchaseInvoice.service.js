@@ -83,6 +83,156 @@ const resolveInvoiceDate = (existingDate, incomingDate) => {
 
 exports.uploadFile = upload.single("file");
 
+// Get All Purchase Invoices
+exports.findAllPurchaseInvoicesService = async ({ req, companyId }) => {
+  const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
+
+  const pageSize = Number(req.query.limit) || 20;
+  const page = Number(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const query = { companyId };
+
+  if (filters?.startDate || filters?.endDate) {
+    query.date = {};
+    if (filters?.startDate) query.date.$gte = filters.startDate;
+    if (filters?.endDate) query.date.$lte = filters.endDate;
+  }
+
+  if (filters?.tags?.length) {
+    const tagIds = filters.tags.map((tag) => tag.id);
+    query["tag.id"] = { $in: tagIds };
+  }
+
+  if (filters.paymentStatus) {
+    query.paid = filters.paymentStatus;
+  }
+
+  if (filters.employee) {
+    query.employee = filters.employee;
+  }
+
+  if (filters?.businessPartners) {
+    query["supllier.name"] = {
+      $regex: filters.businessPartners,
+      $options: "i",
+    };
+  }
+
+  if (req.query.keyword) {
+    query.$or = [
+      { "supllier.name": { $regex: req.query.keyword, $options: "i" } },
+      { invoiceName: { $regex: req.query.keyword, $options: "i" } },
+      { invoiceNumber: { $regex: req.query.keyword, $options: "i" } },
+    ];
+  }
+
+  if (filters?.filterTags?.length) {
+    query["tag.name"] = { $in: filters.filterTags };
+  }
+
+  const totalItems = await PurchaseInvoicesModel.countDocuments(query);
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const purchaseInvoices = await PurchaseInvoicesModel.find(query)
+    .sort({ date: -1 })
+    .skip(skip)
+    .limit(pageSize)
+    .populate({
+      path: "employee",
+      select: "name profileImg email phone",
+    });
+
+  return {
+    totalItems,
+    totalPages,
+    purchaseInvoices,
+  };
+};
+
+exports.findOnePurchaseInvoiceService = async ({ req, companyId }) => {
+  const { id } = req.params;
+
+  const purchaseInvoice = await PurchaseInvoicesModel.findOne({
+    _id: id,
+    companyId,
+  })
+    .populate({
+      path: "employee",
+      select: "name profileImg email phone",
+    })
+    .populate("invoicesItems.tax");
+
+  if (!purchaseInvoice) {
+    throw new ApiError(`No purchase invoice for this id ${id}`, 404);
+  }
+
+  const pageSize = Number(req.query.limit) || 20;
+  const page = Number(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const totalItems = await invoiceHistoryModel.countDocuments({
+    invoiceId: id,
+  });
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const invoiceHistory = await invoiceHistoryModel
+    .find({
+      invoiceId: id,
+      companyId,
+    })
+    .populate({ path: "employeeId", select: "name email" })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize);
+
+  return {
+    totalItems,
+    totalPages,
+    purchaseInvoice,
+    invoiceHistory,
+  };
+};
+
+exports.findSupplierPurchaseInvoicesForRefundService = async ({
+  req,
+  companyId,
+}) => {
+  const { supplierId } = req.params;
+
+  if (!supplierId) {
+    throw new ApiError("supplierId is required", 400);
+  }
+
+  const pageSize = Number(req.query.limit) || 20;
+  const page = Number(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const query = {
+    companyId,
+    "supllier.id": supplierId,
+    status: "posted",
+  };
+
+  const totalItems = await PurchaseInvoicesModel.countDocuments(query);
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const purchaseInvoices = await PurchaseInvoicesModel.find(query)
+    .sort({ date: -1, createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize)
+    .populate({
+      path: "employee",
+      select: "name profileImg email phone",
+    });
+
+  return {
+    totalItems,
+    totalPages,
+    purchaseInvoices,
+  };
+};
+//
 exports.preparePurchaseInvoiceDataService = async ({
   req,
   companyId,
@@ -259,10 +409,31 @@ exports.createPurchaseInvoiceRecordService = async ({
 
   /*
       =============================
+      RESOLVE PAYMENT / REMAINDER
+      =============================
+    */
+  const paidAmountMain = Number(req.body.paymentInMainCurrency || 0);
+  const paidAmountInvoice = Number(req.body.paymentInInvoiceCurrency || 0);
+  const invoiceTotalMain = Number(totalInMainCurrency || 0);
+  const invoiceTotalInvoice = Number(invoiceGrandTotal || 0);
+
+  const actualPaidMain = Math.min(paidAmountMain, invoiceTotalMain);
+  const actualPaidInvoice = Math.min(paidAmountInvoice, invoiceTotalInvoice);
+
+  const isFullyPaid = actualPaidMain >= invoiceTotalMain - 0.000001;
+  const resolvedPaidStatus = isFullyPaid ? "paid" : "unpaid";
+  const resolvedRemainderMain = Math.max(0, invoiceTotalMain - actualPaidMain);
+  const resolvedRemainder = Math.max(
+    0,
+    invoiceTotalInvoice - actualPaidInvoice
+  );
+
+  /*
+      =============================
       HANDLE PAYMENT FUND
       =============================
     */
-  if (paid === "paid" && !invoiceDraft) {
+  if (actualPaidMain > 0 && !invoiceDraft) {
     financialFund = await financialFundsModel
       .findOne({ _id: parsedFinancialFund?.id, companyId })
       .session(session);
@@ -286,7 +457,7 @@ exports.createPurchaseInvoiceRecordService = async ({
     currency,
     exchangeRate,
     invoiceNumber,
-    paid: invoiceDraft ? "unpaid" : paid,
+    paid: invoiceDraft ? "unpaid" : resolvedPaidStatus,
     totalPurchasePriceMainCurrency: totalInMainCurrency,
     invoiceSubTotal,
     subtotalWithDiscount,
@@ -305,8 +476,10 @@ exports.createPurchaseInvoiceRecordService = async ({
     description,
     file: req.body.file,
     paymentDate,
-    totalRemainder,
-    totalRemainderMainCurrency,
+    totalRemainder: invoiceDraft ? totalRemainder : resolvedRemainder,
+    totalRemainderMainCurrency: invoiceDraft
+      ? totalRemainderMainCurrency
+      : resolvedRemainderMain,
     type: "purchase",
     status: invoiceDraft ? "draft" : "posted",
     isDraft: invoiceDraft,
@@ -330,12 +503,12 @@ exports.createPurchaseInvoiceRecordService = async ({
       : null;
   }
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (actualPaidMain > 0 && !invoiceDraft) {
     invoicePayload.financailFund = parsedFinancialFund;
     invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
   }
 
-  if (paid === "unpaid") {
+  if (!invoiceDraft && resolvedPaidStatus === "unpaid") {
     invoicePayload.dueDate = paymentDate;
   }
 
@@ -344,7 +517,6 @@ exports.createPurchaseInvoiceRecordService = async ({
       CREATE INVOICE
       =============================
     */
-
   const createdInvoice = await PurchaseInvoicesModel.create([invoicePayload], {
     session,
   });
@@ -356,7 +528,7 @@ exports.createPurchaseInvoiceRecordService = async ({
       PAYMENT CREATION
       =============================
     */
-  if (paid === "paid" && !invoiceDraft) {
+  if (actualPaidMain > 0 && !invoiceDraft) {
     const payment = await PaymentModel.create(
       [
         {
@@ -370,9 +542,9 @@ exports.createPurchaseInvoiceRecordService = async ({
           },
           sourceType: "purchase",
           destinationType: "fund",
-          totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
-          totalMainCurrency: req.body.paymentInMainCurrency,
-          paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+          totalInPaymentCurrency: actualPaidInvoice,
+          totalMainCurrency: actualPaidMain,
+          paymentInDestinationCurrency: paymentInFundCurrency,
           paymentCurrency: {
             id: currency?.id,
             name: currency?.name,
@@ -390,13 +562,13 @@ exports.createPurchaseInvoiceRecordService = async ({
           payid: [
             {
               id: newPurchaseInvoice._id,
-              status: req.body.paid,
+              status: resolvedPaidStatus,
               invoiceTotal: req.body.invoiceGrandTotal,
               invoiceName: req.body.invoiceName,
               invoiceCurrencyCode: currency?.currencyCode,
               paymentInFundCurrency: paymentInFundCurrency,
-              paymentMainCurrency: req.body.paymentInMainCurrency,
-              paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+              paymentMainCurrency: actualPaidMain,
+              paymentInInvoiceCurrency: actualPaidInvoice,
             },
           ],
         },
@@ -407,7 +579,7 @@ exports.createPurchaseInvoiceRecordService = async ({
     await createPaymentHistory(
       "payment",
       req.body.paymentDate || formattedDate,
-      req.body.paymentInMainCurrency,
+      actualPaidMain,
       paymentInFundCurrency,
       "supplier",
       supllierObject.id,
@@ -420,6 +592,7 @@ exports.createPurchaseInvoiceRecordService = async ({
       parsedFinancialFund?.code,
       session
     );
+
     const reports = await reportsFinancialFunds.create(
       [
         {
@@ -441,12 +614,12 @@ exports.createPurchaseInvoiceRecordService = async ({
 
     newPurchaseInvoice.payments.push({
       payment: paymentInFundCurrency,
-      paymentMainCurrency: req.body.paymentInMainCurrency,
+      paymentMainCurrency: actualPaidMain,
       financialFunds: financialFund.fundName,
       financialFundsCurrencyCode: parsedFinancialFund?.code,
       date: req.body.paymentDate || formattedDate,
       paymentID: payment[0]._id,
-      paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+      paymentInInvoiceCurrency: actualPaidInvoice,
       financialFundsId: parsedFinancialFund?.id,
     });
 
@@ -474,7 +647,7 @@ exports.createPurchaseInvoiceRecordService = async ({
     session
   );
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (actualPaidMain > 0 && !invoiceDraft) {
     await createInvoiceHistory(
       companyId,
       newPurchaseInvoice._id,

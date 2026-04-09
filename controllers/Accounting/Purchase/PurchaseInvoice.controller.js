@@ -18,6 +18,9 @@ const {
   reversePurchaseInventoryEffectsService,
   reversePurchaseJournalEffectsService,
   upsertPurchaseInvoiceRecordService,
+  findAllPurchaseInvoicesService,
+  findOnePurchaseInvoiceService,
+  findSupplierPurchaseInvoicesForRefundService,
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice.service");
 
 const counterModel = require("../../../models/Settings/counterModel");
@@ -27,6 +30,77 @@ const {
 } = require("../../../services/invoiceHistoryService");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 
+/*
+|--------------------------------------------------------------------------
+| Get Purchase Invoice 
+|--------------------------------------------------------------------------
+*/
+
+exports.findAllPurchaseInvoices = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { totalItems, totalPages, purchaseInvoices } =
+    await findAllPurchaseInvoicesService({
+      req,
+      companyId,
+    });
+
+  res.status(200).json({
+    status: "true",
+    Pages: totalPages,
+    results: purchaseInvoices.length,
+    data: purchaseInvoices,
+  });
+});
+
+exports.findOnePurchaseInvoice = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { totalItems, totalPages, purchaseInvoice, invoiceHistory } =
+    await findOnePurchaseInvoiceService({
+      req,
+      companyId,
+    });
+
+  res.status(200).json({
+    status: "true",
+    Pages: totalPages,
+    data: purchaseInvoice,
+    history: invoiceHistory,
+  });
+});
+
+exports.findSupplierPurchaseInvoicesForRefund = asyncHandler(
+  async (req, res, next) => {
+    const companyId = req.query.companyId;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    const { totalItems, totalPages, purchaseInvoices } =
+      await findSupplierPurchaseInvoicesForRefundService({
+        req,
+        companyId,
+      });
+
+    res.status(200).json({
+      status: "true",
+      Pages: totalPages,
+      results: purchaseInvoices.length,
+      totalItems,
+      data: purchaseInvoices,
+    });
+  }
+);
 /*
 |--------------------------------------------------------------------------
 | Create Purchase Invoice 

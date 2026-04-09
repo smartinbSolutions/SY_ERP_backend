@@ -272,7 +272,7 @@ const handleSupplierPayment = async (req, companyId, next) => {
       description,
       destinationType,
     } = req.body;
-
+    console.log("triggerd");
     const supplier = await suppliersModel.findOne({
       _id: req.body.source.id,
       companyId,

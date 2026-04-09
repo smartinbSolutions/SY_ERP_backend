@@ -57,58 +57,107 @@ const createPaymentHistory = async (
 };
 
 const getPaymentHistory = asyncHandler(async (req, res, next) => {
-  const pageSize = parseInt(req.query.limit) || 10;
-  const page = parseInt(req.query.page) || 1;
+  const pageSize = parseInt(req.query.limit, 10) || 10;
+  const page = parseInt(req.query.page, 10) || 1;
   const skip = (page - 1) * pageSize;
   const companyId = req.query.companyId;
-
   const { id } = req.params;
+
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  let query = {
-    $or: [{ customerId: id }, { supplierId: id }],
+
+  const query = {
     companyId,
+    $or: [{ customerId: id }, { supplierId: id }],
   };
 
-  // Fetch all transactions up to the current page
-  const allTransactions = await PaymentHistoryModel.find(query).sort({
-    date: 1,
-  });
+  const allTransactions = await PaymentHistoryModel.find(query)
+    .lean()
+    .sort({ date: 1, createdAt: 1 });
 
-  // console.log(allTransactions);
-  let runningBalance = 0;
-
-  allTransactions.forEach((transaction) => {
-    const rest = Number(transaction.rest || 0);
-
+  const getPartyRole = (transaction, partyId) => {
     if (
-      transaction.type === "invoice_cancel" ||
-      transaction.type === "invoice_reverse_update"
+      transaction.customerId &&
+      String(transaction.customerId) === String(partyId)
     ) {
-      runningBalance -= rest;
-    } else if (
-      (transaction.type === "payment" ||
-        transaction.type === "Refund Invoice") &&
-      transaction.paymentText === "Deposit"
-    ) {
-      runningBalance -= rest;
-    } else {
-      runningBalance += rest;
+      return "customer";
     }
 
-    transaction.runningBalance = runningBalance;
+    if (
+      transaction.supplierId &&
+      String(transaction.supplierId) === String(partyId)
+    ) {
+      return "supplier";
+    }
+
+    return null;
+  };
+
+  const getTransactionEffect = (transaction, role) => {
+    const rest = Number(transaction.rest || 0);
+
+    if (!role || rest === 0) return 0;
+
+    const type = String(transaction.type || "").trim();
+    const paymentText = String(transaction.paymentText || "").trim();
+
+    // reversals / cancellations
+    if (type === "invoice_cancel" || type === "invoice_reverse_update") {
+      return -rest;
+    }
+
+    // opening balance
+    if (type === "Opening balance") {
+      if (role === "customer") {
+        return paymentText === "Deposit" ? -rest : +rest;
+      }
+
+      if (role === "supplier") {
+        return paymentText === "Deposit" ? +rest : -rest;
+      }
+    }
+
+    // payments / refunds
+    if (type === "payment" || type === "Refund Invoice") {
+      if (role === "customer") {
+        if (paymentText === "Deposit") return -rest;
+        if (paymentText === "Withdrawal") return -rest;
+      }
+
+      if (role === "supplier") {
+        if (paymentText === "Deposit") return -rest;
+        if (paymentText === "Withdrawal") return +rest;
+      }
+    }
+
+    // default invoice-like behavior
+    return +rest;
+  };
+
+  let runningBalance = 0;
+
+  const transactionsWithBalance = allTransactions.map((transaction) => {
+    const role = getPartyRole(transaction, id);
+    const effect = getTransactionEffect(transaction, role);
+
+    runningBalance += effect;
+
+    return {
+      ...transaction,
+      runningBalance,
+      balanceEffect: effect, // optional, useful for debugging
+      partyType: role, // optional, useful for frontend/debugging
+    };
   });
 
-  // Sort transactions in descending order before applying pagination
-  const sortedTransactions = allTransactions.sort(
+  const sortedTransactions = [...transactionsWithBalance].sort(
     (a, b) => new Date(b.date) - new Date(a.date)
   );
 
-  // Apply pagination to the transactions with running balances
   const paginatedTransactions = sortedTransactions.slice(skip, skip + pageSize);
 
-  const totalItems = allTransactions.length;
+  const totalItems = transactionsWithBalance.length;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   res.status(200).json({

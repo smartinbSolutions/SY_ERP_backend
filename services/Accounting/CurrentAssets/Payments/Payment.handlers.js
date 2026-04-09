@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const purchaseinvoicesModel = require("../../../../models/purchaseinvoicesModel");
+const salesinvoicesModel = require("../../../../models/orderModel");
 
 const suppliersModel = require("../../../../models/suppliersModel");
 const customarModel = require("../../../../models/customarModel");
@@ -12,7 +13,9 @@ const {
   getNextCounterValue,
 } = require("../../../../utils/getNextCounterValue");
 const accountingTreeModel = require("../../../../models/accountingTreeModel");
+const expensesModel = require("../../../../models/expensesModel");
 
+// Supplier effects
 const handleSupplierPaymentEntity = async ({
   supplier,
   companyId,
@@ -23,18 +26,14 @@ const handleSupplierPaymentEntity = async ({
   date,
   description,
   currencyCode,
-  paymentText,
-  effectSide, // "source" | "destination"
+  effectSide,
   session,
 }) => {
   const amount = Number(totalMainCurrency || 0);
+  const paymentText = effectSide === "destination" ? "Deposit" : "Withdrawal";
 
   if (effectSide === "destination") {
     supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - amount;
-
-    if (supplier.TotalUnpaid < 0) {
-      supplier.TotalUnpaid = 0;
-    }
 
     await supplier.save({ session });
 
@@ -61,7 +60,7 @@ const handleSupplierPaymentEntity = async ({
   if (effectSide === "source") {
     const updatedSupplier = await suppliersModel.findOneAndUpdate(
       { _id: supplier.id || supplier._id, companyId },
-      { $inc: { TotalUnpaid: -amount } },
+      { $inc: { TotalUnpaid: amount } },
       { new: true, session }
     );
 
@@ -91,6 +90,175 @@ const handleSupplierPaymentEntity = async ({
 
   throw new Error("Invalid supplier effect side");
 };
+const settleSupplierOpenDocuments = async ({
+  supplier,
+  source,
+  sourceExchangeRate,
+  sourceCurrencyCode,
+  payment,
+  paymentAmountMain,
+  date,
+  companyId,
+  session,
+}) => {
+  let remainingPaymentMain = Number(paymentAmountMain || 0);
+  const payidRows = [];
+
+  const purchases = await purchaseinvoicesModel
+    .find({
+      paid: "unpaid",
+      "supllier.id": supplier._id.toString(),
+      type: { $ne: "cancel" },
+      companyId,
+      status: { $ne: "draft" },
+    })
+    .session(session);
+
+  const expenses = await expensesModel
+    .find({
+      paymentStatus: "unpaid",
+      "supllier.id": supplier._id.toString(),
+      companyId,
+    })
+    .session(session);
+
+  const openDocs = [
+    ...purchases.map((purchase) => ({
+      kind: "purchase",
+      doc: purchase,
+      sortDate: new Date(purchase.date || purchase.createdAt || 0),
+      createdAt: new Date(purchase.createdAt || 0),
+    })),
+    ...expenses.map((expense) => ({
+      kind: "expense",
+      doc: expense,
+      sortDate: new Date(expense.date || expense.createdAt || 0),
+      createdAt: new Date(expense.createdAt || 0),
+    })),
+  ].sort((a, b) => {
+    const dateDiff = a.sortDate - b.sortDate;
+    if (dateDiff !== 0) return dateDiff;
+    return a.createdAt - b.createdAt;
+  });
+
+  for (const item of openDocs) {
+    if (remainingPaymentMain <= 0) break;
+
+    if (item.kind === "purchase") {
+      const purchase = item.doc;
+
+      const purchaseRemainderMain = Number(
+        purchase.totalRemainderMainCurrency || 0
+      );
+
+      if (purchaseRemainderMain <= 0) continue;
+
+      const appliedMain = Math.min(purchaseRemainderMain, remainingPaymentMain);
+      const purchaseCurrencyRate = Number(
+        purchase?.currency?.exchangeRate || 1
+      );
+      const appliedInvoice = appliedMain * purchaseCurrencyRate;
+      const appliedSource = appliedMain * Number(sourceExchangeRate || 1);
+
+      purchase.totalRemainderMainCurrency = purchaseRemainderMain - appliedMain;
+      purchase.totalRemainder =
+        Number(purchase.totalRemainder || 0) - appliedInvoice;
+
+      if (purchase.totalRemainderMainCurrency <= 0.000001) {
+        purchase.totalRemainderMainCurrency = 0;
+        purchase.totalRemainder = 0;
+        purchase.paid = "paid";
+      }
+
+      purchase.payments.push({
+        payment: appliedSource,
+        paymentMainCurrency: appliedMain,
+        financialFunds: source.name,
+        financialFundsCurrencyCode: sourceCurrencyCode,
+        paymentID: payment._id,
+        date,
+        paymentInInvoiceCurrency: appliedInvoice,
+        financialFundsId: source.id,
+      });
+
+      await purchase.save({ session });
+
+      payidRows.push({
+        id: purchase._id,
+        status: purchase.paid,
+        paymentInFundCurrency: appliedSource,
+        paymentMainCurrency: appliedMain,
+        invoiceTotal: purchase.totalPurchasePriceMainCurrency,
+        invoiceName: purchase.invoiceName,
+        invoiceCurrencyCode: purchase?.currency?.currencyCode || "N/A",
+        invoiceType: "purchase",
+        paymentInvoiceCurrency: appliedInvoice,
+      });
+
+      remainingPaymentMain -= appliedMain;
+      continue;
+    }
+
+    if (item.kind === "expense") {
+      const expense = item.doc;
+
+      const expenseRemainderMain = Number(
+        expense.totalRemainderMainCurrency || 0
+      );
+
+      if (expenseRemainderMain <= 0) continue;
+
+      const appliedMain = Math.min(expenseRemainderMain, remainingPaymentMain);
+      const expenseCurrencyRate = Number(expense?.currency?.exchangeRate || 1);
+      const appliedInvoice = appliedMain * expenseCurrencyRate;
+      const appliedSource = appliedMain * Number(sourceExchangeRate || 1);
+
+      expense.totalRemainderMainCurrency = expenseRemainderMain - appliedMain;
+      expense.totalRemainder =
+        Number(expense.totalRemainder || 0) - appliedInvoice;
+
+      if (expense.totalRemainderMainCurrency <= 0.000001) {
+        expense.totalRemainderMainCurrency = 0;
+        expense.totalRemainder = 0;
+        expense.paymentStatus = "paid";
+      }
+
+      expense.payments.push({
+        payment: appliedSource,
+        paymentMainCurrency: appliedMain,
+        financialFunds: source.name,
+        financialFundsCurrencyCode: sourceCurrencyCode,
+        paymentID: payment._id,
+        date,
+        paymentInInvoiceCurrency: appliedInvoice,
+        financialFundsId: source.id,
+      });
+
+      await expense.save({ session });
+
+      payidRows.push({
+        id: expense._id,
+        status: expense.paymentStatus,
+        paymentInFundCurrency: appliedSource,
+        paymentMainCurrency: appliedMain,
+        invoiceTotal: expense.expenceTotalMainCurrency,
+        invoiceName: expense.expenseName,
+        invoiceCurrencyCode: expense?.currency?.currencyCode || "N/A",
+        invoiceType: "expense",
+        paymentInvoiceCurrency: appliedInvoice,
+      });
+
+      remainingPaymentMain -= appliedMain;
+    }
+  }
+
+  return {
+    payidRows,
+    remainingPaymentMain,
+  };
+};
+
+// Customer effects
 const handleCustomerPaymentEntity = async ({
   customer,
   companyId,
@@ -101,40 +269,180 @@ const handleCustomerPaymentEntity = async ({
   date,
   description,
   currencyCode,
-  paymentText,
-  isWithDraw,
+  effectSide, // "source" | "destination"
   session,
 }) => {
   const amount = Number(totalMainCurrency || 0);
-  const unpaidDelta = isWithDraw === true ? amount : -amount;
 
-  const updatedCustomer = await customarModel.findOneAndUpdate(
-    { _id: customer.id || customer._id, companyId },
-    { $inc: { TotalUnpaid: unpaidDelta } },
-    { new: true, session }
-  );
+  if (effectSide === "destination") {
+    const updatedCustomer = await customarModel.findOneAndUpdate(
+      { _id: customer.id || customer._id, companyId },
+      { $inc: { TotalUnpaid: -amount } },
+      { new: true, session }
+    );
 
-  if (!updatedCustomer) {
-    throw new Error("Customer not found");
+    if (!updatedCustomer) {
+      throw new Error("Customer not found");
+    }
+
+    if (Number(updatedCustomer.TotalUnpaid || 0) < 0) {
+      updatedCustomer.TotalUnpaid = 0;
+      await updatedCustomer.save({ session });
+    }
+
+    await createPaymentHistory(
+      "payment",
+      date,
+      Math.abs(amount),
+      Number(paymentInFundCurrency || 0),
+      "customer",
+      updatedCustomer._id,
+      refId,
+      companyId,
+      description,
+      paymentId,
+      "Deposit",
+      "",
+      currencyCode,
+      session
+    );
+
+    return;
   }
 
-  await createPaymentHistory(
-    "payment",
-    date,
-    Math.abs(amount),
-    Number(paymentInFundCurrency || 0),
-    "customer",
-    updatedCustomer._id,
-    refId,
-    companyId,
-    description,
-    paymentId,
-    paymentText,
-    "",
-    currencyCode,
-    session
-  );
+  if (effectSide === "source") {
+    const updatedCustomer = await customarModel.findOneAndUpdate(
+      { _id: customer.id || customer._id, companyId },
+      { $inc: { TotalUnpaid: amount } },
+      { new: true, session }
+    );
+
+    if (!updatedCustomer) {
+      throw new Error("Customer not found");
+    }
+
+    await createPaymentHistory(
+      "payment",
+      date,
+      Math.abs(amount),
+      Number(paymentInFundCurrency || 0),
+      "customer",
+      updatedCustomer._id,
+      refId,
+      companyId,
+      description,
+      paymentId,
+      "Withdrawal",
+      "",
+      currencyCode,
+      session
+    );
+
+    return;
+  }
+
+  throw new Error("Invalid customer effect side");
 };
+const settleCustomerOpenDocuments = async ({
+  customer,
+  source,
+  sourceExchangeRate,
+  sourceCurrencyCode,
+  payment,
+  paymentAmountMain,
+  date,
+  companyId,
+  session,
+}) => {
+  let remainingPaymentMain = Number(paymentAmountMain || 0);
+  const payidRows = [];
+  console.log("I am here now");
+  const salesInvoices = await salesinvoicesModel
+    .find({
+      paymentsStatus: "unpaid",
+      "customer.id": customer._id.toString(),
+      type: { $ne: "cancel" },
+      companyId,
+      // status: { $nin: ["draft", "Draft"] },
+    })
+    .session(session);
+
+  console.log("salesInvoices", salesInvoices);
+  const openDocs = salesInvoices
+    .map((invoice) => ({
+      kind: "sales",
+      doc: invoice,
+      sortDate: new Date(invoice.date || invoice.createdAt || 0),
+      createdAt: new Date(invoice.createdAt || 0),
+    }))
+    .sort((a, b) => {
+      const dateDiff = a.sortDate - b.sortDate;
+      if (dateDiff !== 0) return dateDiff;
+      return a.createdAt - b.createdAt;
+    });
+  console.log("openDocs", openDocs);
+
+  for (const item of openDocs) {
+    if (remainingPaymentMain <= 0) break;
+
+    const invoice = item.doc;
+
+    const invoiceRemainderMain = Number(
+      invoice.totalRemainderMainCurrency || 0
+    );
+
+    if (invoiceRemainderMain <= 0) continue;
+
+    const appliedMain = Math.min(invoiceRemainderMain, remainingPaymentMain);
+    const invoiceCurrencyRate = Number(invoice?.currency?.exchangeRate || 1);
+    const appliedInvoice = appliedMain * invoiceCurrencyRate;
+    const appliedSource = appliedMain * Number(sourceExchangeRate || 1);
+
+    invoice.totalRemainderMainCurrency = invoiceRemainderMain - appliedMain;
+    invoice.totalRemainder =
+      Number(invoice.totalRemainder || 0) - appliedInvoice;
+
+    if (invoice.totalRemainderMainCurrency <= 0.000001) {
+      invoice.totalRemainderMainCurrency = 0;
+      invoice.totalRemainder = 0;
+      invoice.paid = "paid";
+    }
+
+    invoice.payments.push({
+      payment: appliedSource,
+      paymentMainCurrency: appliedMain,
+      financialFunds: source.name,
+      financialFundsCurrencyCode: sourceCurrencyCode,
+      paymentID: payment._id,
+      date,
+      paymentInInvoiceCurrency: appliedInvoice,
+      financialFundsId: source.id,
+    });
+
+    await invoice.save({ session });
+
+    payidRows.push({
+      id: invoice._id,
+      status: invoice.paid,
+      paymentInFundCurrency: appliedSource,
+      paymentMainCurrency: appliedMain,
+      invoiceTotal: invoice.invoiceGrandTotalMainCurrency,
+      invoiceName: invoice.invoiceName,
+      invoiceCurrencyCode: invoice?.currency?.currencyCode || "N/A",
+      invoiceType: "sale",
+      paymentInvoiceCurrency: appliedInvoice,
+    });
+
+    remainingPaymentMain -= appliedMain;
+  }
+
+  return {
+    payidRows,
+    remainingPaymentMain,
+  };
+};
+
+// Fund effects
 const handleFundPaymentEntity = async ({
   fund,
   companyId,
@@ -143,15 +451,16 @@ const handleFundPaymentEntity = async ({
   refId = "",
   date,
   description,
-  paymentText,
+  effectSide, // "source" | "destination"
   sourceExchangeRate = 1,
-  isWithDraw,
   session,
 }) => {
+  const paymentText = effectSide === "destination" ? "Deposit" : "Withdrawal";
+
   const fundDelta =
-    isWithDraw === true
-      ? -Number(paymentInFundCurrency || 0)
-      : Number(paymentInFundCurrency || 0);
+    effectSide === "destination"
+      ? Number(paymentInFundCurrency || 0)
+      : -Number(paymentInFundCurrency || 0);
 
   const financialFund = await financialFundsModel.findOneAndUpdate(
     { _id: fund.id || fund._id, companyId },
@@ -183,7 +492,13 @@ const handleFundPaymentEntity = async ({
   );
 };
 
-const handleAccountPaymentEntity = async ({ account, companyId, session }) => {
+// Account effects
+const handleAccountPaymentEntity = async ({
+  account,
+  companyId,
+  effectSide, // keep for consistency even if unused for now
+  session,
+}) => {
   const foundAccount = await accountingTreeModel
     .findOne({
       _id: account.id || account._id,
@@ -198,6 +513,7 @@ const handleAccountPaymentEntity = async ({ account, companyId, session }) => {
   return foundAccount;
 };
 
+// handelrs
 const handlePurchasePayment = async (
   req,
   companyId,
@@ -418,7 +734,6 @@ const handlePurchasePayment = async (
         if (!sourceCustomer) {
           throw new Error("Source customer not found");
         }
-
         await handleCustomerPaymentEntity({
           customer: sourceCustomer,
           companyId,
@@ -429,8 +744,7 @@ const handlePurchasePayment = async (
           date,
           description,
           currencyCode: sourceCurrencyCode,
-          paymentText: "Withdrawal",
-          isWithDraw,
+          effectSide: "source",
           session,
         });
       } else if (sourceType === "account") {
@@ -452,4 +766,261 @@ const handlePurchasePayment = async (
   }
 };
 
-module.exports = { handlePurchasePayment };
+const handleSupplierPayment = async (
+  req,
+  companyId,
+  next,
+  normalizedPayment
+) => {
+  const session = await mongoose.startSession();
+
+  try {
+    let createdPayment = null;
+
+    await session.withTransaction(async () => {
+      const {
+        source,
+        sourceType,
+        destination,
+        destinationType,
+        paymentInSourceCurrency,
+        sourceCurrencyCode,
+        sourceExchangeRate,
+        paymentInInvoiceCurrency,
+        paymentInMainCurrency,
+        date,
+        description,
+        paymentType,
+      } = normalizedPayment;
+
+      const isSupplierDestination = destinationType === "supplier";
+      const isSupplierSource = sourceType === "supplier";
+
+      if (!isSupplierDestination && !isSupplierSource) {
+        throw new Error(
+          "Supplier payment context requires supplier as source or destination"
+        );
+      }
+
+      const supplierId = isSupplierDestination ? destination?.id : source?.id;
+
+      if (!supplierId) {
+        throw new Error("Supplier id is required");
+      }
+
+      if (!source?.id || !destination?.id) {
+        throw new Error("Source and destination are required");
+      }
+
+      const supplier = await suppliersModel
+        .findOne({ _id: supplierId, companyId })
+        .session(session);
+
+      if (!supplier) {
+        throw new Error("Supplier not found");
+      }
+
+      const paymentAmountMain = Number(paymentInMainCurrency || 0);
+      const paymentAmountInvoice = Number(paymentInInvoiceCurrency || 0);
+      const paymentAmountSource = Number(paymentInSourceCurrency || 0);
+
+      const paymentSeq = await getNextCounterValue({
+        companyId,
+        name: "Payment",
+        session,
+      });
+
+      req.body.type = "supplier";
+      req.body.paymentText = paymentType;
+
+      const paymentPayload = {
+        ...req.body,
+        source,
+        destination,
+        sourceType,
+        destinationType,
+        totalInPaymentCurrency: paymentAmountInvoice,
+        totalMainCurrency: paymentAmountMain,
+        paymentInDestinationCurrency: paymentAmountSource, // legacy field
+        destinationExchangeRate: sourceExchangeRate, // legacy field
+        destinationCurrencyCode: sourceCurrencyCode, // legacy field
+        type: "supplier",
+        paymentType,
+        description,
+        date,
+        companyId,
+        counter: Number(req.body.counter || 0) + Number(paymentSeq),
+        payid: [],
+      };
+
+      const paymentDocs = await paymentModel.create([paymentPayload], {
+        session,
+      });
+      const payment = paymentDocs[0];
+      createdPayment = payment;
+
+      /*
+        |--------------------------------------------------------------------------
+        | SUPPLIER SIDE EFFECT
+        |--------------------------------------------------------------------------
+        */
+      await handleSupplierPaymentEntity({
+        supplier,
+        companyId,
+        totalMainCurrency: paymentAmountMain,
+        paymentInFundCurrency: paymentAmountSource,
+        paymentId: payment._id,
+        refId: "",
+        date,
+        description,
+        currencyCode: sourceCurrencyCode,
+        effectSide: isSupplierDestination ? "destination" : "source",
+        session,
+      });
+
+      /*
+        |--------------------------------------------------------------------------
+        | IF SUPPLIER IS DESTINATION, SETTLE OPEN PURCHASES + EXPENSES
+        |--------------------------------------------------------------------------
+        */
+      if (isSupplierDestination) {
+        const { payidRows } = await settleSupplierOpenDocuments({
+          supplier,
+          source,
+          sourceExchangeRate,
+          sourceCurrencyCode,
+          payment,
+          paymentAmountMain,
+          date,
+          companyId,
+          session,
+        });
+
+        payment.payid = payidRows;
+        await payment.save({ session });
+      }
+
+      /*
+        |--------------------------------------------------------------------------
+        | OPPOSITE SIDE ENTITY EFFECT
+        |--------------------------------------------------------------------------
+        */
+      if (isSupplierDestination) {
+        if (sourceType === "fund") {
+          await handleFundPaymentEntity({
+            fund: source,
+            companyId,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            effectSide: "source",
+            sourceExchangeRate,
+            session,
+          });
+        } else if (sourceType === "customer") {
+          const customer = await customarModel
+            .findOne({ _id: source.id, companyId })
+            .session(session);
+
+          if (!customer) {
+            throw new Error("Customer not found");
+          }
+          console.log("I am here");
+          await handleCustomerPaymentEntity({
+            customer,
+            companyId,
+            totalMainCurrency: paymentAmountMain,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            currencyCode: sourceCurrencyCode,
+            effectSide: "source",
+            session,
+          });
+          console.log("I am here too");
+          const { payidRows } = await settleCustomerOpenDocuments({
+            customer,
+            source,
+            sourceExchangeRate,
+            sourceCurrencyCode,
+            payment,
+            paymentAmountMain,
+            date,
+            companyId,
+            session,
+          });
+
+          payment.payid = payidRows;
+          await payment.save({ session });
+        } else if (sourceType === "account") {
+          await handleAccountPaymentEntity({
+            account: source,
+            companyId,
+            effectSide: "source",
+            session,
+          });
+        } else {
+          throw new Error("Invalid supplier payment sourceType");
+        }
+      } else {
+        if (destinationType === "fund") {
+          await handleFundPaymentEntity({
+            fund: destination,
+            companyId,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            effectSide: "destination",
+            sourceExchangeRate,
+            session,
+          });
+        } else if (destinationType === "customer") {
+          const customer = await customarModel
+            .findOne({ _id: destination.id, companyId })
+            .session(session);
+
+          if (!customer) {
+            throw new Error("Customer not found");
+          }
+
+          await handleCustomerPaymentEntity({
+            customer,
+            companyId,
+            totalMainCurrency: paymentAmountMain,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            currencyCode: sourceCurrencyCode,
+            effectSide: "destination",
+            session,
+          });
+        } else if (destinationType === "account") {
+          await handleAccountPaymentEntity({
+            account: destination,
+            companyId,
+            effectSide: "destination",
+            session,
+          });
+        } else {
+          throw new Error("Invalid supplier payment destinationType");
+        }
+      }
+    });
+
+    return createdPayment;
+  } catch (err) {
+    throw err;
+  } finally {
+    await session.endSession();
+  }
+};
+
+module.exports = { handlePurchasePayment, handleSupplierPayment };
