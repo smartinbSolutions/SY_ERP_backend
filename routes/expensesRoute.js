@@ -21,14 +21,12 @@ const {
 
 const expensesRoute = express.Router();
 
-// expensesRoute.use(authService.protect);
+expensesRoute.use(authService.protect);
 expensesRoute
   .route("/")
   .post(authService.checkCompanyEditable, uploadFile, createInvoiceExpenses)
   .get(getInvoiceExpenses);
-expensesRoute
-  .route("/cash")
-  .post(authService.protect, uploadFile, createNoSupplierExpenses);
+expensesRoute.route("/cash").post(uploadFile, createNoSupplierExpenses);
 expensesRoute
   .route("/archive/:id")
   .put(authService.checkCompanyEditable, archiveExpense);
