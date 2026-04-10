@@ -43,6 +43,7 @@ const ProductMovementSchema = new mongoose.Schema(
         "Refund Purchase Invoice",
         "Purchase Invoice Reverse Update",
         "Sales Invoice Cancellation",
+        "Sales Invoice Reverse Update",
       ],
       required: true,
     },

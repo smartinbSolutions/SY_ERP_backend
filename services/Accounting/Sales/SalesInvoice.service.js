@@ -11,7 +11,10 @@ const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createJournalService } = require("../../journalEntryServices");
-const { createPaymentHistory } = require("../../paymentHistoryService");
+const {
+  createPaymentHistory,
+  createPaymentHistoryV2,
+} = require("../../paymentHistoryService");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -597,22 +600,22 @@ exports.applySalesCustomerEffectsService = async ({
 
   await customer.save({ session });
 
-  await createPaymentHistory(
-    "invoice",
-    date,
-    totalMain,
-    newSalesInvoice.invoiceGrandTotal,
-    "customer",
-    customer._id,
-    newSalesInvoice._id,
-    companyId,
-    "",
-    "",
-    "",
-    "",
-    currency.currencyCode,
-    session,
-  );
+  // await createPaymentHistory(
+  //   "invoice",
+  //   date,
+  //   totalMain,
+  //   newSalesInvoice.invoiceGrandTotal,
+  //   "customer",
+  //   customer._id,
+  //   newSalesInvoice._id,
+  //   companyId,
+  //   "",
+  //   "",
+  //   "",
+  //   "",
+  //   currency.currencyCode,
+  //   session,
+  // );
 };
 
 exports.debugAndCreateSalesDraftJournalService = async ({
@@ -1193,4 +1196,279 @@ exports.reverseSalesJournalEffectsService = async ({
       journalAccounts: reversedLines,
     },
   };
+};
+
+exports.upsertSalesInvoiceRecordService = async ({
+  mode = "create",
+  req,
+  existingInvoice = null,
+  invoiceDraft,
+  customer,
+  invoicesItem,
+  customerObject,
+  currency,
+  taxDetails,
+  tag,
+  formattedDate,
+  companyId,
+  nextCounterPayment,
+  draftJournalSnapshot,
+  nextCounterSalesInvoices,
+  session,
+}) => {
+  const {
+    paid,
+    exchangeRate,
+    totalInMainCurrency,
+    invoiceSubTotal,
+    subtotalWithDiscount,
+    invoiceDiscount,
+    InvoiceDiscountType,
+    ManualInvoiceDiscount,
+    ManualInvoiceDiscountValue,
+    invoiceGrandTotal,
+    invoiceName,
+    invoiceTax,
+    paymentInFundCurrency,
+    invoiceNumber,
+    journalCounter,
+    paymentDate,
+    description,
+    totalRemainder,
+    totalRemainderMainCurrency,
+  } = req.body;
+
+  let financialFund = null;
+  let parsedFinancialFund = null;
+
+  if (req.body.financailFund) {
+    parsedFinancialFund =
+      typeof req.body.financailFund === "string"
+        ? JSON.parse(req.body.financailFund)
+        : req.body.financailFund;
+  }
+
+  if (paid === "paid" && !invoiceDraft) {
+    financialFund = await financialFundsModel
+      .findOne({ _id: parsedFinancialFund?.id, companyId })
+      .session(session);
+
+    if (!financialFund) {
+      throw new ApiError("Financial fund not found", 404);
+    }
+
+    financialFund.fundBalance += Number(paymentInFundCurrency || 0);
+  }
+
+  const invoicePayload = {
+    employee: req.user._id,
+    invoicesItems: invoicesItem,
+    customer: customerObject,
+    currency,
+    exchangeRate,
+    invoiceNumber,
+
+    paid: invoiceDraft ? "unpaid" : paid,
+    totalInMainCurrency: totalInMainCurrency,
+
+    invoiceSubTotal,
+    subtotalWithDiscount,
+    invoiceDiscount,
+    InvoiceDiscountType,
+    ManualInvoiceDiscount,
+    ManualInvoiceDiscountValue,
+
+    invoiceGrandTotal,
+    taxDetails,
+    invoiceTax,
+
+    invoiceName,
+    tag,
+    companyId,
+
+    date: req.body.date || formattedDate,
+    journalCounter,
+    description,
+    file: req.body.file,
+    paymentDate,
+
+    totalRemainder,
+    totalRemainderMainCurrency,
+
+    type: "sales",
+    status: invoiceDraft ? "draft" : "posted",
+    isDraft: invoiceDraft,
+  };
+
+  if (mode === "create" && !invoiceDraft) {
+    invoicePayload.counter =
+      Number(req.body.counter || 0) + nextCounterSalesInvoices.seq;
+
+    invoicePayload.postedBy = req.user._id;
+    invoicePayload.postedAt = new Date();
+  }
+
+  if (mode === "update") {
+    invoicePayload.postedBy = existingInvoice?.postedBy || req.user._id;
+    invoicePayload.postedAt = existingInvoice?.postedAt || new Date();
+
+    invoicePayload.cancelledAt = null;
+    invoicePayload.cancelledBy = null;
+    invoicePayload.cancellationReason = "";
+
+    invoicePayload.payments = [];
+    invoicePayload.reportsBalanceId = null;
+  }
+
+  if (mode === "create" && invoiceDraft) {
+    invoicePayload.draftJournalSnapshot = draftJournalSnapshot
+      ? {
+          ...draftJournalSnapshot,
+          generatedAt: new Date(),
+          source: draftJournalSnapshot?.source || "frontend",
+        }
+      : null;
+  }
+
+  if (paid === "paid" && !invoiceDraft) {
+    invoicePayload.financailFund = parsedFinancialFund;
+    invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
+  }
+
+  if (paid === "unpaid") {
+    invoicePayload.dueDate = paymentDate;
+  }
+
+  let invoiceDoc;
+
+  if (mode === "create") {
+    const createdInvoice = await SalesInvoicesModel.create([invoicePayload], {
+      session,
+    });
+    invoiceDoc = createdInvoice[0];
+  } else if (mode === "update") {
+    if (!existingInvoice) {
+      throw new ApiError("existingInvoice is required for update mode", 400);
+    }
+
+    Object.assign(existingInvoice, invoicePayload);
+    await existingInvoice.save({ session });
+    invoiceDoc = existingInvoice;
+  } else {
+    throw new ApiError("Invalid mode", 400);
+  }
+
+  if (paid === "paid" && !invoiceDraft) {
+    const payment = await PaymentModel.create(
+      [
+        {
+          source: {
+            id: customerObject.id,
+            name: customerObject.name,
+          },
+          destination: {
+            id: financialFund._id,
+            name: financialFund.fundName,
+          },
+
+          sourceType: "customer",
+          destinationType: "fund",
+
+          totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
+          totalMainCurrency: req.body.paymentInMainCurrency,
+          paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+
+          paymentCurrency: {
+            id: currency?.id,
+            name: currency?.name,
+            code: currency?.currencyCode,
+            exchangeRate: currency?.exchangeRate,
+          },
+
+          destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
+          destinationCurrencyCode: parsedFinancialFund?.code,
+
+          type: "sales",
+          paymentType: "Deposit",
+
+          description: req.body.paymentDescription,
+          date: req.body.paymentDate || formattedDate,
+
+          counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
+          companyId,
+
+          payid: [
+            {
+              id: invoiceDoc._id,
+              status: req.body.paid,
+              invoiceTotal: req.body.invoiceGrandTotal,
+              invoiceName: req.body.invoiceName,
+              invoiceCurrencyCode: currency?.currencyCode,
+
+              paymentInFundCurrency: paymentInFundCurrency,
+              paymentMainCurrency: req.body.paymentInMainCurrency,
+              paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+            },
+          ],
+        },
+      ],
+      { session },
+    );
+
+    await createPaymentHistoryV2({
+      companyId,
+      entryType: "payment",
+      transactionDate: req.body.paymentDate || formattedDate,
+      amountTransactionCurrency: paymentInFundCurrency,
+      amountMainCurrency: req.body.paymentInMainCurrency,
+      supplierId: customerObject.id,
+      referenceId: invoiceDoc._id,
+      sourceModule: "sales",
+      actionType: "create",
+      paymentId: payment[0]._id,
+      balanceEffectType: "Deposit",
+      description: req.body.paymentDescription,
+      transactionCurrency: parsedFinancialFund?.code,
+      session,
+    });
+
+    const reports = await reportsFinancialFunds.create(
+      [
+        {
+          date: req.body.paymentDate || formattedDate,
+          ref: invoiceDoc._id,
+          amount: paymentInFundCurrency,
+          type: "sales",
+          exchangeRate,
+          financialFundId: parsedFinancialFund?.id,
+
+          financialFundRest: financialFund.fundBalance,
+
+          paymentType: "Deposit",
+          payment: payment[0]._id,
+          description: req.body.paymentDescription,
+          companyId,
+        },
+      ],
+      { session },
+    );
+
+    invoiceDoc.payments.push({
+      payment: paymentInFundCurrency,
+      paymentMainCurrency: req.body.paymentInMainCurrency,
+      financialFunds: financialFund.fundName,
+      financialFundsCurrencyCode: parsedFinancialFund?.code,
+      date: req.body.paymentDate || formattedDate,
+      paymentID: payment[0]._id,
+      paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+      financialFundsId: parsedFinancialFund?.id,
+    });
+
+    invoiceDoc.reportsBalanceId = reports[0]._id;
+
+    await invoiceDoc.save({ session });
+    await financialFund.save({ session });
+  }
+
+  return invoiceDoc;
 };

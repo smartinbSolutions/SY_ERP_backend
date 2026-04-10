@@ -27,6 +27,7 @@ const {
   deleteSalesInvoiceDraft,
   updateSalesDraftInvoice,
   cancelSalesInvoice,
+  updatePostedSalesInvoice,
 } = require("../controllers/Accounting/Sales/SalesInvoıce.controller");
 
 const OrderRout = express.Router();
@@ -51,7 +52,7 @@ OrderRout.route("/archive/:id").put(
 OrderRout.route("/merge").post(authService.checkCompanyEditable, mergeReceipts);
 OrderRout.route("/:id")
   .get(findOneOrder)
-  .put(authService.checkCompanyEditable, editOrderInvoice)
+  .put(authService.checkCompanyEditable, updatePostedSalesInvoice)
   .delete(authService.checkCompanyEditable, canceledOrder)
   .patch(authService.checkCompanyEditable, uploadFile, patchOrder);
 

@@ -12,6 +12,7 @@ const {
   reverseSalesInventoryEffectsService,
   reverseSalesCustomerEffectsService,
   reverseSalesJournalEffectsService,
+  upsertSalesInvoiceRecordService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
@@ -19,6 +20,7 @@ const orderModel = require("../../../models/orderModel");
 const {
   createInvoiceHistory,
 } = require("../../../services/invoiceHistoryService");
+const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -94,6 +96,217 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
     next(error);
   } finally {
     await session.endSession();
+  }
+});
+
+exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const invoiceId = req.params.id;
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const salesInvoice = await orderModel
+      .findOne({ _id: invoiceId, companyId })
+      .session(session);
+
+    if (!salesInvoice) {
+      return next(new ApiError("Order invoice not found", 404));
+    }
+
+    if (salesInvoice.isDraft === true || salesInvoice.status === "draft") {
+      return next(
+        new ApiError("Draft order invoice should use draft update flow", 400),
+      );
+    }
+
+    if (salesInvoice.status === "cancelled") {
+      return next(
+        new ApiError("Cancelled order invoice cannot be updated", 400),
+      );
+    }
+
+    if (salesInvoice.auditing === true) {
+      return next(new ApiError("Audited order invoice cannot be updated", 400));
+    }
+
+    if (
+      salesInvoice.paid === "paid" ||
+      (salesInvoice.payments || []).length > 0
+    ) {
+      return next(
+        new ApiError("Paid order invoice cannot be updated in this step", 400),
+      );
+    }
+
+    const padZero = (value) => String(value).padStart(2, "0");
+    const padMs = (value) => String(value).padStart(3, "0");
+
+    const now = new Date();
+    const updateDate = `${now.getFullYear()}-${padZero(
+      now.getMonth() + 1,
+    )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
+      now.getMinutes(),
+    )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
+
+    const oldPrepared = await prepareSalesInvoiceDataFromDraftService({
+      salesInvoice,
+      companyId,
+      session,
+    });
+
+    // Make the delete old effect
+    await reverseSalesInventoryEffectsService({
+      ...oldPrepared,
+      salesInvoice,
+      companyId,
+      session,
+      reversedBy: req.user._id,
+      reverseReason: "Sales invoice update reversal",
+      cancellationDate: updateDate,
+      mode: "reverse_update",
+    });
+
+    await reverseSalesCustomerEffectsService({
+      ...oldPrepared,
+      salesInvoice,
+      companyId,
+      session,
+      cancellationDate: updateDate,
+      mode: "reverse_update",
+    });
+    const counterFormat = req.body.counterFormat;
+    const reversalJournalLinkCounter = `${
+      salesInvoice.journalCounter
+    }-reverse-update-${Date.now()}`;
+
+    await reverseSalesJournalEffectsService({
+      salesInvoice,
+      companyId,
+      session,
+      cancellationDate: updateDate,
+      counterFormat,
+      reversalJournalLinkCounter,
+      mode: "reverse_update",
+    });
+
+    // Make the effect
+
+    const newPrepared = await prepareSalesInvoiceDataService({
+      req,
+      companyId,
+      session,
+    });
+
+    let nextCounterPayment = null;
+
+    if (req.body.paid === "paid") {
+      const paymentSeq = await getNextCounterValue({
+        companyId,
+        name: "Payment",
+        session,
+      });
+
+      nextCounterPayment = { seq: paymentSeq };
+    }
+
+    const updatedSalesInvoice = await upsertSalesInvoiceRecordService({
+      mode: "update",
+      req,
+      existingInvoice: salesInvoice,
+      invoiceDraft: false,
+      ...newPrepared,
+      companyId,
+      nextCounterPayment,
+      draftJournalSnapshot: null,
+      nextCounterSalesInvoices: null,
+      session,
+    });
+
+    await applySalesInventoryEffectsService({
+      ...newPrepared,
+      newSalesInvoice: updatedSalesInvoice,
+      companyId,
+      date: updatedSalesInvoice.orderDate,
+      session,
+    });
+
+    await applySalesCustomerEffectsService({
+      ...newPrepared,
+      newSalesInvoice: updatedSalesInvoice,
+      companyId,
+      date: updatedSalesInvoice.orderDate,
+      totalInMainCurrency: updatedSalesInvoice.totalInMainCurrency,
+      totalRemainderMainCurrency:
+        updatedSalesInvoice.totalRemainderMainCurrency,
+      paid: updatedSalesInvoice.paid,
+      session,
+    });
+
+    const journalPreview =
+      typeof req.body.journalPreview === "string"
+        ? JSON.parse(req.body.journalPreview)
+        : req.body.journalPreview;
+
+    if (!journalPreview?.journalMeta) {
+      return next(new ApiError("journal preview is required", 400));
+    }
+
+    const journalLinkCounter = `sales-${updatedSalesInvoice._id}-${Date.now()}`;
+
+    const { createdJournal } = await debugAndCreateSalesDraftJournalService({
+      companyId,
+      salesInvoice: updatedSalesInvoice,
+      journalPreview,
+      counterFormat,
+      invoiceRefCounter: updatedSalesInvoice.counter,
+      journalLinkCounter,
+      session,
+    });
+
+    updatedSalesInvoice.journalCounter = journalLinkCounter;
+
+    await updatedSalesInvoice.save({ session });
+
+    await createInvoiceHistory(
+      companyId,
+      updatedSalesInvoice._id,
+      "edit",
+      req.user._id,
+      updateDate,
+      "Sales invoice updated",
+      "sales",
+      session,
+    );
+
+    if (updatedSalesInvoice.paid === "paid") {
+      await createInvoiceHistory(
+        companyId,
+        updatedSalesInvoice._id,
+        "payment",
+        req.user._id,
+        req.body.paymentDate || updateDate,
+        "Invoice payment recorded from update",
+        "sales",
+        session,
+      );
+    }
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      status: "success",
+      message: "Sales invoice updated successfully",
+      data: updatedSalesInvoice,
+      journal: createdJournal,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
   }
 });
 
