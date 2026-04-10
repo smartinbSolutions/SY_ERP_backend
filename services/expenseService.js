@@ -1236,6 +1236,17 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
       mode: "cancel",
     });
 
+    await createInvoiceHistory(
+      companyId,
+      expense._id,
+      "cancel",
+      req.user._id,
+      cancellationDate,
+      "Cancelled Expense",
+      "expense",
+      session,
+    );
+
     await session.commitTransaction();
     res.status(200).json({ message: "Expense cancelled successfully" });
   } catch (e) {

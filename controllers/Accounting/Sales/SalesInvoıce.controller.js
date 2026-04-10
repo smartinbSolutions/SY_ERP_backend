@@ -8,10 +8,17 @@ const {
   applySalesCustomerEffectsService,
   debugAndCreateSalesDraftJournalService,
   deleteSalesInvoiceDraftService,
+  updateSalesInvoiceDraftService,
+  reverseSalesInventoryEffectsService,
+  reverseSalesCustomerEffectsService,
+  reverseSalesJournalEffectsService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
 const orderModel = require("../../../models/orderModel");
+const {
+  createInvoiceHistory,
+} = require("../../../services/invoiceHistoryService");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -193,6 +200,45 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
   }
 });
 
+exports.updateSalesDraftInvoice = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const invoiceDraft = req.body.isDraft;
+
+    let invoice;
+
+    if (invoiceDraft) {
+      invoice = await updateSalesInvoiceDraftService({
+        req,
+        companyId,
+        session,
+      });
+    } else {
+      console.log("not resolved yet");
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      status: "success",
+      message: "Draft invoice updated successfully",
+      data: invoice,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
+  }
+});
+
 exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceId = req.params.id;
@@ -222,5 +268,124 @@ exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
     await session.abortTransaction();
     session.endSession();
     next(error);
+  }
+});
+
+exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const invoiceId = req.params.id;
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const salesInvoice = await orderModel
+      .findOne({ _id: invoiceId, companyId })
+      .session(session);
+
+    if (!salesInvoice) {
+      return next(new ApiError("Sales invoice not found", 404));
+    }
+
+    if (salesInvoice.isDraft === true || salesInvoice.status === "draft") {
+      return next(new ApiError("Draft invoice cannot be cancelled", 400));
+    }
+
+    if (salesInvoice.status === "cancelled") {
+      return next(new ApiError("Sales invoice is already cancelled", 400));
+    }
+
+    if (salesInvoice.auditing === true) {
+      return next(
+        new ApiError("Audited sales invoice cannot be cancelled", 400),
+      );
+    }
+
+    if (
+      salesInvoice.paid === "paid" ||
+      (salesInvoice.payments || []).length > 0
+    ) {
+      return next(
+        new ApiError(
+          "Paid sales invoice cannot be cancelled in this step",
+          400,
+        ),
+      );
+    }
+    const baseCounter = Number(req.body.counter || 0);
+    const padZero = (value) => String(value).padStart(2, "0");
+    const padMs = (value) => String(value).padStart(3, "0");
+
+    const now = new Date();
+    const cancellationDate = `${now.getFullYear()}-${padZero(
+      now.getMonth() + 1,
+    )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
+      now.getMinutes(),
+    )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
+
+    const prepared = await prepareSalesInvoiceDataFromDraftService({
+      salesInvoice,
+      companyId,
+      session,
+    });
+
+    await reverseSalesInventoryEffectsService({
+      ...prepared,
+      salesInvoice,
+      companyId,
+      session,
+      reversedBy: req.user._id,
+      reverseReason: req.body.reason || "Sales invoice cancellation",
+      cancellationDate,
+    });
+
+    await reverseSalesCustomerEffectsService({
+      ...prepared,
+      salesInvoice,
+      companyId,
+      session,
+      cancellationDate,
+    });
+
+    await reverseSalesJournalEffectsService({
+      companyId,
+      salesInvoice,
+      session,
+      counterFormat: baseCounter,
+      cancellationDate,
+    });
+
+    salesInvoice.status = "cancelled";
+    salesInvoice.type = "sales cancelled";
+    salesInvoice.cancelledAt = cancellationDate;
+    salesInvoice.cancelledBy = req.user._id;
+    salesInvoice.cancellationReason = req.body.reason || "";
+
+    await salesInvoice.save({ session });
+
+    await createInvoiceHistory(
+      companyId,
+      salesInvoice._id,
+      "cancel",
+      req.user._id,
+      cancellationDate,
+      "Sales invoice cancelled",
+      "sales",
+      session,
+    );
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      status: "success",
+      message: "Sales invoice cancelled successfully",
+      data: salesInvoice,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
   }
 });

@@ -1,8 +1,10 @@
 const customarModel = require("../../../models/customarModel");
 const financialFundsModel = require("../../../models/financialFundsModel");
+const journalEntryModel = require("../../../models/journalEntryModel");
 const orderModel = require("../../../models/orderModel");
 const paymentModel = require("../../../models/paymentModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
+const productLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const productModel = require("../../../models/productModel");
 const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
 const ApiError = require("../../../utils/apiError");
@@ -11,6 +13,25 @@ const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createJournalService } = require("../../journalEntryServices");
 const { createPaymentHistory } = require("../../paymentHistoryService");
 
+const resolveInvoiceDate = (existingDate, incomingDate) => {
+  if (!incomingDate) return existingDate;
+
+  const existingDateOnly = existingDate
+    ? new Date(existingDate).toISOString().split("T")[0]
+    : null;
+
+  const incomingDateObj = new Date(incomingDate);
+
+  if (Number.isNaN(incomingDateObj.getTime())) {
+    return existingDate;
+  }
+
+  const incomingDateOnly = incomingDateObj.toISOString().split("T")[0];
+
+  return existingDateOnly === incomingDateOnly
+    ? existingDate
+    : incomingDateObj.toISOString();
+};
 exports.prepareSalesInvoiceDataService = async ({
   req,
   companyId,
@@ -27,16 +48,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -101,7 +122,7 @@ exports.prepareSalesInvoiceDataFromDraftService = async ({
   session,
 }) => {
   const customerObject = salesInvoice.customer || {};
-  const taxDetails = salesInvoice.taxDetails || [];
+  const taxSummary = salesInvoice.taxSummary || [];
   const invoicesItem = salesInvoice.invoicesItems || [];
   const currency = salesInvoice.currency || {};
   const tag = salesInvoice.tag || [];
@@ -131,7 +152,7 @@ exports.prepareSalesInvoiceDataFromDraftService = async ({
     customer,
     invoicesItem,
     customerObject,
-    taxDetails,
+    taxSummary,
     currency,
     tag,
     productMap,
@@ -225,7 +246,7 @@ exports.createSalesInvoiceRecordService = async ({
     paymentDate,
     totalRemainder,
     totalRemainderMainCurrency,
-    status: "draft",
+    status: req.body.status,
     isDraft: invoiceDraft,
     postedBy: invoiceDraft ? null : req.user._id,
     postedAt: invoiceDraft ? null : new Date(),
@@ -307,7 +328,7 @@ exports.createSalesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistory(
@@ -324,7 +345,7 @@ exports.createSalesInvoiceRecordService = async ({
       "Deposit",
       "sales",
       parsedFinancialFund?.code,
-      session
+      session,
     );
     const reports = await reportsFinancialFunds.create(
       [
@@ -342,7 +363,7 @@ exports.createSalesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     newSalesInvoice.payments.push({
@@ -370,7 +391,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session
+    session,
   );
 
   if (paid === "paid" && !invoiceDraft) {
@@ -382,7 +403,7 @@ exports.createSalesInvoiceRecordService = async ({
       req.body.paymentDate || formattedDate,
       "Invoice payment recorded",
       "sales",
-      session
+      session,
     );
   }
 
@@ -413,13 +434,13 @@ exports.applySalesInventoryEffectsService = async ({
     const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
     const oldQty =
-      (product.stocks || []).find((s) => s._id === item.stock._id)
+      (product.stocks || []).find((s) => s.stockId === item.stock._id)
         ?.productQuantity || 0;
 
     if (soldQty > oldQty) {
       throw new ApiError(
         `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
-        400
+        400,
       );
     }
 
@@ -456,7 +477,7 @@ exports.applySalesInventoryEffectsService = async ({
     if (qtyToSell > 0) {
       throw new ApiError(
         `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
-        400
+        400,
       );
     }
 
@@ -567,7 +588,7 @@ exports.applySalesCustomerEffectsService = async ({
     "",
     "",
     currency.currencyCode,
-    session
+    session,
   );
 };
 
@@ -601,18 +622,18 @@ exports.debugAndCreateSalesDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -645,6 +666,120 @@ exports.debugAndCreateSalesDraftJournalService = async ({
   };
 };
 
+exports.updateSalesInvoiceDraftService = async ({
+  req,
+  companyId,
+  session,
+}) => {
+  const invoiceId = req.params.id;
+
+  if (!invoiceId) {
+    throw new ApiError("Invoice id is required", 400);
+  }
+
+  const invoicesItem = req.body.invoicesItems
+    ? JSON.parse(req.body.invoicesItems)
+    : [];
+
+  const currency = req.body.currency;
+  const tag = req.body.tag;
+  const taxSummary = req.body.taxSummary;
+  const customerObject = req.body.customer;
+
+  const existingInvoice = await orderModel
+    .findOne({
+      _id: invoiceId,
+      companyId,
+      isDraft: true,
+    })
+    .session(session);
+
+  if (!existingInvoice) {
+    throw new ApiError("Draft invoice not found", 404);
+  }
+
+  const exchangeRate = Number(req.body.exchangeRate || 1);
+  const totalInMainCurrency = Number(req.body.totalInMainCurrency || 0);
+  const invoiceSubTotal = Number(req.body.invoiceSubTotal || 0);
+  const subtotalWithDiscount = Number(req.body.subtotalWithDiscount || 0);
+  const invoiceDiscount = Number(req.body.invoiceDiscount || 0);
+  const invoiceGrandTotal = Number(req.body.invoiceGrandTotal || 0);
+  const invoiceTax = Number(req.body.invoiceTax || 0);
+  const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
+  const manualInvoiceDiscountValue = Number(
+    req.body.ManualInvoiceDiscountValue || 0,
+  );
+
+  const paid = "unpaid";
+  const paymentInInvoiceCurrency = 0;
+  const paymentInMainCurrency = 0;
+  const totalRemainder = invoiceGrandTotal;
+  const totalRemainderMainCurrency = totalInMainCurrency;
+
+  const normalizedDate = resolveInvoiceDate(
+    existingInvoice.orderDate,
+    req.body.orderDate,
+  );
+
+  const updatePayload = {
+    invoicesItems: invoicesItem,
+    currency,
+    tag,
+    taxSummary,
+    customer: customerObject,
+
+    invoiceName: req.body.invoiceName,
+    invoiceNumber: req.body.invoiceNumber,
+    exchangeRate,
+
+    totalInMainCurrency: totalInMainCurrency,
+    invoiceSubTotal,
+    subtotalWithDiscount,
+    invoiceDiscount,
+    invoiceGrandTotal,
+    invoiceTax,
+
+    InvoiceDiscountType: req.body.InvoiceDiscountType,
+    ManualInvoiceDiscount: manualInvoiceDiscount,
+    ManualInvoiceDiscountValue: manualInvoiceDiscountValue,
+
+    paid,
+    paymentInInvoiceCurrency,
+    paymentInMainCurrency,
+    totalRemainder,
+    totalRemainderMainCurrency,
+
+    date: normalizedDate,
+    description: req.body.description || "",
+  };
+
+  const invoice = await orderModel.findOneAndUpdate(
+    {
+      _id: invoiceId,
+      companyId,
+      isDraft: true,
+    },
+    updatePayload,
+    {
+      new: true,
+      session,
+    },
+  );
+
+  await createInvoiceHistory(
+    companyId,
+    invoice._id,
+    "edit",
+    req.user._id,
+    normalizedDate,
+    "Draft Sales invoice updated",
+    "sales",
+    session,
+  );
+
+  return invoice;
+};
+
 exports.deleteSalesInvoiceDraftService = async ({
   invoiceId,
   companyId,
@@ -668,8 +803,347 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session }
+    { session },
   );
 
   return true;
+};
+
+// reverse
+exports.reverseSalesInventoryEffectsService = async ({
+  invoicesItem,
+  productMap,
+  salesInvoice,
+  companyId,
+  session,
+  reversedBy,
+  reverseReason,
+  cancellationDate,
+  mode = "cancel",
+}) => {
+  const reversalConfig = {
+    cancel: {
+      reverseReason: reverseReason || "Sales invoice cancellation",
+      referenceType: "sales_cancel",
+      movementSource: "Sales Invoice Cancellation",
+    },
+    reverse_update: {
+      reverseReason: reverseReason || "Sales invoice reverse update",
+      referenceType: "sales_reverse_update",
+      movementSource: "Sales Invoice Reverse Update",
+    },
+  };
+
+  const currentMode = reversalConfig[mode];
+  if (!currentMode) {
+    throw new ApiError(`Invalid reversal mode: ${mode}`, 400);
+  }
+
+  const bulkProductUpdates = [];
+
+  for (const item of invoicesItem) {
+    if (item.type === "unTracedproduct" || item.type === "expense") continue;
+
+    const product = productMap.get(item.id);
+    if (!product) {
+      throw new ApiError(`Product not found for item ${item.name}`, 404);
+    }
+
+    if (!item.stock?._id) {
+      throw new ApiError(`Stock is missing for item ${item.name}`, 400);
+    }
+
+    const stockRow = (product.stocks || []).find(
+      (s) => String(s.stockId) === String(item.stock._id),
+    );
+
+    if (!stockRow) {
+      throw new ApiError(`Stock row not found for product ${item.name}`, 400);
+    }
+
+    const reverseQty = Number(item.quantity || 0);
+
+    bulkProductUpdates.push({
+      updateOne: {
+        filter: {
+          _id: item.id,
+          companyId,
+          "stocks.stockId": item.stock._id,
+        },
+        update: {
+          $inc: {
+            "stocks.$.productQuantity": reverseQty,
+          },
+        },
+      },
+    });
+  }
+
+  if (bulkProductUpdates.length > 0) {
+    await productModel.bulkWrite(bulkProductUpdates, { session });
+  }
+
+  for (const item of invoicesItem) {
+    if (item.type === "unTracedproduct" || item.type === "expense") continue;
+
+    const reverseQty = Number(item.quantity || 0);
+
+    const batch = await prodcutBatchModel
+      .findOne({
+        productId: item.id,
+        companyId,
+        stockId: item.stock._id,
+      })
+      .session(session);
+
+    if (!batch) {
+      throw new ApiError(
+        `Sales batch not found for product "${item.name}"`,
+        404,
+      );
+    }
+
+    batch.remaining = Number(batch.remaining || 0) + reverseQty;
+    batch.reversedBy = reversedBy;
+
+    if (batch.status !== "active") {
+      batch.status = "active";
+    }
+
+    await batch.save({ session });
+
+    const movementCost = Number(batch.costBuyingPrice || 0);
+
+    await productLedgerModel.create(
+      [
+        {
+          productId: item.id,
+          companyId,
+          stockId: item.stock?._id,
+          type: "in",
+          quantity: reverseQty,
+          cost: reverseQty * movementCost,
+          batchId: batch._id,
+          referenceType: "sales",
+          referenceId: salesInvoice._id,
+          costBuyingPrice: movementCost,
+          movementDate: cancellationDate,
+        },
+      ],
+      { session },
+    );
+
+    await createProductMovement({
+      productId: item.id,
+      reference: salesInvoice._id,
+      quantity: reverseQty,
+      movementType: "in",
+
+      source: currentMode.movementSource,
+      companyId,
+      stockId: item.stock?._id,
+      buyingPrice: movementCost,
+      movementDate: cancellationDate,
+      session,
+    });
+  }
+};
+const SALES_CUSTOMER_REVERSAL_MODES = {
+  CANCEL: "cancel",
+  REVERSE_UPDATE: "reverse_update",
+};
+
+exports.reverseSalesCustomerEffectsService = async ({
+  customer,
+  salesInvoice,
+  companyId,
+  currency,
+  session,
+  cancellationDate,
+  mode = SALES_CUSTOMER_REVERSAL_MODES.CANCEL,
+}) => {
+  if (!customer) {
+    throw new ApiError("Customer not found", 404);
+  }
+
+  const reversalConfig = {
+    [SALES_CUSTOMER_REVERSAL_MODES.CANCEL]: {
+      historyType: "invoice_cancel",
+      sourceLabel: "Sales invoice cancellation",
+    },
+    [SALES_CUSTOMER_REVERSAL_MODES.REVERSE_UPDATE]: {
+      historyType: "invoice_reverse_update",
+      sourceLabel: "Sales invoice reveres update",
+    },
+  };
+
+  const currentMode = reversalConfig[mode];
+
+  if (!currentMode) {
+    throw new ApiError(`Invalid customer reversal mode: ${mode}`, 400);
+  }
+
+  const totalMain = Number(salesInvoice.totalSalesPriceMainCurrency || 0);
+  const remainderMain = Number(salesInvoice.totalRemainderMainCurrency || 0);
+
+  customer.total = Number(customer.total || 0) - totalMain;
+
+  if (salesInvoice.paid === "unpaid") {
+    customer.TotalUnpaid = Number(customer.TotalUnpaid || 0) - totalMain;
+  }
+
+  if (salesInvoice.paid === "paid") {
+    customer.TotalUnpaid = Number(customer.TotalUnpaid || 0) - remainderMain;
+  }
+
+  if (customer.total < 0) customer.total = 0;
+  if (customer.TotalUnpaid < 0) customer.TotalUnpaid = 0;
+
+  await customer.save({ session });
+
+  await createPaymentHistory(
+    currentMode.historyType,
+    cancellationDate,
+    totalMain,
+    Number(salesInvoice.invoiceGrandTotal || 0),
+    "customer",
+    customer._id,
+    salesInvoice._id,
+    companyId,
+    currentMode.sourceLabel,
+    "",
+    "",
+    "",
+    currency?.currencyCode || "",
+    session,
+  );
+};
+
+exports.reverseSalesJournalEffectsService = async ({
+  companyId,
+  salesInvoice,
+  session,
+  counterFormat,
+  cancellationDate,
+  reversalJournalLinkCounter,
+  mode = "cancel",
+}) => {
+  if (!salesInvoice?.journalCounter) {
+    throw new ApiError(
+      "journal link reference is missing on sales invoice",
+      400,
+    );
+  }
+
+  const modeConfig = {
+    cancel: {
+      journalType: "Sales Reversal",
+      journalNamePrefix: "Sales Invoice Cancellation",
+      journalDescPrefix:
+        "Journal entry created to reverse the accounting effect of the cancelled sales invoice",
+      originalStatus: "reversed",
+    },
+    reverse_update: {
+      journalType: "Sales Reverse Update",
+      journalNamePrefix: "Sales Invoice Update Reversal",
+      journalDescPrefix:
+        "Journal entry created to reverse the previous accounting effect before reposting the updated sales invoice",
+      originalStatus: "reversed",
+    },
+  };
+
+  const currentMode = modeConfig[mode];
+  if (!currentMode) {
+    throw new ApiError(`Invalid journal reversal mode: ${mode}`, 400);
+  }
+
+  const originalJournal = await journalEntryModel
+    .findOne({
+      companyId,
+      linkCounter: salesInvoice.journalCounter,
+    })
+    .session(session);
+
+  if (!originalJournal) {
+    throw new ApiError("original journal not found", 404);
+  }
+
+  if (originalJournal.status === "reversed") {
+    throw new ApiError("original journal is already reversed", 400);
+  }
+
+  const originalLines = originalJournal.journalAccounts || [];
+
+  if (!Array.isArray(originalLines) || originalLines.length === 0) {
+    throw new ApiError("original journal accounts are missing", 400);
+  }
+
+  const reversedLines = originalLines.map((line, index) => ({
+    ...line,
+    MainDebit: Number(line?.MainCredit || 0),
+    MainCredit: Number(line?.MainDebit || 0),
+    accountDebit: Number(line?.accountCredit || 0),
+    accountCredit: Number(line?.accountDebit || 0),
+    counter: index + 1,
+  }));
+
+  const totalDebit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainDebit || 0),
+    0,
+  );
+
+  const totalCredit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainCredit || 0),
+    0,
+  );
+
+  if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
+    throw new ApiError(
+      `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
+      400,
+    );
+  }
+
+  const reversalJournalPayload = {
+    journalName: `${currentMode.journalNamePrefix} - ${
+      originalJournal?.journalName || purchaseInvoice?.invoiceName || ""
+    }`,
+    journalDate: cancellationDate.split("T")[0],
+    journalDesc: `${currentMode.journalDescPrefix} ${
+      salesInvoice?.invoiceName || ""
+    }`,
+    journalType: currentMode.journalType,
+    linkCounter: String(reversalJournalLinkCounter),
+    refCounter: String(salesInvoice?.counter || ""),
+    counter: counterFormat,
+    refId: salesInvoice?._id,
+    party: originalJournal?.party || salesInvoice?.customer?.id || "",
+    receiptNumber:
+      originalJournal?.receiptNumber || salesInvoice?.invoiceNumber || "",
+    filesArray: [],
+    journalDebit: totalDebit,
+    journalCredit: totalCredit,
+  };
+
+  const createdReversalJournal = await createJournalService({
+    companyId,
+    journalInfo: reversalJournalPayload,
+    journalAccounts: reversedLines,
+    session,
+  });
+
+  originalJournal.status = currentMode.originalStatus;
+  originalJournal.reversedAt = cancellationDate;
+  originalJournal.reverseJournalId = createdReversalJournal?._id || null;
+
+  await originalJournal.save({ session });
+
+  return {
+    originalJournal,
+    createdReversalJournal,
+    reversalJournalPayload: {
+      ...reversalJournalPayload,
+      journalAccounts: reversedLines,
+    },
+  };
 };

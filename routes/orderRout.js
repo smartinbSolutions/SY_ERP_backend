@@ -24,6 +24,9 @@ const { uploadFile } = require("../services/purchaseInvoicesServices");
 const {
   createSalesInvoice,
   postSalesInvoiceDraft,
+  deleteSalesInvoiceDraft,
+  updateSalesDraftInvoice,
+  cancelSalesInvoice,
 } = require("../controllers/Accounting/Sales/SalesInvoıce.controller");
 
 const OrderRout = express.Router();
@@ -56,7 +59,14 @@ OrderRout.route("/post/:id").put(
   authService.checkCompanyEditable,
   postSalesInvoiceDraft,
 );
+OrderRout.route("/draft/:id")
+  .put(authService.checkCompanyEditable, updateSalesDraftInvoice)
+  .delete(authService.checkCompanyEditable, deleteSalesInvoiceDraft);
 
+OrderRout.route("/cancel/:id").put(
+  authService.checkCompanyEditable,
+  cancelSalesInvoice,
+);
 OrderRout.route("/integrate/sales").post(
   // EcommerceOrderIntegration
   EcommerceOrderIntegrationFull,
