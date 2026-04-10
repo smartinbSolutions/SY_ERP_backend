@@ -7,6 +7,7 @@ exports.createPayrollPeriod = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
+
   try {
     const period = await payrollPeriodService.createPayrollPeriod({
       ...req.body,
@@ -29,7 +30,9 @@ exports.getPayrollPeriods = asyncHandler(async (req, res, next) => {
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   try {
-    const periods = await payrollPeriodService.getPayrollPeriods({ companyId });
+    const periods = await payrollPeriodService.getPayrollPeriods({
+      companyId,
+    });
 
     res.status(200).json({
       status: "success",
@@ -95,5 +98,22 @@ exports.deletePayrollPeriod = asyncHandler(async (req, res, next) => {
     });
   } catch (err) {
     return next(new ApiError(err.message, 404));
+  }
+});
+
+// ===== Generate Payroll 🔥 =====
+exports.generatePayroll = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    const payrolls = await payrollPeriodService.generatePayrollForPeriod(id);
+
+    res.status(200).json({
+      status: "success",
+      results: payrolls.length,
+      data: payrolls,
+    });
+  } catch (err) {
+    return next(new ApiError(err.message, 400));
   }
 });

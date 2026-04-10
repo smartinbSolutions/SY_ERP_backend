@@ -43,7 +43,6 @@ const StaffSchema = new mongoose.Schema(
     city: String,
     homeAddress: String,
 
-
     branch: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "branches",
@@ -62,6 +61,11 @@ const StaffSchema = new mongoose.Schema(
     groupId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Groups",
+    },
+
+    payrollGroupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PayrollGroup",
     },
 
     roleId: {
