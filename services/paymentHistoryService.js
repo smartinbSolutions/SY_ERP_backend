@@ -56,6 +56,66 @@ const createPaymentHistory = async (
   }
 };
 
+const createPaymentHistoryV2 = async ({
+  companyId,
+  entryType,
+  transactionDate,
+  amountTransactionCurrency,
+  amountMainCurrency,
+  supplierId,
+  customerId,
+  referenceId,
+  sourceModule,
+  actionType,
+  paymentId,
+  balanceEffectType,
+  description,
+  transactionCurrency,
+  session = null,
+}) => {
+  try {
+    const normalizedTransactionDate = transactionDate
+      ? new Date(transactionDate).toISOString()
+      : new Date().toISOString();
+
+    if (!supplierId && !customerId) {
+      throw new ApiError("Either supplierId or customerId is required", 400);
+    }
+
+    if (supplierId && customerId) {
+      throw new ApiError(
+        "Only one of supplierId or customerId should be provided",
+        400
+      );
+    }
+
+    const newPaymentHistoryData = {
+      companyId,
+      entryType,
+      transactionDate: normalizedTransactionDate,
+      amountTransactionCurrency: Number(amountTransactionCurrency || 0),
+      amountMainCurrency: Number(amountMainCurrency || 0),
+      referenceId,
+      sourceModule,
+      actionType,
+      paymentId,
+      balanceEffectType,
+      description,
+      transactionCurrency,
+      ...(supplierId ? { supplierId } : {}),
+      ...(customerId ? { customerId } : {}),
+    };
+
+    const newPaymentHistory = new PaymentHistoryModel(newPaymentHistoryData);
+
+    return session
+      ? await newPaymentHistory.save({ session })
+      : await newPaymentHistory.save();
+  } catch (error) {
+    throw new ApiError(`Error creating payment history: ${error.message}`, 500);
+  }
+};
+
 const getPaymentHistory = asyncHandler(async (req, res, next) => {
   const pageSize = parseInt(req.query.limit, 10) || 10;
   const page = parseInt(req.query.page, 10) || 1;
@@ -103,7 +163,11 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
     const paymentText = String(transaction.paymentText || "").trim();
 
     // reversals / cancellations
-    if (type === "invoice_cancel" || type === "invoice_reverse_update") {
+    if (
+      type === "invoice_cancel" ||
+      type === "invoice_reverse_update" ||
+      type === "refund_invoice"
+    ) {
       return -rest;
     }
 
@@ -192,4 +256,5 @@ module.exports = {
   createPaymentHistory,
   getPaymentHistory,
   editPaymentHistory,
+  createPaymentHistoryV2,
 };

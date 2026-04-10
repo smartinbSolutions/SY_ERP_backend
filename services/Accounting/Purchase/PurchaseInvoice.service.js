@@ -9,7 +9,10 @@ const { createProductMovement } = require("../../../utils/productMovement");
 
 // ===== Services =====
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
-const { createPaymentHistory } = require("../../paymentHistoryService");
+const {
+  createPaymentHistory,
+  createPaymentHistoryV2,
+} = require("../../paymentHistoryService");
 const { createProductBatch } = require("../../productBatchServices");
 
 // ===== Models =====
@@ -540,8 +543,8 @@ exports.createPurchaseInvoiceRecordService = async ({
             id: supllierObject.id,
             name: supllierObject.name,
           },
-          sourceType: "purchase",
-          destinationType: "fund",
+          sourceType: "fund",
+          destinationType: "supplier",
           totalInPaymentCurrency: actualPaidInvoice,
           totalMainCurrency: actualPaidMain,
           paymentInDestinationCurrency: paymentInFundCurrency,
@@ -576,22 +579,20 @@ exports.createPurchaseInvoiceRecordService = async ({
       { session }
     );
 
-    await createPaymentHistory(
-      "payment",
-      req.body.paymentDate || formattedDate,
-      actualPaidMain,
-      paymentInFundCurrency,
-      "supplier",
-      supllierObject.id,
-      newPurchaseInvoice._id,
+    await createPaymentHistoryV2({
       companyId,
-      req.body.paymentDescription,
-      payment[0]._id,
-      "Deposit",
-      "purchase",
-      parsedFinancialFund?.code,
-      session
-    );
+      entryType: "invoice",
+      transactionDate: req.body.date || formattedDate,
+      amountTransactionCurrency: invoiceTotalInvoice,
+      amountMainCurrency: invoiceTotalMain,
+      supplierId: supplier._id,
+      referenceId: newPurchaseInvoice._id,
+      sourceModule: "purchase",
+      actionType: "create",
+      description: req.body.description,
+      transactionCurrency: currency?.currencyCode,
+      session,
+    });
 
     const reports = await reportsFinancialFunds.create(
       [
@@ -865,22 +866,22 @@ exports.upsertPurchaseInvoiceRecordService = async ({
       { session }
     );
 
-    await createPaymentHistory(
-      "payment",
-      req.body.paymentDate || formattedDate,
-      req.body.paymentInMainCurrency,
-      paymentInFundCurrency,
-      "supplier",
-      supllierObject.id,
-      invoiceDoc._id,
+    await createPaymentHistoryV2({
       companyId,
-      req.body.paymentDescription,
-      payment[0]._id,
-      "Deposit",
-      "purchase",
-      parsedFinancialFund?.code,
-      session
-    );
+      entryType: "payment",
+      transactionDate: req.body.paymentDate || formattedDate,
+      amountTransactionCurrency: paymentInFundCurrency,
+      amountMainCurrency: req.body.paymentInMainCurrency,
+      supplierId: supllierObject.id,
+      referenceId: invoiceDoc._id,
+      sourceModule: "purchase",
+      actionType: "create",
+      paymentId: payment[0]._id,
+      balanceEffectType: "Deposit",
+      description: req.body.paymentDescription,
+      transactionCurrency: parsedFinancialFund?.code,
+      session,
+    });
 
     const reports = await reportsFinancialFunds.create(
       [
@@ -1325,22 +1326,19 @@ exports.applyPurchaseSupplierEffectsService = async ({
 
   await supplier.save({ session });
 
-  await createPaymentHistory(
-    "invoice",
-    date,
-    totalMain,
-    newPurchaseInvoice.invoiceGrandTotal,
-    "supplier",
-    supplier._id,
-    newPurchaseInvoice._id,
+  await createPaymentHistoryV2({
     companyId,
-    "",
-    "",
-    "",
-    "",
-    currency.currencyCode,
-    session
-  );
+    entryType: "invoice",
+    transactionDate: date,
+    amountTransactionCurrency: newPurchaseInvoice.invoiceGrandTotal,
+    amountMainCurrency: totalMain,
+    supplierId: supplier._id,
+    referenceId: newPurchaseInvoice._id,
+    sourceModule: "purchase",
+    actionType: "create",
+    transactionCurrency: currency.currencyCode,
+    session,
+  });
 };
 
 const PURCHASE_SUPPLIER_REVERSAL_MODES = {
@@ -1363,11 +1361,11 @@ exports.reversePurchaseSupplierEffectsService = async ({
 
   const reversalConfig = {
     [PURCHASE_SUPPLIER_REVERSAL_MODES.CANCEL]: {
-      historyType: "invoice_cancel",
+      actionType: "cancel",
       sourceLabel: "Purchase invoice cancellation",
     },
     [PURCHASE_SUPPLIER_REVERSAL_MODES.REVERSE_UPDATE]: {
-      historyType: "invoice_reverse_update",
+      actionType: "update",
       sourceLabel: "Purchase invoice reverse update",
     },
   };
@@ -1396,22 +1394,20 @@ exports.reversePurchaseSupplierEffectsService = async ({
 
   await supplier.save({ session });
 
-  await createPaymentHistory(
-    currentMode.historyType,
-    cancellationDate,
-    totalMain,
-    Number(purchaseInvoice.invoiceGrandTotal || 0),
-    "supplier",
-    supplier._id,
-    purchaseInvoice._id,
+  await createPaymentHistoryV2({
     companyId,
-    currentMode.sourceLabel,
-    "",
-    "",
-    "",
-    currency?.currencyCode || "",
-    session
-  );
+    entryType: "invoice",
+    transactionDate: cancellationDate,
+    amountTransactionCurrency: Number(purchaseInvoice.invoiceGrandTotal || 0),
+    amountMainCurrency: totalMain,
+    supplierId: supplier._id,
+    referenceId: purchaseInvoice._id,
+    sourceModule: "purchase",
+    actionType: currentMode.actionType,
+    description: currentMode.sourceLabel,
+    transactionCurrency: currency?.currencyCode || "",
+    session,
+  });
 };
 //  Purchase Journal Effects
 exports.debugAndCreatePurchaseDraftJournalService = async ({
