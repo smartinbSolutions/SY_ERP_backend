@@ -433,9 +433,10 @@ exports.applySalesInventoryEffectsService = async ({
 
     const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
-    const oldQty =
-      (product.stocks || []).find((s) => s.stockId === item.stock._id)
-        ?.productQuantity || 0;
+    const stockRow = (product.stocks || []).find(
+      (s) => String(s.stockId) === String(item.stock._id),
+    );
+    const oldQty = Number(stockRow?.productQuantity || 0);
 
     if (soldQty > oldQty) {
       throw new ApiError(
@@ -446,6 +447,7 @@ exports.applySalesInventoryEffectsService = async ({
 
     let qtyToSell = soldQty;
     const fifoMovements = [];
+    const itemBatches = [];
 
     const batches = await prodcutBatchModel
       .find({
@@ -460,18 +462,30 @@ exports.applySalesInventoryEffectsService = async ({
     for (const batch of batches) {
       if (qtyToSell <= 0) break;
 
-      const usedQty = Math.min(batch.remaining, qtyToSell);
+      const available = Number(batch.remaining || 0);
+      if (available <= 0) continue;
+
+      const usedQty = Math.min(available, qtyToSell);
 
       batch.remaining -= usedQty;
+
+      if (batch.remaining === 0) {
+        batch.status = "depleted";
+      }
+
       await batch.save({ session });
 
-      qtyToSell -= usedQty;
+      itemBatches.push({
+        id: batch._id.toString(),
+        quantity: usedQty,
+      });
 
       fifoMovements.push({
         quantity: usedQty,
         costBuyingPrice: batch.costBuyingPrice,
         batchId: batch._id,
       });
+      qtyToSell -= usedQty;
     }
 
     if (qtyToSell > 0) {
@@ -479,6 +493,14 @@ exports.applySalesInventoryEffectsService = async ({
         `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
         400,
       );
+    }
+
+    const invoiceItem = newSalesInvoice.invoicesItems.find(
+      (i) => String(i.id) === String(item.id),
+    );
+
+    if (invoiceItem) {
+      invoiceItem.batches = itemBatches;
     }
 
     let soldTotalCost = 0;
@@ -537,6 +559,7 @@ exports.applySalesInventoryEffectsService = async ({
       },
     });
   }
+  await newSalesInvoice.save({ session });
 
   if (bulkOperations.length > 0) {
     await productModel.bulkWrite(bulkOperations, { session });
@@ -821,6 +844,14 @@ exports.reverseSalesInventoryEffectsService = async ({
   cancellationDate,
   mode = "cancel",
 }) => {
+  const resolveItemCost = (item) =>
+    Number(
+      item?.draftCostBuyingPrice ??
+        item?.oldCostBuyingPrice ??
+        item?.orginalBuyingPrice ??
+        0,
+    );
+
   const reversalConfig = {
     cancel: {
       reverseReason: reverseReason || "Sales invoice cancellation",
@@ -833,7 +864,7 @@ exports.reverseSalesInventoryEffectsService = async ({
       movementSource: "Sales Invoice Reverse Update",
     },
   };
-
+  let currentStockQty = 0;
   const currentMode = reversalConfig[mode];
   if (!currentMode) {
     throw new ApiError(`Invalid reversal mode: ${mode}`, 400);
@@ -860,9 +891,9 @@ exports.reverseSalesInventoryEffectsService = async ({
     if (!stockRow) {
       throw new ApiError(`Stock row not found for product ${item.name}`, 400);
     }
+    currentStockQty = Number(stockRow?.productQuantity || 0);
 
-    const reverseQty = Number(item.quantity || 0);
-
+    const reverseQty = Number(item.soldQuantity || 0);
     bulkProductUpdates.push({
       updateOne: {
         filter: {
@@ -886,63 +917,79 @@ exports.reverseSalesInventoryEffectsService = async ({
   for (const item of invoicesItem) {
     if (item.type === "unTracedproduct" || item.type === "expense") continue;
 
-    const reverseQty = Number(item.quantity || 0);
+    let reverseQty = Number(item.soldQuantity || 0);
 
-    const batch = await prodcutBatchModel
-      .findOne({
-        productId: item.id,
-        companyId,
-        stockId: item.stock._id,
-      })
-      .session(session);
+    // const batches = await prodcutBatchModel
+    //   .find({
+    //     productId: item.id,
+    //     companyId,
+    //     stockId: item.stock._id,
+    //   })
+    //   .sort({ createdAt: -1 })
+    //   .session(session);
 
-    if (!batch) {
-      throw new ApiError(
-        `Sales batch not found for product "${item.name}"`,
-        404,
-      );
-    }
+    // if (!batches.length) {
+    //   throw new ApiError(
+    //     `Sales batch not found for product "${item.name}"`,
+    //     404,
+    //   );
+    // }
 
-    batch.remaining = Number(batch.remaining || 0) + reverseQty;
-    batch.reversedBy = reversedBy;
+    for (const batchItem of item.batches) {
+      console.log(batchItem);
 
-    if (batch.status !== "active") {
+      const batch = await prodcutBatchModel
+        .findById(batchItem.id)
+        .session(session);
+
+      if (!batch) {
+        throw new ApiError(`Batch not found ${batchItem.id}`, 404);
+      }
+
+      const qtyToRestore = Number(batchItem.quantity || 0);
+
+      if (qtyToRestore <= 0) continue;
+
+      batch.remaining = Number(batch.remaining || 0) + qtyToRestore;
+
       batch.status = "active";
+      batch.reversedBy = reversedBy;
+
+      await batch.save({ session });
     }
 
-    await batch.save({ session });
-
-    const movementCost = Number(batch.costBuyingPrice || 0);
-
-    await productLedgerModel.create(
-      [
-        {
-          productId: item.id,
-          companyId,
-          stockId: item.stock?._id,
-          type: "in",
-          quantity: reverseQty,
-          cost: reverseQty * movementCost,
-          batchId: batch._id,
-          referenceType: "sales",
-          referenceId: salesInvoice._id,
-          costBuyingPrice: movementCost,
-          movementDate: cancellationDate,
-        },
-      ],
-      { session },
-    );
+    // await productLedgerModel.create(
+    //   [
+    //     {
+    //       productId: item.id,
+    //       companyId,
+    //       stockId: item.stock?._id,
+    //       type: "in",
+    //       quantity: reverseQty,
+    //       cost: reverseQty * movementCost,
+    //       batchId: batch._id,
+    //       referenceType: "sales",
+    //       referenceId: salesInvoice._id,
+    //       costBuyingPrice: movementCost,
+    //       movementDate: cancellationDate,
+    //     },
+    //   ],
+    //   { session },
+    // );
+    const movementCost = resolveItemCost(item);
 
     await createProductMovement({
       productId: item.id,
       reference: salesInvoice._id,
-      quantity: reverseQty,
+      newQuantity: currentStockQty + item.soldQuantity,
+      quantity: item.soldQuantity,
       movementType: "in",
-
       source: currentMode.movementSource,
       companyId,
+      enterPrice: movementCost,
       stockId: item.stock?._id,
-      buyingPrice: movementCost,
+      buyingPrice: item.orginalBuyingPrice,
+      exchangeRate: item.exchangeRate,
       movementDate: cancellationDate,
       session,
     });

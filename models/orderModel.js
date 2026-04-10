@@ -59,6 +59,7 @@ const orderSchema = new mongoose.Schema(
         vName: String,
         _id: false,
         costBuyingPrice: String,
+        batches: [{ id: String, quantity: Number, _id: false }],
       },
     ],
     customer: {
