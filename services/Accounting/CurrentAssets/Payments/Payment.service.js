@@ -2,6 +2,7 @@ const paymentModel = require("../../../../models/paymentModel");
 const {
   handlePurchasePayment,
   handleSupplierPayment,
+  handleSalesPayment,
 } = require("./Payment.handlers");
 
 // handlers
@@ -30,10 +31,10 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
   const now = new Date();
 
   const formattedDate = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes()
+    now.getMinutes(),
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0"
+    "0",
   )}`;
 
   req.body.date = `${req.body.date}T${formattedDate}Z`;
@@ -88,10 +89,10 @@ const paymentHandlers = {
     handler: handlePurchasePayment,
     message: "Purchase payment created successfully",
   },
-  // sales: {
-  //   handler: handleSalesPayment,
-  //   message: "Sales payment created successfully",
-  // },
+  sales: {
+    handler: handleSalesPayment,
+    message: "Sales payment created successfully",
+  },
   // refundPurchase: {
   //   handler: handleRefundPurchasePayment,
   //   message: "Refund Purchase payment created successfully",

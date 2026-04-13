@@ -72,7 +72,7 @@ const handleSupplierPaymentEntity = async ({
     const updatedSupplier = await suppliersModel.findOneAndUpdate(
       { _id: supplier.id || supplier._id, companyId },
       { $inc: { TotalUnpaid: amountMainCurrency } },
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!updatedSupplier) {
@@ -160,14 +160,14 @@ const settleSupplierOpenDocuments = async ({
       const purchase = item.doc;
 
       const purchaseRemainderMain = Number(
-        purchase.totalRemainderMainCurrency || 0
+        purchase.totalRemainderMainCurrency || 0,
       );
 
       if (purchaseRemainderMain <= 0) continue;
 
       const appliedMain = Math.min(purchaseRemainderMain, remainingPaymentMain);
       const purchaseCurrencyRate = Number(
-        purchase?.currency?.exchangeRate || 1
+        purchase?.currency?.exchangeRate || 1,
       );
       const appliedInvoice = appliedMain * purchaseCurrencyRate;
       const appliedSource = appliedMain * Number(sourceExchangeRate || 1);
@@ -215,7 +215,7 @@ const settleSupplierOpenDocuments = async ({
       const expense = item.doc;
 
       const expenseRemainderMain = Number(
-        expense.totalRemainderMainCurrency || 0
+        expense.totalRemainderMainCurrency || 0,
       );
 
       if (expenseRemainderMain <= 0) continue;
@@ -292,7 +292,7 @@ const handleCustomerPaymentEntity = async ({
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
       { $inc: { TotalUnpaid: -amountMainCurrency } },
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!updatedCustomer) {
@@ -328,7 +328,7 @@ const handleCustomerPaymentEntity = async ({
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
       { $inc: { TotalUnpaid: amountMainCurrency } },
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!updatedCustomer) {
@@ -403,7 +403,7 @@ const settleCustomerOpenDocuments = async ({
     const invoice = item.doc;
 
     const invoiceRemainderMain = Number(
-      invoice.totalRemainderMainCurrency || 0
+      invoice.totalRemainderMainCurrency || 0,
     );
 
     if (invoiceRemainderMain <= 0) continue;
@@ -480,7 +480,7 @@ const handleFundPaymentEntity = async ({
   const financialFund = await financialFundsModel.findOneAndUpdate(
     { _id: fund.id || fund._id, companyId },
     { $inc: { fundBalance: fundDelta } },
-    { new: true, session }
+    { new: true, session },
   );
 
   if (!financialFund) {
@@ -503,7 +503,7 @@ const handleFundPaymentEntity = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 };
 
@@ -533,7 +533,7 @@ const handlePurchasePayment = async (
   req,
   companyId,
   next,
-  normalizedPayment
+  normalizedPayment,
 ) => {
   const session = await mongoose.startSession();
 
@@ -680,7 +680,7 @@ const handlePurchasePayment = async (
         date,
         `${paymentInSourceCurrency} ${sourceCurrencyCode}`,
         "invoice",
-        session
+        session,
       );
 
       await handleSupplierPaymentEntity({
@@ -785,7 +785,7 @@ const handleSupplierPayment = async (
   req,
   companyId,
   next,
-  normalizedPayment
+  normalizedPayment,
 ) => {
   const session = await mongoose.startSession();
 
@@ -813,7 +813,7 @@ const handleSupplierPayment = async (
 
       if (!isSupplierDestination && !isSupplierSource) {
         throw new Error(
-          "Supplier payment context requires supplier as source or destination"
+          "Supplier payment context requires supplier as source or destination",
         );
       }
 
@@ -1038,4 +1038,252 @@ const handleSupplierPayment = async (
   }
 };
 
-module.exports = { handlePurchasePayment, handleSupplierPayment };
+const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
+  const session = await mongoose.startSession();
+
+  try {
+    let createdPayment = null;
+
+    await session.withTransaction(async () => {
+      const {
+        source,
+        sourceType,
+        destination,
+        destinationType,
+        paymentInSourceCurrency,
+        sourceCurrencyCode,
+        sourceExchangeRate,
+        paymentInInvoiceCurrency,
+        invoiceExchangeRate,
+        paymentInMainCurrency,
+        invoiceId,
+        date,
+        description,
+        paymentType,
+        isWithDraw,
+      } = normalizedPayment;
+
+      if (!source?.id) {
+        throw new Error("Payment source is required");
+      }
+
+      if (destinationType !== "customer") {
+        throw new Error("Order payment destination must be customer");
+      }
+
+      const order = await salesinvoicesModel
+        .findOne({
+          _id: invoiceId,
+          status: { $nin: ["cancelled", "draft"] },
+          companyId,
+        })
+        .session(session);
+
+      if (!order) {
+        throw new Error("Order invoice not found");
+      }
+
+      const customer = await customarModel
+        .findOne({
+          _id: order.customer.id,
+          companyId,
+        })
+        .session(session);
+
+      if (!customer) {
+        throw new Error("Customer not found");
+      }
+
+      let paymentAmountMain = Number(paymentInMainCurrency || 0);
+      let paymentAmountInvoice = Number(paymentInInvoiceCurrency || 0);
+
+      if (paymentAmountMain > Number(order.totalRemainderMainCurrency || 0)) {
+        paymentAmountMain = Number(order.totalRemainderMainCurrency || 0);
+        paymentAmountInvoice = Number(order.totalRemainder || 0);
+      }
+
+      const paymentSeq = await getNextCounterValue({
+        companyId,
+        name: "Payment",
+        session,
+      });
+
+      req.body.type = "sales";
+      req.body.paymentText = "Deposit";
+
+      const paymentPayload = {
+        ...req.body,
+        source,
+        destination,
+        sourceType,
+        destinationType,
+        totalInPaymentCurrency: paymentAmountInvoice,
+        totalMainCurrency: paymentAmountMain,
+        paymentInDestinationCurrency: paymentInSourceCurrency,
+        destinationExchangeRate: sourceExchangeRate,
+        destinationCurrencyCode: sourceCurrencyCode,
+        type: "sales",
+        paymentType,
+        description,
+        date,
+        companyId,
+        counter: Number(req.body.counter || 0) + Number(paymentSeq),
+        payid: [
+          {
+            id: order._id,
+            status: order.paymentsStatus,
+            invoiceTotal: order.invoiceGrandTotal,
+            invoiceName: order.invoiceName,
+            invoiceCurrencyCode: order.currency?.currencyCode || "",
+            paymentInFundCurrency: paymentInSourceCurrency,
+            paymentMainCurrency: paymentAmountMain,
+            paymentInvoiceCurrency: paymentAmountInvoice,
+          },
+        ],
+      };
+
+      const paymentDocs = await paymentModel.create([paymentPayload], {
+        session,
+      });
+      const payment = paymentDocs[0];
+      createdPayment = payment;
+
+      order.totalRemainderMainCurrency =
+        Number(order.totalRemainderMainCurrency || 0) - paymentAmountMain;
+
+      order.totalRemainder =
+        Number(order.totalRemainder || 0) - paymentAmountInvoice;
+
+      if (order.totalRemainderMainCurrency <= 0.9) {
+        order.paymentsStatus = "paid";
+        order.totalRemainderMainCurrency = 0;
+        order.totalRemainder = 0;
+      }
+
+      order.payments.push({
+        payment: Number(paymentInSourceCurrency || paymentAmountMain),
+        paymentMainCurrency: paymentAmountMain,
+        financialFunds: source.name,
+        paymentID: payment._id,
+        financialFundsCurrencyCode: sourceCurrencyCode,
+        exchangeRate: sourceExchangeRate,
+        date,
+        paymentInInvoiceCurrency: paymentAmountInvoice,
+        financialFundsId: source.id,
+      });
+
+      await order.save({ session });
+
+      await createInvoiceHistory(
+        companyId,
+        order._id,
+        "payment",
+        req.user._id,
+        date,
+        `${paymentInSourceCurrency} ${sourceCurrencyCode}`,
+        "invoice",
+        session,
+      );
+
+      await handleCustomerPaymentEntity({
+        customer,
+        companyId,
+        totalMainCurrency: paymentAmountMain,
+        paymentInFundCurrency: paymentInSourceCurrency,
+        paymentId: payment._id,
+        refId: order._id,
+        date,
+        description,
+        currencyCode: sourceCurrencyCode,
+        paymentText: "Withdrawal",
+        effectSide: "destination",
+        session,
+      });
+
+      if (sourceType === "fund") {
+        await handleFundPaymentEntity({
+          fund: source,
+          companyId,
+          paymentInFundCurrency: paymentInSourceCurrency,
+          paymentId: payment._id,
+          refId: order._id,
+          date,
+          description,
+          effectSide: "destination",
+          sourceExchangeRate,
+          isWithDraw,
+          session,
+        });
+      } else if (sourceType === "supplier") {
+        const sourceSupplier = await suppliersModel
+          .findOne({
+            _id: source.id,
+            companyId,
+          })
+          .session(session);
+
+        if (!sourceSupplier) {
+          throw new Error("Source supplier not found");
+        }
+
+        await handleSupplierPaymentEntity({
+          supplier: sourceSupplier,
+          companyId,
+          totalMainCurrency: paymentAmountMain,
+          paymentInFundCurrency: paymentInSourceCurrency,
+          paymentId: payment._id,
+          refId: order._id,
+          date,
+          description,
+          currencyCode: sourceCurrencyCode,
+          paymentText: "Withdrawal",
+          effectSide: "destination",
+          session,
+        });
+      } else if (sourceType === "customer") {
+        const sourceCustomer = await customarModel
+          .findOne({
+            _id: source.id,
+            companyId,
+          })
+          .session(session);
+
+        if (!sourceCustomer) {
+          throw new Error("Source customer not found");
+        }
+        await handleCustomerPaymentEntity({
+          customer: sourceCustomer,
+          companyId,
+          totalMainCurrency: paymentAmountMain,
+          paymentInFundCurrency: paymentInSourceCurrency,
+          paymentId: payment._id,
+          refId: order._id,
+          date,
+          description,
+          currencyCode: sourceCurrencyCode,
+          effectSide: "destination",
+          session,
+        });
+      } else if (sourceType === "account") {
+        await handleAccountPaymentEntity({
+          account: source,
+          companyId,
+          session,
+        });
+      } else {
+        throw new Error("Invalid purchase payment sourceType");
+      }
+    });
+
+    return createdPayment;
+  } catch (err) {
+    throw err;
+  } finally {
+    await session.endSession();
+  }
+};
+module.exports = {
+  handlePurchasePayment,
+  handleSupplierPayment,
+  handleSalesPayment,
+};
