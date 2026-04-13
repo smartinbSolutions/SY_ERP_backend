@@ -65,7 +65,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
     });
 
     if (!invoiceDraft) {
-      await applySalesCustomerEffectsService({
+      await applySalesInventoryEffectsService({
         ...prepared,
         newSalesInvoice,
         companyId,
@@ -73,11 +73,11 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         session,
       });
 
-      await applySalesInventoryEffectsService({
+      await applySalesCustomerEffectsService({
         ...prepared,
         newSalesInvoice,
         companyId,
-        date: req.body.date,
+        date: req.body.orderDate,
         totalInMainCurrency: req.body.totalInMainCurrency,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
         paid: req.body.paid,

@@ -11,10 +11,7 @@ const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createJournalService } = require("../../journalEntryServices");
-const {
-  createPaymentHistory,
-  createPaymentHistoryV2,
-} = require("../../paymentHistoryService");
+const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -179,7 +176,7 @@ exports.createSalesInvoiceRecordService = async ({
   session,
 }) => {
   const {
-    paid,
+    paymentsStatus,
     exchangeRate,
     totalInMainCurrency,
     invoiceSubTotal,
@@ -209,8 +206,15 @@ exports.createSalesInvoiceRecordService = async ({
         ? JSON.parse(req.body.financailFund)
         : req.body.financailFund;
   }
+  console.log(customerObject);
+  let resolvedPaidStatus = paymentsStatus;
+  if (paymentsStatus === "paid" && !invoiceDraft) {
+    const paidAmountMain = Number(req.body.paymentInMainCurrency || 0);
+    const invoiceTotalMain = Number(totalInMainCurrency || 0);
 
-  if (paid === "paid" && !invoiceDraft) {
+    const actualPaidMain = Math.min(paidAmountMain, invoiceTotalMain);
+    const isFullyPaid = actualPaidMain >= invoiceTotalMain - 0.000001;
+    resolvedPaidStatus = isFullyPaid ? "paid" : "unpaid";
     financialFund = await financialFundsModel
       .findOne({ _id: parsedFinancialFund?.id, companyId })
       .session(session);
@@ -219,7 +223,7 @@ exports.createSalesInvoiceRecordService = async ({
       throw new ApiError("Financial fund not found", 404);
     }
 
-    financialFund.fundBalance -= Number(paymentInFundCurrency || 0);
+    financialFund.fundBalance += Number(paymentInFundCurrency || 0);
   }
   const invoicePayload = {
     employee: { id: req.user._id, name: req.user.name },
@@ -228,7 +232,7 @@ exports.createSalesInvoiceRecordService = async ({
     currency,
     exchangeRate,
     invoiceNumber,
-    paid: invoiceDraft ? "unpaid" : paid,
+    paymentsStatus: invoiceDraft ? "unpaid" : resolvedPaidStatus,
     totalInMainCurrency: totalInMainCurrency,
     invoiceSubTotal,
     subtotalWithDiscount,
@@ -271,12 +275,12 @@ exports.createSalesInvoiceRecordService = async ({
       : null;
   }
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (paymentsStatus === "paid" && !invoiceDraft) {
     invoicePayload.financailFund = parsedFinancialFund;
     invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
   }
 
-  if (paid === "unpaid") {
+  if (paymentsStatus === "unpaid") {
     invoicePayload.dueDate = paymentDate;
   }
 
@@ -286,7 +290,7 @@ exports.createSalesInvoiceRecordService = async ({
 
   const newSalesInvoice = createdInvoice[0];
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (paymentsStatus === "paid" && !invoiceDraft) {
     const payment = await paymentModel.create(
       [
         {
@@ -312,7 +316,7 @@ exports.createSalesInvoiceRecordService = async ({
           destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
           destinationCurrencyCode: parsedFinancialFund?.code,
           type: "sales",
-          paymentType: "Withdrawal",
+          paymentType: "Deposit",
           description: req.body.paymentDescription,
           date: req.body.paymentDate || formattedDate,
           counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
@@ -334,22 +338,23 @@ exports.createSalesInvoiceRecordService = async ({
       { session },
     );
 
-    await createPaymentHistory(
-      "payment",
-      req.body.paymentDate || formattedDate,
-      req.body.paymentInMainCurrency,
-      paymentInFundCurrency,
-      "supplier",
-      customerObject.id,
-      newSalesInvoice._id,
+    await createPaymentHistoryV2({
       companyId,
-      req.body.paymentDescription,
-      payment[0]._id,
-      "Deposit",
-      "sales",
-      parsedFinancialFund?.code,
+      entryType: "payment",
+      transactionDate: req.body.paymentDate || formattedDate,
+      amountTransactionCurrency: paymentInFundCurrency,
+      amountMainCurrency:
+        paymentInFundCurrency /
+        (newSalesInvoice.financailFund[0]?.exchangeRate || 1),
+      customerId: customerObject.id,
+      referenceId: newSalesInvoice._id,
+      sourceModule: "sales",
+      actionType: "create",
+      balanceEffectType: "Deposit",
+      description: req.body.description,
+      transactionCurrency: newSalesInvoice.financailFund[0]?.currency,
       session,
-    );
+    });
     const reports = await reportsFinancialFunds.create(
       [
         {
@@ -360,7 +365,7 @@ exports.createSalesInvoiceRecordService = async ({
           exchangeRate,
           financialFundId: parsedFinancialFund?.id,
           financialFundRest: financialFund.fundBalance,
-          paymentType: "Withdrawal",
+          paymentType: "Deposit",
           payment: payment[0]._id,
           description: req.body.paymentDescription,
           companyId,
@@ -397,7 +402,7 @@ exports.createSalesInvoiceRecordService = async ({
     session,
   );
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (paymentsStatus === "paid" && !invoiceDraft) {
     await createInvoiceHistory(
       companyId,
       newSalesInvoice._id,
@@ -570,7 +575,6 @@ exports.applySalesInventoryEffectsService = async ({
 };
 
 exports.applySalesCustomerEffectsService = async ({
-  invoicesItem,
   customer,
   newSalesInvoice,
   companyId,
@@ -600,22 +604,21 @@ exports.applySalesCustomerEffectsService = async ({
 
   await customer.save({ session });
 
-  // await createPaymentHistory(
-  //   "invoice",
-  //   date,
-  //   totalMain,
-  //   newSalesInvoice.invoiceGrandTotal,
-  //   "customer",
-  //   customer._id,
-  //   newSalesInvoice._id,
-  //   companyId,
-  //   "",
-  //   "",
-  //   "",
-  //   "",
-  //   currency.currencyCode,
-  //   session,
-  // );
+  await createPaymentHistoryV2({
+    companyId,
+    entryType: "invoice",
+    transactionDate: date || newSalesInvoice.orderDate,
+    amountTransactionCurrency: newSalesInvoice.invoiceGrandTotal,
+    amountMainCurrency: totalMain,
+    customerId: customer._id,
+    referenceId: newSalesInvoice._id,
+    sourceModule: "sales",
+    actionType: "create",
+    balanceEffectType: "Withdrawal",
+    description: newSalesInvoice.description,
+    transactionCurrency: currency?.currencyCode,
+    session,
+  });
 };
 
 exports.debugAndCreateSalesDraftJournalService = async ({
@@ -1033,7 +1036,7 @@ exports.reverseSalesCustomerEffectsService = async ({
     throw new ApiError(`Invalid customer reversal mode: ${mode}`, 400);
   }
 
-  const totalMain = Number(salesInvoice.totalSalesPriceMainCurrency || 0);
+  const totalMain = Number(salesInvoice.totalInMainCurrency || 0);
   const remainderMain = Number(salesInvoice.totalRemainderMainCurrency || 0);
 
   customer.total = Number(customer.total || 0) - totalMain;
@@ -1051,22 +1054,21 @@ exports.reverseSalesCustomerEffectsService = async ({
 
   await customer.save({ session });
 
-  await createPaymentHistory(
-    currentMode.historyType,
-    cancellationDate,
-    totalMain,
-    Number(salesInvoice.invoiceGrandTotal || 0),
-    "customer",
-    customer._id,
-    salesInvoice._id,
+  await createPaymentHistoryV2({
     companyId,
-    currentMode.sourceLabel,
-    "",
-    "",
-    "",
-    currency?.currencyCode || "",
+    entryType: "invoice",
+    transactionDate: cancellationDate,
+    amountTransactionCurrency: salesInvoice.invoiceGrandTotal,
+    amountMainCurrency: totalMain,
+    customerId: customer._id,
+    referenceId: salesInvoice._id,
+    sourceModule: "sales",
+    actionType: currentMode.actionType,
+    description: currentMode.sourceLabel,
+    balanceEffectType: "Deposit",
+    transactionCurrency: currency?.currencyCode,
     session,
-  );
+  });
 };
 
 exports.reverseSalesJournalEffectsService = async ({
@@ -1421,7 +1423,7 @@ exports.upsertSalesInvoiceRecordService = async ({
       transactionDate: req.body.paymentDate || formattedDate,
       amountTransactionCurrency: paymentInFundCurrency,
       amountMainCurrency: req.body.paymentInMainCurrency,
-      supplierId: customerObject.id,
+      customerId: customerObject.id,
       referenceId: invoiceDoc._id,
       sourceModule: "sales",
       actionType: "create",
