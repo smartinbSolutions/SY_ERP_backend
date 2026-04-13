@@ -601,10 +601,6 @@ exports.applySalesCustomerEffectsService = async ({
     customer.TotalUnpaid += remainderMain;
   }
 
-  console.log(paymentsStatus);
-  console.log(totalInMainCurrency);
-  console.log(totalRemainderMainCurrency);
-
   await customer.save({ session });
 
   await createPaymentHistoryV2({
@@ -945,8 +941,6 @@ exports.reverseSalesInventoryEffectsService = async ({
     // }
 
     for (const batchItem of item.batches) {
-      console.log(batchItem);
-
       const batch = await prodcutBatchModel
         .findById(batchItem.id)
         .session(session);
