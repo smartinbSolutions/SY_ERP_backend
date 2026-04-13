@@ -26,7 +26,7 @@ const PaymentHistorySchema = new mongoose.Schema(
 
     entryType: {
       type: String,
-      enum: ["payment", "invoice", "expense"],
+      enum: ["payment", "invoice", "expense", "opening_balance"],
     }, // what kind of history row this is
 
     balanceEffectType: {
@@ -48,7 +48,7 @@ const PaymentHistorySchema = new mongoose.Schema(
 
     sourceModule: {
       type: String,
-      enum: ["payment", "purchase", "sales", "expense"],
+      enum: ["payment", "purchase", "sales", "expense", "opening_balance"],
     }, // which module created this history row
 
     actionType: {

@@ -2,46 +2,43 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
 const supplierModel = require("../models/suppliersModel");
 
-const { createPaymentHistory } = require("./paymentHistoryService");
+const { createPaymentHistoryV2 } = require("./paymentHistoryService");
 
 const PaymentHistoryModel = require("../models/paymentHistoryModel");
 
 //Create New Supplier
-//rol:Who has rol can create
 exports.createSupplier = asyncHandler(async (req, res, next) => {
-  
-
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  req.body.companyId = companyId;
-  // const nextCounter = (await PurchaseInvoicesModel.countDocuments()) + 1;
 
+  req.body.companyId = companyId;
   req.body.openingBalance = req.body.TotalUnpaid;
+
   const supplier = await supplierModel.create(req.body);
 
+  const openingBalanceAmount = Number(req.body.TotalUnpaid || 0);
+  const absoluteOpeningBalanceAmount = Math.abs(openingBalanceAmount);
 
-  const test = req.body.TotalUnpaid;
-  if (test !== null) {
-    const openingBalance = await createPaymentHistory(
-      "Opening balance",
-      req.body.date,
-      req.body.TotalUnpaid,
-      supplier.TotalUnpaid,
-      "supplier",
-      supplier.id,
-      "",
-      companyId,
-      "",
-      "",
+  const openingBalanceHistory = await createPaymentHistoryV2({
+    companyId,
+    entryType: "opening_balance",
+    transactionDate: req.body.date || new Date().toISOString(),
+    amountTransactionCurrency: absoluteOpeningBalanceAmount,
+    amountMainCurrency: absoluteOpeningBalanceAmount,
+    supplierId: supplier._id,
+    sourceModule: "opening_balance",
+    actionType: "create",
+    balanceEffectType:
       req.body.havebalans === "debit" ? "Deposit" : "Withdrawal",
-      "Opening balance"
-    );
+    description: "Opening balance",
+    transactionCurrency: req.body.currencyCode || "",
+  });
 
-    supplier.openingBalanceId = openingBalance._id;
-  }
+  supplier.openingBalanceId = openingBalanceHistory._id;
+  await supplier.save();
 
   res
     .status(201)

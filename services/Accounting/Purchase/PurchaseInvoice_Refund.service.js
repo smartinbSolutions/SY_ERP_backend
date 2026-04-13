@@ -548,22 +548,22 @@ exports.applyRefundPurchaseSupplierEffectsService = async ({
 
   await supplier.save({ session });
 
-  await createPaymentHistory(
-    "refund_invoice",
-    newRefundPurchaseInvoice.date,
-    totalMain,
-    Number(newRefundPurchaseInvoice.invoiceGrandTotal || 0),
-    "supplier",
-    supplier._id,
-    newRefundPurchaseInvoice._id,
+  await createPaymentHistoryV2({
     companyId,
-    "Refund purchase invoice",
-    "",
-    "",
-    "",
-    currency?.currencyCode || "",
-    session
-  );
+    entryType: "invoice",
+    transactionDate: newRefundPurchaseInvoice.date,
+    amountTransactionCurrency: Number(
+      newRefundPurchaseInvoice.invoiceGrandTotal || 0
+    ),
+    amountMainCurrency: totalMain,
+    supplierId: supplier._id,
+    referenceId: newRefundPurchaseInvoice._id,
+    sourceModule: "purchase",
+    actionType: "refund",
+    description: "Refund purchase invoice",
+    transactionCurrency: currency?.currencyCode || "",
+    session,
+  });
 };
 
 exports.applyRefundPurchaseInventoryEffectsService = async ({
@@ -831,15 +831,16 @@ exports.applyRefundPurchaseFinancialEffectsService = async ({
 
   await createPaymentHistoryV2({
     companyId,
-    type: "payment",
-    date: req.body.paymentDate || formattedDate,
-    amount: paymentInFundCurrency,
+    entryType: "payment",
+    transactionDate: req.body.paymentDate || formattedDate,
+    amountTransactionCurrency: paymentInFundCurrency,
     amountMainCurrency: paymentInMainCurrency,
     supplierId: supplier._id,
-    ref: newRefundPurchaseInvoice._id,
-    refText: "refund-purchase",
-    idPaymet: payment._id,
-    paymentText: "Withdrawal",
+    referenceId: newRefundPurchaseInvoice._id,
+    sourceModule: "purchase",
+    actionType: "refund",
+    paymentId: payment._id,
+    balanceEffectType: "Withdrawal",
     description: req.body.paymentDescription,
     transactionCurrency: parsedFinancialFund?.code,
     session,

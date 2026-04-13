@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const PaymentHistoryModel = require("../models/paymentHistoryModel");
 const ApiError = require("../utils/apiError");
-const asyncHandler = require("express-async-handler");
 
 const createPaymentHistory = async (
   type,
@@ -116,7 +115,7 @@ const createPaymentHistoryV2 = async ({
   }
 };
 
-const getPaymentHistory = asyncHandler(async (req, res, next) => {
+const getPaymentHistory = async (req, res, next) => {
   const pageSize = parseInt(req.query.limit, 10) || 10;
   const page = parseInt(req.query.page, 10) || 1;
   const skip = (page - 1) * pageSize;
@@ -134,7 +133,7 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
 
   const allTransactions = await PaymentHistoryModel.find(query)
     .lean()
-    .sort({ date: 1, createdAt: 1 });
+    .sort({ transactionDate: 1, createdAt: 1 });
 
   const getPartyRole = (transaction, partyId) => {
     if (
@@ -155,48 +154,75 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
   };
 
   const getTransactionEffect = (transaction, role) => {
-    const rest = Number(transaction.rest || 0);
+    const amountMainCurrency = Number(transaction.amountMainCurrency || 0);
 
-    if (!role || rest === 0) return 0;
+    if (!role || amountMainCurrency === 0) return 0;
 
-    const type = String(transaction.type || "").trim();
-    const paymentText = String(transaction.paymentText || "").trim();
+    const entryType = String(transaction.entryType || "").trim();
+    const sourceModule = String(transaction.sourceModule || "").trim();
+    const actionType = String(transaction.actionType || "").trim();
+    const balanceEffectType = String(
+      transaction.balanceEffectType || ""
+    ).trim();
 
-    // reversals / cancellations
-    if (
-      type === "invoice_cancel" ||
-      type === "invoice_reverse_update" ||
-      type === "refund_invoice"
-    ) {
-      return -rest;
-    }
-
-    // opening balance
-    if (type === "Opening balance") {
-      if (role === "customer") {
-        return paymentText === "Deposit" ? -rest : +rest;
-      }
-
+    if (entryType === "payment") {
       if (role === "supplier") {
-        return paymentText === "Deposit" ? +rest : -rest;
+        if (balanceEffectType === "Deposit") return -amountMainCurrency;
+        if (balanceEffectType === "Withdrawal") return +amountMainCurrency;
       }
-    }
 
-    // payments / refunds
-    if (type === "payment" || type === "Refund Invoice") {
       if (role === "customer") {
-        if (paymentText === "Deposit") return -rest;
-        if (paymentText === "Withdrawal") return -rest;
+        if (balanceEffectType === "Deposit") return -amountMainCurrency;
+        if (balanceEffectType === "Withdrawal") return +amountMainCurrency;
       }
 
-      if (role === "supplier") {
-        if (paymentText === "Deposit") return -rest;
-        if (paymentText === "Withdrawal") return +rest;
-      }
+      return 0;
     }
 
-    // default invoice-like behavior
-    return +rest;
+    if (entryType === "invoice") {
+      if (role === "supplier" && sourceModule === "purchase") {
+        if (actionType === "create") return +amountMainCurrency;
+        if (actionType === "refund") return -amountMainCurrency;
+        if (actionType === "cancel") return -amountMainCurrency;
+        if (actionType === "update") return -amountMainCurrency;
+      }
+
+      if (role === "customer" && sourceModule === "sales") {
+        if (actionType === "create") return +amountMainCurrency;
+        if (actionType === "refund") return -amountMainCurrency;
+        if (actionType === "cancel") return -amountMainCurrency;
+        if (actionType === "update") return -amountMainCurrency;
+      }
+
+      return 0;
+    }
+
+    if (entryType === "expense") {
+      if (role === "supplier" && sourceModule === "expense") {
+        if (actionType === "create") return +amountMainCurrency;
+        if (actionType === "refund") return -amountMainCurrency;
+        if (actionType === "cancel") return -amountMainCurrency;
+        if (actionType === "update") return -amountMainCurrency;
+      }
+
+      return 0;
+    }
+
+    if (entryType === "opening_balance") {
+      if (role === "supplier") {
+        if (balanceEffectType === "Deposit") return -amountMainCurrency;
+        if (balanceEffectType === "Withdrawal") return +amountMainCurrency;
+      }
+
+      if (role === "customer") {
+        if (balanceEffectType === "Deposit") return -amountMainCurrency;
+        if (balanceEffectType === "Withdrawal") return +amountMainCurrency;
+      }
+
+      return 0;
+    }
+
+    return 0;
   };
 
   let runningBalance = 0;
@@ -210,13 +236,15 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
     return {
       ...transaction,
       runningBalance,
-      balanceEffect: effect, // optional, useful for debugging
-      partyType: role, // optional, useful for frontend/debugging
+      balanceEffect: effect,
+      partyType: role,
     };
   });
 
   const sortedTransactions = [...transactionsWithBalance].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
+    (a, b) =>
+      new Date(b.transactionDate || b.createdAt) -
+      new Date(a.transactionDate || a.createdAt)
   );
 
   const paginatedTransactions = sortedTransactions.slice(skip, skip + pageSize);
@@ -230,31 +258,10 @@ const getPaymentHistory = asyncHandler(async (req, res, next) => {
     results: paginatedTransactions.length,
     data: paginatedTransactions,
   });
-});
-
-const editPaymentHistory = async (
-  dbName,
-  openingBalanceId,
-  openingBalance,
-  date,
-  amountBalance
-) => {
-  const db = mongoose.connection.useDb(dbName);
-  const PaymentHistoryModel = db.model("PaymentHistory", PaymentHistorySchema);
-  const paymentHistory = await PaymentHistoryModel.findOne({
-    _id: openingBalanceId,
-  });
-
-  paymentHistory.rest = openingBalance;
-  paymentHistory.amount = amountBalance;
-  paymentHistory.date = date;
-  paymentHistory.save();
-  return paymentHistory;
 };
 
 module.exports = {
   createPaymentHistory,
   getPaymentHistory,
-  editPaymentHistory,
   createPaymentHistoryV2,
 };

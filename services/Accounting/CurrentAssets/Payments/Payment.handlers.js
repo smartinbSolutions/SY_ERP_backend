@@ -8,7 +8,10 @@ const paymentModel = require("../../../../models/paymentModel");
 const financialFundsModel = require("../../../../models/financialFundsModel");
 const ReportsFinancialFundsModel = require("../../../../models/reportsFinancialFunds");
 const { createInvoiceHistory } = require("../../../invoiceHistoryService");
-const { createPaymentHistory } = require("../../../paymentHistoryService");
+const {
+  createPaymentHistory,
+  createPaymentHistoryV2,
+} = require("../../../paymentHistoryService");
 const {
   getNextCounterValue,
 } = require("../../../../utils/getNextCounterValue");
@@ -16,6 +19,7 @@ const accountingTreeModel = require("../../../../models/accountingTreeModel");
 const expensesModel = require("../../../../models/expensesModel");
 
 // Supplier effects
+
 const handleSupplierPaymentEntity = async ({
   supplier,
   companyId,
@@ -29,30 +33,37 @@ const handleSupplierPaymentEntity = async ({
   effectSide,
   session,
 }) => {
-  const amount = Number(totalMainCurrency || 0);
-  const paymentText = effectSide === "destination" ? "Deposit" : "Withdrawal";
+  const amountMainCurrency = Number(totalMainCurrency || 0);
+  const amountTransactionCurrency = Number(paymentInFundCurrency || 0);
+  const balanceEffectType =
+    effectSide === "destination" ? "Deposit" : "Withdrawal";
 
   if (effectSide === "destination") {
-    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - amount;
+    supplier.TotalUnpaid =
+      Number(supplier.TotalUnpaid || 0) - amountMainCurrency;
+
+    if (Number(supplier.TotalUnpaid || 0) < 0) {
+      supplier.TotalUnpaid = 0;
+    }
 
     await supplier.save({ session });
 
-    await createPaymentHistory(
-      "payment",
-      date,
-      Math.abs(amount),
-      Number(paymentInFundCurrency || 0),
-      "supplier",
-      supplier._id,
-      refId,
+    await createPaymentHistoryV2({
       companyId,
-      description,
+      entryType: "payment",
+      transactionDate: date,
+      amountTransactionCurrency,
+      amountMainCurrency,
+      supplierId: supplier._id,
+      referenceId: refId,
+      sourceModule: "payment",
+      actionType: "create",
       paymentId,
-      paymentText,
-      "",
-      currencyCode,
-      session
-    );
+      balanceEffectType,
+      description,
+      transactionCurrency: currencyCode,
+      session,
+    });
 
     return;
   }
@@ -60,7 +71,7 @@ const handleSupplierPaymentEntity = async ({
   if (effectSide === "source") {
     const updatedSupplier = await suppliersModel.findOneAndUpdate(
       { _id: supplier.id || supplier._id, companyId },
-      { $inc: { TotalUnpaid: amount } },
+      { $inc: { TotalUnpaid: amountMainCurrency } },
       { new: true, session }
     );
 
@@ -68,28 +79,29 @@ const handleSupplierPaymentEntity = async ({
       throw new Error("Supplier not found");
     }
 
-    await createPaymentHistory(
-      "payment",
-      date,
-      Math.abs(amount),
-      Number(paymentInFundCurrency || 0),
-      "supplier",
-      updatedSupplier._id,
-      refId,
+    await createPaymentHistoryV2({
       companyId,
-      description,
+      entryType: "payment",
+      transactionDate: date,
+      amountTransactionCurrency,
+      amountMainCurrency,
+      supplierId: updatedSupplier._id,
+      referenceId: refId,
+      sourceModule: "payment",
+      actionType: "create",
       paymentId,
-      paymentText,
-      "",
-      currencyCode,
-      session
-    );
+      balanceEffectType,
+      description,
+      transactionCurrency: currencyCode,
+      session,
+    });
 
     return;
   }
 
   throw new Error("Invalid supplier effect side");
 };
+
 const settleSupplierOpenDocuments = async ({
   supplier,
   source,
@@ -259,6 +271,7 @@ const settleSupplierOpenDocuments = async ({
 };
 
 // Customer effects
+
 const handleCustomerPaymentEntity = async ({
   customer,
   companyId,
@@ -269,15 +282,16 @@ const handleCustomerPaymentEntity = async ({
   date,
   description,
   currencyCode,
-  effectSide, // "source" | "destination"
+  effectSide,
   session,
 }) => {
-  const amount = Number(totalMainCurrency || 0);
+  const amountMainCurrency = Number(totalMainCurrency || 0);
+  const amountTransactionCurrency = Number(paymentInFundCurrency || 0);
 
   if (effectSide === "destination") {
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
-      { $inc: { TotalUnpaid: -amount } },
+      { $inc: { TotalUnpaid: -amountMainCurrency } },
       { new: true, session }
     );
 
@@ -290,22 +304,22 @@ const handleCustomerPaymentEntity = async ({
       await updatedCustomer.save({ session });
     }
 
-    await createPaymentHistory(
-      "payment",
-      date,
-      Math.abs(amount),
-      Number(paymentInFundCurrency || 0),
-      "customer",
-      updatedCustomer._id,
-      refId,
+    await createPaymentHistoryV2({
       companyId,
-      description,
+      entryType: "payment",
+      transactionDate: date,
+      amountTransactionCurrency,
+      amountMainCurrency,
+      customerId: updatedCustomer._id,
+      referenceId: refId,
+      sourceModule: "payment",
+      actionType: "create",
       paymentId,
-      "Deposit",
-      "",
-      currencyCode,
-      session
-    );
+      balanceEffectType: "Deposit",
+      description,
+      transactionCurrency: currencyCode,
+      session,
+    });
 
     return;
   }
@@ -313,7 +327,7 @@ const handleCustomerPaymentEntity = async ({
   if (effectSide === "source") {
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
-      { $inc: { TotalUnpaid: amount } },
+      { $inc: { TotalUnpaid: amountMainCurrency } },
       { new: true, session }
     );
 
@@ -321,28 +335,29 @@ const handleCustomerPaymentEntity = async ({
       throw new Error("Customer not found");
     }
 
-    await createPaymentHistory(
-      "payment",
-      date,
-      Math.abs(amount),
-      Number(paymentInFundCurrency || 0),
-      "customer",
-      updatedCustomer._id,
-      refId,
+    await createPaymentHistoryV2({
       companyId,
-      description,
+      entryType: "payment",
+      transactionDate: date,
+      amountTransactionCurrency,
+      amountMainCurrency,
+      customerId: updatedCustomer._id,
+      referenceId: refId,
+      sourceModule: "payment",
+      actionType: "create",
       paymentId,
-      "Withdrawal",
-      "",
-      currencyCode,
-      session
-    );
+      balanceEffectType: "Withdrawal",
+      description,
+      transactionCurrency: currencyCode,
+      session,
+    });
 
     return;
   }
 
   throw new Error("Invalid customer effect side");
 };
+
 const settleCustomerOpenDocuments = async ({
   customer,
   source,
