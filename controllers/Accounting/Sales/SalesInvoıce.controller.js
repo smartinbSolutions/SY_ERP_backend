@@ -69,7 +69,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         ...prepared,
         newSalesInvoice,
         companyId,
-        date: req.body.date,
+        date: req.body.orderDate,
         session,
       });
 
@@ -80,7 +80,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         date: req.body.orderDate,
         totalInMainCurrency: req.body.totalInMainCurrency,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-        paid: req.body.paid,
+        paid: req.body.paymentsStatus,
         session,
       });
     }

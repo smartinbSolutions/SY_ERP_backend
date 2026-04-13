@@ -206,7 +206,6 @@ exports.createSalesInvoiceRecordService = async ({
         ? JSON.parse(req.body.financailFund)
         : req.body.financailFund;
   }
-  console.log(customerObject);
   let resolvedPaidStatus = paymentsStatus;
   if (paymentsStatus === "paid" && !invoiceDraft) {
     const paidAmountMain = Number(req.body.paymentInMainCurrency || 0);
