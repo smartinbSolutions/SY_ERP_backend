@@ -581,7 +581,7 @@ exports.applySalesCustomerEffectsService = async ({
   date,
   totalInMainCurrency,
   totalRemainderMainCurrency,
-  paid,
+  paymentsStatus,
   session,
 }) => {
   if (!customer) {
@@ -593,13 +593,17 @@ exports.applySalesCustomerEffectsService = async ({
 
   customer.total += totalMain;
 
-  if (paid === "unpaid") {
+  if (paymentsStatus === "unpaid") {
     customer.TotalUnpaid += totalMain;
   }
 
-  if (paid === "paid") {
+  if (paymentsStatus === "paid") {
     customer.TotalUnpaid += remainderMain;
   }
+
+  console.log(paymentsStatus);
+  console.log(totalInMainCurrency);
+  console.log(totalRemainderMainCurrency);
 
   await customer.save({ session });
 
@@ -1040,11 +1044,11 @@ exports.reverseSalesCustomerEffectsService = async ({
 
   customer.total = Number(customer.total || 0) - totalMain;
 
-  if (salesInvoice.paid === "unpaid") {
+  if (salesInvoice.paymentsStatus === "unpaid") {
     customer.TotalUnpaid = Number(customer.TotalUnpaid || 0) - totalMain;
   }
 
-  if (salesInvoice.paid === "paid") {
+  if (salesInvoice.paymentsStatus === "paid") {
     customer.TotalUnpaid = Number(customer.TotalUnpaid || 0) - remainderMain;
   }
 
@@ -1218,7 +1222,7 @@ exports.upsertSalesInvoiceRecordService = async ({
   session,
 }) => {
   const {
-    paid,
+    paymentsStatus,
     exchangeRate,
     totalInMainCurrency,
     invoiceSubTotal,
@@ -1249,7 +1253,7 @@ exports.upsertSalesInvoiceRecordService = async ({
         : req.body.financailFund;
   }
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (paymentsStatus === "paid" && !invoiceDraft) {
     financialFund = await financialFundsModel
       .findOne({ _id: parsedFinancialFund?.id, companyId })
       .session(session);
@@ -1269,7 +1273,7 @@ exports.upsertSalesInvoiceRecordService = async ({
     exchangeRate,
     invoiceNumber,
 
-    paid: invoiceDraft ? "unpaid" : paid,
+    paymentsStatus: invoiceDraft ? "unpaid" : paymentsStatus,
     totalInMainCurrency: totalInMainCurrency,
 
     invoiceSubTotal,
@@ -1331,12 +1335,12 @@ exports.upsertSalesInvoiceRecordService = async ({
       : null;
   }
 
-  if (paid === "paid" && !invoiceDraft) {
+  if (paymentsStatus === "paid" && !invoiceDraft) {
     invoicePayload.financailFund = parsedFinancialFund;
     invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
   }
 
-  if (paid === "unpaid") {
+  if (paymentsStatus === "unpaid") {
     invoicePayload.dueDate = paymentDate;
   }
 
@@ -1359,8 +1363,8 @@ exports.upsertSalesInvoiceRecordService = async ({
     throw new ApiError("Invalid mode", 400);
   }
 
-  if (paid === "paid" && !invoiceDraft) {
-    const payment = await PaymentModel.create(
+  if (paymentsStatus === "paid" && !invoiceDraft) {
+    const payment = await paymentModel.create(
       [
         {
           source: {
@@ -1401,7 +1405,7 @@ exports.upsertSalesInvoiceRecordService = async ({
           payid: [
             {
               id: invoiceDoc._id,
-              status: req.body.paid,
+              status: req.body.paymentsStatus,
               invoiceTotal: req.body.invoiceGrandTotal,
               invoiceName: req.body.invoiceName,
               invoiceCurrencyCode: currency?.currencyCode,

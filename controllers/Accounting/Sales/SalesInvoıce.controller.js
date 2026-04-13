@@ -80,7 +80,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         date: req.body.orderDate,
         totalInMainCurrency: req.body.totalInMainCurrency,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-        paid: req.body.paymentsStatus,
+        paymentsStatus: req.body.paymentsStatus,
         session,
       });
     }
@@ -133,7 +133,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
     }
 
     if (
-      salesInvoice.paid === "paid" ||
+      salesInvoice.paymentsStatus === "paid" ||
       (salesInvoice.payments || []).length > 0
     ) {
       return next(
@@ -202,7 +202,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
 
     let nextCounterPayment = null;
 
-    if (req.body.paid === "paid") {
+    if (req.body.paymentsStatus === "paid") {
       const paymentSeq = await getNextCounterValue({
         companyId,
         name: "Payment",
@@ -241,7 +241,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       totalInMainCurrency: updatedSalesInvoice.totalInMainCurrency,
       totalRemainderMainCurrency:
         updatedSalesInvoice.totalRemainderMainCurrency,
-      paid: updatedSalesInvoice.paid,
+      paymentsStatus: updatedSalesInvoice.paymentsStatus,
       session,
     });
 
@@ -281,7 +281,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       session,
     );
 
-    if (updatedSalesInvoice.paid === "paid") {
+    if (updatedSalesInvoice.paymentsStatus === "paid") {
       await createInvoiceHistory(
         companyId,
         updatedSalesInvoice._id,
@@ -375,7 +375,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       date: salesInvoice.date,
       totalSalesPriceMainCurrency: salesInvoice.totalSalesPriceMainCurrency,
       totalRemainderMainCurrency: salesInvoice.totalRemainderMainCurrency,
-      paid: salesInvoice.paid,
+      paymentsStatus: salesInvoice.paymentsStatus,
       session,
     });
 
@@ -392,7 +392,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
     salesInvoice.isDraft = false;
     salesInvoice.postedBy = req.user?._id;
     salesInvoice.postedAt = new Date();
-    salesInvoice.paid = salesInvoice.paid || "unpaid";
+    salesInvoice.paymentsStatus = salesInvoice.paymentsStatus || "unpaid";
     salesInvoice.journalCounter = journalLink;
 
     await salesInvoice.save({ session });
@@ -516,7 +516,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
     }
 
     if (
-      salesInvoice.paid === "paid" ||
+      salesInvoice.paymentsStatus === "paid" ||
       (salesInvoice.payments || []).length > 0
     ) {
       return next(
