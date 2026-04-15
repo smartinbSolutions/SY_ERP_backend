@@ -5,7 +5,7 @@ const sendEmail = async (options) => {
   try {
     const msg = {
       to: options.email,
-      from: "Jadwa Invest <abd.alrhman@smartinb.com>",
+      from: "Smartinb ERP <abd.alrhman@smartinb.com>",
       subject: options.subject,
       text: options.message,
     };
