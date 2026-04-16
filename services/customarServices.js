@@ -8,6 +8,7 @@ const createToken = require("../utils/createToken");
 const {
   createPaymentHistory,
   editPaymentHistory,
+  createPaymentHistoryV2,
 } = require("./paymentHistoryService");
 const orderSchema = require("../models/orderModel");
 const xlsx = require("xlsx");
@@ -28,21 +29,23 @@ exports.createCustomar = asyncHandler(async (req, res, next) => {
   req.body.openingBalance = req.body.TotalUnpaid;
 
   const customar = await customersModel.create(req.body);
+  const openingBalanceAmount = Number(req.body.TotalUnpaid || 0);
+  const absoluteOpeningBalanceAmount = Math.abs(openingBalanceAmount);
   if (req.body.TotalUnpaid !== null) {
-    const openingBalance = await createPaymentHistory(
-      "Opening balance",
-      req.body.date || formattedDate,
-      req.body.TotalUnpaid,
-      customar.TotalUnpaid,
-      "customer",
-      customar.id,
-      "",
+    const openingBalance = await createPaymentHistoryV2({
       companyId,
-      "",
-      "",
-      req.body.havebalans === "debit" ? "Deposit" : "Withdrawal",
-      "Opening balance"
-    );
+      entryType: "opening_balance",
+      transactionDate: req.body.date || new Date().toISOString(),
+      amountTransactionCurrency: absoluteOpeningBalanceAmount,
+      amountMainCurrency: absoluteOpeningBalanceAmount,
+      customerId: customar._id,
+      sourceModule: "opening_balance",
+      actionType: "create",
+      balanceEffectType:
+        req.body.havebalans === "debit" ? "Deposit" : "Withdrawal",
+      description: "Opening balance",
+      transactionCurrency: req.body.currencyCode || "",
+    });
     customar.openingBalanceId = openingBalance._id;
     await customar.save();
   }
@@ -145,7 +148,7 @@ exports.updataCustomar = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
 
     res.status(200).json({
@@ -173,7 +176,7 @@ exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
     },
     {
       new: true,
-    }
+    },
   );
 
   if (!user) {
@@ -204,7 +207,7 @@ exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   if (paymentHistory.length > 0) {
     return next(
       new ApiError(`you have a payment for this customer ${id}`),
-      400
+      400,
     );
   }
 

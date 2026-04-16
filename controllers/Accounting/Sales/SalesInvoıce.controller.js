@@ -366,7 +366,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       ...prepared,
       newSalesInvoice: salesInvoice,
       companyId,
-      date: salesInvoice.date,
+      date: salesInvoice.orderDate,
       session,
     });
 
@@ -374,7 +374,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       ...prepared,
       newSalesInvoice: salesInvoice,
       companyId,
-      date: salesInvoice.date,
+      date: salesInvoice.orderDate,
       totalSalesPriceMainCurrency: salesInvoice.totalSalesPriceMainCurrency,
       totalRemainderMainCurrency: salesInvoice.totalRemainderMainCurrency,
       paymentsStatus: salesInvoice.paymentsStatus,

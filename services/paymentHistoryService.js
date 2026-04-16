@@ -173,7 +173,7 @@ const getPaymentHistory = async (req, res, next) => {
 
       if (role === "customer") {
         if (balanceEffectType === "Deposit") return -amountMainCurrency;
-        if (balanceEffectType === "Withdrawal") return +amountMainCurrency;
+        if (balanceEffectType === "Withdrawal") return -amountMainCurrency;
       }
 
       return 0;
