@@ -119,6 +119,7 @@ const tasksRoute = require("./Hr/taskRoute");
 const subtasksRoute = require("./Hr/subTaskRoute");
 const commentRoute = require("./Hr/commentRoute");
 const attachmentRoute = require("./Hr/attachmentRoute");
+const ExpenseInvoices = require("./Accounting/Expense/expenseInvoices.route");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -141,7 +142,7 @@ const mountRoutes = (app) => {
   app.use("/api/currency", currencyRoute);
   app.use("/api/v1/currencylog", currencyLogRoute);
   app.use("/api/financialfunds", financialFundsRoute);
-  app.use("/api/expenses", expensesRoute);
+  app.use("/api/expenses", ExpenseInvoices);
   app.use("/api/purchaseInvoices", PurchaseInvoices);
   app.use("/api/refund-purchaseInvoices", RefundPurchaseInvoices);
   app.use("/api/expenseCategories", expenseCategoriesRoute);

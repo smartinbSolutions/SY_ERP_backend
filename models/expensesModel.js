@@ -80,6 +80,16 @@ const expensesSchema = new mongoose.Schema(
         _id: false,
       },
     ],
+    taxDetails: [
+      {
+        rate: Number,
+        name: String,
+        amount: Number,
+        amountMain: Number,
+        _id: false,
+      },
+    ],
+
     description: String,
     counter: String,
     paymentDisc: String,
@@ -90,6 +100,39 @@ const expensesSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["draft", "posted", "cancelled"],
+      default: "draft",
+      index: true,
+    },
+    cancelledBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
+      default: "",
+    },
+    draftJournalSnapshot: {
+      journalMeta: { type: mongoose.Schema.Types.Mixed, default: null },
+      journalAccounts: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      totals: {
+        totalDebit: { type: Number, default: 0 },
+        totalCredit: { type: Number, default: 0 },
+        balanced: { type: Boolean, default: false },
+        _id: false,
+      },
+      generatedAt: { type: Date, default: null },
+      source: { type: String, default: "frontend" },
+      _id: false,
     },
   },
   { timestamps: true },
