@@ -16,7 +16,7 @@ const createPaymentHistory = async (
   paymentText,
   refText,
   transactionCurrency,
-  session = null
+  session = null,
 ) => {
   try {
     const normalizedDate = date
@@ -77,14 +77,14 @@ const createPaymentHistoryV2 = async ({
       ? new Date(transactionDate).toISOString()
       : new Date().toISOString();
 
-    if (!supplierId && !customerId) {
-      throw new ApiError("Either supplierId or customerId is required", 400);
-    }
+    // if (!supplierId && !customerId) {
+    //   throw new ApiError("Either supplierId or customerId is required", 400);
+    // }
 
     if (supplierId && customerId) {
       throw new ApiError(
         "Only one of supplierId or customerId should be provided",
-        400
+        400,
       );
     }
 
@@ -162,7 +162,7 @@ const getPaymentHistory = async (req, res, next) => {
     const sourceModule = String(transaction.sourceModule || "").trim();
     const actionType = String(transaction.actionType || "").trim();
     const balanceEffectType = String(
-      transaction.balanceEffectType || ""
+      transaction.balanceEffectType || "",
     ).trim();
 
     if (entryType === "payment") {
@@ -244,7 +244,7 @@ const getPaymentHistory = async (req, res, next) => {
   const sortedTransactions = [...transactionsWithBalance].sort(
     (a, b) =>
       new Date(b.transactionDate || b.createdAt) -
-      new Date(a.transactionDate || a.createdAt)
+      new Date(a.transactionDate || a.createdAt),
   );
 
   const paginatedTransactions = sortedTransactions.slice(skip, skip + pageSize);

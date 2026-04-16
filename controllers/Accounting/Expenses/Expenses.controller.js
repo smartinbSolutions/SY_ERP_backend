@@ -65,6 +65,7 @@ exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
 exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceDraft = req.body.isDraft === "true";
+  const isCash = req.body.isCash === "true";
 
   const session = await mongoose.startSession();
 
@@ -103,8 +104,9 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       nextCounterExpensesInvoices,
       session,
     });
+    console.log(invoiceDraft);
 
-    if (!invoiceDraft) {
+    if (!invoiceDraft && !isCash) {
       await applyExpenseSupplierEffectsService({
         ...prepared,
         newExpenseInvoice,
