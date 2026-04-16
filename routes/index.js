@@ -115,6 +115,10 @@ const deductionPolicyRoute = require("./Hr/deductionPolicyRoute");
 const deductionTypesRoute = require("./Hr/deductionTypesRoute");
 const payrollPeriodRoute = require("./Hr/payrollPeriodRoute");
 const payrollGroupsRoute = require("./Hr/payrollGroupsRoute");
+const tasksRoute = require("./Hr/taskRoute");
+const subtasksRoute = require("./Hr/subTaskRoute");
+const commentRoute = require("./Hr/commentRoute");
+const attachmentRoute = require("./Hr/attachmentRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -223,6 +227,10 @@ const mountRoutes = (app) => {
   app.use("/api/deduction-types", deductionTypesRoute);
   app.use("/api/payroll-periods", payrollPeriodRoute);
   app.use("/api/payroll-groups", payrollGroupsRoute);
+  app.use("/api/tasks", tasksRoute);
+  app.use("/api/subtasks", subtasksRoute);
+  app.use("/api/comments", commentRoute);
+  app.use("/api/attachments", attachmentRoute);
 
   //Payment
   app.use("/api", paytrRouter);

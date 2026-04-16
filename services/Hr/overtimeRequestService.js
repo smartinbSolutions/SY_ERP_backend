@@ -341,21 +341,64 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       session,
     );
 
+    // =========================
+    // ONLY WHEN APPROVED
+    // =========================
     if (updatedRequest.status === "approved") {
-      updatedRequest.approvedAt = new Date();
+      const approvedAt = new Date();
+      updatedRequest.approvedAt = approvedAt;
 
+      const type = updatedRequest.overtimeTypeId;
+
+      // =========================
+      // RULE SNAPSHOT
+      // =========================
+      const ruleSnapshot = {
+        typeKey: type.typeKey,
+        rateMultiplier: type.rateMultiplier,
+        leaveMultiplier: type.leaveMultiplier,
+        weeklyLimit: type.weeklyLimit,
+        dailyLimit: type.dailyLimit,
+        applicableDayType: type.applicableDayType,
+      };
+
+      // =========================
+      // CALCULATION
+      // =========================
+      const hours = Number(updatedRequest.hours || 0);
+
+      const appliedRateMultiplier = type.rateMultiplier || 1;
+
+      const appliedLeaveMultiplier = type.leaveMultiplier || 0;
+
+      const calculatedPay = hours * appliedRateMultiplier;
+
+      const leaveEarned = hours * appliedLeaveMultiplier;
+
+      const calculation = {
+        hours,
+        appliedRateMultiplier,
+        appliedLeaveMultiplier,
+        calculatedPay,
+        leaveEarned,
+      };
+
+      // =========================
+      // CREATE LOG
+      // =========================
       await overtimeLogsModel.create(
         [
           {
             userId: updatedRequest.userId,
             overtimeRequestId: updatedRequest._id,
-            overtimeType: updatedRequest.overtimeTypeId._id,
-            hours: updatedRequest.hours,
-            rateMultiplier: updatedRequest.overtimeTypeId?.rateMultiplier || 1,
-            calculatedPay: 0,
-            leaveEarned: 0,
+            overtimeType: type._id,
+
+            ruleSnapshot,
+            calculation,
+
             approvedBy: req.user._id,
-            approvedAt: updatedRequest.approvedAt,
+            approvedAt,
+
             managerComment: reason || "",
             companyId: updatedRequest.companyId,
           },
@@ -366,6 +409,9 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       await updatedRequest.save({ session });
     }
 
+    // =========================
+    // NOTIFICATION
+    // =========================
     await NotificationModel.create(
       [
         {
@@ -384,10 +430,11 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       ],
       { session },
     );
+
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
       message: `Request ${action} successfully`,
       data: updatedRequest,
@@ -400,7 +447,6 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
     return next(new ApiError(err.message, 400));
   }
 });
-
 // ================= DELETE =================
 
 exports.deleteOvertimeRequest = asyncHandler(async (req, res, next) => {

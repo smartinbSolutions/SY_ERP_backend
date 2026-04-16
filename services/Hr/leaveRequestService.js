@@ -310,7 +310,10 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Already processed", 400));
     }
 
-    const updatedRequest = await handleApproval(
+    // =========================
+    // 1. Approval engine
+    // =========================
+    const { request: updatedRequest } = await handleApproval(
       request,
       req.user._id,
       action,
@@ -318,51 +321,155 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
       session,
     );
 
+    // =========================
+    // 2. Only proceed if approved
+    // =========================
     if (updatedRequest.status === "approved") {
-      updatedRequest.approvedAt = new Date();
+      const approvedAt = new Date();
+      updatedRequest.approvedAt = approvedAt;
 
+      // =========================
+      // 3. Employee snapshot
+      // =========================
+      const employee = await staffModel.findById(updatedRequest.userId);
+
+      const employeeSnapshot = {
+        name: employee?.fullName || "",
+      };
+
+      // =========================
+      // 4. Fetch leave
+      // =========================
+      const leave = await leavesModel.findById(updatedRequest.leaveType);
+
+      if (!leave) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ApiError("Leave type not found", 404));
+      }
+
+      // =========================
+      // 5. Rule resolver (IMPORTANT FIX)
+      // =========================
+      let appliedRule = null;
+      let ruleType = null;
+
+      switch (leave.typeKey) {
+        case "sick":
+          appliedRule = leave.sickRules?.[0];
+          ruleType = "sick_rule";
+          break;
+
+        case "annual":
+          appliedRule = leave.annualRules?.[0];
+          ruleType = "annual_rule";
+          break;
+
+        case "maternity":
+          appliedRule = leave.maternityRules?.[0];
+          ruleType = "maternity_rule";
+          break;
+
+        case "unpaid":
+          appliedRule = { payPercentage: 0, days: updatedRequest.days };
+          ruleType = "unpaid_rule";
+          break;
+
+        case "special":
+          appliedRule = leave.singleRules;
+          ruleType = "single_rule";
+          break;
+
+        default:
+          appliedRule = null;
+          ruleType = "unknown_rule";
+      }
+
+      // =========================
+      // 6. Snapshots
+      // =========================
+      const approvalSnapshot = updatedRequest.approval;
+
+      const leaveSnapshot = {
+        typeKey: leave.typeKey,
+        requiresAttachment: leave.requiresAttachment,
+        rule: appliedRule
+          ? {
+              name:
+                appliedRule.stageName || appliedRule.categoryName || "default",
+              days: appliedRule.days,
+              payPercentage: appliedRule.payPercentage,
+            }
+          : null,
+      };
+
+      const calculation = {
+        totalDays: Number(updatedRequest.days),
+        appliedPayPercentage: appliedRule?.payPercentage ?? 0,
+        ruleType,
+      };
+
+      // =========================
+      // 7. Create Leave Log
+      // =========================
       await leavesLogsModel.create(
         [
           {
             userId: updatedRequest.userId,
             leaveRequestId: updatedRequest._id,
-            leaveType: updatedRequest.leaveType,
+            companyId: updatedRequest.companyId,
+
+            leaveSnapshot,
+            calculation,
+            approvalSnapshot,
+            employeeSnapshot,
+
             startDate: updatedRequest.startDate,
             endDate: updatedRequest.endDate,
-            days: updatedRequest.days,
+
             approvedBy: req.user._id,
-            approvedAt: updatedRequest.approvedAt,
+            approvedAt,
+
             managerComment: reason || "",
-            companyId: updatedRequest.companyId,
           },
         ],
         { session },
       );
 
       await updatedRequest.save({ session });
-      console.log(
-        "Leave log created for approved request:",
-        updatedRequest._id,
-      );
+
+      console.log("Leave log created:", updatedRequest._id);
     }
 
+    // =========================
+    // 8. Notification
+    // =========================
     await NotificationModel.create(
       [
         {
           recipient: updatedRequest.userId,
           actor: req.user._id,
-          title: `Leave ${updatedRequest.status.charAt(0).toUpperCase() + updatedRequest.status.slice(1)}`,
+          title: `Leave ${
+            updatedRequest.status.charAt(0).toUpperCase() +
+            updatedRequest.status.slice(1)
+          }`,
           message: `Your leave request status changed to ${updatedRequest.status}`,
-          entity: { id: updatedRequest._id, model: "LeaveRequest" },
+          entity: {
+            id: updatedRequest._id,
+            model: "LeaveRequest",
+          },
         },
       ],
       { session },
     );
 
+    // =========================
+    // 9. Commit transaction
+    // =========================
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
       message: `Leave request ${action} successfully`,
       data: updatedRequest,

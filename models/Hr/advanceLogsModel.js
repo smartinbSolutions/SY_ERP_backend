@@ -23,25 +23,62 @@ const advanceLogSchema = new mongoose.Schema(
       required: true,
     },
 
-    // salary when he request the advance
-    salarySnapshot: {
-      type: Number,
+    companyId: {
+      type: String,
       required: true,
+      index: true,
     },
 
-    approvedAmount: {
-      type: Number,
-      required: true,
+    // =========================
+    // RULE SNAPSHOT (SYSTEM STATE)
+    // =========================
+    ruleSnapshot: {
+      typeKey: String,
+      maxPercentageOfSalary: Number,
+      allowInstallments: Boolean,
+      maxMonthsInstallments: Number,
+      maxInstallmentPercentage: Number,
+      minMonthsAfterJoin: Number,
     },
 
-    installments: {
-      type: Number,
-      default: null,
-    },
+    // =========================
+    // CALCULATION (ACTUAL RESULT)
+    // =========================
+    calculation: {
+      requestedAmount: {
+        type: Number,
+        required: true,
+      },
 
-    installmentAmount: {
-      type: Number,
-      default: null,
+      approvedAmount: {
+        type: Number,
+        required: true,
+      },
+
+      salarySnapshot: {
+        type: Number,
+        required: true,
+      },
+
+      appliedPercentageOfSalary: {
+        type: Number,
+        required: true,
+      },
+
+      installments: {
+        type: Number,
+        default: null,
+      },
+
+      installmentAmount: {
+        type: Number,
+        default: null,
+      },
+
+      remainingAfterApproval: {
+        type: Number,
+        default: 0,
+      },
     },
 
     approvedBy: {
@@ -58,12 +95,6 @@ const advanceLogSchema = new mongoose.Schema(
     managerComment: {
       type: String,
       trim: true,
-    },
-
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
     },
   },
   {

@@ -85,6 +85,67 @@ exports.handleApprovalTransaction = async (
     session,
   );
 
+  // =========================
+  // POPULATE TYPE
+  // =========================
+  await updatedRequest.populate("advanceTypeId");
+
+  const advanceType = updatedRequest.advanceTypeId;
+
+  // =========================
+  // GET EMPLOYEE (SALARY)
+  // =========================
+  const staffModel = require("../../models/Hr/staffModel");
+
+  const employee = await staffModel
+    .findById(updatedRequest.userId)
+    .session(session);
+
+  const salarySnapshot = employee?.salary || 0;
+
+  // =========================
+  // RULE SNAPSHOT
+  // =========================
+  const ruleSnapshot = {
+    typeKey: advanceType.typeKey,
+    maxPercentageOfSalary: advanceType.maxPercentageOfSalary,
+    allowInstallments: advanceType.allowInstallments,
+    maxMonthsInstallments: advanceType.maxMonthsInstallments,
+    maxInstallmentPercentage: advanceType.maxInstallmentPercentage,
+    minMonthsAfterJoin: advanceType.minMonthsAfterJoin,
+  };
+
+  // =========================
+  // CALCULATION
+  // =========================
+  const requestedAmount = updatedRequest.amount;
+
+  const maxAllowedAmount =
+    (salarySnapshot * (advanceType.maxPercentageOfSalary || 100)) / 100;
+
+  const approvedAmount = Math.min(requestedAmount, maxAllowedAmount);
+
+  const appliedPercentageOfSalary =
+    salarySnapshot > 0 ? (approvedAmount / salarySnapshot) * 100 : 0;
+
+  const installments = updatedRequest.installments || null;
+
+  const installmentAmount =
+    installments && installments > 0 ? approvedAmount / installments : null;
+
+  const calculation = {
+    requestedAmount,
+    approvedAmount,
+    salarySnapshot,
+    appliedPercentageOfSalary,
+    installments,
+    installmentAmount,
+    remainingAfterApproval: salarySnapshot - approvedAmount,
+  };
+
+  // =========================
+  // CREATE LOG (ONLY IF APPROVED)
+  // =========================
   if (updatedRequest.status === "approved") {
     if (!updatedRequest.approvedAt) {
       updatedRequest.approvedAt = new Date();
@@ -95,15 +156,16 @@ exports.handleApprovalTransaction = async (
         {
           userId: updatedRequest.userId,
           advanceRequestId: updatedRequest._id,
-          advanceTypeId: updatedRequest.advanceTypeId,
-          salarySnapshot: updatedRequest.salarySnapshot,
-          approvedAmount: updatedRequest.amount,
-          installments: updatedRequest.installments || null,
-          installmentAmount: updatedRequest.installmentAmount || null,
+          advanceTypeId: advanceType._id,
+
+          companyId: updatedRequest.companyId,
+
+          ruleSnapshot,
+          calculation,
+
           approvedBy: userId,
           approvedAt: updatedRequest.approvedAt,
           managerComment: reason || "",
-          companyId: updatedRequest.companyId,
         },
       ],
       { session },
@@ -112,6 +174,9 @@ exports.handleApprovalTransaction = async (
     await updatedRequest.save({ session });
   }
 
+  // =========================
+  // NOTIFICATION
+  // =========================
   await NotificationModel.create(
     [
       {

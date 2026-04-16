@@ -63,7 +63,7 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Valid amount is required", 400));
 
     // 1️⃣ جلب بيانات الموظف
-    const requester = await staffModel.findById(req.user._id);
+    const requester = await staffModel.findById(req.user._aid);
     if (!requester) return next(new ApiError("User not found", 404));
 
     // 2️⃣ جلب نوع السلفة والـ flow
@@ -216,14 +216,26 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
   const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
-    const request = await service.getById(req.params.id);
-    if (!request) throw new ApiError("Request not found", 404);
-    if (request.status !== "pending")
-      throw new ApiError("Already processed", 400);
+    session.startTransaction();
 
+    // =========================
+    // GET REQUEST
+    // =========================
+    const request = await service.getById(req.params.id);
+
+    if (!request) {
+      throw new ApiError("Request not found", 404);
+    }
+
+    if (request.status !== "pending") {
+      throw new ApiError("Already processed", 400);
+    }
+
+    // =========================
+    // HANDLE APPROVAL (CORE LOGIC)
+    // =========================
     const updatedRequest = await service.handleApprovalTransaction(
       request,
       req.user._id,
@@ -232,8 +244,10 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       session,
     );
 
+    // =========================
+    // COMMIT
+    // =========================
     await session.commitTransaction();
-    session.endSession();
 
     res.status(200).json({
       status: true,
@@ -241,10 +255,16 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       data: updatedRequest,
     });
   } catch (err) {
+    // =========================
+    // ROLLBACK
+    // =========================
     await session.abortTransaction();
-    session.endSession();
+
     console.error("Transaction error in handleAdvanceRequest:", err);
+
     return next(new ApiError(err.message, 400));
+  } finally {
+    session.endSession();
   }
 });
 

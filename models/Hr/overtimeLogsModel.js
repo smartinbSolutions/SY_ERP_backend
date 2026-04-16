@@ -23,26 +23,53 @@ const overtimeLogSchema = new mongoose.Schema(
       required: true,
     },
 
-    hours: {
-      type: Number,
-      required: true,
+    // =========================
+    // SNAPSHOT OF RULE (IMPORTANT)
+    // =========================
+    ruleSnapshot: {
+      type: {
+        typeKey: String,
+        rateMultiplier: Number,
+        leaveMultiplier: Number,
+        weeklyLimit: Number,
+        dailyLimit: Number,
+        applicableDayType: String,
+      },
     },
 
-    rateMultiplier: {
-      type: Number,
-      required: true,
+    // =========================
+    // APPLIED CALCULATION (HISTORY)
+    // =========================
+    calculation: {
+      hours: {
+        type: Number,
+        required: true,
+      },
+
+      appliedRateMultiplier: {
+        type: Number,
+        required: true,
+      },
+
+      appliedLeaveMultiplier: {
+        type: Number,
+        default: 0,
+      },
+
+      calculatedPay: {
+        type: Number,
+        default: 0,
+      },
+
+      leaveEarned: {
+        type: Number,
+        default: 0,
+      },
     },
 
-    calculatedPay: {
-      type: Number,
-      default: 0,
-    },
-
-    leaveEarned: {
-      type: Number,
-      default: 0,
-    },
-
+    // =========================
+    // APPROVAL INFO
+    // =========================
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "staff",
