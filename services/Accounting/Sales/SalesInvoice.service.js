@@ -1261,7 +1261,7 @@ exports.upsertSalesInvoiceRecordService = async ({
   }
 
   const invoicePayload = {
-    employee: req.user._id,
+    employee: { id: req.user._id, name: req.user.name },
     invoicesItems: invoicesItem,
     customer: customerObject,
     currency,
