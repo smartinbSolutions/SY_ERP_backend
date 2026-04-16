@@ -710,10 +710,11 @@ exports.updateSalesInvoiceDraftService = async ({
     ? JSON.parse(req.body.invoicesItems)
     : [];
 
-  const currency = req.body.currency;
-  const tag = req.body.tag;
-  const taxSummary = req.body.taxSummary;
-  const customerObject = req.body.customer;
+  const currency = req.body.currency ? JSON.parse(req.body.currency) : "";
+
+  const tag = req.body.tag ? JSON.parse(req.body.tag) : "";
+  const taxSummary = req.body.taxSummary ? JSON.parse(req.body.taxSummary) : "";
+  const customerObject = req.body.customer ? JSON.parse(req.body.customer) : "";
 
   const existingInvoice = await orderModel
     .findOne({
