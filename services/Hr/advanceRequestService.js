@@ -5,6 +5,7 @@ const advanceTypesModel = require("../../models/Hr/advanceTypesModel");
 const { default: mongoose } = require("mongoose");
 const { handleApproval } = require("./approvalService");
 const NotificationModel = require("../../models/Hr/NotificationModel");
+const staffModel = require("../../models/Hr/staffModel");
 
 // ================= CREATE =================
 exports.createAdvanceRequest = async (data) => {
@@ -77,124 +78,159 @@ exports.handleApprovalTransaction = async (
   reason,
   session,
 ) => {
-  const updatedRequest = await handleApproval(
-    request,
-    userId,
-    action,
-    reason,
-    session,
-  );
+  try {
+    console.log("➡️ [ADVANCE APPROVAL] START");
+    console.log("📌 Request ID:", request._id);
+    console.log("👤 User ID:", userId);
+    console.log("⚙️ Action:", action);
 
-  // =========================
-  // POPULATE TYPE
-  // =========================
-  await updatedRequest.populate("advanceTypeId");
+    // =========================
+    // STEP 1: HANDLE APPROVAL FLOW
+    // =========================
+    const updatedRequest = await handleApproval(
+      request,
+      userId,
+      action,
+      reason,
+      session,
+    );
 
-  const advanceType = updatedRequest.advanceTypeId;
+    console.log("✅ STEP 1 DONE");
+    console.log("📊 Status:", updatedRequest.status);
 
-  // =========================
-  // GET EMPLOYEE (SALARY)
-  // =========================
-  const staffModel = require("../../models/Hr/staffModel");
+    // =========================
+    // STEP 2: FETCH FRESH REQUEST
+    // =========================
+    const freshRequest = await AdvanceRequest.findById(request._id)
+      .populate("advanceTypeId")
+      .session(session);
 
-  const employee = await staffModel
-    .findById(updatedRequest.userId)
-    .session(session);
-
-  const salarySnapshot = employee?.salary || 0;
-
-  // =========================
-  // RULE SNAPSHOT
-  // =========================
-  const ruleSnapshot = {
-    typeKey: advanceType.typeKey,
-    maxPercentageOfSalary: advanceType.maxPercentageOfSalary,
-    allowInstallments: advanceType.allowInstallments,
-    maxMonthsInstallments: advanceType.maxMonthsInstallments,
-    maxInstallmentPercentage: advanceType.maxInstallmentPercentage,
-    minMonthsAfterJoin: advanceType.minMonthsAfterJoin,
-  };
-
-  // =========================
-  // CALCULATION
-  // =========================
-  const requestedAmount = updatedRequest.amount;
-
-  const maxAllowedAmount =
-    (salarySnapshot * (advanceType.maxPercentageOfSalary || 100)) / 100;
-
-  const approvedAmount = Math.min(requestedAmount, maxAllowedAmount);
-
-  const appliedPercentageOfSalary =
-    salarySnapshot > 0 ? (approvedAmount / salarySnapshot) * 100 : 0;
-
-  const installments = updatedRequest.installments || null;
-
-  const installmentAmount =
-    installments && installments > 0 ? approvedAmount / installments : null;
-
-  const calculation = {
-    requestedAmount,
-    approvedAmount,
-    salarySnapshot,
-    appliedPercentageOfSalary,
-    installments,
-    installmentAmount,
-    remainingAfterApproval: salarySnapshot - approvedAmount,
-  };
-
-  // =========================
-  // CREATE LOG (ONLY IF APPROVED)
-  // =========================
-  if (updatedRequest.status === "approved") {
-    if (!updatedRequest.approvedAt) {
-      updatedRequest.approvedAt = new Date();
+    if (!freshRequest) {
+      throw new Error("Advance request not found after approval");
     }
 
-    await advanceLogsModel.create(
+    const advanceType = freshRequest.advanceTypeId;
+
+    if (!advanceType) {
+      throw new Error("Advance type not found for this request");
+    }
+
+    // =========================
+    // STEP 3: EMPLOYEE DATA
+    // =========================
+    const employee = await staffModel
+      .findById(freshRequest.userId)
+      .session(session);
+
+    const salarySnapshot = employee?.salary || 0;
+
+    // =========================
+    // STEP 4: RULE SNAPSHOT
+    // =========================
+    const ruleSnapshot = {
+      typeKey: advanceType.typeKey,
+      maxPercentageOfSalary: advanceType.maxPercentageOfSalary,
+      allowInstallments: advanceType.allowInstallments,
+      maxMonthsInstallments: advanceType.maxMonthsInstallments,
+      maxInstallmentPercentage: advanceType.maxInstallmentPercentage,
+      minMonthsAfterJoin: advanceType.minMonthsAfterJoin,
+    };
+
+    // =========================
+    // STEP 5: CALCULATIONS
+    // =========================
+    const requestedAmount = Number(freshRequest.amount);
+
+    const maxAllowedAmount =
+      (salarySnapshot * (advanceType.maxPercentageOfSalary || 100)) / 100;
+
+    const approvedAmount = Math.min(requestedAmount, maxAllowedAmount);
+
+    const appliedPercentageOfSalary =
+      salarySnapshot > 0 ? (approvedAmount / salarySnapshot) * 100 : 0;
+
+    const installments = freshRequest.installments || null;
+
+    const installmentAmount =
+      installments && installments > 0 ? approvedAmount / installments : null;
+
+    const calculation = {
+      requestedAmount,
+      approvedAmount,
+      salarySnapshot,
+      appliedPercentageOfSalary,
+      installments,
+      installmentAmount,
+      remainingAfterApproval: salarySnapshot - approvedAmount,
+    };
+
+    console.log("📊 Calculation:", calculation);
+
+    // =========================
+    // STEP 6: CREATE LOG (FIXED)
+    // =========================
+    if (freshRequest.status === "approved") {
+      console.log("✅ FINAL APPROVAL → creating log");
+
+      if (!freshRequest.approvedAt) {
+        freshRequest.approvedAt = new Date();
+      }
+
+      const logPayload = {
+        userId: freshRequest.userId,
+        advanceRequestId: freshRequest._id,
+        advanceTypeId: advanceType._id,
+        companyId: freshRequest.companyId,
+
+        ruleSnapshot,
+
+        calculation, // 🔥 FIX: THIS WAS MISSING BEFORE
+
+        approvedBy: userId,
+        approvedAt: freshRequest.approvedAt,
+        managerComment: reason || "",
+      };
+
+      console.log("🧾 LOG PAYLOAD:", logPayload);
+
+      await advanceLogsModel.create([logPayload], { session });
+
+      console.log("✅ LOG CREATED");
+
+      await freshRequest.save({ session });
+
+      console.log("💾 REQUEST SAVED");
+    } else {
+      console.log("⏭️ Not final approval → skipping log");
+    }
+
+    // =========================
+    // STEP 7: NOTIFICATION
+    // =========================
+    await NotificationModel.create(
       [
         {
-          userId: updatedRequest.userId,
-          advanceRequestId: updatedRequest._id,
-          advanceTypeId: advanceType._id,
-
-          companyId: updatedRequest.companyId,
-
-          ruleSnapshot,
-          calculation,
-
-          approvedBy: userId,
-          approvedAt: updatedRequest.approvedAt,
-          managerComment: reason || "",
+          recipient: freshRequest.userId,
+          actor: userId,
+          title: `Advance ${
+            freshRequest.status.charAt(0).toUpperCase() +
+            freshRequest.status.slice(1)
+          }`,
+          message: `Your advance request status changed to ${freshRequest.status}`,
+          entity: {
+            id: freshRequest._id,
+            model: "AdvanceRequest",
+          },
         },
       ],
       { session },
     );
 
-    await updatedRequest.save({ session });
+    console.log("📨 Notification sent");
+
+    return freshRequest;
+  } catch (err) {
+    console.error("🔥 ADVANCE APPROVAL ERROR:", err);
+    throw err;
   }
-
-  // =========================
-  // NOTIFICATION
-  // =========================
-  await NotificationModel.create(
-    [
-      {
-        recipient: updatedRequest.userId,
-        actor: userId,
-        title: `Advance ${
-          updatedRequest.status.charAt(0).toUpperCase() +
-          updatedRequest.status.slice(1)
-        }`,
-        message: `Your advance request status changed to ${updatedRequest.status}`,
-        entity: {
-          id: updatedRequest._id,
-          model: "AdvanceRequest",
-        },
-      },
-    ],
-    { session },
-  );
-
-  return updatedRequest;
 };

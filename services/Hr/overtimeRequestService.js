@@ -308,7 +308,6 @@ exports.updateOvertimeRequest = asyncHandler(async (req, res, next) => {
 });
 
 // ================= APPROVE / REJECT =================
-
 exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
   const { action, reason } = req.body;
 
@@ -316,43 +315,69 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const request = await OvertimeRequest.findById(req.params.id)
+    console.log("====================================");
+    console.log("🚀 HANDLE OVERTIME REQUEST START");
+    console.log("Request ID:", req.params.id);
+    console.log("Action:", action);
+    console.log("Approver:", req.user._id);
+    console.log("====================================");
+
+    // =========================
+    // STEP 1: FETCH REQUEST
+    // =========================
+    console.log("🔍 STEP 1: Fetching request...");
+
+    let request = await OvertimeRequest.findById(req.params.id)
       .populate("approval.flowId")
       .populate("overtimeTypeId")
       .session(session);
 
     if (!request) {
-      await session.abortTransaction();
-      session.endSession();
-      return next(new ApiError("Request not found", 404));
+      console.log("❌ Request not found");
+      throw new ApiError("Request not found", 404);
     }
+
+    console.log("📄 Request found: true");
+    console.log("📊 Current Status:", request.status);
+    console.log("👤 Current Approver:", request.approval?.currentApprover);
+    console.log("📌 Current Step:", request.approval?.currentStep);
 
     if (request.status !== "pending") {
-      await session.abortTransaction();
-      session.endSession();
-      return next(new ApiError("Already processed", 400));
+      throw new ApiError("Already processed", 400);
     }
 
-    const updatedRequest = await handleApproval(
-      request,
-      req.user._id,
-      action,
-      reason,
-      session,
-    );
+    // =========================
+    // STEP 2: HANDLE APPROVAL FLOW
+    // =========================
+    console.log("⚙️ STEP 2: Running handleApproval...");
+
+    await handleApproval(request, req.user._id, action, reason, session);
+
+    console.log("✅ handleApproval DONE");
 
     // =========================
-    // ONLY WHEN APPROVED
+    // STEP 3: GET FRESH REQUEST (IMPORTANT FIX)
     // =========================
-    if (updatedRequest.status === "approved") {
+    console.log("🔄 STEP 3: Re-fetching updated request...");
+
+    request = await OvertimeRequest.findById(req.params.id)
+      .populate("overtimeTypeId")
+      .session(session);
+
+    console.log("📊 Updated Status:", request.status);
+
+    // =========================
+    // STEP 4: LOG CREATION (ONLY IF APPROVED)
+    // =========================
+    if (request.status === "approved") {
+      console.log("🟢 FINAL APPROVAL → creating log");
+
       const approvedAt = new Date();
-      updatedRequest.approvedAt = approvedAt;
+      request.approvedAt = approvedAt;
 
-      const type = updatedRequest.overtimeTypeId;
+      const type = request.overtimeTypeId;
 
-      // =========================
       // RULE SNAPSHOT
-      // =========================
       const ruleSnapshot = {
         typeKey: type.typeKey,
         rateMultiplier: type.rateMultiplier,
@@ -362,17 +387,13 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
         applicableDayType: type.applicableDayType,
       };
 
-      // =========================
       // CALCULATION
-      // =========================
-      const hours = Number(updatedRequest.hours || 0);
+      const hours = Number(request.hours || 0);
 
       const appliedRateMultiplier = type.rateMultiplier || 1;
-
       const appliedLeaveMultiplier = type.leaveMultiplier || 0;
 
       const calculatedPay = hours * appliedRateMultiplier;
-
       const leaveEarned = hours * appliedLeaveMultiplier;
 
       const calculation = {
@@ -383,47 +404,51 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
         leaveEarned,
       };
 
-      // =========================
+      console.log("📦 Rule Snapshot:", ruleSnapshot);
+      console.log("📊 Calculation:", calculation);
+
       // CREATE LOG
-      // =========================
       await overtimeLogsModel.create(
         [
           {
-            userId: updatedRequest.userId,
-            overtimeRequestId: updatedRequest._id,
+            userId: request.userId,
+            overtimeRequestId: request._id,
             overtimeType: type._id,
-
             ruleSnapshot,
             calculation,
-
             approvedBy: req.user._id,
             approvedAt,
-
             managerComment: reason || "",
-            companyId: updatedRequest.companyId,
+            companyId: request.companyId,
           },
         ],
         { session },
       );
 
-      await updatedRequest.save({ session });
+      console.log("✅ LOG CREATED");
+
+      await request.save({ session });
+      console.log("💾 REQUEST SAVED");
+    } else {
+      console.log("⏭️ Not final approval → skipping log creation");
     }
 
     // =========================
-    // NOTIFICATION
+    // STEP 5: NOTIFICATION (FIXED)
     // =========================
+    console.log("🔔 STEP 5: Sending notification...");
+
+    const status = request.status || "unknown";
+
     await NotificationModel.create(
       [
         {
-          recipient: updatedRequest.userId,
+          recipient: request.userId,
           actor: req.user._id,
-          title: `Overtime ${
-            updatedRequest.status.charAt(0).toUpperCase() +
-            updatedRequest.status.slice(1)
-          }`,
-          message: `Your overtime request status changed to ${updatedRequest.status}`,
+          title: `Overtime ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+          message: `Your overtime request status changed to ${status}`,
           entity: {
-            id: updatedRequest._id,
+            id: request._id,
             model: "OvertimeRequest",
           },
         },
@@ -431,19 +456,26 @@ exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
       { session },
     );
 
+    console.log("📨 Notification sent");
+
+    // =========================
+    // COMMIT
+    // =========================
     await session.commitTransaction();
     session.endSession();
+
+    console.log("🎉 TRANSACTION SUCCESS");
 
     return res.status(200).json({
       status: true,
       message: `Request ${action} successfully`,
-      data: updatedRequest,
+      data: request,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
 
-    console.error("Transaction error:", err);
+    console.error("🔥 TRANSACTION ERROR:", err);
     return next(new ApiError(err.message, 400));
   }
 });

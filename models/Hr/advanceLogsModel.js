@@ -47,22 +47,22 @@ const advanceLogSchema = new mongoose.Schema(
     calculation: {
       requestedAmount: {
         type: Number,
-        required: true,
+        default: 0,
       },
 
       approvedAmount: {
         type: Number,
-        required: true,
+        default: 0,
       },
 
       salarySnapshot: {
         type: Number,
-        required: true,
+        default: 0,
       },
 
       appliedPercentageOfSalary: {
         type: Number,
-        required: true,
+        default: 0,
       },
 
       installments: {

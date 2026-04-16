@@ -7,6 +7,7 @@ const multer = require("multer");
 const service = require("../../services/Hr/advanceRequestService");
 const { default: mongoose } = require("mongoose");
 const staffModel = require("../../models/Hr/staffModel");
+const advanceRequestModel = require("../../models/Hr/advanceRequestModel");
 
 // ================= MULTER =================
 const multerStorage = multer.memoryStorage();
@@ -49,96 +50,148 @@ exports.processAdvanceAttachment = asyncHandler(async (req, res, next) => {
 // ================= CREATE =================
 exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
   try {
+    console.log("➡️ CREATE ADVANCE REQUEST START");
+
     const {
       advanceTypeId,
       amount,
       reason,
-      // salarySnapshot,
+      installments,
       installmentAmount,
-      totalInstallments,
+      attachment,
     } = req.body;
 
-    if (!req.user) return next(new ApiError("Not logged in", 401));
-    if (!amount || amount <= 0)
+    console.log("📥 BODY:", req.body);
+
+    if (!req.user) {
+      console.log("❌ No user in request");
+      return next(new ApiError("Not logged in", 401));
+    }
+
+    if (!amount || amount <= 0) {
+      console.log("❌ Invalid amount:", amount);
       return next(new ApiError("Valid amount is required", 400));
+    }
 
-    // 1️⃣ جلب بيانات الموظف
-    const requester = await staffModel.findById(req.user._aid);
-    if (!requester) return next(new ApiError("User not found", 404));
+    // =========================
+    // GET REQUESTER
+    // =========================
+    const requester = await staffModel.findById(req.user._id);
 
-    // 2️⃣ جلب نوع السلفة والـ flow
+    if (!requester) {
+      console.log("❌ Requester not found:", req.user._id);
+      return next(new ApiError("User not found", 404));
+    }
+
+    console.log("👤 REQUESTER FOUND:", requester._id);
+
+    // =========================
+    // GET ADVANCE TYPE
+    // =========================
     const type = await service.getAdvanceTypeById(advanceTypeId);
-    if (!type) return next(new ApiError("Advance type not found", 404));
 
+    if (!type) {
+      console.log("❌ Advance type not found:", advanceTypeId);
+      return next(new ApiError("Advance type not found", 404));
+    }
+
+    console.log("📌 ADVANCE TYPE:", type._id);
+
+    // =========================
+    // GET FLOW
+    // =========================
     const flowId = type.approvalFlow || type.policyId?.approvalFlow;
-    if (!flowId) return next(new ApiError("Approval flow not found", 404));
+
+    console.log("🔄 FLOW ID:", flowId);
+
+    if (!flowId) {
+      console.log("❌ No flow linked to type");
+      return next(new ApiError("Approval flow not found", 404));
+    }
 
     const flow = await service.getApprovalFlowById(flowId);
-    if (!flow) return next(new ApiError("Approval flow not found", 404));
 
-    // بناء خطوات الموافقة مع تجاوز self-approval والمدير المباشر
-    let approvalSteps = [];
+    if (!flow) {
+      console.log("❌ Flow not found:", flowId);
+      return next(new ApiError("Approval flow not found", 404));
+    }
+
+    console.log("📊 FLOW STEPS COUNT:", flow.steps.length);
+
+    // =========================
+    // BUILD APPROVAL STEPS
+    // =========================
+    const approvalSteps = [];
 
     for (const step of flow.steps) {
       let approverId = null;
 
-      // المدير المباشر
       if (step.isDirectManager) {
         approverId = requester.directManager;
       } else if (step.approver?.employeeId) {
         approverId = step.approver.employeeId;
       }
 
-      // تجاوز self-approval
       if (approverId && approverId.toString() === requester._id.toString()) {
+        console.log("⚠️ SELF APPROVAL SKIPPED");
         approverId = null;
       }
-
-      const status = approverId ? "pending" : "skipped";
 
       approvalSteps.push({
         stepNumber: step.stepNumber,
         approverId,
-        status,
+        status: approverId ? "pending" : "skipped",
         actedBy: null,
         actedAt: null,
         comment: "",
       });
     }
 
-    // تحديد أول approver فعلي
     const firstPending = approvalSteps.find((s) => s.status === "pending");
+
     const currentApprover = firstPending?.approverId || null;
     const currentStep = firstPending?.stepNumber || null;
 
-    //  إنشاء طلب السلفة عن طريق الخدمة
-    const request = await service.createAdvanceRequest({
+    console.log("👉 FIRST APPROVER:", currentApprover);
+    console.log("👉 CURRENT STEP:", currentStep);
+
+    // =========================
+    // CREATE REQUEST
+    // =========================
+    const requestData = {
       userId: requester._id,
       companyId: requester.companyId,
       advanceTypeId,
       amount,
       reason,
-      // salarySnapshot,
+      installments: installments || null,
       installmentAmount: installmentAmount || null,
-      totalInstallments: totalInstallments || null,
-      attachment: req.body.attachment || null,
+      attachment: attachment || null,
+
       approval: {
         flowId: flow._id,
         currentStep,
         currentApprover,
         steps: approvalSteps,
       },
+
       status: currentApprover ? "pending" : "approved",
       approvedAt: currentApprover ? null : new Date(),
-    });
+    };
 
-    res.status(201).json({
+    console.log("🧾 FINAL REQUEST DATA:", requestData);
+
+    const request = await service.createAdvanceRequest(requestData);
+
+    console.log("✅ ADVANCE REQUEST CREATED:", request._id);
+
+    return res.status(201).json({
       status: true,
-      message: "Advance request submitted",
+      message: "Advance request submitted successfully",
       data: request,
     });
   } catch (err) {
-    console.error("Error in createAdvanceRequest:", err);
+    console.error("🔥 CREATE ADVANCE ERROR:", err);
     return next(err);
   }
 });
@@ -221,9 +274,11 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
     session.startTransaction();
 
     // =========================
-    // GET REQUEST
+    // GET REQUEST (INSIDE SESSION)
     // =========================
-    const request = await service.getById(req.params.id);
+    const request = await advanceRequestModel
+      .findById(req.params.id)
+      .session(session);
 
     if (!request) {
       throw new ApiError("Request not found", 404);
@@ -234,7 +289,7 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
     }
 
     // =========================
-    // HANDLE APPROVAL (CORE LOGIC)
+    // HANDLE SERVICE
     // =========================
     const updatedRequest = await service.handleApprovalTransaction(
       request,
@@ -244,9 +299,6 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       session,
     );
 
-    // =========================
-    // COMMIT
-    // =========================
     await session.commitTransaction();
 
     res.status(200).json({
@@ -255,19 +307,12 @@ exports.handleAdvanceRequest = asyncHandler(async (req, res, next) => {
       data: updatedRequest,
     });
   } catch (err) {
-    // =========================
-    // ROLLBACK
-    // =========================
     await session.abortTransaction();
-
-    console.error("Transaction error in handleAdvanceRequest:", err);
-
     return next(new ApiError(err.message, 400));
   } finally {
     session.endSession();
   }
 });
-
 // ================= DELETE =================
 exports.deleteAdvanceRequest = asyncHandler(async (req, res, next) => {
   const request = await service.getById(req.params.id);
