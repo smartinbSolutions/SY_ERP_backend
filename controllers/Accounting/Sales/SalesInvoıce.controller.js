@@ -13,6 +13,8 @@ const {
   reverseSalesCustomerEffectsService,
   reverseSalesJournalEffectsService,
   upsertSalesInvoiceRecordService,
+  findAllSalesInvoicesService,
+  findOneSalesInvoiceService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
@@ -601,4 +603,46 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
   } finally {
     session.endSession();
   }
+});
+
+exports.findAllSalesInvoices = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { totalItems, totalPages, salesInvoices } =
+    await findAllSalesInvoicesService({
+      req,
+      companyId,
+    });
+
+  res.status(200).json({
+    status: "true",
+    Pages: totalPages,
+    results: totalItems,
+    data: salesInvoices,
+  });
+});
+
+exports.findOneSalesInvoice = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { totalItems, totalPages, salesInvoice, invoiceHistory } =
+    await findOneSalesInvoiceService({
+      req,
+      companyId,
+    });
+
+  res.status(200).json({
+    status: "true",
+    Pages: totalPages,
+    data: salesInvoice,
+    history: invoiceHistory,
+  });
 });

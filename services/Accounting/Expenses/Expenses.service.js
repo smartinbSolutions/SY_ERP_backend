@@ -341,17 +341,18 @@ exports.createExpensesInvoiceRecordService = async ({
 
     await createPaymentHistoryV2({
       companyId,
-      entryType: "invoice",
+      entryType: "payment",
       transactionDate: req.body.date || formattedDate,
       amountTransactionCurrency: invoiceTotalInvoice,
       amountMainCurrency: invoiceTotalMain,
       supplierId: supplier?._id || "",
       referenceId: newExpenseInvoice._id,
-      sourceModule: "expense",
+      sourceModule: "payment",
       actionType: "create",
       description: req.body.description,
       transactionCurrency: currency?.currencyCode,
       session,
+      balanceEffectType: "Deposit",
     });
 
     const reports = await reportsFinancialFunds.create(
@@ -454,7 +455,7 @@ exports.applyExpenseSupplierEffectsService = async ({
 
   await createPaymentHistoryV2({
     companyId,
-    entryType: "invoice",
+    entryType: "expense",
     transactionDate: date,
     amountTransactionCurrency: newExpenseInvoice.expenceTotal,
     amountMainCurrency: totalMain,
@@ -463,6 +464,7 @@ exports.applyExpenseSupplierEffectsService = async ({
     sourceModule: "expense",
     actionType: "create",
     transactionCurrency: currency.currencyCode,
+    balanceEffectType: "Withdrawal",
     session,
   });
 };
@@ -649,7 +651,7 @@ exports.reverseExpenseSupplierEffectsService = async ({
 
   await createPaymentHistoryV2({
     companyId,
-    entryType: "invoice",
+    entryType: "expense",
     transactionDate: cancellationDate,
     amountTransactionCurrency: Number(expense.expenceTotal || 0),
     amountMainCurrency: totalMain,
@@ -1001,7 +1003,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
       amountMainCurrency: req.body.paymentInMainCurrency,
       supplierId: supllierObject.id,
       referenceId: invoiceDoc._id,
-      sourceModule: "purchase",
+      sourceModule: "expense",
       actionType: "create",
       paymentId: payment[0]._id,
       balanceEffectType: "Deposit",

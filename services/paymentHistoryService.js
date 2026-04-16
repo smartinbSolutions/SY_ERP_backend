@@ -200,7 +200,7 @@ const getPaymentHistory = async (req, res, next) => {
     if (entryType === "expense") {
       if (role === "supplier" && sourceModule === "expense") {
         if (actionType === "create") return +amountMainCurrency;
-        if (actionType === "refund") return -amountMainCurrency;
+        // if (actionType === "refund") return -amountMainCurrency;
         if (actionType === "cancel") return -amountMainCurrency;
         if (actionType === "update") return -amountMainCurrency;
       }

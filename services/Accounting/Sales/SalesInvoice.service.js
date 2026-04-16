@@ -12,6 +12,7 @@ const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createJournalService } = require("../../journalEntryServices");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
+const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -1470,4 +1471,106 @@ exports.upsertSalesInvoiceRecordService = async ({
   }
 
   return invoiceDoc;
+};
+
+exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
+  const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
+
+  const pageSize = Number(req.query.limit) || 20;
+  const page = Number(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const query = { companyId };
+
+  if (filters?.startDate || filters?.endDate) {
+    query.date = {};
+    if (filters?.startDate) query.date.$gte = filters.startDate;
+    if (filters?.endDate) query.date.$lte = filters.endDate;
+  }
+
+  if (filters?.tags?.length) {
+    const tagIds = filters.tags.map((tag) => tag.id);
+    query["tag.id"] = { $in: tagIds };
+  }
+
+  if (filters.paymentStatus) {
+    query.paid = filters.paymentStatus;
+  }
+
+  if (filters.employee) {
+    query.employee = filters.employee;
+  }
+
+  if (filters?.businessPartners) {
+    query["customer.name"] = {
+      $regex: filters.businessPartners,
+      $options: "i",
+    };
+  }
+
+  if (req.query.keyword) {
+    query.$or = [
+      { "customer.name": { $regex: req.query.keyword, $options: "i" } },
+      { invoiceName: { $regex: req.query.keyword, $options: "i" } },
+      { invoiceNumber: { $regex: req.query.keyword, $options: "i" } },
+    ];
+  }
+
+  if (filters?.filterTags?.length) {
+    query["tag.name"] = { $in: filters.filterTags };
+  }
+
+  const totalItems = await orderModel.countDocuments(query);
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const salesInvoices = await orderModel
+    .find(query)
+    .sort({ orderDate: -1 })
+    .skip(skip)
+    .limit(pageSize);
+
+  return {
+    totalItems,
+    totalPages,
+    salesInvoices,
+  };
+};
+
+exports.findOneSalesInvoiceService = async ({ req, companyId }) => {
+  const { id } = req.params;
+
+  const salesInvoice = await orderModel.findOne({
+    _id: id,
+    companyId,
+  });
+
+  if (!salesInvoice) {
+    throw new ApiError(`No sales invoice for this id ${id}`, 404);
+  }
+
+  const pageSize = Number(req.query.limit) || 20;
+  const page = Number(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const totalItems = await invoiceHistoryModel.countDocuments({
+    invoiceId: id,
+  });
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const invoiceHistory = await invoiceHistoryModel
+    .find({
+      invoiceId: id,
+      companyId,
+    })
+    .populate({ path: "employeeId", select: "name email" })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize);
+
+  return {
+    totalItems,
+    totalPages,
+    salesInvoice,
+    invoiceHistory,
+  };
 };
