@@ -248,6 +248,7 @@ exports.createExpensesInvoiceRecordService = async ({
     categorts,
     employeeID: invoiceDraft ? null : req.user._id,
     employeeName: invoiceDraft ? null : req.user.name,
+    isCash: req.body.isCash || false,
   };
 
   if (!invoiceDraft) {
