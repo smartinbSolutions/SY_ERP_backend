@@ -294,15 +294,16 @@ const handleCustomerPaymentEntity = async ({
       { $inc: { TotalUnpaid: -amountMainCurrency } },
       { new: true, session },
     );
+    console.log(updatedCustomer);
 
     if (!updatedCustomer) {
       throw new Error("Customer not found");
     }
 
-    if (Number(updatedCustomer.TotalUnpaid || 0) < 0) {
-      updatedCustomer.TotalUnpaid = 0;
-      await updatedCustomer.save({ session });
-    }
+    // if (Number(customer.TotalUnpaid || 0) < 0) {
+    //   updatedCustomer.TotalUnpaid = 0;
+    //   await updatedCustomer.save({ session });
+    // }
 
     await createPaymentHistoryV2({
       companyId,
@@ -1566,6 +1567,8 @@ const handleCustomerPayment = async (
           "Customer payment context requires customer as source or destination",
         );
       }
+      console.log("isCustomerDestination", isCustomerDestination);
+      console.log("isCustomerSource", isCustomerSource);
 
       const customerId = isCustomerDestination ? destination?.id : source?.id;
 

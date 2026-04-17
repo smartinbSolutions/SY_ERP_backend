@@ -93,7 +93,7 @@ const multerOptions = () => {
   const multerFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|webp/;
     const extname = allowedTypes.test(
-      file.originalname.toLowerCase().split(".").pop()
+      file.originalname.toLowerCase().split(".").pop(),
     );
     const mimeType = allowedTypes.test(file.mimetype);
     if (extname && mimeType) {
@@ -153,7 +153,6 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     "dec",
   ];
   req.body.companyId = companyId;
-  console.log(req.body);
   const nextJournalNumber =
     (await journalModel.countDocuments({ companyId })) + 1;
 
@@ -170,7 +169,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
@@ -205,7 +204,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
 
     if (existingPeriodic) {
       const existingMonth = existingPeriodic.months.find(
-        (x) => x.month === monthName
+        (x) => x.month === monthName,
       );
 
       if (existingMonth) {
@@ -216,7 +215,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
 
       existingPeriodic.yearTotal = existingPeriodic.months.reduce(
         (sum, mo) => sum + (mo.amount || 0),
-        0
+        0,
       );
 
       await existingPeriodic.save();
@@ -291,24 +290,23 @@ exports.createJournalService = async ({
   const ts = Date.now();
   const dateOb = new Date(ts);
   const formattedTime = `${padZero(dateOb.getHours())}:${padZero(
-    dateOb.getMinutes()
+    dateOb.getMinutes(),
   )}:${padZero(dateOb.getSeconds())}.${String(
-    dateOb.getMilliseconds()
+    dateOb.getMilliseconds(),
   ).padStart(3, "0")}`;
 
   const isoJournalDate = `${journalInfo.journalDate}T${formattedTime}Z`;
 
   const totalJournalDebit = journalAccounts.reduce(
     (sum, account) => sum + Number(account.MainDebit || 0),
-    0
+    0,
   );
 
   const totalJournalCredit = journalAccounts.reduce(
     (sum, account) => sum + Number(account.MainCredit || 0),
-    0
+    0,
   );
-  console.log(journalInfo?.counter);
-  console.log(nextJournalNumber);
+
   const payload = {
     ...journalInfo,
     companyId,
@@ -356,7 +354,7 @@ exports.createJournalService = async ({
 
     if (existingPeriodic) {
       const existingMonth = existingPeriodic.months.find(
-        (x) => x.month === monthName
+        (x) => x.month === monthName,
       );
 
       if (existingMonth) {
@@ -370,7 +368,7 @@ exports.createJournalService = async ({
 
       existingPeriodic.yearTotal = existingPeriodic.months.reduce(
         (sum, mo) => sum + Number(mo.amount || 0),
-        0
+        0,
       );
 
       await existingPeriodic.save({ session });
@@ -394,7 +392,7 @@ exports.createJournalService = async ({
             code: item.code || "",
           },
         ],
-        { session }
+        { session },
       );
     }
   }
@@ -440,7 +438,7 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
@@ -457,7 +455,7 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
           companyId,
         },
         { $inc: { total: total, TotalUnpaid: total } },
-        { new: true }
+        { new: true },
       );
       await createPaymentHistory(
         "Opening balance",
@@ -471,13 +469,13 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
         "",
         "",
         req.body.MainCredit > 0 ? "Withdrawal" : "Deposit",
-        "Opening balance"
+        "Opening balance",
       );
     } else if (item.party === "Supplier") {
       const supplierData = await suppliersModel.findOneAndUpdate(
         { _id: item.partyId, companyId },
         { $inc: { total: total, TotalUnpaid: total } },
-        { new: true }
+        { new: true },
       );
       await createPaymentHistory(
         "Opening balance",
@@ -491,13 +489,13 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
         "",
         "",
         req.body.MainCredit > 0 ? "Withdrawal" : "Deposit",
-        "Opening balance"
+        "Opening balance",
       );
     } else if (item.party === "Funds") {
       const fundsData = await financialFundsModel.findOneAndUpdate(
         { _id: item.partyId, companyId },
         { $inc: { fundBalance: total } },
-        { new: true }
+        { new: true },
       );
       await ReportsFinancialFundsModel.create({
         date: req.body.journalDate,
@@ -540,7 +538,7 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
 
     if (existingPeriodic) {
       const existingMonth = existingPeriodic.months.find(
-        (x) => x.month === monthName
+        (x) => x.month === monthName,
       );
 
       if (existingMonth) {
@@ -551,7 +549,7 @@ exports.createJournalOpenBalance = asyncHandler(async (req, res) => {
 
       existingPeriodic.yearTotal = existingPeriodic.months.reduce(
         (sum, mo) => sum + (mo.amount || 0),
-        0
+        0,
       );
 
       await existingPeriodic.save();
@@ -842,11 +840,11 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 
         if (lastJournal) {
           const journalsSorted = [...allJournals].sort(
-            (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
+            (a, b) => new Date(b.journalDate) - new Date(a.journalDate),
           );
 
           const index = journalsSorted.findIndex(
-            (j) => j._id.toString() === lastJournal._id.toString()
+            (j) => j._id.toString() === lastJournal._id.toString(),
           );
 
           currentPage = index >= 0 ? Math.floor(index / pageSize) + 1 : 1;
@@ -961,7 +959,7 @@ exports.updateJournal = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
@@ -972,7 +970,7 @@ exports.updateJournal = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   const updateOperations = journal.journalAccounts.map((item) => ({
     updateOne: {
@@ -1049,7 +1047,7 @@ exports.updateJournalForInvoice = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
@@ -1058,7 +1056,7 @@ exports.updateJournalForInvoice = asyncHandler(async (req, res, next) => {
   const updateJournal = await journalModel.findOneAndUpdate(
     { linkCounter: linkNum, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
   if (!updateJournal) {
     return next(new ApiError(`No Journal By this id`, 404));
@@ -1110,7 +1108,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
   const journal = await journalModel.findOneAndUpdate(
     { _id: id, companyId },
     { auditing: auditing },
-    { new: true }
+    { new: true },
   );
   if (journal.journalType === "Sales") {
     await orderModel.findOneAndUpdate(
@@ -1119,7 +1117,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true }
+      { new: true },
     );
   } else if (
     journal.journalType === "Payment In" ||
@@ -1131,7 +1129,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true }
+      { new: true },
     );
   } else if (journal.journalType === "Expense") {
     await expensesModel.findOneAndUpdate(
@@ -1140,7 +1138,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true }
+      { new: true },
     );
   } else if (journal.journalType === "Purchase") {
     await purchaseinvoicesModel.findOneAndUpdate(
@@ -1149,7 +1147,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true }
+      { new: true },
     );
   } else if (journal.journalType === "SalesRefund") {
     await returnOrderModel.findOneAndUpdate(
@@ -1158,7 +1156,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true }
+      { new: true },
     );
   } else if (journal.journalType === "PurchaseRefund") {
     await refundPurchaseInviceModel.findOneAndUpdate(
@@ -1167,7 +1165,7 @@ exports.auditingJornal = asyncHandler(async (req, res, next) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true }
+      { new: true },
     );
   }
   res.status(200).json({
