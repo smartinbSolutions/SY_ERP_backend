@@ -8,6 +8,8 @@ const {
   getPayrollPeriods,
   updatePayrollPeriod,
   generatePayroll,
+  getPayrollPeriodStaff,
+  generateSalaryPayroll
 } = require("../../controllers/Hr/payrollPeriod.controller");
 
 const payrollPeriodRoute = express.Router();
@@ -26,5 +28,14 @@ payrollPeriodRoute
 payrollPeriodRoute
   .route("/generate-payroll/:id")
   .post(authService.protect, generatePayroll);
+
+  payrollPeriodRoute
+  .route("/:id/staff")
+  .get(authService.protect, getPayrollPeriodStaff);
+
+
+payrollPeriodRoute
+  .route("/:id/generate-salary")
+  .post(authService.protect, generateSalaryPayroll);
 
 module.exports = payrollPeriodRoute;

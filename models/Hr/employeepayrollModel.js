@@ -41,7 +41,7 @@
 
         status: {
         type: String,
-        enum: ["calculated", "paid", "reverted"],
+        enum: ["calculated", "paid", "reverted","processing"],
         default: "calculated", 
         },
 

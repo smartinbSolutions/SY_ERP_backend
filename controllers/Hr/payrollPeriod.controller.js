@@ -117,3 +117,37 @@ exports.generatePayroll = asyncHandler(async (req, res, next) => {
     return next(new ApiError(err.message, 400));
   }
 });
+
+exports.getPayrollPeriodStaff = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    const result = await payrollPeriodService.getStaffByPayrollPeriod(id);
+
+    res.status(200).json({
+      status: "success",
+      results: result.staff.length,
+      data: result,
+    });
+  } catch (err) {
+    return next(new ApiError(err.message, 400));
+  }
+});
+
+// ===== Generate Salary Payroll (NEW) =====
+exports.generateSalaryPayroll = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    const result = await payrollPeriodService.generateSalaryPayroll(id);
+    // console.log(result);
+    // const attendanceObj = Object.fromEntries(result.context.attendanceMap);
+    res.status(200).json({
+      status: "success",
+      data: result,
+      // attendanceMap: attendanceObj,
+    });
+  } catch (err) {
+    return next(new ApiError(err.message, 400));
+  }
+});

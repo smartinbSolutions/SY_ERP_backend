@@ -9,12 +9,14 @@ const {
   updateTask,
 } = require("../../controllers/Hr/task.controller");
 
+const hrAuthServices = require("../../services/Hr/hrAuthServices");
+
 const taskRoute = express.Router();
 
 taskRoute
   .route("/")
-  .get(authService.protect, getAllTasks)
-  .post(authService.protect, createTask);
+  .get(hrAuthServices.protectStaffOrERP, getAllTasks)
+  .post(hrAuthServices.protectStaffOrERP, createTask);
 
 taskRoute
   .route("/:id")

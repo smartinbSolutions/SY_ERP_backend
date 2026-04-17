@@ -4,7 +4,8 @@ const PayrollGroup = require("../../models/Hr/payrollGroupModel");
 const EmployeePayroll = require("../../models/Hr/employeepayrollModel");
 const groupsModel = require("../../models/Hr/groupsModel");
 const staffModel = require("../../models/Hr/staffModel");
-
+const buildPayrollContext = require("./Payroll/buildPayrollContext");
+const { processEmployeePayroll } = require("./Payroll/processEmployeePayroll");
 // ================= CREATE =================
 exports.createPayrollPeriod = async (data) => {
   return await PayrollPeriod.create(data);
@@ -12,7 +13,9 @@ exports.createPayrollPeriod = async (data) => {
 
 // ================= GET ALL =================
 exports.getPayrollPeriods = async ({ companyId }) => {
-  return await PayrollPeriod.find({ companyId }).sort({ createdAt: -1 });
+  return await PayrollPeriod.find({ companyId })
+    .populate("payrollGroupId")
+    .sort({ createdAt: -1 });
 };
 
 // ================= GET ONE =================
@@ -95,4 +98,56 @@ exports.generatePayrollForPeriod = async (periodId) => {
   console.log("🎉 DONE generatePayrollForPeriod");
 
   return payrolls;
+};
+
+exports.getStaffByPayrollPeriod = async (periodId) => {
+  const period = await PayrollPeriod.findById(periodId);
+
+  if (!period) {
+    throw new Error("Payroll period not found");
+  }
+
+  const staff = await staffModel
+    .find({
+      payrollGroupId: period.payrollGroupId,
+      companyId: period.companyId,
+      isActive: true,
+    })
+    .populate("department", "name")
+    .populate("position", "name");
+
+  return {
+    period,
+    staff,
+  };
+};
+
+exports.generateSalaryPayroll = async (periodId) => {
+  const context = await buildPayrollContext(periodId);
+
+// ////////////////
+
+
+  const results = [];
+  const failed = [];
+
+  for (const emp of context.employees) {
+    try {
+      const res = await processEmployeePayroll(emp, context);
+
+      if (res.status === "failed") {
+        failed.push(res);
+      } else {
+        results.push(res);
+      }
+    } catch (err) {
+      failed.push({ empId: emp._id, error: err.message });
+    }
+  }
+
+  return {
+    context,
+    success: results.length,
+    failed: failed.length,
+  };
 };

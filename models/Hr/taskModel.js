@@ -14,7 +14,7 @@ const taskSchema = new mongoose.Schema(
 
     code: {
       type: String,
-      unique: true,
+      // unique: true,
     },
 
     status: {
