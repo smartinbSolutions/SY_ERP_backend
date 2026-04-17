@@ -25,7 +25,7 @@ const {
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceDraft = req.body.invoiceDraft;
 
   const session = await mongoose.startSession();
@@ -102,7 +102,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -314,7 +314,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
 
 //convert to posted sales invoice from draft sales invoice
 exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -416,7 +416,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateSalesDraftInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
   }
@@ -455,7 +455,7 @@ exports.updateSalesDraftInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   if (!companyId) {
@@ -487,7 +487,7 @@ exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
 });
 
 exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -606,7 +606,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllSalesInvoices = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -627,7 +627,7 @@ exports.findAllSalesInvoices = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

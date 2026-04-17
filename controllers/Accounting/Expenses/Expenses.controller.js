@@ -21,7 +21,7 @@ const {
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -42,7 +42,7 @@ exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -63,7 +63,7 @@ exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceDraft = req.body.isDraft === "true";
   const isCash = req.body.isCash === "true";
 
@@ -104,7 +104,6 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       nextCounterExpensesInvoices,
       session,
     });
-    console.log(invoiceDraft);
 
     if (!invoiceDraft && !isCash) {
       await applyExpenseSupplierEffectsService({
@@ -134,7 +133,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -243,7 +242,7 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();

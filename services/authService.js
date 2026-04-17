@@ -73,7 +73,7 @@ exports.login = asyncHandler(async (req, res, next) => {
       getDashboardRoles(roles.rolesDashboard),
     ]);
 
-    const token = createToken(user, null, "erp");
+    const token = createToken(user, null, "erp", req.body.companyId);
     res.status(200).json({
       status: "true",
       data: user,
@@ -123,6 +123,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
         return next(new ApiError("The user does not exit", 404));
       }
       req.user = curentUser;
+      req.companyId = decoded.companyId;
       next();
     } catch (error) {
       // Token verification failed

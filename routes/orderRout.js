@@ -28,7 +28,7 @@ const {
   updateSalesDraftInvoice,
   cancelSalesInvoice,
   updatePostedSalesInvoice,
-} = require("../controllers/Accounting/Sales/SalesInvoıce.controller");
+} = require("../controllers/Accounting/Sales/SalesInvoice.controller");
 
 const OrderRout = express.Router();
 OrderRout.use(authService.protect);

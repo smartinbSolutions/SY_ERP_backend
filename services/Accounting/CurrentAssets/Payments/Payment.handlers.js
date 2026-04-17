@@ -327,7 +327,7 @@ const handleCustomerPaymentEntity = async ({
   if (effectSide === "source") {
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
-      { $inc: { TotalUnpaid: amountMainCurrency } },
+      { $inc: { TotalUnpaid: +amountMainCurrency } },
       { new: true, session },
     );
 
@@ -382,7 +382,6 @@ const settleCustomerOpenDocuments = async ({
     })
     .session(session);
 
-  console.log("salesInvoices", salesInvoices);
   const openDocs = salesInvoices
     .map((invoice) => ({
       kind: "sales",
@@ -395,7 +394,6 @@ const settleCustomerOpenDocuments = async ({
       if (dateDiff !== 0) return dateDiff;
       return a.createdAt - b.createdAt;
     });
-  console.log("openDocs", openDocs);
 
   for (const item of openDocs) {
     if (remainingPaymentMain <= 0) break;
@@ -1532,9 +1530,262 @@ const handleExpensePayment = async (
     await session.endSession();
   }
 };
+
+const handleCustomerPayment = async (
+  req,
+  companyId,
+  next,
+  normalizedPayment,
+) => {
+  const session = await mongoose.startSession();
+
+  try {
+    let createdPayment = null;
+
+    await session.withTransaction(async () => {
+      const {
+        source,
+        sourceType,
+        destination,
+        destinationType,
+        paymentInSourceCurrency,
+        sourceCurrencyCode,
+        sourceExchangeRate,
+        paymentInInvoiceCurrency,
+        paymentInMainCurrency,
+        date,
+        description,
+        paymentType,
+      } = normalizedPayment;
+
+      const isCustomerDestination = destinationType === "customer";
+      const isCustomerSource = sourceType === "customer";
+
+      if (!isCustomerDestination && !isCustomerSource) {
+        throw new Error(
+          "Customer payment context requires customer as source or destination",
+        );
+      }
+
+      const customerId = isCustomerDestination ? destination?.id : source?.id;
+
+      if (!customerId) {
+        throw new Error("Customer id is required");
+      }
+
+      if (!source?.id || !destination?.id) {
+        throw new Error("Source and destination are required");
+      }
+
+      const customer = await customarModel
+        .findOne({ _id: customerId, companyId })
+        .session(session);
+
+      if (!customer) {
+        throw new Error("Customer not found");
+      }
+
+      const paymentAmountMain = Number(paymentInMainCurrency || 0);
+      const paymentAmountInvoice = Number(paymentInInvoiceCurrency || 0);
+      const paymentAmountSource = Number(paymentInSourceCurrency || 0);
+
+      const paymentSeq = await getNextCounterValue({
+        companyId,
+        name: "Payment",
+        session,
+      });
+
+      req.body.type = "customer";
+      req.body.paymentText = paymentType;
+
+      const paymentPayload = {
+        ...req.body,
+        source,
+        destination,
+        sourceType,
+        destinationType,
+        totalInPaymentCurrency: paymentAmountInvoice,
+        totalMainCurrency: paymentAmountMain,
+        paymentInDestinationCurrency: paymentAmountSource, // legacy field
+        destinationExchangeRate: sourceExchangeRate, // legacy field
+        destinationCurrencyCode: sourceCurrencyCode, // legacy field
+        type: "customer",
+        paymentType,
+        description,
+        date,
+        companyId,
+        counter: Number(req.body.counter || 0) + Number(paymentSeq),
+        payid: [],
+      };
+
+      const paymentDocs = await paymentModel.create([paymentPayload], {
+        session,
+      });
+      const payment = paymentDocs[0];
+      createdPayment = payment;
+
+      await handleCustomerPaymentEntity({
+        customer,
+        companyId,
+        totalMainCurrency: paymentAmountMain,
+        paymentInFundCurrency: paymentAmountSource,
+        paymentId: payment._id,
+        refId: "",
+        date,
+        description,
+        currencyCode: sourceCurrencyCode,
+        effectSide: isCustomerDestination ? "destination" : "source",
+        session,
+      });
+
+      /*
+        |--------------------------------------------------------------------------
+        | IF SUPPLIER IS DESTINATION, SETTLE OPEN PURCHASES + EXPENSES
+        |--------------------------------------------------------------------------
+        */
+      if (isCustomerDestination) {
+        const { payidRows } = await settleCustomerOpenDocuments({
+          customer,
+          source,
+          sourceExchangeRate,
+          sourceCurrencyCode,
+          payment,
+          paymentAmountMain,
+          date,
+          companyId,
+          session,
+        });
+
+        payment.payid = payidRows;
+        await payment.save({ session });
+      }
+
+      /*
+        |--------------------------------------------------------------------------
+        | OPPOSITE SIDE ENTITY EFFECT
+        |--------------------------------------------------------------------------
+        */
+      if (isCustomerDestination) {
+        if (sourceType === "fund") {
+          await handleFundPaymentEntity({
+            fund: source,
+            companyId,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            effectSide: "source",
+            sourceExchangeRate,
+            session,
+          });
+        } else if (sourceType === "supplier") {
+          const supplier = await suppliersModel
+            .findOne({ _id: source.id, companyId })
+            .session(session);
+
+          if (!supplier) {
+            throw new Error("Supplier not found");
+          }
+          await handleSupplierPaymentEntity({
+            supplier,
+            companyId,
+            totalMainCurrency: paymentAmountMain,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            currencyCode: sourceCurrencyCode,
+            effectSide: "source",
+            session,
+          });
+          console.log("I am here too");
+          const { payidRows } = await settleSupplierOpenDocuments({
+            supplier,
+            source,
+            sourceExchangeRate,
+            sourceCurrencyCode,
+            payment,
+            paymentAmountMain,
+            date,
+            companyId,
+            session,
+          });
+
+          payment.payid = payidRows;
+          await payment.save({ session });
+        } else if (sourceType === "account") {
+          await handleAccountPaymentEntity({
+            account: source,
+            companyId,
+            effectSide: "source",
+            session,
+          });
+        } else {
+          throw new Error("Invalid supplier payment sourceType");
+        }
+      } else {
+        if (destinationType === "fund") {
+          await handleFundPaymentEntity({
+            fund: destination,
+            companyId,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            effectSide: "destination",
+            sourceExchangeRate,
+            session,
+          });
+        } else if (destinationType === "supplier") {
+          const supplier = await suppliersModel
+            .findOne({ _id: destination.id, companyId })
+            .session(session);
+
+          if (!supplier) {
+            throw new Error("Supplier not found");
+          }
+
+          await handleSupplierPaymentEntity({
+            supplier,
+            companyId,
+            totalMainCurrency: paymentAmountMain,
+            paymentInFundCurrency: paymentAmountSource,
+            paymentId: payment._id,
+            refId: "",
+            date,
+            description,
+            currencyCode: sourceCurrencyCode,
+            effectSide: "destination",
+            session,
+          });
+        } else if (destinationType === "account") {
+          await handleAccountPaymentEntity({
+            account: destination,
+            companyId,
+            effectSide: "destination",
+            session,
+          });
+        } else {
+          throw new Error("Invalid supplier payment destinationType");
+        }
+      }
+    });
+
+    return createdPayment;
+  } catch (err) {
+    throw err;
+  } finally {
+    await session.endSession();
+  }
+};
+
 module.exports = {
   handlePurchasePayment,
   handleSupplierPayment,
   handleSalesPayment,
   handleExpensePayment,
+  handleCustomerPayment,
 };

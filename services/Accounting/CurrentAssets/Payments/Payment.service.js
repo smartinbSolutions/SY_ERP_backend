@@ -4,6 +4,7 @@ const {
   handleSupplierPayment,
   handleSalesPayment,
   handleExpensePayment,
+  handleCustomerPayment,
 } = require("./Payment.handlers");
 
 // handlers
@@ -82,10 +83,10 @@ const paymentHandlers = {
     handler: handleSupplierPayment,
     message: "Supplier payment created successfully",
   },
-  // customer: {
-  //   handler: handleCustomerPayment,
-  //   message: "Customer payment created successfully",
-  // },
+  customer: {
+    handler: handleCustomerPayment,
+    message: "Customer payment created successfully",
+  },
   purchase: {
     handler: handlePurchasePayment,
     message: "Purchase payment created successfully",
