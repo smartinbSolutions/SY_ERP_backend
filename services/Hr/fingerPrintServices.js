@@ -5,6 +5,7 @@ const ApiError = require("../../utils/apiError");
 const fingerprintModel = require("../../models/Hr/fingerprintModel");
 const dayjs = require("dayjs");
 const Staff = require("../../models/Hr/staffModel");
+const ViolationLog = require("../../models/Hr/violationLogModel");
 
 //@desc Get list of finger-print
 //@route GET /api/finger-print
@@ -89,11 +90,9 @@ exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
   // Fetch paginated & sorted results (NEWEST FIRST)
   const fingerPrint = await fingerPrintModel
     .find(filter)
-    .sort({ createdAt: -1 }) 
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageSize);
-
-
 
   res.status(200).json({
     status: true,
@@ -203,6 +202,8 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+
 exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
@@ -210,32 +211,72 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  function padZero(value) {
-    return value < 10 ? `0${value}` : value;
+  // time
+  function padZero(v) {
+    return v < 10 ? `0${v}` : v;
   }
 
-  let ts = Date.now();
-  let date_ob = new Date(ts);
-  let date = padZero(date_ob.getDate());
-  let month = padZero(date_ob.getMonth() + 1);
-  let year = date_ob.getFullYear();
-  let hours = padZero(date_ob.getHours());
-  let minutes = padZero(date_ob.getMinutes());
-  let seconds = padZero(date_ob.getSeconds());
+  const now = new Date();
+  const date = `${now.getFullYear()}-${padZero(now.getMonth() + 1)}-${padZero(now.getDate())}`;
+  const time = `${padZero(now.getHours())}:${padZero(now.getMinutes())}:${padZero(now.getSeconds())}`;
 
-  const Dates = year + "-" + month + "-" + date;
-  const Time = hours + ":" + minutes + ":" + seconds;
-  req.body.date = Dates;
-  req.body.Time = Time;
-
+  req.body.date = date;
+  req.body.Time = time;
   req.body.companyId = companyId;
 
-  const fingerPrint = await fingerprintModel.create(req.body);
+  // 1. create fingerprint
+  const fp = await fingerprintModel.create(req.body);
+
+  // 2. get staff with group
+  const staff = await Staff.findById(fp.userID).populate("groupId");
+
+  if (staff?.groupId?.fixedAttendance) {
+    const group = staff.groupId;
+
+    const start = toMinutes(group.fixedAttendance.startTime);
+    const actual = toMinutes(fp.Time);
+    const tolerance = group.fixedAttendance.earlyIn || 0;
+
+    // ---------------- LATE ----------------
+    if (actual > start + tolerance) {
+      await ViolationLog.create({
+        userId: staff._id,
+        companyId,
+        violationType: actual > start + 30 ? "severe_late" : "late",
+        violationDate: date,
+        minutesLate: actual - start,
+        relatedAttendanceId: fp._id,
+      });
+    }
+
+    // ---------------- EARLY OUT ----------------
+    if (group.fixedAttendance.endTime && fp.type === "Check-out") {
+      const end = toMinutes(group.fixedAttendance.endTime);
+      const toleranceOut = group.fixedAttendance.earlyOut || 0;
+
+      if (actual < end - toleranceOut) {
+        await ViolationLog.create({
+          userId: staff._id,
+          companyId,
+          violationType: "early_leave",
+          violationDate: date,
+          minutesLate: end - actual,
+          relatedAttendanceId: fp._id,
+        });
+      }
+    }
+  }
+
   res.status(200).json({
     status: "success",
-    data: fingerPrint,
+    data: fp,
   });
 });
+
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
 
 //@desc Delete the finger print
 //@route DELETE /api/finger-print/:id

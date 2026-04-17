@@ -309,7 +309,7 @@ exports.updateOvertimeRequest = asyncHandler(async (req, res, next) => {
 
 // ================= APPROVE / REJECT =================
 exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
-  const { action, reason } = req.body;
+    const { action, reason } = req.body;
 
   const session = await mongoose.startSession();
   session.startTransaction();

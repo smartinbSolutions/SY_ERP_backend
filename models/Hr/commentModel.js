@@ -20,14 +20,14 @@ const commentSchema = new mongoose.Schema(
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "staff",
       required: true,
     },
 
     mentions: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: "staff",
       }, // قائمة المستخدمين الذين تم ذكرهم في التعليق
     ],
   },
