@@ -33,7 +33,9 @@ ExpenseInvoices.route("/update/:id").put(
   updatePostedExpenseInvoice,
 );
 
-ExpenseInvoices.route("/expense/:id").get(findAllExpensesAndPurchaseInvoices);
+ExpenseInvoices.route("/expenseandpurchase/:id").get(
+  findAllExpensesAndPurchaseInvoices,
+);
 ExpenseInvoices.route("/:id").get(findOneExpensesInvoice);
 
 module.exports = ExpenseInvoices;
