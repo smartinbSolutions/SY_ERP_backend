@@ -1183,7 +1183,8 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
 
   expense.type = "expenses cancelled";
   expense.paymentStatus = "unpaid";
-
+  expense.payments = [];
+  expense.status = "cancelled";
   await expense.save({ session });
 
   findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
