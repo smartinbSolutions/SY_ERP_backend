@@ -1181,7 +1181,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
     (p) => String(p.paymentId) !== String(findExpensePayment._id),
   );
 
-  expense.type = "expenses cancelled";
+  expense.type = "Expense cancelled";
   expense.paymentStatus = "unpaid";
   expense.payments = [];
   expense.status = "cancelled";
@@ -1213,12 +1213,15 @@ exports.getExpenseAndPurchaseForSupplierService = async ({
   const expenseFilter = {
     "supllier.id": supplierId,
     paymentStatus: "unpaid",
+    status: "posted",
     companyId,
   };
 
   const purchaseFilter = {
     "supllier.id": supplierId,
     paid: "unpaid",
+    status: "posted",
+
     companyId,
   };
 
