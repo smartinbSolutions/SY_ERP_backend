@@ -1,4 +1,4 @@
-const calculateLeaves = async ({
+exports.calculateLeaves = async ({
   employee,
   leaves,
   policy,

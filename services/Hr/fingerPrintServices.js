@@ -159,16 +159,9 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 //@desc Post Make the finger print for enter and exit
 //@route POST /api/finger-print
 //@access public just for Employee
-exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
+exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const staffMember = await Staff.findOne({ email: req.user.email, companyId });
 
-  if (!staffMember) {
-    return res.status(400).json({
-      status: false,
-      message: "User is not a staff member",
-    });
-  }
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -190,9 +183,7 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   const Time = hours + ":" + minutes + ":" + seconds;
   req.body.date = Dates;
   req.body.Time = Time;
-  req.body.userID = staffMember._id;
-  req.body.name = staffMember.name;
-  req.body.email = staffMember.email;
+
   req.body.companyId = companyId;
 
   const fingerPrint = await fingerprintModel.create(req.body);
@@ -202,16 +193,15 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
 
-
-exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  // time
+  // ---------------- TIME ----------------
   function padZero(v) {
     return v < 10 ? `0${v}` : v;
   }
@@ -224,54 +214,103 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   req.body.Time = time;
   req.body.companyId = companyId;
 
-  // 1. create fingerprint
+  // ---------------- CREATE FINGERPRINT ----------------
   const fp = await fingerprintModel.create(req.body);
 
-  // 2. get staff with group
-  const staff = await Staff.findById(fp.userID).populate("groupId");
 
-  if (staff?.groupId?.fixedAttendance) {
-    const group = staff.groupId;
+  // ---------------- STAFF ----------------
+  const staff = await Staff.findById(req.user.id).populate("groupId");
 
-    const start = toMinutes(group.fixedAttendance.startTime);
-    const actual = toMinutes(fp.Time);
-    const tolerance = group.fixedAttendance.earlyIn || 0;
+  if (!staff) {
+    console.log("🔴 Staff not found");
+    return res.status(404).json({ message: "Staff not found" });
+  }
 
-    // ---------------- LATE ----------------
-    if (actual > start + tolerance) {
+  const group = staff.groupId;
+
+  if (!group?.fixedAttendance) {
+    console.log(" No fixed attendance group");
+    return res.status(200).json({ status: "success", data: fp });
+  }
+
+  // ---------------- TIME CONVERSION ----------------
+  const actual = toMinutes(fp.Time);
+
+  const start = toMinutes(group.fixedAttendance.startTime);
+  const end = toMinutes(group.fixedAttendance.endTime);
+
+  const graceIn = group.fixedAttendance.earlyIn || 0;
+  const graceOut = group.fixedAttendance.earlyOut || 0;
+
+
+  if (fp.type === "Check-in") {
+    const allowedLateLimit = start + graceIn;
+
+
+    if (actual > allowedLateLimit) {
+      console.log("LATE DETECTED");
+
       await ViolationLog.create({
         userId: staff._id,
         companyId,
-        violationType: actual > start + 30 ? "severe_late" : "late",
+        violationType: "late",
         violationDate: date,
         minutesLate: actual - start,
         relatedAttendanceId: fp._id,
       });
-    }
 
-    // ---------------- EARLY OUT ----------------
-    if (group.fixedAttendance.endTime && fp.type === "Check-out") {
-      const end = toMinutes(group.fixedAttendance.endTime);
-      const toleranceOut = group.fixedAttendance.earlyOut || 0;
-
-      if (actual < end - toleranceOut) {
-        await ViolationLog.create({
-          userId: staff._id,
-          companyId,
-          violationType: "early_leave",
-          violationDate: date,
-          minutesLate: end - actual,
-          relatedAttendanceId: fp._id,
-        });
-      }
+      console.log("LATE LOG CREATED");
+    } else {
+      console.log("CHECK-IN OK");
     }
   }
+
+
+  if (fp.type === "Check-out") {
+    const allowedEarlyLeaveLimit = end - graceOut;
+
+    if (actual < allowedEarlyLeaveLimit) {
+      console.log("EARLY LEAVE DETECTED");
+
+      await ViolationLog.create({
+        userId: staff._id,
+        companyId,
+        violationType: "early_leave",
+        violationDate: date,
+        minutesLate: end - actual,
+        relatedAttendanceId: fp._id,
+      });
+
+      console.log("EARLY LEAVE LOG CREATED");
+    } else {
+      console.log("CHECK-OUT OK");
+    }
+  }
+
 
   res.status(200).json({
     status: "success",
     data: fp,
   });
 });
+
+// helper
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// ---------------- HELPER ----------------
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// helper
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
 
 function toMinutes(t) {
   const [h, m] = t.split(":").map(Number);

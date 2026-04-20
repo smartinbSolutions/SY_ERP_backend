@@ -1,13 +1,14 @@
-import EmployeePayroll from "../../../models/Hr/employeepayrollModel.js";
-import { CalculateAdvances } from "./CalculateAdvances.js";
-import { calculateAttendance } from "./CalculateAttendence.js";
-import { CalculateLeaves } from "./CalculateLeaves.js";
-import { CalculateOvertime } from "./calculateOvertime.js";
 
-export const processEmployeePayroll = async (employee, context) => {
-  let payroll ;
+const EmployeePayroll = require("../../../models/Hr/employeepayrollModel.js");
+const { CalculateAdvances } = require("./CalculateAdvances.js");
+const { calculateAttendance } = require("./CalculateAttendence.js");
+const { CalculateLeaves } = require("./CalculateLeaves.js");
+const { CalculateOvertime } = require("./CalculateOvertime.js");
+
+exports.processEmployeePayroll = async (employee, context) => {
+  let payroll;
   try {
-     payroll = await EmployeePayroll.create({
+    payroll = await EmployeePayroll.create({
       employeeId: employee._id,
       payrollPeriodId: context.period._id,
       payrollGroupId: employee.payrollGroupId,
@@ -43,11 +44,10 @@ export const processEmployeePayroll = async (employee, context) => {
     payroll,
   });
 
-
   const overtime = await CalculateOvertime({
     employee,
     overtime: employeeOvertime,
-  period: context.period,
+    period: context.period,
     payroll,
   });
 

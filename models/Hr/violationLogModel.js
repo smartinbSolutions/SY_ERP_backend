@@ -40,7 +40,7 @@ const violationLogSchema = new mongoose.Schema(
 
     relatedAttendanceId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Attendance",
+      ref: "FingerPrint",
     },
   },
   {

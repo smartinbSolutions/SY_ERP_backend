@@ -1,4 +1,4 @@
-import PayrollEmployeeLine from "../../../models/Hr/employeePayrollLine.js";
+const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
 /**
  * 1. فلترة السلف ضمن فترة الرواتب
@@ -7,7 +7,7 @@ function filterAdvancesByPeriod(advances, period) {
   const start = new Date(period.startDate);
   const end = new Date(period.endDate);
 
-  return (advances || []).filter(a => {
+  return (advances || []).filter((a) => {
     const approved = new Date(a.approvedAt);
     return approved >= start && approved <= end;
   });
@@ -37,7 +37,7 @@ function uniqueAdvances(advances) {
 function computeAdvances(advances, employee) {
   const ADVANCE_DEFAULT_AMOUNT = 100; // fallback آمن
 
-  const breakdown = advances.map(a => {
+  const breakdown = advances.map((a) => {
     const amount = a.amount || ADVANCE_DEFAULT_AMOUNT;
 
     return {
@@ -57,7 +57,7 @@ function computeAdvances(advances, employee) {
 /**
  * 4. MAIN FUNCTION
  */
-export const CalculateAdvances = async ({
+exports.CalculateAdvances = async ({
   employee,
   advances,
   period,
@@ -122,7 +122,6 @@ export const CalculateAdvances = async ({
       result,
       linePayload: createdLine,
     };
-
   } catch (err) {
     // =========================
     // 5. FAILURE LINE

@@ -1,4 +1,4 @@
-import PayrollEmployeeLine from "../../../models/Hr/employeePayrollLine.js";
+const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
 /**
  * 1. فلترة الأوفر تايم ضمن الفترة
@@ -7,7 +7,7 @@ function filterOvertimeByPeriod(overtime, period) {
   const start = new Date(period.startDate);
   const end = new Date(period.endDate);
 
-  return (overtime || []).filter(o => {
+  return (overtime || []).filter((o) => {
     const d = new Date(o.approvedAt);
     return d >= start && d <= end;
   });
@@ -74,7 +74,7 @@ function computeOvertime(overtime, employee) {
 /**
  * 4. MAIN FUNCTION
  */
-export const CalculateOvertime = async ({
+exports.CalculateOvertime = async ({
   employee,
   overtime,
   period,
@@ -135,7 +135,6 @@ export const CalculateOvertime = async ({
       result,
       linePayload: createdLine,
     };
-
   } catch (err) {
     // =========================
     // 4. FAILURE LINE

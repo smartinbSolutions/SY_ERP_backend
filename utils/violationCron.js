@@ -1,15 +1,31 @@
-const cron = require("node-cron");
+require(".././models/Hr/groupsModel");
+require(".././models/Hr/staffModel");
+require(".././models/Hr/fingerprintModel");
+require(".././models/Hr/violationLogModel");
+require("dotenv").config({ path: "config.env" });
+const mongoose = require("mongoose");
 const {
   processDailyAbsenceViolations,
 } = require("../services/Hr/violationLogsService");
 
-cron.schedule("0 1 * * *", async () => {
-  console.log("🚀 Running Daily Absence Violation Job...");
+async function runAbsenceJob() {
+  console.log("🚀 Absence Job Started...");
 
   try {
-    await processDailyAbsenceViolations();
-    console.log("✅ Absence job completed");
+    await mongoose.connect(process.env.DB_URI);
+
+    console.log("✅ DB Connected");
+
+  await processDailyAbsenceViolations();
+
+    console.log("✅ Job Completed");
   } catch (err) {
-    console.error("❌ Absence job failed:", err.message);
+    console.error("❌ Job Failed:", err.message);
+  } finally {
+    await mongoose.disconnect();
+    console.log("🔌 DB Disconnected");
+    process.exit(0);
   }
-});
+}
+
+runAbsenceJob();

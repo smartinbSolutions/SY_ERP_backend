@@ -1,6 +1,6 @@
-import PayrollEmployeeLine from "../../../models/Hr/employeePayrollLine.js";
+const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
-export const calculateAttendance = async ({
+exports.calculateAttendance = async ({
   employee,
   attendance,
   period,

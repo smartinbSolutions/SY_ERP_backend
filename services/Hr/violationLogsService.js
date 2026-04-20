@@ -3,6 +3,24 @@ const ApiError = require("../../utils/apiError");
 const ViolationLog = require("../../models/Hr/violationLogModel");
 const mongoose = require("mongoose");
 const staffModel = require("../../models/Hr/staffModel");
+const fingerprintModel = require("../../models/Hr/fingerprintModel");
+const leavesLogsModel = require("../../models/Hr/leavesLogsModel");
+const dayjs = require("dayjs");
+
+function getDayName(dateString) {
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
+  const date = new Date(dateString);
+  return days[date.getDay()];
+}
 
 /* =====================================================
    GET ALL
@@ -79,47 +97,200 @@ exports.getOneViolationLog = asyncHandler(async (req, res, next) => {
 });
 
 exports.processDailyAbsenceViolations = async () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dayjs().format("YYYY-MM-DD");
 
+  console.log("\n🟡 [ABSENCE JOB START]");
+  console.log("📅 Today:", today);
+
+  // =====================================================
+  // 1. GET STAFF
+  // =====================================================
   const staffList = await staffModel
     .find({ employmentStatus: true })
     .populate("groupId");
 
+  console.log(`👥 Staff loaded: ${staffList.length}`);
+
+  if (!staffList.length) {
+    console.log("⚠️ No staff found → EXIT");
+    return;
+  }
+
+  const companyId = staffList[0].companyId;
+  console.log("🏢 Company ID:", companyId);
+
+  // =====================================================
+  // 2. BULK FETCH LEAVES
+  // =====================================================
+  console.log("\n📦 Fetching leaves...");
+
+  const leaves = await leavesLogsModel.find({
+    companyId,
+    status: "approved",
+    startDate: { $lte: today },
+    endDate: { $gte: today },
+  });
+
+  console.log("📦 Leaves found:", leaves.length);
+
+  leaves.forEach((l, i) => {
+    console.log(`   🏖 Leave ${i + 1}:`, {
+      userId: l.userId,
+      startDate: l.startDate,
+      endDate: l.endDate,
+    });
+  });
+
+  // =====================================================
+  // 3. BULK FETCH FINGERPRINTS
+  // =====================================================
+  console.log("\n📦 Fetching fingerprints...");
+
+  const fingerprints = await fingerprintModel.find({
+    companyId,
+    date: today,
+  });
+
+  console.log("📦 Fingerprints found:", fingerprints.length);
+
+  fingerprints.forEach((f, i) => {
+    console.log(`   🧾 FP ${i + 1}:`, {
+      userID: f.userID,
+      type: f.type,
+      time: f.Time,
+    });
+  });
+
+  // =====================================================
+  // 4. LOOP STAFF
+  // =====================================================
   for (const staff of staffList) {
-    const group = staff.groupId;
+    console.log("\n--------------------------------------------------");
 
-    if (!group) continue;
-
-    // 1. check fingerprint
-    const fp = await Fingerprint.findOne({
-      userID: staff._id,
-      date: today,
+    console.log("👤 STAFF CHECK:", {
+      id: staff._id,
+      name: staff.fullName,
     });
 
-    if (fp) continue;
+    const group = staff.groupId;
 
-    // 2. off day check
-    if (group.offDays?.includes(getDayName(today))) continue;
+    if (!group) {
+      console.log("⚠️ No group assigned → SKIP STAFF");
+      continue;
+    }
 
-    // 3. calendar holiday check
-    const isHoliday = group.calendarRules?.some(
-      (rule) =>
+    console.log("📊 Group:", {
+      id: group._id,
+      offDays: group.offDays,
+    });
+
+    // =====================================================
+    // 5. LEAVE CHECK
+    // =====================================================
+    console.log("🔎 Checking leave...");
+
+    const hasLeave = leaves.find((l) => l.userId.equals(staff._id));
+
+    console.log("🏖 Leave result:", hasLeave ? "YES (ON LEAVE)" : "NO");
+
+    if (hasLeave) {
+      console.log("⏭️ SKIP → staff on leave");
+      continue;
+    }
+
+    // =====================================================
+    // 6. FINGERPRINT CHECK
+    // =====================================================
+    console.log("🔎 Checking fingerprint...");
+
+const fp = fingerprints.find((f) =>
+  f.userID && f.userID.toString() === staff._id.toString()
+);
+    console.log("🧾 Fingerprint result:", fp ? "FOUND" : "NOT FOUND");
+
+    if (fp) {
+      console.log("🟢 PRESENT → SKIP ABSENCE");
+      continue;
+    }
+
+    console.log("🔴 No fingerprint → potential absence");
+
+    // =====================================================
+    // 7. OFF DAY CHECK
+    // =====================================================
+    const dayName = getDayName(today);
+
+    console.log("📆 Today is:", dayName);
+
+    const isOffDay = group.offDays?.includes(dayName);
+
+    console.log("🛑 Off day check:", isOffDay);
+
+    if (isOffDay) {
+      console.log("⏭️ SKIP → off day");
+      continue;
+    }
+
+    // =====================================================
+    // 8. HOLIDAY CHECK
+    // =====================================================
+    console.log("🏖 Checking holiday rules...");
+
+    const isHoliday = group.calendarRules?.some((rule) => {
+      const match =
         rule.effectType === "holiday" &&
         today >= rule.startDate &&
-        today <= rule.endDate,
-    );
+        today <= rule.endDate;
 
-    if (isHoliday) continue;
+      if (match) {
+        console.log("🎯 Holiday matched rule:", rule);
+      }
 
-    // 4. create absence violation
-    await ViolationLog.create({
+      return match;
+    });
+
+    console.log("🏖 Holiday result:", isHoliday);
+
+    if (isHoliday) {
+      console.log("⏭️ SKIP → holiday");
+      continue;
+    }
+
+    // =====================================================
+    // 9. DUPLICATE CHECK
+    // =====================================================
+    console.log("🔎 Checking existing violation...");
+
+    const existing = await ViolationLog.findOne({
+      userId: staff._id,
+      violationDate: today,
+      violationType: "absence",
+    });
+
+    console.log("🧾 Existing violation:", existing ? "YES" : "NO");
+
+    if (existing) {
+      console.log("⏭️ SKIP → already exists");
+      continue;
+    }
+
+    // =====================================================
+    // 10. CREATE VIOLATION
+    // =====================================================
+    console.log("🚨 Creating absence violation...");
+
+    const violation = await ViolationLog.create({
       userId: staff._id,
       companyId: staff.companyId,
       violationType: "absence",
       violationDate: today,
       isExcused: false,
     });
+
+    console.log("✅ CREATED:", violation._id);
   }
+
+  console.log("\n🟢 [ABSENCE JOB END]");
 };
 
 /* =====================================================

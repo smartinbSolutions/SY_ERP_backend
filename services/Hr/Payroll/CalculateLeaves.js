@@ -1,4 +1,4 @@
-import PayrollEmployeeLine from "../../../models/Hr/employeePayrollLine.js";
+const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
 /**
  * 1. فلترة الإجازات ضمن فترة الرواتب
@@ -7,7 +7,7 @@ function filterLeavesByPeriod(leaves, period) {
   const start = new Date(period.startDate);
   const end = new Date(period.endDate);
 
-  return (leaves || []).filter(l => {
+  return (leaves || []).filter((l) => {
     const leaveStart = new Date(l.startDate);
     const leaveEnd = new Date(l.endDate);
 
@@ -22,7 +22,7 @@ function mergeLeaves(leaves) {
   if (!leaves.length) return [];
 
   const sorted = [...leaves].sort(
-    (a, b) => new Date(a.startDate) - new Date(b.startDate)
+    (a, b) => new Date(a.startDate) - new Date(b.startDate),
   );
 
   const merged = [];
@@ -38,9 +38,7 @@ function mergeLeaves(leaves) {
     const nextEnd = new Date(next.endDate);
 
     if (nextStart <= current.end) {
-      current.end = new Date(
-        Math.max(current.end, nextEnd)
-      );
+      current.end = new Date(Math.max(current.end, nextEnd));
     } else {
       merged.push(current);
       current = { start: nextStart, end: nextEnd };
@@ -58,9 +56,8 @@ function computeLeaves(leaves, employee, period) {
   const filtered = filterLeavesByPeriod(leaves, period);
   const merged = mergeLeaves(filtered);
 
-  const sessions = merged.map(l => {
-    const days =
-      Math.floor((l.end - l.start) / (1000 * 60 * 60 * 24)) + 1;
+  const sessions = merged.map((l) => {
+    const days = Math.floor((l.end - l.start) / (1000 * 60 * 60 * 24)) + 1;
 
     return {
       startDate: l.start,
@@ -87,7 +84,7 @@ function computeLeaves(leaves, employee, period) {
 /**
  * 4. MAIN FUNCTION (WITH LINE CREATION)
  */
-export const CalculateLeaves = async ({
+exports.CalculateLeaves = async ({
   employee,
   leaves,
   period,
