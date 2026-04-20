@@ -3,6 +3,7 @@ const financialFundsModel = require("../../../models/financialFundsModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const journalEntryModel = require("../../../models/journalEntryModel");
 const paymentModel = require("../../../models/paymentModel");
+const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
 const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
 const suppliersModel = require("../../../models/suppliersModel");
 const ApiError = require("../../../utils/apiError");
@@ -1115,5 +1116,142 @@ exports.prepareExpenseInvoiceDataService = async ({
     tag,
     formattedDate,
     draftJournalSnapshot,
+  };
+};
+
+exports.reverseExpenseNoSupplierEffectsService = async ({
+  expense,
+  companyId,
+  cancellationDate,
+  session,
+}) => {
+  const findExpensePayment = await paymentModel
+    .findOne({
+      "payid.id": expense._id,
+      companyId,
+    })
+    .session(session);
+
+  if (!findExpensePayment) {
+    throw new Error("Payment not found");
+  }
+
+  const fundId =
+    findExpensePayment.source?.id || findExpensePayment.destination?.id;
+
+  const findFinancialFund = await financialFundsModel
+    .findOne({
+      _id: fundId,
+      companyId,
+    })
+    .populate("fundCurrency")
+    .session(session);
+
+  if (!findFinancialFund) {
+    throw new Error("Financial fund not found");
+  }
+
+  const amount = Number(findExpensePayment.paymentInDestinationCurrency);
+
+  // 🔁 reverse logic
+  findFinancialFund.fundBalance += amount;
+
+  await findFinancialFund.save({ session });
+
+  await reportsFinancialFunds.create(
+    [
+      {
+        date: cancellationDate,
+        amount: expense.paymentInFundCurrency,
+        ref: expense._id,
+        type: "cancel expense",
+        financialFundId: findFinancialFund._id,
+        financialFundRest: findFinancialFund.fundBalance,
+        exchangeRate: expense.currencyExchangeRate,
+        paymentType: "Deposit",
+        payment: findExpensePayment._id,
+        description: expense.paymentDisc,
+        companyId,
+      },
+    ],
+    { session },
+  );
+
+  expense.payments = expense.payments.filter(
+    (p) => String(p.paymentId) !== String(findExpensePayment._id),
+  );
+
+  expense.type = "expenses cancelled";
+  expense.paymentStatus = "unpaid";
+
+  await expense.save({ session });
+
+  findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
+
+  findExpensePayment.payid = findExpensePayment.payid.filter(
+    (p) => String(p.id) !== String(expense._id),
+  );
+
+  findExpensePayment.type = "cancelled payment";
+
+  await findExpensePayment.save({ session });
+
+  return {
+    expense,
+  };
+};
+
+exports.getExpenseAndPurchaseForSupplierService = async ({
+  companyId,
+  supplierId,
+  req,
+}) => {
+  const pageSize = parseInt(req.query.limit) || 10;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+  const expenseFilter = {
+    "supllier.id": supplierId,
+    paymentStatus: "unpaid",
+    companyId,
+  };
+
+  const purchaseFilter = {
+    "supllier.id": supplierId,
+    paid: "unpaid",
+    companyId,
+  };
+
+  // Fetch both expenses and purchases
+  const [expenses, purchases] = await Promise.all([
+    expensesModel.find(expenseFilter),
+    purchaseinvoicesModel.find(purchaseFilter),
+  ]);
+
+  // Add a type flag to distinguish in frontend
+  const formattedExpenses = expenses.map((item) => ({
+    ...item.toObject(),
+    sourceType: "expense",
+  }));
+
+  const formattedPurchases = purchases.map((item) => ({
+    ...item.toObject(),
+    sourceType: "purchase",
+  }));
+
+  // Merge both arrays and sort by date if needed
+  const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
+    (a, b) => new Date(b.date) - new Date(a.date),
+  );
+
+  // Paginate the combined result
+  const paginatedData = combinedData.slice(skip, skip + pageSize);
+  const totalItems = combinedData.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  return {
+    results: paginatedData.length,
+    totalItems,
+    totalPages,
+    data: paginatedData,
   };
 };

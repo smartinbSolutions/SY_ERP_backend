@@ -13,6 +13,8 @@ const {
   reverseExpenseJournalEffectsService,
   upsertExpenseInvoiceRecordService,
   prepareExpenseInvoiceDataService,
+  reverseExpenseNoSupplierEffectsService,
+  getExpenseAndPurchaseForSupplierService,
 } = require("../../../services/Accounting/Expenses/Expenses.service");
 const expensesModel = require("../../../models/expensesModel");
 const {
@@ -21,7 +23,7 @@ const {
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -42,7 +44,7 @@ exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -63,7 +65,7 @@ exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceDraft = req.body.isDraft === "true";
   const isCash = req.body.isCash === "true";
 
@@ -133,7 +135,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -242,7 +244,7 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -437,3 +439,91 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
     session.endSession();
   }
 });
+
+exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  const { id } = req.params;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const padZero = (value) => String(value).padStart(2, "0");
+    const padMs = (value) => String(value).padStart(3, "0");
+    const now = new Date();
+    const cancellationDate = `${now.getFullYear()}-${padZero(
+      now.getMonth() + 1,
+    )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
+      now.getMinutes(),
+    )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+    const expense = await expensesModel
+      .findOne({ _id: id, companyId })
+      .session(session);
+    if (!expense) {
+      return next(new ApiError(`No expense found with id ${id}`, 404));
+    }
+    await reverseExpenseNoSupplierEffectsService({
+      companyId,
+      expense,
+      cancellationDate,
+    });
+    await reverseExpenseJournalEffectsService({
+      companyId,
+      expense: expense,
+      session,
+      counterFormat: expense.counter,
+      cancellationDate,
+      reversalJournalLinkCounter: expense.counter,
+      mode: "cancel",
+    });
+
+    await createInvoiceHistory(
+      companyId,
+      expense._id,
+      "cancel",
+      req.user._id,
+      cancellationDate,
+      "Cancelled Expense",
+      "expense",
+      session,
+    );
+
+    await session.commitTransaction();
+    res.status(200).json({ message: "Expense cancelled successfully" });
+  } catch (e) {
+    await session.abortTransaction();
+    return next(new ApiError(`Error cancelling expense: ${e.message}`, 500));
+  } finally {
+    session.endSession();
+  }
+});
+
+exports.findAllExpensesAndPurchaseInvoices = asyncHandler(
+  async (req, res, next) => {
+    const companyId = req.query.companyId;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    const supplierId = req.params.id;
+
+    const { totalItems, totalPages, data } =
+      await getExpenseAndPurchaseForSupplierService({
+        req,
+        companyId,
+        supplierId,
+      });
+
+    res.status(200).json({
+      status: "true",
+      Pages: totalPages,
+      results: totalItems,
+      data,
+    });
+  },
+);

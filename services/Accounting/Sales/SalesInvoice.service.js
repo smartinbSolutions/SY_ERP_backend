@@ -257,6 +257,7 @@ exports.createSalesInvoiceRecordService = async ({
     isDraft: invoiceDraft,
     postedBy: invoiceDraft ? null : req.user._id,
     postedAt: invoiceDraft ? null : new Date(),
+    returnCartItem: invoicesItem,
   };
 
   if (!invoiceDraft) {
@@ -475,10 +476,11 @@ exports.applySalesInventoryEffectsService = async ({
 
       const usedQty = Math.min(available, qtyToSell);
 
-      batch.remaining -= usedQty;
+      batch.remaining = Math.max(0, batch.remaining - usedQty);
+      if (batch.remaining <= 0) {
+        batch.remaining = 0;
 
-      if (batch.remaining === 0) {
-        batch.status = "depleted";
+        batch.status = batch.remaining === 0 ? "reversed" : "active";
       }
 
       await batch.save({ session });
@@ -1573,5 +1575,40 @@ exports.findOneSalesInvoiceService = async ({ req, companyId }) => {
     totalPages,
     salesInvoice,
     invoiceHistory,
+  };
+};
+
+exports.findCustomerSalesInvoicesService = async ({ req, companyId }) => {
+  const { id } = req.params;
+
+  if (!id) {
+    throw new ApiError("id is required", 400);
+  }
+
+  const pageSize = Number(req.query.limit) || 20;
+  const page = Number(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+
+  const query = {
+    companyId,
+    "customer.id": id,
+    status: "posted",
+    paymentsStatus: "unpaid",
+    invoiceType: "sales",
+  };
+
+  const totalItems = await orderModel.countDocuments(query);
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const salesInvoices = await orderModel
+    .find(query)
+    .sort({ date: -1, createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize);
+
+  return {
+    totalItems,
+    totalPages,
+    salesInvoices,
   };
 };

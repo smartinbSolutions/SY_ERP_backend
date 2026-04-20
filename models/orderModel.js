@@ -109,6 +109,7 @@ const orderSchema = new mongoose.Schema(
         buyingpriceMainCurrence: Number,
         _id: false,
         linkAccount: String,
+        batches: [{ id: String, quantity: Number, _id: false }],
       },
     ],
     taxSummary: [

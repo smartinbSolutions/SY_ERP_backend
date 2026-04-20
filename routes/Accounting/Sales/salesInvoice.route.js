@@ -9,6 +9,7 @@ const {
   updateSalesDraftInvoice,
   cancelSalesInvoice,
   updatePostedSalesInvoice,
+  findCustomerSalesInvoices,
 } = require("../../../controllers/Accounting/Sales/SalesInvoice.controller");
 
 const SalesInvoices = express.Router();
@@ -32,7 +33,10 @@ SalesInvoices.route("/update/:id").put(
   authService.checkCompanyEditable,
   updatePostedSalesInvoice,
 );
-
+SalesInvoices.route("/customerorder/:id").get(
+  authService.checkCompanyEditable,
+  findCustomerSalesInvoices,
+);
 SalesInvoices.route("/")
   .post(authService.checkCompanyEditable, createSalesInvoice)
   .get(findAllSalesInvoices);

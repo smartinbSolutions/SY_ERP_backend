@@ -15,6 +15,7 @@ const {
   upsertSalesInvoiceRecordService,
   findAllSalesInvoicesService,
   findOneSalesInvoiceService,
+  findCustomerSalesInvoicesService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
@@ -25,7 +26,7 @@ const {
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceDraft = req.body.invoiceDraft;
 
   const session = await mongoose.startSession();
@@ -102,7 +103,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -314,7 +315,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
 
 //convert to posted sales invoice from draft sales invoice
 exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -416,7 +417,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateSalesDraftInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
   }
@@ -455,7 +456,7 @@ exports.updateSalesDraftInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceId = req.params.id;
 
   if (!companyId) {
@@ -487,7 +488,7 @@ exports.deleteSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
 });
 
 exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -606,7 +607,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllSalesInvoices = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -627,7 +628,7 @@ exports.findAllSalesInvoices = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -643,6 +644,27 @@ exports.findOneSalesInvoice = asyncHandler(async (req, res, next) => {
     status: "true",
     Pages: totalPages,
     data: salesInvoice,
+    history: invoiceHistory,
+  });
+});
+
+exports.findCustomerSalesInvoices = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { totalItems, totalPages, salesInvoices, invoiceHistory } =
+    await findCustomerSalesInvoicesService({
+      req,
+      companyId,
+    });
+
+  res.status(200).json({
+    status: "true",
+    Pages: totalPages,
+    data: salesInvoices,
     history: invoiceHistory,
   });
 });
