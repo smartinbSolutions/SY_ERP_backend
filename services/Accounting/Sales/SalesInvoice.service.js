@@ -508,9 +508,13 @@ exports.applySalesInventoryEffectsService = async ({
     const invoiceItem = newSalesInvoice.invoicesItems.find(
       (i) => String(i.id) === String(item.id),
     );
+    const returnCartItem = newSalesInvoice.returnCartItem.find(
+      (i) => String(i.id) === String(item.id),
+    );
 
     if (invoiceItem) {
       invoiceItem.batches = itemBatches;
+      returnCartItem.batches = itemBatches;
     }
 
     let soldTotalCost = 0;
