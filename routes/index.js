@@ -122,6 +122,7 @@ const attachmentRoute = require("./Hr/attachmentRoute");
 const ExpenseInvoices = require("./Accounting/Expense/expenseInvoices.route");
 const SalesInvoices = require("./Accounting/Sales/salesInvoice.route");
 const RefundSalesInvoices = require("./Accounting/Sales/refundSalesIvoice.route");
+const FundAndBank = require("./Accounting/Cash/fundAndBank.route");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -144,7 +145,7 @@ const mountRoutes = (app) => {
   app.use("/api/v1/refund-sales-invoices", RefundSalesInvoices);
   app.use("/api/currency", currencyRoute);
   app.use("/api/v1/currencylog", currencyLogRoute);
-  app.use("/api/financialfunds", financialFundsRoute);
+  app.use("/api/v1/fund-bank", FundAndBank);
   app.use("/api/expenses", ExpenseInvoices);
   app.use("/api/purchaseInvoices", PurchaseInvoices);
   app.use("/api/refund-purchaseInvoices", RefundPurchaseInvoices);

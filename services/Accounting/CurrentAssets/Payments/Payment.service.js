@@ -5,6 +5,7 @@ const {
   handleSalesPayment,
   handleExpensePayment,
   handleCustomerPayment,
+  handleFundPayment,
 } = require("./Payment.handlers");
 
 // handlers
@@ -75,10 +76,10 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
 };
 
 const paymentHandlers = {
-  // fund: {
-  //   handler: handleFundPayment,
-  //   message: "Fund payment created successfully",
-  // },
+  fund: {
+    handler: handleFundPayment,
+    message: "Fund payment created successfully",
+  },
   supplier: {
     handler: handleSupplierPayment,
     message: "Supplier payment created successfully",
