@@ -16,7 +16,7 @@ const createPaymentHistory = async (
   paymentText,
   refText,
   transactionCurrency,
-  session = null,
+  session = null
 ) => {
   try {
     const normalizedDate = date
@@ -84,7 +84,7 @@ const createPaymentHistoryV2 = async ({
     if (supplierId && customerId) {
       throw new ApiError(
         "Only one of supplierId or customerId should be provided",
-        400,
+        400
       );
     }
 
@@ -131,9 +131,25 @@ const getPaymentHistory = async (req, res, next) => {
     $or: [{ customerId: id }, { supplierId: id }],
   };
 
-  const allTransactions = await PaymentHistoryModel.find(query)
-    .lean()
-    .sort({ transactionDate: 1, createdAt: 1 });
+  const round = (num) => Number(Number(num || 0).toFixed(2));
+
+  const sortAsc = (a, b) => {
+    const transactionDiff =
+      new Date(a.transactionDate || 0) - new Date(b.transactionDate || 0);
+
+    if (transactionDiff !== 0) return transactionDiff;
+
+    return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+  };
+
+  const sortDesc = (a, b) => {
+    const transactionDiff =
+      new Date(b.transactionDate || 0) - new Date(a.transactionDate || 0);
+
+    if (transactionDiff !== 0) return transactionDiff;
+
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  };
 
   const getPartyRole = (transaction, partyId) => {
     if (
@@ -162,7 +178,7 @@ const getPaymentHistory = async (req, res, next) => {
     const sourceModule = String(transaction.sourceModule || "").trim();
     const actionType = String(transaction.actionType || "").trim();
     const balanceEffectType = String(
-      transaction.balanceEffectType || "",
+      transaction.balanceEffectType || ""
     ).trim();
 
     if (entryType === "payment") {
@@ -200,7 +216,6 @@ const getPaymentHistory = async (req, res, next) => {
     if (entryType === "expense") {
       if (role === "supplier" && sourceModule === "expense") {
         if (actionType === "create") return +amountMainCurrency;
-        // if (actionType === "refund") return -amountMainCurrency;
         if (actionType === "cancel") return -amountMainCurrency;
         if (actionType === "update") return -amountMainCurrency;
       }
@@ -225,13 +240,17 @@ const getPaymentHistory = async (req, res, next) => {
     return 0;
   };
 
+  const allTransactions = await PaymentHistoryModel.find(query).lean();
+
+  const orderedTransactions = [...allTransactions].sort(sortAsc);
+
   let runningBalance = 0;
 
-  const transactionsWithBalance = allTransactions.map((transaction) => {
+  const transactionsWithBalance = orderedTransactions.map((transaction) => {
     const role = getPartyRole(transaction, id);
-    const effect = getTransactionEffect(transaction, role);
+    const effect = round(getTransactionEffect(transaction, role));
 
-    runningBalance += effect;
+    runningBalance = round(runningBalance + effect);
 
     return {
       ...transaction,
@@ -241,12 +260,7 @@ const getPaymentHistory = async (req, res, next) => {
     };
   });
 
-  const sortedTransactions = [...transactionsWithBalance].sort(
-    (a, b) =>
-      new Date(b.transactionDate || b.createdAt) -
-      new Date(a.transactionDate || a.createdAt),
-  );
-
+  const sortedTransactions = [...transactionsWithBalance].sort(sortDesc);
   const paginatedTransactions = sortedTransactions.slice(skip, skip + pageSize);
 
   const totalItems = transactionsWithBalance.length;
@@ -258,6 +272,10 @@ const getPaymentHistory = async (req, res, next) => {
     results: paginatedTransactions.length,
     data: paginatedTransactions,
   });
+};
+
+module.exports = {
+  getPaymentHistory,
 };
 
 module.exports = {

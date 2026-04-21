@@ -3,59 +3,6 @@ const batchLedgerModel = require("../models/Stocks/products/batchLedgerModel");
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 
-// exports.createProductBatch = async function createProductBatch({
-//   productId,
-//   companyId,
-//   stockId,
-//   quantity,
-//   buyingprice,
-//   sourceId,
-//   costBuyingPrice,
-//   referenceType,
-//   batchDate,
-//   session,
-// }) {
-//   const batchPayload = {
-//     productId,
-//     companyId,
-//     stockId,
-//     quantity,
-//     remaining: quantity,
-//     buyingprice,
-//     sourceId,
-//     costBuyingPrice,
-//     sourceType: referenceType,
-//     batchDate: batchDate ? new Date(batchDate) : new Date(),
-//     status: "active",
-//   };
-
-//   const [batch] = session
-//     ? await prodcutBatchModel.create([batchPayload], { session })
-//     : await prodcutBatchModel.create([batchPayload]);
-
-//   const ledgerPayload = {
-//     productId,
-//     companyId,
-//     stockId,
-//     type: "in",
-//     quantity,
-//     cost: quantity * buyingprice,
-//     batchId: batch._id,
-//     referenceType,
-//     referenceId: sourceId,
-//     costBuyingPrice,
-//     movementDate: batchDate ? new Date(batchDate) : new Date(),
-//   };
-
-//   if (session) {
-//     await productLedgerModel.create([ledgerPayload], { session });
-//   } else {
-//     await productLedgerModel.create(ledgerPayload);
-//   }
-
-//   return batch;
-// };
-
 exports.createProductBatch = async function createProductBatch({
   productId,
   companyId,
@@ -71,9 +18,6 @@ exports.createProductBatch = async function createProductBatch({
   originId = null,
   originType = null,
   parentBatchId = null,
-
-  // optional extra batch cost context
-  costBuyingPrice = 0,
 }) {
   const resolvedBatchDate = batchDate ? new Date(batchDate) : new Date();
 
@@ -84,7 +28,6 @@ exports.createProductBatch = async function createProductBatch({
     quantity,
     remaining: quantity,
     buyingprice,
-    costBuyingPrice,
 
     // direct creator of this batch row
     sourceId,

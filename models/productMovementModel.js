@@ -10,6 +10,7 @@ const ProductMovementSchema = new mongoose.Schema(
     reference: { type: mongoose.Schema.ObjectId, refPath: "referenceModel" },
     referenceModel: { type: String },
     enterPrice: { type: Number, default: 0 },
+    enterPriceMainCurrency: { type: Number, default: 0 },
     buyingPrice: String,
     outPrice: { type: Number, default: 0 },
     sellingPrice: String,
@@ -61,7 +62,7 @@ const ProductMovementSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 ProductMovementSchema.index({ productId: 1, companyId: 1, createdAt: -1 });
