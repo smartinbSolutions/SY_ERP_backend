@@ -1997,6 +1997,108 @@ const handleFundPayment = async (req, companyId, next, normalizedPayment) => {
   }
 };
 
+const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
+  const session = await mongoose.startSession();
+
+  try {
+    let createdPayment = null;
+
+    await session.withTransaction(async () => {
+      const {
+        source,
+        sourceType,
+        destination,
+        destinationType,
+        paymentInSourceCurrency,
+        sourceCurrencyCode,
+        sourceExchangeRate,
+        paymentInInvoiceCurrency,
+        invoiceExchangeRate,
+        paymentInMainCurrency,
+        totalInPaymentCurrency,
+        invoiceId,
+        date,
+        description,
+        paymentType,
+        isWithDraw,
+        totalMainCurrency,
+      } = normalizedPayment;
+
+      console.log(source);
+
+      if (!source?.id) {
+        throw new Error("Payment source is required");
+      }
+
+      if (destinationType !== "salary") {
+        throw new Error("Staff payment destination must be salary");
+      }
+
+      const paymentSeq = await getNextCounterValue({
+        companyId,
+        name: "Payment",
+        session,
+      });
+
+      req.body.type = "salary";
+      req.body.paymentText = "Withdrawal";
+
+      const paymentPayload = {
+        ...req.body,
+        source,
+        destination,
+        sourceType,
+        destinationType,
+        totalInPaymentCurrency: totalInPaymentCurrency,
+        totalMainCurrency: totalMainCurrency,
+        paymentInDestinationCurrency: paymentInSourceCurrency,
+        destinationExchangeRate: sourceExchangeRate,
+        destinationCurrencyCode: sourceCurrencyCode,
+        type: "salary",
+        paymentType,
+        description,
+        date,
+        companyId,
+        counter: Number(req.body.counter || 0) + Number(paymentSeq),
+      };
+
+      const paymentDocs = await paymentModel.create([paymentPayload], {
+        session,
+      });
+      const payment = paymentDocs[0];
+      createdPayment = payment;
+
+      if (sourceType === "fund") {
+        await handleFundPaymentEntity({
+          fund: source,
+          companyId,
+          paymentInFundCurrency: paymentInSourceCurrency,
+          paymentId: payment._id,
+          refId: destination.id,
+          date,
+          description,
+          paymentText: "Withdrawal",
+          sourceExchangeRate,
+          isWithDraw,
+          session,
+        });
+      } else if (sourceType === "account") {
+        await handleAccountPaymentEntity({
+          account: source,
+          companyId,
+          session,
+        });
+      } else {
+        throw new Error("Invalid expense payment sourceType");
+      }
+    });
+  } catch (err) {
+    throw err;
+  } finally {
+    await session.endSession();
+  }
+};
+
 module.exports = {
   handlePurchasePayment,
   handleSupplierPayment,
@@ -2004,4 +2106,5 @@ module.exports = {
   handleExpensePayment,
   handleCustomerPayment,
   handleFundPayment,
+  handleSalaryPayment,
 };

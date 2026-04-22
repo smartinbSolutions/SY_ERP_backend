@@ -61,7 +61,7 @@ exports.findAllSalesRefundsService = async ({ req, companyId }) => {
   const totalItems = await returnOrderModel.countDocuments(query);
 
   const totalPages = Math.ceil(totalItems / pageSize);
-  const salesInvoices = await returnOrderModel
+  const salesRefunds = await returnOrderModel
     .find(query)
     .sort({ orderDate: -1 })
     .skip(skip)
@@ -70,19 +70,19 @@ exports.findAllSalesRefundsService = async ({ req, companyId }) => {
   return {
     totalItems,
     totalPages,
-    salesInvoices,
+    salesRefunds,
   };
 };
 
 exports.findOneSalesRefundService = async ({ req, companyId }) => {
   const { id } = req.params;
 
-  const salesInvoice = await returnOrderModel.findOne({
+  const salesRefunds = await returnOrderModel.findOne({
     _id: id,
     companyId,
   });
 
-  if (!salesInvoice) {
+  if (!salesRefunds) {
     throw new ApiError(`No refund sales invoice for this id ${id}`, 404);
   }
 
@@ -108,7 +108,7 @@ exports.findOneSalesRefundService = async ({ req, companyId }) => {
   return {
     totalItems,
     totalPages,
-    salesInvoice,
+    salesRefunds,
     invoiceHistory,
   };
 };
