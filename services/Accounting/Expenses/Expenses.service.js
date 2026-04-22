@@ -37,7 +37,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -76,16 +76,16 @@ exports.prepareExpensesDataService = async ({ req, companyId, session }) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -159,12 +159,21 @@ exports.createExpensesInvoiceRecordService = async ({
     totalRemainder,
     totalRemainderMainCurrency,
     journalCounter,
-    paymentDate,
     paymentInFundCurrency,
   } = req.body;
 
   let financialFund = null;
   let parsedFinancialFund = null;
+  const addSeconds = (dateValue, seconds = 0) => {
+    const date = new Date(dateValue || new Date());
+    date.setSeconds(date.getSeconds() + seconds);
+    return date;
+  };
+
+  const paymentTransactionDate = addSeconds(
+    req.body.paymentDate || req.body.date || formattedDate,
+    5,
+  );
 
   if (req.body.financialFund) {
     parsedFinancialFund =
@@ -186,7 +195,7 @@ exports.createExpensesInvoiceRecordService = async ({
   const resolvedRemainderMain = Math.max(0, invoiceTotalMain - actualPaidMain);
   const resolvedRemainder = Math.max(
     0,
-    invoiceTotalInvoice - actualPaidInvoice
+    invoiceTotalInvoice - actualPaidInvoice,
   );
 
   /*
@@ -227,7 +236,7 @@ exports.createExpensesInvoiceRecordService = async ({
     journalCounter,
 
     file: req.body.file,
-    paymentDate,
+    paymentDate: paymentTransactionDate,
     totalRemainder: invoiceDraft ? totalRemainder : resolvedRemainder,
     totalRemainderMainCurrency: invoiceDraft
       ? totalRemainderMainCurrency
@@ -274,7 +283,7 @@ exports.createExpensesInvoiceRecordService = async ({
   }
 
   if (!invoiceDraft && resolvedPaidStatus === "unpaid") {
-    invoicePayload.dueDate = paymentDate;
+    invoicePayload.dueDate = paymentTransactionDate;
   }
 
   /*
@@ -293,7 +302,7 @@ exports.createExpensesInvoiceRecordService = async ({
       PAYMENT CREATION
       =============================
     */
-  if (actualPaidMain > 0 && !invoiceDraft) {
+  if (actualPaidMain > 0 && !invoiceDraft && paymentStatus !== "unpaid") {
     const payment = await paymentModel.create(
       [
         {
@@ -321,7 +330,7 @@ exports.createExpensesInvoiceRecordService = async ({
           type: "expense",
           paymentType: "Withdrawal",
           description: req.body.paymentDescription,
-          date: req.body.paymentDate || formattedDate,
+          date: paymentTransactionDate || formattedDate,
           counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
           companyId,
           payid: [
@@ -338,7 +347,7 @@ exports.createExpensesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -360,7 +369,7 @@ exports.createExpensesInvoiceRecordService = async ({
     const reports = await reportsFinancialFunds.create(
       [
         {
-          date: req.body.paymentDate || formattedDate,
+          date: paymentTransactionDate || formattedDate,
           ref: newExpenseInvoice._id,
           amount: paymentInFundCurrency,
           type: "expense",
@@ -373,7 +382,7 @@ exports.createExpensesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     newExpenseInvoice.payments.push({
@@ -381,7 +390,7 @@ exports.createExpensesInvoiceRecordService = async ({
       paymentMainCurrency: actualPaidMain,
       financialFunds: financialFund.fundName,
       financialFundsCurrencyCode: parsedFinancialFund?.code,
-      date: req.body.paymentDate || formattedDate,
+      date: paymentTransactionDate || formattedDate,
       paymentID: payment[0]._id,
       paymentInInvoiceCurrency: actualPaidInvoice,
       financialFundsId: parsedFinancialFund?.id,
@@ -406,7 +415,7 @@ exports.createExpensesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Expense invoice draft created" : "Expense invoice created",
     "expense",
-    session
+    session,
   );
 
   if (actualPaidMain > 0 && !invoiceDraft) {
@@ -415,10 +424,10 @@ exports.createExpensesInvoiceRecordService = async ({
       newExpenseInvoice._id,
       "payment",
       req.user._id,
-      req.body.paymentDate || formattedDate,
+      paymentTransactionDate || formattedDate,
       "Invoice payment recorded",
       "expense",
-      session
+      session,
     );
   }
 
@@ -679,7 +688,7 @@ exports.reverseExpenseJournalEffectsService = async ({
   if (!expense?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on expense invoice",
-      400
+      400,
     );
   }
 
@@ -737,18 +746,18 @@ exports.reverseExpenseJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -934,7 +943,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
       [invoicePayload],
       {
         session,
-      }
+      },
     );
     invoiceDoc = createdInvoice[0];
   } else if (mode === "update") {
@@ -994,7 +1003,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -1030,7 +1039,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     invoiceDoc.payments.push({
@@ -1068,16 +1077,16 @@ exports.prepareExpenseInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -1124,6 +1133,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   companyId,
   cancellationDate,
   session,
+  req,
 }) => {
   const findExpensePayment = await paymentModel
     .findOne({
@@ -1174,23 +1184,26 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   expense.payments = expense.payments.filter(
-    (p) => String(p.paymentId) !== String(findExpensePayment._id)
+    (p) => String(p.paymentId) !== String(findExpensePayment._id),
   );
 
   expense.type = "Expense cancelled";
   expense.paymentStatus = "unpaid";
   expense.payments = [];
   expense.status = "cancelled";
+  expense.cancelledAt = cancellationDate;
+  expense.cancelledBy = req.user._id;
+  expense.cancellationReason = req.body.reason || "";
   await expense.save({ session });
 
   findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
 
   findExpensePayment.payid = findExpensePayment.payid.filter(
-    (p) => String(p.id) !== String(expense._id)
+    (p) => String(p.id) !== String(expense._id),
   );
 
   findExpensePayment.type = "cancelled payment";
@@ -1244,7 +1257,7 @@ exports.getExpenseAndPurchaseForSupplierService = async ({
 
   // Merge both arrays and sort by date if needed
   const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
+    (a, b) => new Date(b.date) - new Date(a.date),
   );
 
   // Paginate the combined result

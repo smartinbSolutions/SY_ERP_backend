@@ -470,6 +470,7 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
       companyId,
       expense,
       cancellationDate,
+      req,
     });
     await reverseExpenseJournalEffectsService({
       companyId,
