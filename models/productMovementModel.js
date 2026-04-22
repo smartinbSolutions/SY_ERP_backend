@@ -13,6 +13,7 @@ const ProductMovementSchema = new mongoose.Schema(
     enterPriceMainCurrency: { type: Number, default: 0 },
     buyingPrice: String,
     outPrice: { type: Number, default: 0 },
+    outPriceMainCurrrency: { type: Number, default: 0 },
     sellingPrice: String,
     exchangeRate: { type: Number, default: 1 },
     stockId: { type: mongoose.Schema.ObjectId, ref: "Stock" },

@@ -13,6 +13,7 @@ const createProductMovement = async ({
   enterPrice,
   enterPriceMainCurrency,
   outPrice,
+  outPriceMainCurrrency,
   stockId,
   sellingPrice,
   buyingPrice,
@@ -33,6 +34,7 @@ const createProductMovement = async ({
       enterPrice,
       enterPriceMainCurrency,
       outPrice,
+      outPriceMainCurrrency,
       exchangeRate,
       referenceModel:
         source === "Sales Invoice"

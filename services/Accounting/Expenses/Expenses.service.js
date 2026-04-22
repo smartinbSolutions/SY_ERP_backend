@@ -37,7 +37,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed."),
+        new ApiError("Invalid file type. Only images and PDFs are allowed.")
       );
     }
   },
@@ -76,16 +76,16 @@ exports.prepareExpensesDataService = async ({ req, companyId, session }) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -186,7 +186,7 @@ exports.createExpensesInvoiceRecordService = async ({
   const resolvedRemainderMain = Math.max(0, invoiceTotalMain - actualPaidMain);
   const resolvedRemainder = Math.max(
     0,
-    invoiceTotalInvoice - actualPaidInvoice,
+    invoiceTotalInvoice - actualPaidInvoice
   );
 
   /*
@@ -338,7 +338,7 @@ exports.createExpensesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session },
+      { session }
     );
 
     await createPaymentHistoryV2({
@@ -373,7 +373,7 @@ exports.createExpensesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     newExpenseInvoice.payments.push({
@@ -406,7 +406,7 @@ exports.createExpensesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Expense invoice draft created" : "Expense invoice created",
     "expense",
-    session,
+    session
   );
 
   if (actualPaidMain > 0 && !invoiceDraft) {
@@ -418,7 +418,7 @@ exports.createExpensesInvoiceRecordService = async ({
       req.body.paymentDate || formattedDate,
       "Invoice payment recorded",
       "expense",
-      session,
+      session
     );
   }
 
@@ -679,7 +679,7 @@ exports.reverseExpenseJournalEffectsService = async ({
   if (!expense?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on expense invoice",
-      400,
+      400
     );
   }
 
@@ -737,18 +737,18 @@ exports.reverseExpenseJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
@@ -934,7 +934,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
       [invoicePayload],
       {
         session,
-      },
+      }
     );
     invoiceDoc = createdInvoice[0];
   } else if (mode === "update") {
@@ -994,7 +994,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           ],
         },
       ],
-      { session },
+      { session }
     );
 
     await createPaymentHistoryV2({
@@ -1030,7 +1030,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     invoiceDoc.payments.push({
@@ -1068,16 +1068,16 @@ exports.prepareExpenseInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -1174,11 +1174,11 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
         companyId,
       },
     ],
-    { session },
+    { session }
   );
 
   expense.payments = expense.payments.filter(
-    (p) => String(p.paymentId) !== String(findExpensePayment._id),
+    (p) => String(p.paymentId) !== String(findExpensePayment._id)
   );
 
   expense.type = "Expense cancelled";
@@ -1190,7 +1190,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
 
   findExpensePayment.payid = findExpensePayment.payid.filter(
-    (p) => String(p.id) !== String(expense._id),
+    (p) => String(p.id) !== String(expense._id)
   );
 
   findExpensePayment.type = "cancelled payment";
@@ -1244,7 +1244,7 @@ exports.getExpenseAndPurchaseForSupplierService = async ({
 
   // Merge both arrays and sort by date if needed
   const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-    (a, b) => new Date(b.date) - new Date(a.date),
+    (a, b) => new Date(b.date) - new Date(a.date)
   );
 
   // Paginate the combined result

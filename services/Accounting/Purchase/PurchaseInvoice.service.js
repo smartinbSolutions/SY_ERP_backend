@@ -942,6 +942,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
   date,
   session,
 }) => {
+  const invoiceCurrency = newPurchaseInvoice?.currency;
   const exchangeRate = Number(newPurchaseInvoice?.exchangeRate || 1);
 
   const isTrackedInventoryItem = (item) =>
@@ -953,7 +954,19 @@ exports.applyPurchaseInventoryEffectsService = async ({
       0
     );
 
-  const getOriginalBuyingPrice = (item) => Number(item.orginalBuyingPrice || 0);
+  const getOriginalBuyingPrice = (item) => {
+    const itemCurrencyId =
+      typeof item?.currency === "object" ? item?.currency?.id : item?.currency;
+
+    const isSameCurrency =
+      String(itemCurrencyId) === String(invoiceCurrency?.id);
+
+    if (isSameCurrency) {
+      return Number(item?.convertedBuyingPrice || 0);
+    }
+
+    return Number(item?.orginalBuyingPrice || 0);
+  };
 
   const getNewAverageCost = ({ oldQty, oldCost, newQty, newCost }) =>
     oldQty + newQty > 0
@@ -988,8 +1001,6 @@ exports.applyPurchaseInventoryEffectsService = async ({
       const oldCost = Number(product.costBuyingPrice || 0);
       const newQty = Number(item.quantity || 0);
       const newCost = getOriginalBuyingPrice(item);
-
-      console.log("update newCost", newCost);
 
       const newAvgCost = getNewAverageCost({
         oldQty,
@@ -1030,8 +1041,6 @@ exports.applyPurchaseInventoryEffectsService = async ({
       const newQty = Number(item.quantity || 0);
       const newCost = getOriginalBuyingPrice(item);
 
-      console.log("insert newCost", newCost);
-
       const newAvgCost = getNewAverageCost({
         oldQty,
         oldCost,
@@ -1071,8 +1080,6 @@ exports.applyPurchaseInventoryEffectsService = async ({
   }
 
   for (const item of inventoryItems) {
-    console.log("item", item);
-
     const product = productMap.get(item.id);
     if (!product) continue;
 
@@ -1125,14 +1132,25 @@ exports.reversePurchaseInventoryEffectsService = async ({
   cancellationDate,
   mode = "cancel",
 }) => {
-  const resolveItemCost = (item, batch) =>
-    Number(
-      batch?.costBuyingPrice ??
-        item?.draftCostBuyingPrice ??
-        item?.oldCostBuyingPrice ??
-        item?.orginalBuyingPrice ??
-        0
-    );
+  const invoiceExchangeRate = Number(purchaseInvoice?.exchangeRate || 1);
+
+  const isTrackedInventoryItem = (item) =>
+    item.type !== "unTracedproduct" && item.type !== "expense";
+
+  const getOriginalBuyingPrice = (item) => Number(item.orginalBuyingPrice || 0);
+
+  const getMainCurrencyPrice = (item) =>
+    invoiceExchangeRate > 0
+      ? Number(item.convertedBuyingPrice || 0) / invoiceExchangeRate
+      : 0;
+
+  const getMovementExchangeRate = (item) => {
+    const mainCurrencyPrice = getMainCurrencyPrice(item);
+
+    return mainCurrencyPrice > 0
+      ? getOriginalBuyingPrice(item) / mainCurrencyPrice
+      : 1;
+  };
 
   const reversalConfig = {
     cancel: {
@@ -1156,11 +1174,10 @@ exports.reversePurchaseInventoryEffectsService = async ({
     throw new ApiError(`Invalid reversal mode: ${mode}`, 400);
   }
 
+  const inventoryItems = invoicesItem.filter(isTrackedInventoryItem);
   const bulkProductUpdates = [];
 
-  for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
-
+  for (const item of inventoryItems) {
     const product = productMap.get(item.id);
     if (!product) {
       throw new ApiError(`Product not found for item ${item.name}`, 404);
@@ -1217,7 +1234,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
     }
 
     const currentAvgCost = Number(product.costBuyingPrice || 0);
-    const cancelledCost = resolveItemCost(item, batch);
+    const cancelledCost = getOriginalBuyingPrice(item);
     const remainingQtyAfterReverse = currentStockQty - reverseQty;
 
     const reversedAvgCost =
@@ -1249,9 +1266,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
     await productModel.bulkWrite(bulkProductUpdates, { session });
   }
 
-  for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
-
+  for (const item of inventoryItems) {
     const product = productMap.get(item.id);
     if (!product) continue;
 
@@ -1280,13 +1295,8 @@ exports.reversePurchaseInventoryEffectsService = async ({
       );
     }
 
-    const movementCost = Number(
-      batch.costBuyingPrice ??
-        item?.draftCostBuyingPrice ??
-        item?.oldCostBuyingPrice ??
-        item?.orginalBuyingPrice ??
-        0
-    );
+    const outPriceMainCurrrency = getMainCurrencyPrice(item);
+    const movementExchangerate = getMovementExchangeRate(item);
 
     batch.status = currentMode.batchStatus;
     batch.reversedAt = cancellationDate;
@@ -1322,16 +1332,16 @@ exports.reversePurchaseInventoryEffectsService = async ({
       movementType: "out",
       source: currentMode.movementSource,
       companyId,
-      outPrice: movementCost,
+      outPrice: getOriginalBuyingPrice(item),
+      outPriceMainCurrrency,
       stockId: item.stock?._id,
-      buyingPrice: item.orginalBuyingPrice,
-      exchangeRate: item.exchangeRate,
+      buyingPrice: getOriginalBuyingPrice(item),
+      exchangeRate: movementExchangerate,
       movementDate: cancellationDate,
       session,
     });
   }
 };
-
 //  Purchase Supplier Effects
 exports.applyPurchaseSupplierEffectsService = async ({
   invoicesItem,
