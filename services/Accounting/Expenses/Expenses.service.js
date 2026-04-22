@@ -353,7 +353,7 @@ exports.createExpensesInvoiceRecordService = async ({
     await createPaymentHistoryV2({
       companyId,
       entryType: "payment",
-      transactionDate: req.body.date || formattedDate,
+      transactionDate: paymentTransactionDate || formattedDate,
       amountTransactionCurrency: invoiceTotalInvoice,
       amountMainCurrency: invoiceTotalMain,
       supplierId: supplier?._id || "",
