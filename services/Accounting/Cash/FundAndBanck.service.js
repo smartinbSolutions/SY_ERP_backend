@@ -24,6 +24,26 @@ exports.findAllFundAndBankService = async ({ req, companyId }) => {
 
 exports.createFundAndBankService = async ({ req, companyId, session }) => {
   const fundAndBank = await financialFundsModel.create([req.body], { session });
+
+  const reports = await reportsFinancialFunds.create(
+    [
+      {
+        date: req.body.date || new Date(),
+        ref: fundAndBank[0]._id,
+        amount: req.body.fundBalance || 0,
+        type: "opening Balance",
+        exchangeRate: 1,
+        financialFundId: fundAndBank[0]._id,
+        financialFundRest: 0,
+        paymentType: req.body.fundBalance > 0 ? "Deposit" : "Withdrawal",
+        payment: null,
+        description: req.body.paymentDescription,
+        companyId,
+      },
+    ],
+    { session },
+  );
+
   return { fundAndBank: fundAndBank[0] };
 };
 
