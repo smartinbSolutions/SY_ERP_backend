@@ -44,7 +44,9 @@ const batchLedgerSchema = new mongoose.Schema(
       type: String,
       index: true,
     },
-
+    actionType: {
+      type: String,
+    },
     referenceId: {
       type: mongoose.Schema.ObjectId,
       index: true,
@@ -56,7 +58,7 @@ const batchLedgerSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 batchLedgerSchema.index({

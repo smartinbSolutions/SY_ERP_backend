@@ -427,6 +427,7 @@ exports.applySalesInventoryEffectsService = async ({
   companyId,
   date,
   session,
+  actionType = "",
 }) => {
   const bulkOperations = [];
 
@@ -543,6 +544,7 @@ exports.applySalesInventoryEffectsService = async ({
             referenceType: "sales",
             referenceId: newSalesInvoice._id,
             movementDate: date,
+            actionType: actionType,
           },
         ],
         { session },
@@ -897,11 +899,13 @@ exports.reverseSalesInventoryEffectsService = async ({
       reverseReason: reverseReason || "Sales invoice cancellation",
       referenceType: "sales_cancel",
       movementSource: "Sales Invoice Cancellation",
+      actionType: "cancel",
     },
     reverse_update: {
       reverseReason: reverseReason || "Sales invoice reverse update",
       referenceType: "sales_reverse_update",
       movementSource: "Sales Invoice Reverse Update",
+      actionType: "update",
     },
   };
   let currentStockQty = 0;
@@ -992,28 +996,27 @@ exports.reverseSalesInventoryEffectsService = async ({
 
       batch.status = "active";
       batch.reversedBy = reversedBy;
+      await batchLedgerModel.create(
+        [
+          {
+            productId: item.id,
+            companyId,
+            stockId: item.stock?._id,
+            type: "in",
+            quantity: batchItem.quantity,
+            batchId: batch._id,
+            referenceType: "sales",
+            referenceId: salesInvoice._id,
+            movementDate: cancellationDate,
+            actionType: currentMode.actionType,
+          },
+        ],
+        { session },
+      );
 
       await batch.save({ session });
     }
 
-    // await productLedgerModel.create(
-    //   [
-    //     {
-    //       productId: item.id,
-    //       companyId,
-    //       stockId: item.stock?._id,
-    //       type: "in",
-    //       quantity: reverseQty,
-    //       cost: reverseQty * movementCost,
-    //       batchId: batch._id,
-    //       referenceType: "sales",
-    //       referenceId: salesInvoice._id,
-    //       costBuyingPrice: movementCost,
-    //       movementDate: cancellationDate,
-    //     },
-    //   ],
-    //   { session },
-    // );
     const movementCost = resolveItemCost(item);
 
     await createProductMovement({

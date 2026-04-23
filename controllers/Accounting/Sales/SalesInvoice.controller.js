@@ -75,6 +75,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         companyId,
         date: req.body.date,
         session,
+        actionType: "create",
       });
 
       await applySalesCustomerEffectsService({
@@ -235,6 +236,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       companyId,
       date: updatedSalesInvoice.orderDate,
       session,
+      actionType: "update",
     });
 
     await applySalesCustomerEffectsService({
@@ -370,6 +372,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       companyId,
       date: salesInvoice.orderDate,
       session,
+      actionType: "create",
     });
 
     await applySalesCustomerEffectsService({

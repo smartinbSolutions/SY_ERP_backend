@@ -123,6 +123,7 @@ const ExpenseInvoices = require("./Accounting/Expense/expenseInvoices.route");
 const SalesInvoices = require("./Accounting/Sales/salesInvoice.route");
 const RefundSalesInvoices = require("./Accounting/Sales/refundSalesIvoice.route");
 const FundAndBank = require("./Accounting/Cash/fundAndBank.route");
+const BatchLedger = require("./Stocks/Batch/BatchLedger.route");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -180,6 +181,7 @@ const mountRoutes = (app) => {
 
   app.use("/api/shortage", ShortageRoute);
   app.use("/api/v1/product-batches", productBatchRoute);
+  app.use("/api/v1/batch-ledger", BatchLedger);
 
   //Ecommerce routes
   app.use("/api/users", E_userRoute);
