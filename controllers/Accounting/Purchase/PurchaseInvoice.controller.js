@@ -99,7 +99,7 @@ exports.findSupplierPurchaseInvoicesForRefund = asyncHandler(
       totalItems,
       data: purchaseInvoices,
     });
-  }
+  },
 );
 /*
 |--------------------------------------------------------------------------
@@ -119,16 +119,18 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     let nextCounterPurchaseInvoices = null;
 
     if (!invoiceDraft) {
-      nextCounterPayment = await counterModel.findOneAndUpdate(
-        { companyId, name: "Payment" },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
-      );
+      if (req.body.paid !== "unpaid") {
+        nextCounterPayment = await counterModel.findOneAndUpdate(
+          { companyId, name: "Payment" },
+          { $inc: { seq: 1 } },
+          { new: true, upsert: true, session },
+        );
+      }
 
       nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Purchase Invoice" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
     }
 
@@ -209,19 +211,22 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       purchaseInvoice.status === "draft"
     ) {
       return next(
-        new ApiError("Draft purchase invoice should use draft update flow", 400)
+        new ApiError(
+          "Draft purchase invoice should use draft update flow",
+          400,
+        ),
       );
     }
 
     if (purchaseInvoice.status === "cancelled") {
       return next(
-        new ApiError("Cancelled purchase invoice cannot be updated", 400)
+        new ApiError("Cancelled purchase invoice cannot be updated", 400),
       );
     }
 
     if (purchaseInvoice.auditing === true) {
       return next(
-        new ApiError("Audited purchase invoice cannot be updated", 400)
+        new ApiError("Audited purchase invoice cannot be updated", 400),
       );
     }
 
@@ -232,8 +237,8 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "Paid purchase invoice cannot be updated in this step",
-          400
-        )
+          400,
+        ),
       );
     }
 
@@ -242,9 +247,9 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     /*
@@ -409,7 +414,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       updateDate,
       "Purchase invoice updated",
       "purchase",
-      session
+      session,
     );
 
     if (updatedPurchaseInvoice.paid === "paid") {
@@ -421,7 +426,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
         req.body.paymentDate || updateDate,
         "Invoice payment recorded from update",
         "purchase",
-        session
+        session,
       );
     }
 
@@ -476,7 +481,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     if (purchaseInvoice.auditing === true) {
       return next(
-        new ApiError("Audited purchase invoice cannot be cancelled", 400)
+        new ApiError("Audited purchase invoice cannot be cancelled", 400),
       );
     }
 
@@ -487,8 +492,8 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "Paid purchase invoice cannot be cancelled in this step",
-          400
-        )
+          400,
+        ),
       );
     }
     const baseCounter = Number(req.body.counter || 0);
@@ -497,9 +502,9 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const prepared = await preparePurchaseInvoiceDataFromDraftService({
@@ -550,7 +555,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Purchase invoice cancelled",
       "purchase",
-      session
+      session,
     );
 
     await session.commitTransaction();
@@ -609,7 +614,7 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
     const nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Purchase Invoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     const baseCounter = Number(req.body.counter || 0);
