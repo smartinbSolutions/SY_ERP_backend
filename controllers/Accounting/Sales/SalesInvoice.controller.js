@@ -38,12 +38,13 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
     let nextCounterSalesInvoices = null;
 
     if (!invoiceDraft) {
-      nextCounterPayment = await counterModel.findOneAndUpdate(
-        { companyId, name: "Payment" },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
-      );
-
+      if (req.body.paymentsStatus !== "unpaid") {
+        nextCounterPayment = await counterModel.findOneAndUpdate(
+          { companyId, name: "Payment" },
+          { $inc: { seq: 1 } },
+          { new: true, upsert: true, session },
+        );
+      }
       nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Sales Invoice" },
         { $inc: { seq: 1 } },
@@ -72,7 +73,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         ...prepared,
         newSalesInvoice,
         companyId,
-        date: req.body.orderDate,
+        date: req.body.date,
         session,
       });
 
@@ -80,7 +81,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         ...prepared,
         newSalesInvoice,
         companyId,
-        date: req.body.orderDate,
+        date: req.body.date,
         totalInMainCurrency: req.body.totalInMainCurrency,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
         paymentsStatus: req.body.paymentsStatus,

@@ -13,6 +13,7 @@ const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createJournalService } = require("../../journalEntryServices");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
+const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -49,16 +50,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -336,7 +337,7 @@ exports.createSalesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -372,7 +373,7 @@ exports.createSalesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     newSalesInvoice.payments.push({
@@ -400,7 +401,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session
+    session,
   );
 
   if (paymentsStatus === "paid" && !invoiceDraft) {
@@ -412,7 +413,7 @@ exports.createSalesInvoiceRecordService = async ({
       req.body.paymentDate || formattedDate,
       "Invoice payment recorded",
       "sales",
-      session
+      session,
     );
   }
 
@@ -429,26 +430,7 @@ exports.applySalesInventoryEffectsService = async ({
 }) => {
   const bulkOperations = [];
 
-  console.log("=== applySalesInventoryEffectsService START ===");
-  console.log("companyId:", companyId);
-  console.log("invoiceId:", newSalesInvoice?._id);
-  console.log("date:", date);
-  console.log("items count:", invoicesItem?.length);
-
   for (const item of invoicesItem) {
-    console.log("--------------------------------------------------");
-    console.log("Processing item:", {
-      id: item?.id,
-      name: item?.name,
-      type: item?.type,
-      quantity: item?.quantity,
-      soldQuantity: item?.soldQuantity,
-      stockId: item?.stock?._id,
-      stockName: item?.stock?.stock,
-      sellingPrice: item?.sellingPrice,
-      exchangeRate: item?.exchangeRate,
-    });
-
     if (
       item.type === "unTracedproduct" ||
       item.type === "expense" ||
@@ -470,30 +452,14 @@ exports.applySalesInventoryEffectsService = async ({
     const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id)
+      (s) => String(s.stockId) === String(item.stock._id),
     );
     const oldQty = Number(stockRow?.productQuantity || 0);
 
-    console.log("Resolved product + stock:", {
-      productId: product?._id,
-      productName: product?.name,
-      soldQty,
-      oldQty,
-      productCostBuyingPrice: product?.costBuyingPrice,
-      stockRow,
-    });
-
     if (soldQty > oldQty) {
-      console.log("Insufficient stock detected", {
-        soldQty,
-        oldQty,
-        product: product.name,
-        warehouse: item.stock.stock,
-      });
-
       throw new ApiError(
         `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
-        400
+        400,
       );
     }
 
@@ -511,21 +477,6 @@ exports.applySalesInventoryEffectsService = async ({
       .sort({ createdAt: 1 })
       .session(session);
 
-    console.log(
-      "Fetched batches:",
-      batches.map((batch) => ({
-        id: batch._id,
-        remaining: batch.remaining,
-        quantity: batch.quantity,
-        buyingprice: batch.buyingprice,
-        costBuyingPrice: batch.costBuyingPrice,
-        status: batch.status,
-        sourceId: batch.sourceId,
-        sourceType: batch.sourceType,
-        createdAt: batch.createdAt,
-      }))
-    );
-
     for (const batch of batches) {
       if (qtyToSell <= 0) break;
 
@@ -533,15 +484,6 @@ exports.applySalesInventoryEffectsService = async ({
       if (available <= 0) continue;
 
       const usedQty = Math.min(available, qtyToSell);
-
-      console.log("Using batch:", {
-        batchId: batch._id,
-        available,
-        usedQty,
-        batchCostBuyingPrice: batch.costBuyingPrice,
-        batchBuyingPrice: batch.buyingprice,
-        qtyToSellBefore: qtyToSell,
-      });
 
       batch.remaining = Math.max(0, batch.remaining - usedQty);
       if (batch.remaining <= 0) {
@@ -558,44 +500,26 @@ exports.applySalesInventoryEffectsService = async ({
 
       fifoMovements.push({
         quantity: usedQty,
-        costBuyingPrice: batch.costBuyingPrice,
+        costBuyingPrice: batch.buyingprice,
         batchId: batch._id,
       });
 
       qtyToSell -= usedQty;
-
-      console.log("Batch after save:", {
-        batchId: batch._id,
-        remaining: batch.remaining,
-        status: batch.status,
-        qtyToSellAfter: qtyToSell,
-      });
     }
 
-    console.log("FIFO movements built:", fifoMovements);
-
     if (qtyToSell > 0) {
-      console.log("Still qty left after FIFO", {
-        qtyToSell,
-        oldQty,
-        product: product.name,
-      });
-
       throw new ApiError(
         `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
-        400
+        400,
       );
     }
 
     const invoiceItem = newSalesInvoice.invoicesItems.find(
-      (i) => String(i.id) === String(item.id)
+      (i) => String(i.id) === String(item.id),
     );
     const returnCartItem = newSalesInvoice.returnCartItem.find(
-      (i) => String(i.id) === String(item.id)
+      (i) => String(i.id) === String(item.id),
     );
-
-    console.log("Invoice item found:", !!invoiceItem);
-    console.log("Return cart item found:", !!returnCartItem);
 
     if (invoiceItem) {
       invoiceItem.batches = itemBatches;
@@ -607,18 +531,22 @@ exports.applySalesInventoryEffectsService = async ({
     for (const fm of fifoMovements) {
       soldTotalCost +=
         Number(fm.quantity || 0) * Number(fm.costBuyingPrice || 0);
-
-      console.log("Creating movement with FIFO line:", {
-        batchId: fm.batchId,
-        fmQuantity: fm.quantity,
-        fmCostBuyingPrice: fm.costBuyingPrice,
-        calculatedLineCost:
-          Number(fm.quantity || 0) * Number(fm.costBuyingPrice || 0),
-        newQuantityForMovement: oldQty - fm.quantity,
-        outPriceToSend: fm.costBuyingPrice,
-        sellingPriceToSend: item.sellingPrice,
-        exchangeRateToSend: item.exchangeRate,
-      });
+      await batchLedgerModel.create(
+        [
+          {
+            productId: item.id,
+            companyId,
+            stockId: item.stock?._id,
+            type: "out",
+            quantity: fm.quantity,
+            batchId: fm.batchId,
+            referenceType: "sales",
+            referenceId: newSalesInvoice._id,
+            movementDate: date,
+          },
+        ],
+        { session },
+      );
 
       await createProductMovement({
         productId: product._id,
@@ -637,8 +565,6 @@ exports.applySalesInventoryEffectsService = async ({
       });
     }
 
-    console.log("Sold total cost:", soldTotalCost);
-
     const oldAvgCost = Number(product.costBuyingPrice || 0);
     const remainingQty = oldQty - soldQty;
 
@@ -651,15 +577,6 @@ exports.applySalesInventoryEffectsService = async ({
     if (!Number.isFinite(newAvgCost)) {
       newAvgCost = 0;
     }
-
-    console.log("Average cost recalculation:", {
-      oldAvgCost,
-      oldQty,
-      soldQty,
-      soldTotalCost,
-      remainingQty,
-      newAvgCost,
-    });
 
     bulkOperations.push({
       updateOne: {
@@ -683,16 +600,11 @@ exports.applySalesInventoryEffectsService = async ({
     });
   }
 
-  console.log("Saving invoice with updated batches...");
   await newSalesInvoice.save({ session });
-
-  console.log("bulkOperations:", JSON.stringify(bulkOperations, null, 2));
 
   if (bulkOperations.length > 0) {
     await productModel.bulkWrite(bulkOperations, { session });
   }
-
-  console.log("=== applySalesInventoryEffectsService END ===");
 };
 
 exports.applySalesCustomerEffectsService = async ({
@@ -772,18 +684,18 @@ exports.debugAndCreateSalesDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -858,7 +770,7 @@ exports.updateSalesInvoiceDraftService = async ({
   const invoiceTax = Number(req.body.invoiceTax || 0);
   const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0
+    req.body.ManualInvoiceDiscountValue || 0,
   );
 
   const paid = "unpaid";
@@ -869,7 +781,7 @@ exports.updateSalesInvoiceDraftService = async ({
 
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.orderDate,
-    req.body.orderDate
+    req.body.orderDate,
   );
 
   const updatePayload = {
@@ -914,7 +826,7 @@ exports.updateSalesInvoiceDraftService = async ({
     {
       new: true,
       session,
-    }
+    },
   );
 
   await createInvoiceHistory(
@@ -925,7 +837,7 @@ exports.updateSalesInvoiceDraftService = async ({
     normalizedDate,
     "Draft Sales invoice updated",
     "sales",
-    session
+    session,
   );
 
   return invoice;
@@ -954,7 +866,7 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session }
+    { session },
   );
 
   return true;
@@ -977,7 +889,7 @@ exports.reverseSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0
+        0,
     );
 
   const reversalConfig = {
@@ -1013,7 +925,7 @@ exports.reverseSalesInventoryEffectsService = async ({
     }
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id)
+      (s) => String(s.stockId) === String(item.stock._id),
     );
 
     if (!stockRow) {
@@ -1203,7 +1115,7 @@ exports.reverseSalesJournalEffectsService = async ({
   if (!salesInvoice?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on sales invoice",
-      400
+      400,
     );
   }
 
@@ -1261,18 +1173,18 @@ exports.reverseSalesJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -1534,7 +1446,7 @@ exports.upsertSalesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -1572,7 +1484,7 @@ exports.upsertSalesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     invoiceDoc.payments.push({

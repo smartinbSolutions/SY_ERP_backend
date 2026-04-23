@@ -36,7 +36,7 @@ exports.createCustomar = asyncHandler(async (req, res, next) => {
       companyId,
       entryType: "opening_balance",
       transactionDate: req.body.date || new Date().toISOString(),
-      amountTransactionCurrency: absoluteOpeningBalanceAmount,
+      amountTransactionCurrency: req.body.totalUnpaidCurrency,
       amountMainCurrency: absoluteOpeningBalanceAmount,
       customerId: customar._id,
       sourceModule: "opening_balance",

@@ -303,7 +303,7 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
   else if (idType === "category") {
     const products = await productModel.find(
       { category: id, companyId },
-      { _id: 1, name: 1 }
+      { _id: 1, name: 1 },
     );
 
     const ids = products.map((p) => p._id);
