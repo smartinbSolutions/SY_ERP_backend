@@ -22,6 +22,8 @@ const createProductMovement = async ({
   session,
 }) => {
   try {
+    console.log(source);
+
     const movementPayload = {
       productId,
       reference,
@@ -37,31 +39,33 @@ const createProductMovement = async ({
       outPriceMainCurrrency,
       exchangeRate,
       referenceModel:
-        source === "Sales Invoice" || "Sales Invoice Cancellation"
+        source === "Sales Invoice"
           ? "Sales"
-          : source === "Purchase Invoice"
-            ? "PurchaseInvoices"
-            : source === "Stock reconciliation"
-              ? "Reconciliation-v1"
-              : source === "Stock Transfer"
-                ? "StockTransfer"
-                : source === "POS Receipt"
-                  ? "posReceipts"
-                  : source === "Resturant Order"
-                    ? "MenuOrder"
-                    : source === "Refund POS Receipt"
-                      ? "RefundPosSales"
-                      : source === "Manufacturing"
-                        ? "productionLog"
-                        : source === "Refund Purchase Invoice"
-                          ? "refundpurchaseinvoices"
-                          : source === "Refund Sales Invoice"
-                            ? "returnOrder"
-                            : source === "Purchase Invoice Cancellation"
-                              ? "PurchaseInvoices"
-                              : source === "Purchase Invoice Reverse Update"
+          : source === "Sales Invoice Cancellation"
+            ? "Sales"
+            : source === "Purchase Invoice"
+              ? "PurchaseInvoices"
+              : source === "Stock reconciliation"
+                ? "Reconciliation-v1"
+                : source === "Stock Transfer"
+                  ? "StockTransfer"
+                  : source === "POS Receipt"
+                    ? "posReceipts"
+                    : source === "Resturant Order"
+                      ? "MenuOrder"
+                      : source === "Refund POS Receipt"
+                        ? "RefundPosSales"
+                        : source === "Manufacturing"
+                          ? "productionLog"
+                          : source === "Refund Purchase Invoice"
+                            ? "refundpurchaseinvoices"
+                            : source === "Refund Sales Invoice"
+                              ? "returnOrder"
+                              : source === "Purchase Invoice Cancellation"
                                 ? "PurchaseInvoices"
-                                : null,
+                                : source === "Purchase Invoice Reverse Update"
+                                  ? "PurchaseInvoices"
+                                  : null,
       stockId,
       sellingPrice,
       buyingPrice,

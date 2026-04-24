@@ -5,6 +5,7 @@ const paymentModel = require("../../../models/paymentModel");
 const productModel = require("../../../models/productModel");
 const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
 const returnOrderModel = require("../../../models/returnOrderModel");
+const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
@@ -537,15 +538,10 @@ exports.applyRefundSalesInventoryEffectsService = async ({
   for (const item of invoicesItem) {
     if (item.type === "unTracedproduct" || item.type === "expense") continue;
 
-    console.log("item", item);
-
     for (const batchItem of item.batches) {
       const batch = await prodcutBatchModel
         .findById(batchItem.id)
         .session(session);
-
-      console.log("batchItem", batchItem);
-      console.log("batch", batch);
 
       if (!batch) {
         throw new ApiError(`Batch not found ${batchItem.id}`, 404);
@@ -556,6 +552,24 @@ exports.applyRefundSalesInventoryEffectsService = async ({
       batch.remaining += Number(item.soldQuantity || 0);
 
       batch.status = "active";
+
+      await batchLedgerModel.create(
+        [
+          {
+            productId: item.id,
+            companyId,
+            stockId: item.stock?._id,
+            type: "in",
+            quantity: batchItem.quantity,
+            batchId: batch._id,
+            referenceType: "sales",
+            referenceId: newRefundSalesInvoice._id,
+            movementDate: date,
+            actionType: "create",
+          },
+        ],
+        { session },
+      );
 
       await batch.save({ session });
     }

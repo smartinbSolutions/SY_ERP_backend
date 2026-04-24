@@ -1015,25 +1015,24 @@ exports.reverseSalesInventoryEffectsService = async ({
       );
 
       await batch.save({ session });
+
+      await createProductMovement({
+        productId: item.id,
+        reference: salesInvoice._id,
+        newQuantity: currentStockQty + batchItem.quantity,
+        quantity: batchItem.quantity,
+        movementType: "in",
+        source: currentMode.movementSource,
+        companyId,
+        enterPrice: batch.buyingprice,
+        enterPriceMainCurrency: batch.buyingprice / item.exchangeRate,
+        stockId: item.stock?._id,
+        buyingPrice: item.orginalBuyingPrice,
+        exchangeRate: item.exchangeRate,
+        movementDate: cancellationDate,
+        session,
+      });
     }
-
-    const movementCost = resolveItemCost(item);
-
-    await createProductMovement({
-      productId: item.id,
-      reference: salesInvoice._id,
-      newQuantity: currentStockQty + item.soldQuantity,
-      quantity: item.soldQuantity,
-      movementType: "in",
-      source: currentMode.movementSource,
-      companyId,
-      enterPrice: movementCost,
-      stockId: item.stock?._id,
-      buyingPrice: item.orginalBuyingPrice,
-      exchangeRate: item.exchangeRate,
-      movementDate: cancellationDate,
-      session,
-    });
   }
 };
 const SALES_CUSTOMER_REVERSAL_MODES = {
