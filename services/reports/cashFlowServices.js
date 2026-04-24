@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const financialFundsModel = require("../../models/financialFundsModel");
+const financialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const accountingTreeModel = require("../../models/accountingTreeModel");
 const journalEntryModel = require("../../models/journalEntryModel");
 

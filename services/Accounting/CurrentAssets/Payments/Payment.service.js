@@ -1,3 +1,4 @@
+const paymentsModel = require("../../../../models/Accounting/CurrentAssets/payments.model");
 const paymentModel = require("../../../../models/paymentModel");
 const {
   handlePurchasePayment,
@@ -9,22 +10,6 @@ const {
   handleSalaryPayment,
 } = require("./Payment.handlers");
 
-// handlers
-// const { handleFundPayment } = require("./handlers/handleFundPayment");
-// const { handleSupplierPayment } = require("./handlers/handleSupplierPayment");
-// const { handleCustomerPayment } = require("./handlers/handleCustomerPayment");
-
-// const { handleSalesPayment } = require("./handlers/handleSalesPayment");
-// const {
-//   handleRefundPurchasePayment,
-// } = require("./handlers/handleRefundPurchasePayment");
-// const { handleExpensePayment } = require("./handlers/handleExpensePayment");
-// const { handleAccountPayment } = require("./handlers/handleAccountPayment");
-// const { handleSalaryPayment } = require("./handlers/handleSalaryPayment");
-// const {
-//   handleRefundSalesPayment,
-// } = require("./handlers/handleRefundSalesPayment");
-
 const padZero = (value) => {
   return value < 10 ? `0${value}` : value;
 };
@@ -33,46 +18,57 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
   req.body.companyId = companyId;
 
   const now = new Date();
-
-  const formattedDate = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes(),
+  const formattedTime = `${padZero(now.getHours())}:${padZero(
+    now.getMinutes()
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0",
+    "0"
   )}`;
 
-  req.body.date = `${req.body.date}T${formattedDate}Z`;
-
-  req.body.paymentType =
-    req.body.isWithDraw === true ? "Withdrawal" : "Deposit";
-
-  // legacy compatibility with current schema
-  req.body.paymentInDestinationCurrency = req.body.paymentInFundCurrency;
+  req.body.date = `${req.body.date}T${formattedTime}Z`;
 
   return {
     paymentContext: req.body.paymentContext,
-    source: req.body.source,
-    sourceType: req.body.sourceType,
-    destination: req.body.destination,
-    destinationType: req.body.destinationType,
 
-    paymentInSourceCurrency: Number(req.body.paymentInFundCurrency || 0),
-    sourceCurrencyCode: req.body.destinationCurrencyCode || "",
-    sourceExchangeRate: Number(req.body.destinationExchangeRate || 1),
-
-    paymentInInvoiceCurrency: Number(req.body.totalInPaymentCurrency || 0),
-    invoiceExchangeRate: Number(req.body.invoiceExchangeRate || 1),
-
-    paymentInMainCurrency: Number(req.body.totalMainCurrency || 0),
-
-    invoiceId: req.body.invoiceId || "",
+    companyId,
+    counter: req.body.counter,
+    journalCounter: req.body.journalCounter || "",
     date: req.body.date,
     description: req.body.description || "",
-    paymentType: req.body.paymentType,
-    isWithDraw: req.body.isWithDraw === true,
-    counter: req.body.counter,
-    companyId,
-    journalCounter: req.body.journalCounter,
+    file: req.body.file || "",
+
+    party: {
+      id: req.body.party?.id || "",
+      name: req.body.party?.name || "",
+      type: req.body.party?.type || "",
+    },
+
+    fund: {
+      id: req.body.fund?.id || "",
+      name: req.body.fund?.name || "",
+      currencyId: req.body.fund?.currencyId || "",
+      currencyCode: req.body.fund?.currencyCode || "",
+      exchangeRate: Number(req.body.fund?.exchangeRate || 1),
+    },
+
+    paymentNature: req.body.paymentNature,
+
+    payment: {
+      amount: Number(req.body.payment?.amount || 0),
+      currencyId: req.body.payment?.currencyId || "",
+      currencyCode: req.body.payment?.currencyCode || "",
+      exchangeRate: Number(req.body.payment?.exchangeRate || 1),
+      amountMainCurrency: Number(req.body.payment?.amountMainCurrency || 0),
+    },
+
+    allocations: Array.isArray(req.body.allocations)
+      ? req.body.allocations
+      : req.body.allocations
+      ? JSON.parse(req.body.allocations)
+      : [],
+
+    postedBy: req.user?._id || null,
+    postedAt: new Date(),
   };
 };
 
@@ -97,26 +93,14 @@ const paymentHandlers = {
     handler: handleSalesPayment,
     message: "Sales payment created successfully",
   },
-  // refundPurchase: {
-  //   handler: handleRefundPurchasePayment,
-  //   message: "Refund Purchase payment created successfully",
-  // },
   expense: {
     handler: handleExpensePayment,
     message: "Expense payment created successfully",
   },
-  // account: {
-  //   handler: handleAccountPayment,
-  //   message: "Account payment created successfully",
-  // },
   salary: {
     handler: handleSalaryPayment,
     message: "Salary payment created successfully",
   },
-  // refundSales: {
-  //   handler: handleRefundSalesPayment,
-  //   message: "Refund Sales payment created successfully",
-  // },
 };
 
 exports.processPaymentService = async ({ req, companyId, next }) => {
@@ -134,4 +118,29 @@ exports.processPaymentService = async ({ req, companyId, next }) => {
     message: route.message,
     payment,
   };
+};
+
+exports.getOnePaymentService = async ({ paymentId, companyId }) => {
+  if (!paymentId) {
+    throw new ApiError("Payment id is required", 400);
+  }
+
+  if (!companyId) {
+    throw new ApiError("companyId is required", 400);
+  }
+
+  const payment = await paymentsModel
+    .findOne({
+      _id: paymentId,
+      companyId,
+    })
+    .populate("postedBy", "fullName")
+    .populate("cancelledBy", "fullName")
+    .lean();
+
+  if (!payment) {
+    throw new ApiError("Payment not found", 404);
+  }
+
+  return payment;
 };

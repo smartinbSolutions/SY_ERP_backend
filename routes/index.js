@@ -122,7 +122,8 @@ const attachmentRoute = require("./Hr/attachmentRoute");
 const ExpenseInvoices = require("./Accounting/Expense/expenseInvoices.route");
 const SalesInvoices = require("./Accounting/Sales/salesInvoice.route");
 const RefundSalesInvoices = require("./Accounting/Sales/refundSalesIvoice.route");
-const FundAndBank = require("./Accounting/Cash/fundAndBank.route");
+const FundAndBank = require("./Accounting/CurrentAssets/fundAndBank.route");
+const FundTransfer = require("./Accounting/CurrentAssets/fundTransfer.route");
 const BatchLedger = require("./Stocks/Batch/BatchLedger.route");
 
 const mountRoutes = (app) => {
@@ -147,6 +148,7 @@ const mountRoutes = (app) => {
   app.use("/api/currency", currencyRoute);
   app.use("/api/v1/currencylog", currencyLogRoute);
   app.use("/api/v1/fund-bank", FundAndBank);
+  app.use("/api/v1/fund-transfer", FundTransfer);
   app.use("/api/expenses", ExpenseInvoices);
   app.use("/api/purchaseInvoices", PurchaseInvoices);
   app.use("/api/refund-purchaseInvoices", RefundPurchaseInvoices);

@@ -1,9 +1,9 @@
-const financialFundsModel = require("../../../models/financialFundsModel");
-const paymentModel = require("../../../models/paymentModel");
-const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
-const salesPointModel = require("../../../models/salesPointModel");
-const counterModel = require("../../../models/Settings/counterModel");
-const ApiError = require("../../../utils/apiError");
+const financialFundsModel = require("../../../../models/Accounting/CurrentAssets/financialFundsModel");
+const paymentModel = require("../../../../models/paymentModel");
+const reportsFinancialFunds = require("../../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
+const salesPointModel = require("../../../../models/salesPointModel");
+const counterModel = require("../../../../models/Settings/counterModel");
+const ApiError = require("../../../../utils/apiError");
 
 exports.findAllFundAndBankService = async ({ req, companyId }) => {
   let query = { archives: { $ne: false }, companyId };
@@ -41,7 +41,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
         companyId,
       },
     ],
-    { session },
+    { session }
   );
 
   return { fundAndBank: fundAndBank[0] };
@@ -82,7 +82,7 @@ exports.updateFundAndBankService = async ({ req, companyId, session }) => {
         companyId,
       },
       req.body,
-      { new: true },
+      { new: true }
     )
     .session(session);
 
@@ -141,7 +141,7 @@ exports.cashTransferService = async ({ req, companyId, session }) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   const dateAndTime = `${req.body.date}T${formattedDate}Z`;
@@ -182,7 +182,7 @@ exports.cashTransferService = async ({ req, companyId, session }) => {
   const counter = await counterModel.findOneAndUpdate(
     { companyId, name: "Payment" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session },
+    { new: true, upsert: true, session }
   );
 
   const payment = await paymentModel.create(
@@ -225,7 +225,7 @@ exports.cashTransferService = async ({ req, companyId, session }) => {
         counter: counter.seq,
       },
     ],
-    { session },
+    { session }
   );
 
   const paymentId = payment[0]._id;
@@ -260,7 +260,7 @@ exports.cashTransferService = async ({ req, companyId, session }) => {
         companyId,
       },
     ],
-    { session },
+    { session }
   );
 
   return payment[0];
@@ -288,7 +288,7 @@ exports.getFundAndBankForSalesPointService = async ({
           path: "fundCurrency",
           select: "_id currencyCode currencyName exchangeRate",
         });
-    }),
+    })
   );
 
   return funds;

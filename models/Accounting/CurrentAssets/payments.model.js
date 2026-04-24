@@ -1,143 +1,129 @@
 const mongoose = require("mongoose");
 
+const PARTY_TYPES = ["supplier", "customer", "employee"];
+const DOCUMENT_TYPES = [
+  "purchase_invoice",
+  "sales_invoice",
+  "opening_balance",
+  "advance",
+  "refund",
+  "other",
+];
+
 const PaymentSchema = new mongoose.Schema(
   {
-    source: {
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    counter: {
+      type: String,
+      default: "0",
+    },
+
+    party: {
       id: String,
       name: String,
+      type: {
+        type: String,
+        enum: PARTY_TYPES,
+      },
     },
-    sourceType: {
+
+    fund: {
+      id: String,
+      name: String,
+      currencyId: String,
+      currencyCode: String,
+      exchangeRate: {
+        type: Number,
+        default: 1,
+      },
+    },
+
+    paymentNature: {
       type: String,
-      enum: ["supplier", "customer", "fund", "account"],
+      enum: ["incoming", "outgoing", "transfer"],
       required: true,
     },
 
-    destination: {
-      id: String,
-      name: String,
+    payment: {
+      amount: {
+        type: Number,
+        default: 0,
+      },
+      currencyId: String,
+      currencyCode: String,
+      exchangeRate: {
+        type: Number,
+        default: 1,
+      },
+      amountMainCurrency: {
+        type: Number,
+        default: 0,
+      },
     },
-    destinationType: {
+
+    date: Date,
+
+    description: {
       type: String,
-      enum: ["supplier", "customer", "fund", "account"],
-      required: true,
+      default: "",
     },
 
-    paymentCurrency: {
-      id: String,
-      code: String,
-      name: String,
-      exchangeRate: Number,
+    journalCounter: {
+      type: String,
+      default: "",
     },
 
-    sourceCurrency: {
-      id: String,
-      code: String,
-      name: String,
-      exchangeRate: Number,
+    file: {
+      type: String,
+      default: "",
     },
 
-    destinationCurrency: {
-      id: String,
-      code: String,
-      name: String,
-      exchangeRate: Number,
-    },
-
-    amountInPaymentCurrency: {
-      type: Number,
-      default: 0,
-    },
-
-    amountInMainCurrency: {
-      type: Number,
-      default: 0,
-    },
-
-    amountInSourceCurrency: {
-      type: Number,
-      default: 0,
-    },
-
-    amountInDestinationCurrency: {
-      type: Number,
-      default: 0,
+    sync: {
+      type: Boolean,
+      default: false,
     },
 
     allocations: [
       {
-        refId: String,
-        refType: {
+        documentId: String,
+        documentType: {
           type: String,
-          enum: [
-            "purchase_invoice",
-            "sales_invoice",
-            "opening_balance",
-            "advance",
-            "refund",
-            "other",
-          ],
+          enum: DOCUMENT_TYPES,
         },
-        refName: String,
-
+        documentName: String,
+        documentCounter: String,
         documentCurrencyCode: String,
-        documentExchangeRate: Number,
-        paymentExchangeRate: Number,
 
-        documentTotal: Number,
-        documentRemainingBefore: Number,
-        documentRemainingAfter: Number,
-
-        appliedAmountInDocumentCurrency: Number,
-        appliedAmountInPaymentCurrency: Number,
-        appliedAmountInMainCurrency: Number,
-
-        fxDifference: {
+        allocatedAmountMainCurrency: {
           type: Number,
           default: 0,
         },
-        fxType: {
-          type: String,
-          enum: ["gain", "loss", null],
-          default: null,
+
+        allocatedAmountDocumentCurrency: {
+          type: Number,
+          default: 0,
+        },
+
+        documentTotal: {
+          type: Number,
+          default: 0,
         },
 
         _id: false,
       },
     ],
 
-    unallocatedAmountInPaymentCurrency: {
-      type: Number,
-      default: 0,
-    },
-
-    unallocatedAmountInMainCurrency: {
-      type: Number,
-      default: 0,
-    },
-
-    paymentType: {
-      type: String,
-      enum: ["inflow", "outflow", "transfer"],
-      required: true,
-    },
-
-    journalCounter: String,
-    description: String,
-    date: String,
-    file: String,
-
-    status: {
-      type: String,
-      enum: ["draft", "posted", "cancelled"],
-      default: "posted",
-      index: true,
-    },
-
     postedBy: {
       type: mongoose.Schema.ObjectId,
       ref: "Employee",
       default: null,
     },
+
     postedAt: {
       type: Date,
       default: null,
@@ -148,34 +134,20 @@ const PaymentSchema = new mongoose.Schema(
       ref: "Employee",
       default: null,
     },
+
     cancelledAt: {
       type: Date,
       default: null,
     },
+
     cancellationReason: {
       type: String,
       default: "",
     },
 
-    counter: {
-      type: String,
-      default: "0",
-    },
-
-    audited: {
+    auditing: {
       type: Boolean,
       default: false,
-    },
-
-    sync: {
-      type: Boolean,
-      default: false,
-    },
-
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
     },
   },
   { timestamps: true }
@@ -183,4 +155,4 @@ const PaymentSchema = new mongoose.Schema(
 
 PaymentSchema.index({ counter: 1, companyId: 1 }, { unique: true });
 
-module.exports = mongoose.model("Payments", PaymentSchema);
+module.exports = mongoose.model("Payment", PaymentSchema);

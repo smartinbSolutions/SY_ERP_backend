@@ -18,10 +18,10 @@ const { createProductBatch } = require("../../productBatchServices");
 // ===== Models =====
 const PurchaseInvoicesModel = require("../../../models/purchaseinvoicesModel");
 const suppliersModel = require("../../../models/suppliersModel");
-const financialFundsModel = require("../../../models/financialFundsModel");
+const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const productModel = require("../../../models/productModel");
 const PaymentModel = require("../../../models/paymentModel");
-const reportsFinancialFunds = require("../../../models/reportsFinancialFunds");
+const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceModel");
 const paymentHistoryModel = require("../../../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");

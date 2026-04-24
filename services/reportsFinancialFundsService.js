@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
-const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
-const financialFundsSchema = require("../models/financialFundsModel");
+const ReportsFinancialFundsModel = require("../models/Accounting/CurrentAssets/reportsFinancialFunds");
+const financialFundsSchema = require("../models/Accounting/CurrentAssets/financialFundsModel");
 
 //get all financial funds reports
 exports.getReportsFinancialFunds = asyncHandler(async (req, res, next) => {

@@ -8,7 +8,7 @@ const {
   updateFundAndBank,
   cashTransfer,
   getFundAndBankForSalesPoint,
-} = require("../../../controllers/Accounting/Cash/FundAndBank.controller");
+} = require("../../../controllers/Accounting/CurrentAssets/FundAndBank.controller");
 
 const FundAndBank = express.Router();
 
@@ -20,11 +20,11 @@ FundAndBank.route("/")
 
 FundAndBank.route("/trans/:id").put(
   authService.checkCompanyEditable,
-  cashTransfer,
+  cashTransfer
 );
 FundAndBank.route("/sales-point/:id").get(
   authService.checkCompanyEditable,
-  getFundAndBankForSalesPoint,
+  getFundAndBankForSalesPoint
 );
 
 FundAndBank.route("/:id")

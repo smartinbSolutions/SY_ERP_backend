@@ -3,8 +3,8 @@ const SalaryHistoryModel = require("../../models/Hr/salaryHistoryModel");
 const StaffSchema = require("../../models/Hr/staffModel");
 const ApiError = require("../../utils/apiError");
 const { default: mongoose } = require("mongoose");
-const FinancialFundsModel = require("../../models/financialFundsModel");
-const reportsFinancialFundsSchema = require("../../models/reportsFinancialFunds");
+const FinancialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
+const reportsFinancialFundsSchema = require("../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const currencySchema = require("../../models/currencyModel");
 
 exports.getSalaryHistories = asyncHandler(async (req, res, next) => {

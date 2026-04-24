@@ -6,11 +6,11 @@ const suppliersModel = require("../models/suppliersModel");
 const purchaseinvoicesModel = require("../models/purchaseinvoicesModel");
 const accountingTreeModel = require("../models/accountingTreeModel");
 const customarModel = require("../models/customarModel");
-const financialFundsModel = require("../models/financialFundsModel");
+const financialFundsModel = require("../models/Accounting/CurrentAssets/financialFundsModel");
 const paymentModel = require("../models/paymentModel");
 const salesrModel = require("../models/orderModel");
 const expensesModel = require("../models/expensesModel");
-const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
+const ReportsFinancialFundsModel = require("../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
 const RefundPurchaseInvoicesModel = require("../models/refundPurchaseInviceModel");
 const staffModel = require("../models/Hr/staffModel");
@@ -58,7 +58,7 @@ const financailSource = async (
   paymentInFundCurrency,
   paymentId,
   req,
-  ref = "",
+  ref = ""
 ) => {
   console.log("destinationType", destinationType);
   console.log("destination", destination);
@@ -81,7 +81,7 @@ const financailSource = async (
       await suppliersModel.findOneAndUpdate(
         { _id: destination.id, companyId },
         { $inc: { TotalUnpaid: -amount } },
-        { new: true },
+        { new: true }
       );
       await createPaymentHistory(
         "payment",
@@ -96,13 +96,13 @@ const financailSource = async (
         paymentId,
         req.body.isWithDraw === true ? "Withdrawal" : "Deposit",
         "",
-        req.body.destinationCurrencyCode,
+        req.body.destinationCurrencyCode
       );
     } else if (destinationType === "customer") {
       await customarModel.findOneAndUpdate(
         { _id: destination.id, companyId },
         { $inc: { TotalUnpaid: amount } },
-        { new: true },
+        { new: true }
       );
       await createPaymentHistory(
         "payment",
@@ -117,7 +117,7 @@ const financailSource = async (
         paymentId,
         req.body.isWithDraw === true ? "Withdrawal" : "Deposit",
         "",
-        req.body.destinationCurrencyCode,
+        req.body.destinationCurrencyCode
       );
     } else if (destinationType === "account") {
       const account = await accountingTreeModel.findOne({
@@ -129,7 +129,7 @@ const financailSource = async (
       const financialFunds = await financialFundsModel.findOneAndUpdate(
         { _id: destination.id, companyId },
         { $inc: { fundBalance: fund } },
-        { new: true },
+        { new: true }
       );
       console.log("financialFunds", financialFunds);
       await ReportsFinancialFundsModel.create({
@@ -168,7 +168,7 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
   const date_ob = new Date(date);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   const isoDate = `${req.body.date}T${formattedDate}Z`;
@@ -218,7 +218,7 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
       const refundPurchasePayment = await handleRefundPurchasePayment(
         req,
         companyId,
-        next,
+        next
       );
       return res.status(201).json({
         message: "Refund Purchase payment created successfully",
@@ -246,7 +246,7 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
       const refundSalesPayment = await handleRefundSalesPayment(
         req,
         companyId,
-        next,
+        next
       );
       return res.status(201).json({
         message: "Refund Sales payment created successfully",
@@ -299,7 +299,7 @@ const handleSupplierPayment = async (req, companyId, next) => {
 
       const paymentAmount = Math.min(
         purchase.totalRemainderMainCurrency,
-        remainingPayment,
+        remainingPayment
       );
 
       const currencyRate = purchase?.currency?.exchangeRate || 1;
@@ -363,7 +363,7 @@ const handleSupplierPayment = async (req, companyId, next) => {
 
       const expenseAmount = Math.min(
         expense.totalRemainderMainCurrency,
-        remainingPayment,
+        remainingPayment
       );
       const exRate = expense?.currency?.exchangeRate || 1;
 
@@ -432,7 +432,7 @@ const handleSupplierPayment = async (req, companyId, next) => {
       payment.id,
       req.body.paymentType,
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -442,7 +442,7 @@ const handleSupplierPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -522,7 +522,7 @@ const handlePurchasePayment = async (req, companyId, next) => {
       req.user._id,
       date,
       `${paymentInFundCurrency} ${destinationCurrencyCode}`,
-      "invoice",
+      "invoice"
     );
 
     await supplier.save();
@@ -541,7 +541,7 @@ const handlePurchasePayment = async (req, companyId, next) => {
       payment.id,
       "Withdrawal",
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -552,7 +552,7 @@ const handlePurchasePayment = async (req, companyId, next) => {
       paymentInFundCurrency,
       payment._id,
       req,
-      purchase._id,
+      purchase._id
     );
     return payment;
   } catch (err) {
@@ -630,7 +630,7 @@ const handleRefundPurchasePayment = async (req, companyId, next) => {
       req.user._id,
       date,
       `${paymentInFundCurrency} ${destinationCurrencyCode}`,
-      "invoice",
+      "invoice"
     );
 
     await supplier.save();
@@ -649,7 +649,7 @@ const handleRefundPurchasePayment = async (req, companyId, next) => {
       payment.id,
       "Deposit",
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -659,7 +659,7 @@ const handleRefundPurchasePayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -703,18 +703,18 @@ const handleCustomerPayment = async (req, companyId, next) => {
       .map((sale) => {
         const paymentAmount = Math.min(
           sale.totalRemainderMainCurrency,
-          remainingPayment,
+          remainingPayment
         );
         if (paymentAmount === 0) return null;
         const newTotalRemainderMainCurrency = parseFloat(
-          (sale.totalRemainderMainCurrency - paymentAmount).toFixed(2),
+          (sale.totalRemainderMainCurrency - paymentAmount).toFixed(2)
         );
 
         const newTotalRemainder = parseFloat(
           (
             sale.totalRemainder -
             paymentAmount * sale.currencyExchangeRate
-          ).toFixed(2),
+          ).toFixed(2)
         );
 
         const updateObj = {
@@ -800,7 +800,7 @@ const handleCustomerPayment = async (req, companyId, next) => {
       payment.id,
       paymentType,
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -810,7 +810,7 @@ const handleCustomerPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -890,7 +890,7 @@ const handleSalesPayment = async (req, companyId, next) => {
       req.user._id,
       date,
       `${paymentInFundCurrency} ${paymentCurrency}`,
-      "invoice",
+      "invoice"
     );
 
     await customar.save();
@@ -909,7 +909,7 @@ const handleSalesPayment = async (req, companyId, next) => {
       payment.id,
       "Deposit",
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
 
     await financailSource(
@@ -920,7 +920,7 @@ const handleSalesPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -1000,7 +1000,7 @@ const handleRefundSalesPayment = async (req, companyId, next) => {
       req.user._id,
       date,
       `${paymentInFundCurrency} ${paymentCurrency}`,
-      "invoice",
+      "invoice"
     );
 
     await customar.save();
@@ -1019,7 +1019,7 @@ const handleRefundSalesPayment = async (req, companyId, next) => {
       payment.id,
       "Deposit",
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -1029,7 +1029,7 @@ const handleRefundSalesPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -1107,7 +1107,7 @@ const handleExpensePayment = async (req, companyId, next) => {
       req.user._id,
       date,
       `${paymentInFundCurrency} ${destinationCurrencyCode}`,
-      "invoice",
+      "invoice"
     );
 
     await supplier.save();
@@ -1126,7 +1126,7 @@ const handleExpensePayment = async (req, companyId, next) => {
       payment.id,
       "Deposit",
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -1136,7 +1136,7 @@ const handleExpensePayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -1199,7 +1199,7 @@ const handleSalaryPayment = async (req, companyId, next) => {
       payment.id,
       req.body.paymentText,
       "",
-      destinationCurrencyCode,
+      destinationCurrencyCode
     );
     await financailSource(
       destinationType,
@@ -1209,7 +1209,7 @@ const handleSalaryPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -1242,7 +1242,7 @@ const handleAccountPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -1271,7 +1271,7 @@ const handleFundPayment = async (req, companyId, next) => {
         companyId,
       },
       { $inc: { fundBalance: -totalInPaymentCurrency } },
-      { new: true },
+      { new: true }
     );
     payment = await paymentModel.create(req.body);
 
@@ -1296,7 +1296,7 @@ const handleFundPayment = async (req, companyId, next) => {
       next,
       paymentInFundCurrency,
       payment._id,
-      req,
+      req
     );
     return payment;
   } catch (err) {
@@ -1489,7 +1489,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
               item.paymentMainCurrency || 0;
             purchase.totalRemainder += item.paymentInInvoiceCurrency || 0;
             purchase.payments = purchase.payments.filter(
-              (p) => p.paymentID.toString() !== payment._id.toString(),
+              (p) => p.paymentID.toString() !== payment._id.toString()
             );
             await purchase.save();
           }
@@ -1502,7 +1502,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
             expense.totalRemainderMainCurrency += item.paymentMainCurrency || 0;
             expense.totalRemainder += item.paymentInInvoiceCurrency || 0;
             expense.payments = expense.payments.filter(
-              (p) => p.paymentID.toString() !== payment._id.toString(),
+              (p) => p.paymentID.toString() !== payment._id.toString()
             );
             await expense.save();
           }
@@ -1510,7 +1510,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
 
         case "refundPurchase":
           const refundPurchase = await RefundPurchaseInvoicesModel.findById(
-            item.id,
+            item.id
           );
           if (refundPurchase) {
             refundPurchase.paid = "unpaid";
@@ -1518,7 +1518,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
               item.paymentMainCurrency || 0;
             refundPurchase.totalRemainder += item.paymentInInvoiceCurrency || 0;
             refundPurchase.payments = refundPurchase.payments.filter(
-              (p) => p.paymentID.toString() !== payment._id.toString(),
+              (p) => p.paymentID.toString() !== payment._id.toString()
             );
             await refundPurchase.save();
           }
@@ -1531,7 +1531,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
             sale.totalRemainderMainCurrency += item.paymentMainCurrency || 0;
             sale.totalRemainder += item.paymentInInvoiceCurrency || 0;
             sale.payments = sale.payments.filter(
-              (p) => p.paymentID.toString() !== payment._id.toString(),
+              (p) => p.paymentID.toString() !== payment._id.toString()
             );
             await sale.save();
           }
@@ -1544,7 +1544,7 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
               item.paymentMainCurrency || 0;
             refundSale.totalRemainder += item.paymentInInvoiceCurrency || 0;
             refundSale.payments = refundSale.payments.filter(
-              (p) => p.paymentID.toString() !== payment._id.toString(),
+              (p) => p.paymentID.toString() !== payment._id.toString()
             );
             await refundSale.save();
           }
@@ -1577,28 +1577,28 @@ exports.deletePayment = asyncHandler(async (req, res, next) => {
       await updateSupplier(
         payment.paymentType === "Deposit"
           ? -payment.paymentInDestinationCurrency
-          : payment.paymentInDestinationCurrency,
+          : payment.paymentInDestinationCurrency
       );
       break;
     case "customer":
       await updateCustomer(
         payment.paymentType === "Deposit"
           ? payment.paymentInDestinationCurrency
-          : -payment.paymentInDestinationCurrency,
+          : -payment.paymentInDestinationCurrency
       );
       break;
     case "account":
       await updateAccount(
         payment.paymentType === "Deposit"
           ? payment.paymentInDestinationCurrency
-          : -payment.paymentInDestinationCurrency,
+          : -payment.paymentInDestinationCurrency
       );
       break;
     case "fund":
       await updateFund(
         payment.paymentType === "Deposit"
           ? payment.paymentInDestinationCurrency
-          : -payment.paymentInDestinationCurrency,
+          : -payment.paymentInDestinationCurrency
       );
       break;
   }
@@ -1644,7 +1644,7 @@ exports.deletePaymentTransferFund = asyncHandler(async (req, res, next) => {
               : -report.amount,
         },
       },
-      { new: true },
+      { new: true }
     );
   });
 

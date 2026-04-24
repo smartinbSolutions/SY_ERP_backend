@@ -9,7 +9,7 @@ const {
   updateFundAndBankService,
   cashTransferService,
   getFundAndBankForSalesPointService,
-} = require("../../../services/Accounting/Cash/FundAndBanck.service");
+} = require("../../../services/Accounting/CurrentAssets/Funds/FundAndBanck.service");
 const { session } = require("passport");
 const counterModel = require("../../../models/Settings/counterModel");
 

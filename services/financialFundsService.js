@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
-const FinancialFundsModel = require("../models/financialFundsModel");
-const ReportsFinancialFundsModel = require("../models/reportsFinancialFunds");
+const FinancialFundsModel = require("../models/Accounting/CurrentAssets/financialFundsModel");
+const ReportsFinancialFundsModel = require("../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const SalesPointModel = require("../models/salesPointModel");
 const paymentModel = require("../models/paymentModel");
 

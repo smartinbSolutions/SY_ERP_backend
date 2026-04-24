@@ -11,7 +11,7 @@ const ApiError = require("../../utils/apiError");
 const { PaymentService } = require("./paymentService");
 const UserModel = require("../../models/ecommerce/E_user_Modal");
 const orderModel = require("../../models/orderModel");
-const financialFundsSchema = require("../../models/financialFundsModel");
+const financialFundsSchema = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const { createProductMovement } = require("../../utils/productMovement");
 const { default: axios } = require("axios");
 
@@ -325,7 +325,8 @@ exports.findAllOrderforCustomer = asyncHandler(async (req, res, next) => {
 
 exports.findAllOrders = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  if (!companyId) return res.status(400).json({ message: "companyId is required" });
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is required" });
 
   const pageSize = parseInt(req.query.limit, 10) || 25;
   const page = parseInt(req.query.page, 10) || 1;
@@ -497,8 +498,14 @@ exports.findAllOrders = asyncHandler(async (req, res, next) => {
               { case: buildStatusStage("shipped"), then: "shipped" },
               { case: buildStatusStage("cancelled"), then: "cancelled" },
               { case: buildStatusStage("returned"), then: "returned" },
-              { case: buildStatusStage("cancelrequest"), then: "cancelrequest" },
-              { case: buildStatusStage("returnrequest"), then: "returnrequest" },
+              {
+                case: buildStatusStage("cancelrequest"),
+                then: "cancelrequest",
+              },
+              {
+                case: buildStatusStage("returnrequest"),
+                then: "returnrequest",
+              },
               { case: buildStatusStage("approved"), then: "approved" },
             ],
             default: "progress",

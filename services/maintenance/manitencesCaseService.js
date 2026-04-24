@@ -5,11 +5,11 @@ const manitencesCaseModel = require("../../models/maintenance/manitencesCaseMode
 const manitUserModel = require("../../models/maintenance/manitenaceUserModel");
 const deviceModel = require("../../models/maintenance/devicesModel");
 const caseHistoryModel = require("../../models/maintenance/caseHistoryModel");
-const reportsFinancialFundsSchema = require("../../models/reportsFinancialFunds");
+const reportsFinancialFundsSchema = require("../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const orderModel = require("../../models/orderModel");
 const productModel = require("../../models/productModel");
 const stockSchema = require("../../models/stockModel");
-const FinancialFundsModel = require("../../models/financialFundsModel");
+const FinancialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const { createInvoiceHistory } = require("../invoiceHistoryService");
 const { createProductMovement } = require("../../utils/productMovement");
 
