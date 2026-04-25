@@ -9,17 +9,19 @@ const {
   updateSubTask,
 } = require("../../controllers/Hr/subtask.controller");
 
+const hrAuthServices = require("../../services/Hr/hrAuthServices");
+
 const subTaskRoute = express.Router();
 
 subTaskRoute
   .route("/")
-  .get(authService.protect, getAllSubTasks)
-  .post(authService.protect, createSubTask);
+  .get(hrAuthServices.protectStaffOrERP, getAllSubTasks)
+  .post(hrAuthServices.protectStaffOrERP, createSubTask);
 
 subTaskRoute
   .route("/:id")
-  .get(authService.protect, getSubTaskById)
-  .put(authService.protect, updateSubTask)
-  .delete(authService.protect, deleteSubTask);
+  .get(hrAuthServices.protectStaffOrERP, getSubTaskById)
+  .put(hrAuthServices.protectStaffOrERP, updateSubTask)
+  .delete(hrAuthServices.protectStaffOrERP, deleteSubTask);
 
 module.exports = subTaskRoute;

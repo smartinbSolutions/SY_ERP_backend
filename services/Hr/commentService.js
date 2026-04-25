@@ -23,7 +23,7 @@ exports.getComments = async (filter) => {
   if (filter.subTaskId) query.subTask = filter.subTaskId;
 
   const comments = await Comment.find(query)
-    .populate("createdBy", "name email")
+    .populate("createdBy", "fullName email")
     .sort({ createdAt: -1 });
 
   return comments;

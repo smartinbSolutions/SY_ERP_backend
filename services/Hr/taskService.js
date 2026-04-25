@@ -1,3 +1,4 @@
+const subTaskModel = require("../../models/Hr/subTaskModel");
 const Task = require("../../models/Hr/taskModel");
 
 exports.createTask = async (data, userId) => {
@@ -19,12 +20,44 @@ exports.getTaskById = async (taskId) => {
   return task;
 };
 
-exports.getAllTasks = async () => {
-  const tasks = await Task.find()
+exports.getAllTasks = async (req) => {
+  const { type, includeSubTasks } = req.query;
+
+  const userId = req.user._id;
+
+  let filter = { isArchived: false };
+
+  if (type === "my") filter.assignedTo = userId;
+  if (type === "team") filter.createdBy = userId;
+
+  let query = Task.find(filter)
     .populate("assignedTo", "name email")
     .populate("createdBy", "name");
 
-  return tasks;
+  const tasks = await query;
+
+  // if (includeSubTasks === "true") {
+    const taskIds = tasks.map(t => t._id);
+
+    const subTasks = await subTaskModel.find({
+      task: { $in: taskIds }
+    }).lean();
+
+    const map = {};
+
+    subTasks.forEach(st => {
+      const key = st.task.toString();
+      if (!map[key]) map[key] = [];
+      map[key].push(st);
+    });
+
+    return tasks.map(task => ({
+      ...task.toObject(),
+      subTasks: map[task._id.toString()] || []
+    }));
+  // }
+
+  // return tasks;
 };
 
 exports.updateTask = async (taskId, data) => {

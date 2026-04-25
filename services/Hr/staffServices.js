@@ -169,6 +169,10 @@ exports.getStaff = asyncHandler(async (req, res) => {
     query.position = req.query.position;
   }
 
+  if (req.query.directManager) {
+    query.directManager = req.query.directManager;
+  }
+
   const totalItems = await StaffsModel.countDocuments(query);
 
   const staffs = await StaffsModel.find(query)

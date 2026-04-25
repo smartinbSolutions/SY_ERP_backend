@@ -127,6 +127,10 @@ const FundTransfer = require("./Accounting/CurrentAssets/fundTransfer.route");
 const BatchLedger = require("./Stocks/Batch/BatchLedger.route");
 const actionExecutionRoute = require("./Hr/actionExecutionRoute");
 const violationLogRoute = require("./Hr/violationLogRoute");
+const WorkspaceRoute = require("./Tasks/workspace.routes");
+const FolderRoute = require("./Tasks/folder.routes");
+const ListRoute = require("./Tasks/list.routes");
+
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -245,6 +249,11 @@ const mountRoutes = (app) => {
   app.use("/api/action-execution", actionExecutionRoute);
   app.use("/api/violation-logs", violationLogRoute);
 
+  
+  //task
+  app.use("/api/workspace", WorkspaceRoute);
+  app.use("/api/folder", FolderRoute);
+  app.use("/api/list", ListRoute);
   //Payment
   app.use("/api", paytrRouter);
 

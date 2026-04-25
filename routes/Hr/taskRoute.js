@@ -20,8 +20,8 @@ taskRoute
 
 taskRoute
   .route("/:id")
-  .get(authService.protect, getOneTask)
-  .put(authService.protect, updateTask)
-  .delete(authService.protect, deleteTask);
+  .get(hrAuthServices.protectStaffOrERP, getOneTask)
+  .patch(hrAuthServices.protectStaffOrERP, updateTask)
+  .delete(hrAuthServices.protectStaffOrERP, deleteTask);
 
 module.exports = taskRoute;

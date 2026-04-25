@@ -1,24 +1,34 @@
 const express = require("express");
+const multer = require("multer");
 
-const authService = require("../../services/authService");
 const {
   deleteAttachment,
   getAttachmentById,
   getAttachments,
   uploadAttachment,
-
 } = require("../../controllers/Hr/attachment.controller");
+
+const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
 const attachmentRoute = express.Router();
 
+// multer setup
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
+
 attachmentRoute
   .route("/")
-  .get(authService.protect, getAttachments)
-  .post(authService.protect, uploadAttachment);
+  .get(hrAuthServices.protectStaffOrERP, getAttachments)
+  .post(
+    hrAuthServices.protectStaffOrERP,
+    upload.single("file"), 
+    uploadAttachment
+  );
 
 attachmentRoute
   .route("/:id")
-  .get(authService.protect, getAttachmentById)
-  .delete(authService.protect, deleteAttachment);
+  .get(hrAuthServices.protectStaffOrERP, getAttachmentById)
+  .delete(hrAuthServices.protectStaffOrERP, deleteAttachment);
 
 module.exports = attachmentRoute;

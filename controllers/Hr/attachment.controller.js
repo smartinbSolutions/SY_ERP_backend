@@ -6,6 +6,7 @@ const service = require("../../services/Hr/attachmentService");
 exports.uploadAttachment = asyncHandler(async (req, res, next) => {
   try {
     if (!req.user) return next(new ApiError("Not logged in", 401));
+console.log(req.file);
 
     const attachment = await service.uploadAttachment(
       req.file,

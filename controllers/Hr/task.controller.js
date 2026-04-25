@@ -34,7 +34,7 @@ exports.getOneTask = async (req, res) => {
 // GET ALL TASKS
 exports.getAllTasks = async (req, res) => {
   try {
-    const tasks = await taskService.getAllTasks();
+    const tasks = await taskService.getAllTasks(req);
 
     return res.status(200).json({
       count: tasks.length,
