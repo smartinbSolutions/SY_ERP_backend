@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const ApiError = require("../../utils/apiError");
-const leavesModel = require("../../models/Hr/leavesModel");
+const ApiError = require("../../../utils/apiError");
+const leavesModel = require("../../../models/Hr/Leaves/leavesModel");
 const { default: mongoose } = require("mongoose");
 
 // @desc    Get all leaves

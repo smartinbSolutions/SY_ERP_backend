@@ -6,6 +6,7 @@ const {
   getAttachmentById,
   getAttachments,
   uploadAttachment,
+
 } = require("../../controllers/Hr/attachment.controller");
 
 const attachmentRoute = express.Router();

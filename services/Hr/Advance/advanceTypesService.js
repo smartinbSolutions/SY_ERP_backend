@@ -1,4 +1,4 @@
-const AdvanceType = require("../../models/Hr/advanceTypesModel");
+const AdvanceType = require("../../../models/Hr/Advance/advanceTypesModel");
 const { default: mongoose } = require("mongoose");
 
 exports.createAdvanceType = async (data) => {

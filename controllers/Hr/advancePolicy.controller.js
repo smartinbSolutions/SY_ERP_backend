@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const ApiError = require("../../utils/apiError");
-const service = require("../../services/Hr/advancePolicyService");
+const service = require("../../services/Hr/Advance/advancePolicyService");
 
 // ================= GET ALL =================
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {

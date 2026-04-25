@@ -1,9 +1,9 @@
 const express = require("express");
-const authService = require("../../services/Hr/hrAuthServices");
+const authService = require("../../../services/Hr/hrAuthServices");
 const {
   getAllAdvanceLogs,
   getMyAdvanceLogs,
-} = require("../../controllers/Hr/advanceLogs.controller");
+} = require("../../../controllers/Hr/advanceLogs.controller");
 
 const advanceLogRoute = express.Router();
 

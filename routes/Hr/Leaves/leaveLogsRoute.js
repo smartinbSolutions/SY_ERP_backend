@@ -1,9 +1,9 @@
 const express = require("express");
-const authService = require("../../services/Hr/hrAuthServices");
+const authService = require("../../../services/Hr/hrAuthServices");
 const {
   getAllLeaveLogs,
   getMyLeaveLogs,
-} = require("../../services/Hr/leaveLogsService");
+} = require("../../../services/Hr/Leaves/leaveLogsService");
 
 const leaveLogRoute = express.Router();
 

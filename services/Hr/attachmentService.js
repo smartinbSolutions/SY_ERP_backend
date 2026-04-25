@@ -11,7 +11,6 @@ exports.uploadAttachment = async (file, body, userId) => {
     throw new Error("Attachment must belong to a task or subtask");
   }
 
-  // 📁 ensure folder exists
   const folder = "uploads/taskAttachments";
   await fs.promises.mkdir(folder, { recursive: true });
 

@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const ApiError = require("../../utils/apiError");
-const OvertimeType = require("../../models/Hr/overtimeTypesModel");
+const ApiError = require("../../../utils/apiError");
+const OvertimeType = require("../../../models/Hr/Overtime/overtimeTypesModel");
 const { default: mongoose } = require("mongoose");
 
 // @desc    Get all overtime types

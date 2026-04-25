@@ -1,12 +1,12 @@
 const express = require("express");
-const authService = require("../../services/authService");
+const authService = require("../../../services/authService");
 const {
   createPolicy,
   deletePolicy,
   getAllPolicies,
   getOnePolicy,
   updatePolicy,
-} = require("../../services/Hr/overtimePolicyService");
+} = require("../../../services/Hr/Overtime/overtimePolicyService");
 
 const overtimePolicyRoute = express.Router();
 

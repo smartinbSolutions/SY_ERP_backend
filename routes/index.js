@@ -95,19 +95,19 @@ const sharePurchaseRequestRoute = require("./investment/sharePurchaseRequestRout
 const productBatchRoute = require("./productBatchRoute");
 const filesRoute = require("./Hr/filesRoute");
 const staffFilesRoute = require("./Hr/staffFilesRoute");
-const leavesRoute = require("./Hr/leavesRoute");
+const leavesRoute = require("./Hr/Leaves/leavesRoute");
 const ReconciliationRoute = require("./Stocks/reconciliation/reconciliationRoute");
-const leaveRequestRoutes = require("./Hr/leaveRequestRoutes");
-const leavesPolicyRoute = require("./Hr/leavesPolicyRoute");
-const leaveLogsRoute = require("./Hr/leaveLogsRoute");
-const overtimeTypesRoute = require("./Hr/overtimeTypeRoute");
-const overtimePolicyRoute = require("./Hr/overtimePolicyRoute");
-const overtimeRequestRoute = require("./Hr/overtimeRequestRoute");
-const overtimeLogsRoute = require("./Hr/overtimeLogsRoute");
-const advanceLogsRoute = require("./Hr/advanceLogsRoute");
-const advancePolicyRoute = require("./Hr/advancePolicyRoute");
-const advanceRequestRoute = require("./Hr/advanceRequestRoute");
-const advanceTypesRoute = require("./Hr/advanceTypesRoute");
+const leaveRequestRoutes = require("./Hr/Leaves/leaveRequestRoutes");
+const leavesPolicyRoute = require("./Hr/Leaves/leavesPolicyRoute");
+const leaveLogsRoute = require("./Hr/Leaves/leaveLogsRoute");
+const overtimeTypesRoute = require("./Hr/Overtime/overtimeTypeRoute");
+const overtimePolicyRoute = require("./Hr/Overtime/overtimePolicyRoute");
+const overtimeRequestRoute = require("./Hr/Overtime/overtimeRequestRoute");
+const overtimeLogsRoute = require("./Hr/Overtime/overtimeLogsRoute");
+const advanceLogsRoute = require("./Hr/Advance/advanceLogsRoute");
+const advancePolicyRoute = require("./Hr/Advance/advancePolicyRoute");
+const advanceRequestRoute = require("./Hr/Advance/advanceRequestRoute");
+const advanceTypesRoute = require("./Hr/Advance/advanceTypesRoute");
 const approvalFlowRoute = require("./Hr/approvalFlowRoute");
 const manufacturingRoute = require("./manufacturing/manufacturingRoute");
 const noticesRoute = require("./Hr/notificationRoute");
@@ -125,6 +125,8 @@ const RefundSalesInvoices = require("./Accounting/Sales/refundSalesIvoice.route"
 const FundAndBank = require("./Accounting/CurrentAssets/fundAndBank.route");
 const FundTransfer = require("./Accounting/CurrentAssets/fundTransfer.route");
 const BatchLedger = require("./Stocks/Batch/BatchLedger.route");
+const actionExecutionRoute = require("./Hr/actionExecutionRoute");
+const violationLogRoute = require("./Hr/violationLogRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -240,6 +242,8 @@ const mountRoutes = (app) => {
   app.use("/api/subtasks", subtasksRoute);
   app.use("/api/comments", commentRoute);
   app.use("/api/attachments", attachmentRoute);
+  app.use("/api/action-execution", actionExecutionRoute);
+  app.use("/api/violation-logs", violationLogRoute);
 
   //Payment
   app.use("/api", paytrRouter);

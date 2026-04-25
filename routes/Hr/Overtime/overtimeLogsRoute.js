@@ -1,9 +1,9 @@
 const express = require("express");
-const authService = require("../../services/Hr/hrAuthServices");
+const authService = require("../../../services/Hr/hrAuthServices");
 const {
   getAllOvertimeLogs,
   getMyOvertimeLogs,
-} = require("../../services/Hr/overtimeLogsService");
+} = require("../../../services/Hr/Overtime/overtimeLogsService");
 
 const overtimeLogRoute = express.Router();
 

@@ -1,7 +1,7 @@
-const advanceLogsModel = require("../../../models/Hr/advanceLogsModel");
+const advanceLogsModel = require("../../../models/Hr/Advance/advanceLogsModel");
 const fingerprintModel = require("../../../models/Hr/fingerprintModel");
-const leavesLogsModel = require("../../../models/Hr/leavesLogsModel");
-const overtimeLogsModel = require("../../../models/Hr/overtimeLogsModel");
+const leavesLogsModel = require("../../../models/Hr/Leaves/leavesLogsModel");
+const overtimeLogsModel = require("../../../models/Hr/Overtime/overtimeLogsModel");
 const payrollPeriodModel = require("../../../models/Hr/payrollPeriodModel");
 const staffModel = require("../../../models/Hr/staffModel");
 
@@ -43,7 +43,6 @@ const buildPayrollContext = async (periodId) => {
 };
 
 const mongoose = require("mongoose");
-
 
 const getAttendanceData = async (employeeIds, period) => {
   const normalizedEmployeeIds = (employeeIds || [])

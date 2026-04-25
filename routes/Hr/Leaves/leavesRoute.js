@@ -1,6 +1,6 @@
 const express = require("express");
-const authService = require("../../services/authService");
-const staffAuthService = require("../../services/Hr/hrAuthServices");
+const authService = require("../../../services/authService");
+const staffAuthService = require("../../../services/Hr/hrAuthServices");
 
 const {
   createLeave,
@@ -8,7 +8,7 @@ const {
   getAllLeaves,
   getOneLeave,
   updateLeave,
-} = require("../../services/Hr/leavesService");
+} = require("../../../services/Hr/Leaves/leavesService");
 
 const leavesRoute = express.Router();
 

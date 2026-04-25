@@ -10,9 +10,9 @@ const {
   getMyApprovals,
   processAdvanceAttachment,
   uploadAdvanceAttachment,
-} = require("../../controllers/Hr/advanceRequest.controller");
+} = require("../../../controllers/Hr/advanceRequest.controller");
 
-const hrAuthServices = require("../../services/Hr/hrAuthServices");
+const hrAuthServices = require("../../../services/Hr/hrAuthServices");
 
 const advanceRequestRouter = express.Router();
 

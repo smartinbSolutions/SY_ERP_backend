@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const mongoose = require("mongoose");
-const service = require("../../services/Hr/advanceTypesService");
+const service = require("../../services/Hr/Advance/advanceTypesService");
 
 // ================= CREATE =================
 exports.createAdvanceType = asyncHandler(async (req, res, next) => {

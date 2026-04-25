@@ -1,6 +1,6 @@
 const express = require("express");
-const authService = require("../../services/authService");
-const staffAuthService = require("../../services/Hr/hrAuthServices");
+const authService = require("../../../services/authService");
+const staffAuthService = require("../../../services/Hr/hrAuthServices");
 
 const {
   createOvertimeType,
@@ -8,7 +8,7 @@ const {
   getAllOvertimeTypes,
   getOneOvertimeType,
   updateOvertimeType,
-} = require("../../services/Hr/overtimeTypeService");
+} = require("../../../services/Hr/Overtime/overtimeTypeService");
 
 const overtimeTypeRoute = express.Router();
 

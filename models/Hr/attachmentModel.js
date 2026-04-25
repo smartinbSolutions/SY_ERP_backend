@@ -14,7 +14,7 @@ const attachmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
       default: null,
-    }, 
+    },
 
     subTask: {
       type: mongoose.Schema.Types.ObjectId,
@@ -24,7 +24,7 @@ const attachmentSchema = new mongoose.Schema(
 
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "staff",
       required: true,
     },
   },

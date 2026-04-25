@@ -10,9 +10,9 @@ const {
   processLeaveAttachment,
   uploadLeaveAttachment,
   getMyApprovals,
-} = require("../../services/Hr/leaveRequestService");
+} = require("../../../services/Hr/Leaves/leaveRequestService");
 
-const hrAuthServices = require("../../services/Hr/hrAuthServices");
+const hrAuthServices = require("../../../services/Hr/hrAuthServices");
 
 const LeaveRequestRouter = express.Router();
 

@@ -4,10 +4,10 @@ const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const multer = require("multer");
-const service = require("../../services/Hr/advanceRequestService");
+const service = require("../../services/Hr/Advance/advanceRequestService");
 const { default: mongoose } = require("mongoose");
 const staffModel = require("../../models/Hr/staffModel");
-const advanceRequestModel = require("../../models/Hr/advanceRequestModel");
+const advanceRequestModel = require("../../models/Hr/Advance/advanceRequestModel");
 
 // ================= MULTER =================
 const multerStorage = multer.memoryStorage();

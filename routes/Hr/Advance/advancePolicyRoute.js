@@ -1,12 +1,12 @@
 const express = require("express");
-const authService = require("../../services/authService");
+const authService = require("../../../services/authService");
 const {
   createPolicy,
   deletePolicy,
   getAllPolicies,
   getOnePolicy,
   updatePolicy,
-} = require("../../controllers/Hr/advancePolicy.controller");
+} = require("../../../controllers/Hr/advancePolicy.controller");
 
 const advancePolicyRoute = express.Router();
 

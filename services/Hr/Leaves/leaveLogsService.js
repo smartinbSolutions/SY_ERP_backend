@@ -1,7 +1,7 @@
-const leavesLogsModel = require("../../models/Hr/leavesLogsModel");
+const leavesLogsModel = require("../../../models/Hr/Leaves/leavesLogsModel");
 const { default: mongoose } = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const ApiError = require("../../utils/apiError");
+const ApiError = require("../../../utils/apiError");
 
 exports.getMyLeaveLogs = asyncHandler(async (req, res, next) => {
   const logs = await leavesLogsModel

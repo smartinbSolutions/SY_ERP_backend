@@ -1,4 +1,4 @@
-const AdvanceLog = require("../../models/Hr/advanceLogsModel");
+const AdvanceLog = require("../../../models/Hr/Advance/advanceLogsModel");
 
 // ===== USER LOGS =====
 exports.getUserAdvanceLogs = async (userId) => {

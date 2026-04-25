@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
-const ApiError = require("../../utils/apiError");
-const leavesPolicyModel = require("../../models/Hr/leavesPolicyModel");
-const leavesModel = require("../../models/Hr/leavesModel");
+const ApiError = require("../../../utils/apiError");
+const leavesPolicyModel = require("../../../models/Hr/Leaves/leavesPolicyModel");
+const leavesModel = require("../../../models/Hr/Leaves/leavesModel");
 
 // @desc    Get all leave policies
 // @route   GET /api/leaves-policy

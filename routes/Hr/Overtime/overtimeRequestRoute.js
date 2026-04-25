@@ -10,9 +10,9 @@ const {
   updateOvertimeRequest,
   uploadOvertimeAttachment,
   getMyApprovals,
-} = require("../../services/Hr/overtimeRequestService");
+} = require("../../../services/Hr/Overtime/overtimeRequestService");
 
-const hrAuthServices = require("../../services/Hr/hrAuthServices");
+const hrAuthServices = require("../../../services/Hr/hrAuthServices");
 
 const overtimeRequestRouter = express.Router();
 

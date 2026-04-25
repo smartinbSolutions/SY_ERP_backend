@@ -1,6 +1,6 @@
-const AdvancePolicy = require("../../models/Hr/advancePolicyModel");
-const AdvanceType = require("../../models/Hr/advanceTypesModel");
-const ApiError = require("../../utils/apiError");
+const AdvancePolicy = require("../../../models/Hr/Advance/advancePolicyModel");
+const AdvanceType = require("../../../models/Hr/Advance/advanceTypesModel");
+const ApiError = require("../../../utils/apiError");
 const mongoose = require("mongoose");
 
 // ================= GET ALL =================

@@ -1,12 +1,12 @@
 const express = require("express");
-const authService = require("../../services/authService");
+const authService = require("../../../services/authService");
 const {
   createLeavePolicy,
   deleteLeavePolicy,
   getAllLeavePolicies,
   getOneLeavePolicy,
   updateLeavePolicy,
-} = require("../../services/Hr/leavesPolicyService");
+} = require("../../../services/Hr/Leaves/leavesPolicyService");
 
 const leavesPolicyRoute = express.Router();
 

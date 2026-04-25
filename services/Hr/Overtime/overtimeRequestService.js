@@ -1,18 +1,18 @@
-const OvertimeRequest = require("../../models/Hr/overtimeRequestModel");
+const OvertimeRequest = require("../../../models/Hr/Overtime/overtimeRequestModel");
 const asyncHandler = require("express-async-handler");
-const ApiError = require("../../utils/apiError");
+const ApiError = require("../../../utils/apiError");
 const multer = require("multer");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
-const overtimeLogsModel = require("../../models/Hr/overtimeLogsModel");
-const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
-const { handleApproval } = require("./approvalService");
-const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
-const overtimeRequestModel = require("../../models/Hr/overtimeRequestModel");
-const NotificationModel = require("../../models/Hr/NotificationModel");
-const staffModel = require("../../models/Hr/staffModel");
+const overtimeLogsModel = require("../../../models/Hr/Overtime/overtimeLogsModel");
+const approvalFlowModel = require("../../../models/Hr/approvalFlowModel");
+const { handleApproval } = require("../approvalService");
+const overtimeTypesModel = require("../../../models/Hr/Overtime/overtimeTypesModel");
+const overtimeRequestModel = require("../../../models/Hr/Overtime/overtimeRequestModel");
+const NotificationModel = require("../../../models/Hr/NotificationModel");
+const staffModel = require("../../../models/Hr/staffModel");
 
 // ================= MULTER =================
 

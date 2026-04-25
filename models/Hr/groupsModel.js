@@ -66,7 +66,6 @@ const groupsSchema = new mongoose.Schema(
       required: true,
     },
 
-
     leavePolicy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "LeavePolicy",
@@ -81,6 +80,11 @@ const groupsSchema = new mongoose.Schema(
     advancePolicy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AdvancePolicy",
+      required: true,
+    },
+    deductionPolicy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeductionPolicy",
       required: true,
     },
 

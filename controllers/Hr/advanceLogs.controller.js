@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
-const advanceLogsService = require("../../services/Hr/advanceLogsService");
+const advanceLogsService = require("../../services/Hr/Advance/advanceLogsService");
 
 // ================= MY LOGS =================
 exports.getMyAdvanceLogs = asyncHandler(async (req, res, next) => {

@@ -6,6 +6,7 @@ const fingerprintModel = require("../../models/Hr/fingerprintModel");
 const dayjs = require("dayjs");
 const Staff = require("../../models/Hr/staffModel");
 const ViolationLog = require("../../models/Hr/violationLogModel");
+const { createViolationAndProcess } = require("./violationProcessor");
 
 //@desc Get list of finger-print
 //@route GET /api/finger-print
@@ -194,9 +195,15 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
-
   const companyId = req.query.companyId;
+  const staffMember = await Staff.findOne({ email: req.user.email, companyId });
 
+  if (!staffMember) {
+    return res.status(400).json({
+      status: false,
+      message: "User is not a staff member",
+    });
+  }
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -213,10 +220,12 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   req.body.date = date;
   req.body.Time = time;
   req.body.companyId = companyId;
+  req.body.userID = req.user.id;
+  req.body.name = staffMember.name;
+  req.body.email = staffMember.email;
 
   // ---------------- CREATE FINGERPRINT ----------------
   const fp = await fingerprintModel.create(req.body);
-
 
   // ---------------- STAFF ----------------
   const staff = await Staff.findById(req.user.id).populate("groupId");
@@ -242,15 +251,13 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   const graceIn = group.fixedAttendance.earlyIn || 0;
   const graceOut = group.fixedAttendance.earlyOut || 0;
 
-
   if (fp.type === "Check-in") {
     const allowedLateLimit = start + graceIn;
-
 
     if (actual > allowedLateLimit) {
       console.log("LATE DETECTED");
 
-      await ViolationLog.create({
+      await createViolationAndProcess({
         userId: staff._id,
         companyId,
         violationType: "late",
@@ -265,14 +272,13 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
     }
   }
 
-
   if (fp.type === "Check-out") {
     const allowedEarlyLeaveLimit = end - graceOut;
 
     if (actual < allowedEarlyLeaveLimit) {
       console.log("EARLY LEAVE DETECTED");
 
-      await ViolationLog.create({
+      await createViolationAndProcess({
         userId: staff._id,
         companyId,
         violationType: "early_leave",
@@ -286,7 +292,6 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
       console.log("CHECK-OUT OK");
     }
   }
-
 
   res.status(200).json({
     status: "success",

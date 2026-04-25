@@ -1,6 +1,6 @@
 const express = require("express");
-const authService = require("../../services/authService");
-const staffAuthService = require("../../services/Hr/hrAuthServices");
+const authService = require("../../../services/authService");
+const staffAuthService = require("../../../services/Hr/hrAuthServices");
 
 const {
   deleteAdvanceType,
@@ -8,7 +8,7 @@ const {
   getOneAdvanceType,
   updateAdvanceType,
   createAdvanceType,
-} = require("../../controllers/Hr/advanceTypes.controller");
+} = require("../../../controllers/Hr/advanceTypes.controller");
 
 const advanceTypeRoute = express.Router();
 

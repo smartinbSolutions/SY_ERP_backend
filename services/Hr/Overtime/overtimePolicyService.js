@@ -1,8 +1,8 @@
 const asyncHandler = require("express-async-handler");
-const ApiError = require("../../utils/apiError");
-const OvertimePolicy = require("../../models/Hr/overtimePolicyModel");
+const ApiError = require("../../../utils/apiError");
+const OvertimePolicy = require("../../../models/Hr/Overtime/overtimePolicyModel");
 const mongoose = require("mongoose");
-const overtimeTypesModel = require("../../models/Hr/overtimeTypesModel");
+const overtimeTypesModel = require("../../../models/Hr/Overtime/overtimeTypesModel");
 
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {
   const { companyId } = req.query;

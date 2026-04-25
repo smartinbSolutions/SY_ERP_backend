@@ -1,11 +1,11 @@
-const AdvanceRequest = require("../../models/Hr/advanceRequestModel");
-const advanceLogsModel = require("../../models/Hr/advanceLogsModel");
-const approvalFlowModel = require("../../models/Hr/approvalFlowModel");
-const advanceTypesModel = require("../../models/Hr/advanceTypesModel");
+const AdvanceRequest = require("../../../models/Hr/Advance/advanceRequestModel");
+const advanceLogsModel = require("../../../models/Hr/Advance/advanceLogsModel");
+const approvalFlowModel = require("../../../models/Hr/approvalFlowModel");
+const advanceTypesModel = require("../../../models/Hr/Advance/advanceTypesModel");
 const { default: mongoose } = require("mongoose");
-const { handleApproval } = require("./approvalService");
-const NotificationModel = require("../../models/Hr/NotificationModel");
-const staffModel = require("../../models/Hr/staffModel");
+const { handleApproval } = require("../approvalService");
+const NotificationModel = require("../../../models/Hr/NotificationModel");
+const staffModel = require("../../../models/Hr/staffModel");
 
 // ================= CREATE =================
 exports.createAdvanceRequest = async (data) => {
