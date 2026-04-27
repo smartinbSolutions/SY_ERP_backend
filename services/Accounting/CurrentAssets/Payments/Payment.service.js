@@ -19,10 +19,10 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
 
   const now = new Date();
   const formattedTime = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes()
+    now.getMinutes(),
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0"
+    "0",
   )}`;
 
   req.body.date = `${req.body.date}T${formattedTime}Z`;
@@ -64,8 +64,8 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
     allocations: Array.isArray(req.body.allocations)
       ? req.body.allocations
       : req.body.allocations
-      ? JSON.parse(req.body.allocations)
-      : [],
+        ? JSON.parse(req.body.allocations)
+        : [],
 
     postedBy: req.user?._id || null,
     postedAt: new Date(),

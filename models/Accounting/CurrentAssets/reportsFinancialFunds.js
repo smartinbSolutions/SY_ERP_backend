@@ -6,35 +6,31 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    fundNameform: String,
-
-    fundNameto: String,
 
     amount: {
       type: Number,
       required: true,
     },
-    amountToFund: {
-      type: Number,
-    },
-    totalPriceAfterDiscount: { type: Number, default: 0 },
     totalPriceMainCurrence: {
       type: Number,
     },
     ref: String,
-    archives: { type: Boolean, default: false },
     type: {
       type: String,
+      enum: [
+        "Deposit transfer",
+        "Withdrawal transfer",
+        "Deposit",
+        "Withdrawal",
+      ],
     },
-    paymentType: String,
+    paymentType: { type: String, enum: ["Withdrawal", "Deposit"] },
     financialFundId: {
       type: mongoose.Schema.ObjectId,
       ref: "FinancialFunds",
     },
     payment: String,
-    financialFundRest: Number,
     exchangeRate: Number,
-    runningBalance: Number,
     description: String,
     sync: { type: Boolean, default: false },
     companyId: {
@@ -43,10 +39,10 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model(
   "ReportsFinancialFunds",
-  reportsFinancialFundsSchema
+  reportsFinancialFundsSchema,
 );
