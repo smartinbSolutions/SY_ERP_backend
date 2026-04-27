@@ -6,7 +6,6 @@ const {
   createFundAndBank,
   deleteFundAndBank,
   updateFundAndBank,
-  cashTransfer,
   getFundAndBankForSalesPoint,
 } = require("../../../controllers/Accounting/CurrentAssets/FundAndBank.controller");
 
@@ -18,10 +17,6 @@ FundAndBank.route("/")
   .post(authService.checkCompanyEditable, createFundAndBank)
   .get(findAllFundAndBank);
 
-FundAndBank.route("/trans/:id").put(
-  authService.checkCompanyEditable,
-  cashTransfer
-);
 FundAndBank.route("/sales-point/:id").get(
   authService.checkCompanyEditable,
   getFundAndBankForSalesPoint

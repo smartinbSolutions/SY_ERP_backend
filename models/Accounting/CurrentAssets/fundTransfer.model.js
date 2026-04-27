@@ -103,6 +103,13 @@ const FundTransferSchema = new mongoose.Schema(
       default: false,
     },
 
+    status: {
+      type: String,
+      enum: ["posted", "cancelled"],
+      default: "posted",
+      index: true,
+    },
+
     postedBy: {
       type: mongoose.Schema.ObjectId,
       ref: "Employee",

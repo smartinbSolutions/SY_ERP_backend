@@ -1,9 +1,11 @@
 const financialFundsModel = require("../../../../models/Accounting/CurrentAssets/financialFundsModel");
 const FundTransferModel = require("../../../../models/Accounting/CurrentAssets/fundTransfer.model");
 const reportsFinancialFunds = require("../../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
+const journalEntryModel = require("../../../../models/journalEntryModel");
 const counterModel = require("../../../../models/Settings/counterModel");
 
 const ApiError = require("../../../../utils/apiError");
+const { createJournalService } = require("../../../journalEntryServices");
 
 function padZero(value) {
   return value < 10 ? `0${value}` : value;
@@ -22,16 +24,22 @@ function buildDateTime(dateValue) {
 }
 
 exports.createFundTransferService = async ({ req, companyId, session }) => {
-  const { id: fromFundId } = req.params;
-
   const {
-    fund: toFundId,
-    fundFromAmount,
-    fundToAmount,
+    fromFund,
+    toFund,
+    fromFundAmount,
+    toFundAmount,
     description,
     transferRate,
     journalCounter,
+    sourceMainAmount,
+    destinationMainAmount,
+    differenceMainCurrency,
+    differenceType,
   } = req.body;
+
+  const fromFundId = fromFund?.id;
+  const toFundId = toFund?.id;
 
   if (!fromFundId) {
     throw new ApiError("Source fund id is required", 400);
@@ -48,66 +56,83 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
     );
   }
 
-  const fromAmount = Number(fundFromAmount || 0);
-  const toAmount = Number(fundToAmount || 0);
+  const fromAmount = Number(fromFundAmount || 0);
+  const toAmount = Number(toFundAmount || 0);
 
-  if (fromAmount <= 0) {
-    throw new ApiError("Source fund amount must be greater than zero", 400);
-  }
+  //   if (fromAmount <= 0) {
+  //     throw new ApiError("Source fund amount must be greater than zero", 400);
+  //   }
 
-  if (toAmount <= 0) {
-    throw new ApiError(
-      "Destination fund amount must be greater than zero",
-      400
-    );
-  }
+  //   if (toAmount <= 0) {
+  //     throw new ApiError(
+  //       "Destination fund amount must be greater than zero",
+  //       400
+  //     );
+  //   }
 
   const transferDate = buildDateTime(req.body.date);
   req.body.date = transferDate;
 
-  const fromFund = await financialFundsModel
+  const fromFundDoc = await financialFundsModel
     .findOne({ _id: fromFundId, companyId })
+    .populate("fundCurrency")
     .session(session);
 
-  if (!fromFund) {
+  if (!fromFundDoc) {
     throw new ApiError("Source fund not found", 404);
   }
 
-  const toFund = await financialFundsModel
+  const toFundDoc = await financialFundsModel
     .findOne({ _id: toFundId, companyId })
+    .populate("fundCurrency")
     .session(session);
 
-  if (!toFund) {
+  if (!toFundDoc) {
     throw new ApiError("Destination fund not found", 404);
   }
 
-  if (Number(fromFund.fundBalance || 0) < fromAmount) {
-    throw new ApiError("Insufficient source fund balance", 400);
-  }
+  //   if (Number(fromFundDoc.fundBalance || 0) < fromAmount) {
+  //     throw new ApiError("Insufficient source fund balance", 400);
+  //   }
 
-  const fromExchangeRate = Number(fromFund?.fundCurrency?.exchangeRate || 1);
-  const toExchangeRate = Number(toFund?.fundCurrency?.exchangeRate || 1);
+  const fromExchangeRate = Number(fromFundDoc?.fundCurrency?.exchangeRate || 1);
+  const toExchangeRate = Number(toFundDoc?.fundCurrency?.exchangeRate || 1);
 
   if (fromExchangeRate <= 0 || toExchangeRate <= 0) {
     throw new ApiError("Invalid fund exchange rate", 400);
   }
 
-  const fromAmountMainCurrency = fromAmount / fromExchangeRate;
-  const toAmountMainCurrency = toAmount / toExchangeRate;
+  const calculatedSourceMainAmount = fromAmount / fromExchangeRate;
+  const calculatedDestinationMainAmount = toAmount / toExchangeRate;
+  const calculatedDifferenceMainCurrency =
+    calculatedDestinationMainAmount - calculatedSourceMainAmount;
 
-  const differenceMainCurrency = toAmountMainCurrency - fromAmountMainCurrency;
+  let calculatedDifferenceType = "none";
+  if (calculatedDifferenceMainCurrency > 0.000001) {
+    calculatedDifferenceType = "gain";
+  }
+  if (calculatedDifferenceMainCurrency < -0.000001) {
+    calculatedDifferenceType = "loss";
+  }
 
-  let differenceType = "none";
-  if (differenceMainCurrency > 0.000001) differenceType = "gain";
-  if (differenceMainCurrency < -0.000001) differenceType = "loss";
+  const finalSourceMainAmount = Number(
+    sourceMainAmount ?? calculatedSourceMainAmount
+  );
+  const finalDestinationMainAmount = Number(
+    destinationMainAmount ?? calculatedDestinationMainAmount
+  );
+  const finalDifferenceMainCurrency = Number(
+    differenceMainCurrency ?? calculatedDifferenceMainCurrency
+  );
+  const finalDifferenceType = differenceType || calculatedDifferenceType;
 
-  const totalMainCurrency = fromAmountMainCurrency;
+  const totalMainCurrency = finalSourceMainAmount;
 
-  fromFund.fundBalance = Number(fromFund.fundBalance || 0) - fromAmount;
-  toFund.fundBalance = Number(toFund.fundBalance || 0) + toAmount;
+  fromFundDoc.fundBalance = Number(fromFundDoc.fundBalance || 0) - fromAmount;
+  toFundDoc.fundBalance = Number(toFundDoc.fundBalance || 0) + toAmount;
 
-  await fromFund.save({ session });
-  await toFund.save({ session });
+  await fromFundDoc.save({ session });
+  await toFundDoc.save({ session });
 
   const counter = await counterModel.findOneAndUpdate(
     { companyId, name: "FundTransfer" },
@@ -122,32 +147,32 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
         counter: counter.seq,
 
         fromFund: {
-          id: fromFund._id.toString(),
-          name: fromFund.fundName,
-          currencyId: fromFund?.fundCurrency?._id?.toString() || "",
-          currencyCode: fromFund?.fundCurrency?.currencyCode || "",
+          id: fromFundDoc._id.toString(),
+          name: fromFundDoc.fundName,
+          currencyId: fromFundDoc?.fundCurrency?._id?.toString() || "",
+          currencyCode: fromFundDoc?.fundCurrency?.currencyCode || "",
           exchangeRate: fromExchangeRate,
           amount: fromAmount,
-          amountMainCurrency: fromAmountMainCurrency,
+          amountMainCurrency: finalSourceMainAmount,
         },
 
         toFund: {
-          id: toFund._id.toString(),
-          name: toFund.fundName,
-          currencyId: toFund?.fundCurrency?._id?.toString() || "",
-          currencyCode: toFund?.fundCurrency?.currencyCode || "",
+          id: toFundDoc._id.toString(),
+          name: toFundDoc.fundName,
+          currencyId: toFundDoc?.fundCurrency?._id?.toString() || "",
+          currencyCode: toFundDoc?.fundCurrency?.currencyCode || "",
           exchangeRate: toExchangeRate,
           amount: toAmount,
-          amountMainCurrency: toAmountMainCurrency,
+          amountMainCurrency: finalDestinationMainAmount,
         },
 
         transferRate: Number(transferRate || 0),
         totalMainCurrency,
         differenceMainCurrency:
-          Math.abs(differenceMainCurrency) <= 0.000001
+          Math.abs(finalDifferenceMainCurrency) <= 0.000001
             ? 0
-            : differenceMainCurrency,
-        differenceType,
+            : finalDifferenceMainCurrency,
+        differenceType: finalDifferenceType,
 
         date: transferDate,
         description: description || "",
@@ -169,8 +194,8 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
         amount: fromAmount,
         type: "Withdrawal transfer",
         exchangeRate: fromExchangeRate,
-        financialFundId: fromFund._id,
-        financialFundRest: fromFund.fundBalance,
+        financialFundId: fromFundDoc._id,
+        financialFundRest: fromFundDoc.fundBalance,
         paymentType: "Withdrawal",
         description: description || "",
         ref: transfer._id,
@@ -181,8 +206,8 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
         amount: toAmount,
         type: "Deposit transfer",
         exchangeRate: toExchangeRate,
-        financialFundId: toFund._id,
-        financialFundRest: toFund.fundBalance,
+        financialFundId: toFundDoc._id,
+        financialFundRest: toFundDoc.fundBalance,
         paymentType: "Deposit",
         description: description || "",
         ref: transfer._id,
@@ -215,9 +240,13 @@ exports.cancelFundTransferService = async ({
     throw new ApiError("Fund transfer not found", 404);
   }
 
-  if (transfer.cancelledAt) {
+  if (transfer.status === "cancelled") {
     throw new ApiError("Fund transfer is already cancelled", 400);
   }
+
+  const cancellationDate = buildDateTime(
+    new Date().toISOString().split("T")[0]
+  );
 
   const fromFund = await financialFundsModel
     .findOne({ _id: transfer.fromFund.id, companyId })
@@ -238,12 +267,12 @@ exports.cancelFundTransferService = async ({
   const fromAmount = Number(transfer?.fromFund?.amount || 0);
   const toAmount = Number(transfer?.toFund?.amount || 0);
 
-  if (Number(toFund.fundBalance || 0) < toAmount) {
-    throw new ApiError(
-      "Cannot cancel transfer because destination fund balance is insufficient",
-      400
-    );
-  }
+  //   if (Number(toFund.fundBalance || 0) < toAmount) {
+  //     throw new ApiError(
+  //       "Cannot cancel transfer because destination fund balance is insufficient",
+  //       400
+  //     );
+  //   }
 
   fromFund.fundBalance = Number(fromFund.fundBalance || 0) + fromAmount;
   toFund.fundBalance = Number(toFund.fundBalance || 0) - toAmount;
@@ -254,7 +283,7 @@ exports.cancelFundTransferService = async ({
   await reportsFinancialFunds.create(
     [
       {
-        date: new Date(),
+        date: cancellationDate,
         amount: fromAmount,
         type: "Deposit transfer reverse",
         exchangeRate: Number(transfer?.fromFund?.exchangeRate || 1),
@@ -268,7 +297,7 @@ exports.cancelFundTransferService = async ({
         companyId,
       },
       {
-        date: new Date(),
+        date: cancellationDate,
         amount: toAmount,
         type: "Withdrawal transfer reverse",
         exchangeRate: Number(transfer?.toFund?.exchangeRate || 1),
@@ -285,8 +314,16 @@ exports.cancelFundTransferService = async ({
     { session }
   );
 
+  await reverseFundTransferJournal({
+    companyId,
+    transfer,
+    cancellationDate,
+    session,
+  });
+
+  transfer.status = "cancelled";
   transfer.cancelledBy = cancelledBy || null;
-  transfer.cancelledAt = new Date();
+  transfer.cancelledAt = cancellationDate;
   transfer.cancellationReason = cancellationReason || "Transfer cancelled";
 
   await transfer.save({ session });
@@ -409,4 +446,101 @@ exports.getOneFundTransferService = async ({ transferId, companyId }) => {
   }
 
   return transfer;
+};
+
+const reverseFundTransferJournal = async ({
+  companyId,
+  transfer,
+  cancellationDate,
+  session,
+}) => {
+  if (!transfer?.journalCounter) {
+    throw new ApiError("Transfer journal reference is missing", 400);
+  }
+
+  const originalJournal = await journalEntryModel
+    .findOne({
+      companyId,
+      linkCounter: transfer.journalCounter,
+    })
+    .session(session);
+
+  if (!originalJournal) {
+    throw new ApiError("Original transfer journal not found", 404);
+  }
+
+  if (originalJournal.status === "reversed") {
+    throw new ApiError("Original transfer journal already reversed", 400);
+  }
+
+  const originalLines = originalJournal.journalAccounts || [];
+
+  if (!Array.isArray(originalLines) || originalLines.length === 0) {
+    throw new ApiError("Original transfer journal accounts are missing", 400);
+  }
+
+  const reversedLines = originalLines.map((line, index) => ({
+    ...line,
+    MainDebit: Number(line?.MainCredit || 0),
+    MainCredit: Number(line?.MainDebit || 0),
+    accountDebit: Number(line?.accountCredit || 0),
+    accountCredit: Number(line?.accountDebit || 0),
+    counter: index + 1,
+  }));
+
+  const totalDebit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainDebit || 0),
+    0
+  );
+
+  const totalCredit = reversedLines.reduce(
+    (sum, item) => sum + Number(item?.MainCredit || 0),
+    0
+  );
+
+  if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
+    throw new ApiError(
+      `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
+      400
+    );
+  }
+
+  const journalCounterDoc = await counterModel.findOneAndUpdate(
+    { companyId, name: "JournalEntry" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session }
+  );
+
+  const reversalLinkCounter = Date.now();
+
+  const reversalJournal = await createJournalService({
+    companyId,
+    journalInfo: {
+      journalName: `Fund Transfer Cancellation - ${transfer.counter || ""}`,
+      journalDate: cancellationDate,
+      journalDesc: `Reverse accounting effect of cancelled fund transfer ${
+        transfer.counter || ""
+      }`,
+      journalType: "Fund Transfer Reversal",
+      linkCounter: String(reversalLinkCounter),
+      refCounter: String(transfer.counter || ""),
+      counter: journalCounterDoc.seq,
+      refId: transfer._id,
+      party: "",
+      receiptNumber: "",
+      filesArray: [],
+      journalDebit: totalDebit,
+      journalCredit: totalCredit,
+    },
+    journalAccounts: reversedLines,
+    session,
+  });
+
+  originalJournal.status = "reversed";
+  originalJournal.reversedAt = cancellationDate;
+  originalJournal.reverseJournalId = reversalJournal?._id || null;
+
+  await originalJournal.save({ session });
+
+  return reversalJournal;
 };
