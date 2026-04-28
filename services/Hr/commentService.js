@@ -1,4 +1,4 @@
-const Comment = require("../../models/Hr/commentModel");
+const Comment = require("../../models/Tasks/CommentModel");
 
 exports.createComment = async (data, userId) => {
   if (!data.task && !data.subTask) {
@@ -51,7 +51,6 @@ exports.deleteComment = async (commentId, userId) => {
 
   if (!comment) throw new Error("Comment not found");
 
-  // ❗ فقط صاحب التعليق يحذف
   if (comment.createdBy.toString() !== userId.toString()) {
     throw new Error("Unauthorized");
   }

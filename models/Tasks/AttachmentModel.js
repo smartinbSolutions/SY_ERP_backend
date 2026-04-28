@@ -2,24 +2,24 @@ const mongoose = require("mongoose");
 
 const attachmentSchema = new mongoose.Schema(
   {
-    fileName: String,
+    fileName: {
+      type: String,
+      required: true,
+    },
+
     fileType: String,
     fileSize: Number,
 
-    entityType: {
-      type: String,
-      enum: ["Task", "SubTask"],
-      required: true,
-    },
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
-    },
-    entityId: {
+    task: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      index: true,
+      ref: "Task",
+      default: null,
+    },
+
+    subTask: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubTask",
+      default: null,
     },
 
     uploadedBy: {
@@ -30,5 +30,12 @@ const attachmentSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+attachmentSchema.virtual("downloadUrl").get(function () {
+  return `${process.env.BASE_URL}/uploads/taskAttachments/${this.fileName}`;
+});
+
+attachmentSchema.set("toJSON", { virtuals: true });
+attachmentSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("Attachment", attachmentSchema);

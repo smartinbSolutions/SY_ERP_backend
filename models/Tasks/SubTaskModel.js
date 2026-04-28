@@ -5,12 +5,17 @@ const subTaskSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
+      trim: true,
     },
-    companyId: {
+
+    description: {
       type: String,
-      required: true,
-      index: true,
     },
+
+    code: {
+      type: String,
+    },
+
     task: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
@@ -22,12 +27,26 @@ const subTaskSchema = new mongoose.Schema(
       type: String,
       enum: ["todo", "in_progress", "done"],
       default: "todo",
+      index: true,
     },
+
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
+    },
+
+    tags: [
+      {
+        type: String,
+      },
+    ],
 
     assignedTo: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "staff",
+        index: true,
       },
     ],
 
@@ -37,14 +56,30 @@ const subTaskSchema = new mongoose.Schema(
       required: true,
     },
 
-    dueDate: Date,
+    startDate: {
+      type: Date,
+    },
+
+    dueDate: {
+      type: Date,
+      index: true,
+    },
+
+    completedAt: {
+      type: Date,
+    },
+
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
 
     order: {
       type: Number,
-      default: 0,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("SubTask", subTaskSchema);

@@ -1,5 +1,5 @@
-const SubTask = require("../../models/Hr/subTaskModel");
-const Task = require("../../models/Hr/taskModel");
+const SubTask = require("../../models/Tasks/SubTaskModel");
+const Task = require("../../models/Tasks/TaskModel");
 
 exports.createSubTask = async (data, userId) => {
   const parentTask = await Task.findById(data.task);

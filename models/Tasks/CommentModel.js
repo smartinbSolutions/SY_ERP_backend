@@ -7,21 +7,15 @@ const commentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
-    },
-    entityType: {
-      type: String,
-      enum: ["Task", "SubTask"],
-      required: true,
+
+    task: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
     },
 
-    entityId: {
+    subTask: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      index: true,
+      ref: "SubTask",
     },
 
     createdBy: {
@@ -36,8 +30,13 @@ const commentSchema = new mongoose.Schema(
         ref: "staff",
       },
     ],
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Comment", commentSchema);
