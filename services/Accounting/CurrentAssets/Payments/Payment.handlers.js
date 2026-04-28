@@ -1719,38 +1719,37 @@ const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
   const session = await mongoose.startSession();
 
   try {
-    let createdPayment = null;
-
     await session.withTransaction(async () => {
       const {
-        source,
-        sourceType,
-        destination,
-        destinationType,
-        paymentInSourceCurrency,
-        sourceCurrencyCode,
-        sourceExchangeRate,
-        paymentInInvoiceCurrency,
-        invoiceExchangeRate,
-        paymentInMainCurrency,
-        totalInPaymentCurrency,
-        invoiceId,
+        party,
+        fund,
+        paymentNature,
+        payment,
         date,
         description,
-        paymentType,
-        isWithDraw,
-        totalMainCurrency,
+        journalCounter,
+        counter,
+        companyId,
+        postedBy,
+        postedAt,
       } = normalizedPayment;
 
-      console.log(source);
-
-      if (!source?.id) {
-        throw new Error("Payment source is required");
+      if (!fund?.id) {
+        throw new Error("Fund id is required");
       }
 
-      if (destinationType !== "salary") {
-        throw new Error("Staff payment destination must be salary");
+      if (!party?.id || !party?.type) {
+        throw new Error("Party is required");
       }
+
+      if (paymentNature !== "outgoing") {
+        throw new Error(
+          "Fund payment context supports only outgoing paymentNature",
+        );
+      }
+
+      let paymentAmountMain = Number(payment.amountMainCurrency || 0);
+      let paymentAmountInvoice = Number(payment.amount || 0);
 
       const paymentSeq = await getNextCounterValue({
         companyId,
@@ -1758,57 +1757,55 @@ const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
         session,
       });
 
-      req.body.type = "salary";
-      req.body.paymentText = "Withdrawal";
-
       const paymentPayload = {
-        ...req.body,
-        source,
-        destination,
-        sourceType,
-        destinationType,
-        totalInPaymentCurrency: totalInPaymentCurrency,
-        totalMainCurrency: totalMainCurrency,
-        paymentInDestinationCurrency: paymentInSourceCurrency,
-        destinationExchangeRate: sourceExchangeRate,
-        destinationCurrencyCode: sourceCurrencyCode,
-        type: "salary",
-        paymentType,
-        description,
-        date,
         companyId,
-        counter: Number(req.body.counter || 0) + Number(paymentSeq),
+        counter: Number(counter || 0) + Number(paymentSeq),
+        party: {
+          id: party.id,
+          name: party.name,
+          type: party.type,
+        },
+        fund: {
+          id: fund.id,
+          name: fund.name,
+          currencyId: fund.currencyId || "",
+          currencyCode: fund.currencyCode || "",
+          exchangeRate: Number(fund.exchangeRate || 1),
+        },
+        paymentNature,
+        payment: {
+          amount: Number(payment?.amount || 0),
+          currencyId: payment?.currencyId || "",
+          currencyCode: payment?.currencyCode || "",
+          exchangeRate: Number(payment?.exchangeRate || 1),
+          amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+        },
+        date,
+        description,
+        journalCounter,
+        file: req.body.file || "",
+        allocations: [],
+        postedBy: postedBy || null,
+        postedAt: postedAt || new Date(),
       };
 
       const paymentDocs = await paymentModel.create([paymentPayload], {
         session,
       });
-      const payment = paymentDocs[0];
-      createdPayment = payment;
+      const newPayment = paymentDocs[0];
 
-      if (sourceType === "fund") {
-        await handleFundPaymentEntity({
-          fund: source,
-          companyId,
-          paymentInFundCurrency: paymentInSourceCurrency,
-          paymentId: payment._id,
-          refId: destination.id,
-          date,
-          description,
-          paymentText: "Withdrawal",
-          sourceExchangeRate,
-          isWithDraw,
-          session,
-        });
-      } else if (sourceType === "account") {
-        await handleAccountPaymentEntity({
-          account: source,
-          companyId,
-          session,
-        });
-      } else {
-        throw new Error("Invalid expense payment sourceType");
-      }
+      await handleFundPaymentEntity({
+        fund: fund,
+        companyId,
+        paymentInFundCurrency: paymentAmountInvoice,
+        paymentId: newPayment._id,
+        refId: party.id,
+        date,
+        description,
+        effectSide: "source",
+        sourceExchangeRate: 1,
+        session,
+      });
     });
   } catch (err) {
     throw err;
