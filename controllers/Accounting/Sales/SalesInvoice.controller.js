@@ -83,7 +83,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         newSalesInvoice,
         companyId,
         date: req.body.date,
-        totalInMainCurrency: req.body.totalInMainCurrency,
+        totalSalesPriceMainCurrency: req.body.totalInMainCurrency,
         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
         paymentsStatus: req.body.paymentsStatus,
         session,

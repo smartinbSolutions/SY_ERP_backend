@@ -292,7 +292,6 @@ const handleCustomerPaymentEntity = async ({
       { $inc: { TotalUnpaid: -amountMainCurrency } },
       { new: true, session },
     );
-    console.log(updatedCustomer);
 
     if (!updatedCustomer) {
       throw new Error("Customer not found");
@@ -307,7 +306,7 @@ const handleCustomerPaymentEntity = async ({
       companyId,
       entryType: "payment",
       transactionDate: date,
-      amountTransactionCurrency,
+      amountTransactionCurrency: paymentInFundCurrency,
       amountMainCurrency,
       customerId: updatedCustomer._id,
       referenceId: refId,
@@ -338,7 +337,7 @@ const handleCustomerPaymentEntity = async ({
       companyId,
       entryType: "payment",
       transactionDate: date,
-      amountTransactionCurrency,
+      amountTransactionCurrency: paymentInFundCurrency,
       amountMainCurrency,
       customerId: updatedCustomer._id,
       referenceId: refId,
@@ -1084,7 +1083,7 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
         "payment",
         req.user._id,
         date,
-        `${newPayment.amount} ${fund.currencyCode}`,
+        `${payment.amount} ${fund.currencyCode}`,
         "invoice",
         session,
       );
@@ -1092,14 +1091,14 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
       await handleCustomerPaymentEntity({
         customer,
         companyId,
-        totalMainCurrency: paymentAmountMain,
-        paymentInFundCurrency: newPayment.amount,
+        totalMainCurrency: payment.amountMainCurrency,
+        paymentInFundCurrency: payment.amount,
         paymentId: newPayment._id,
-        refId: sales._id,
+        refId: "",
         date,
         description,
         currencyCode: fund.currencyCode,
-        effectSide: "source",
+        effectSide: paymentNature === "outgoing" ? "destination" : "source",
         session,
       });
 
@@ -1469,7 +1468,7 @@ const handleCustomerPayment = async (
         await handleFundPaymentEntity({
           fund: fund,
           companyId,
-          paymentInFundCurrency: paymentAmountInvoice,
+          paymentInFundCurrency: payment.amount,
           paymentId: newPayment._id,
           refId: "",
           date,
@@ -1482,7 +1481,7 @@ const handleCustomerPayment = async (
         await handleFundPaymentEntity({
           fund: fund,
           companyId,
-          paymentInFundCurrency: paymentAmountInvoice,
+          paymentInFundCurrency: payment.amount,
           paymentId: newPayment._id,
           refId: "",
           date,

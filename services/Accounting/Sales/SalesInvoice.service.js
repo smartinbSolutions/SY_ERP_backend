@@ -615,8 +615,8 @@ exports.applySalesCustomerEffectsService = async ({
   companyId,
   currency,
   date,
-  totalInMainCurrency,
   totalRemainderMainCurrency,
+  totalSalesPriceMainCurrency,
   paymentsStatus,
   session,
 }) => {
@@ -624,7 +624,7 @@ exports.applySalesCustomerEffectsService = async ({
     throw new ApiError("Customer not found", 404);
   }
 
-  const totalMain = Number(totalInMainCurrency || 0);
+  const totalMain = Number(totalSalesPriceMainCurrency || 0);
   const remainderMain = Number(totalRemainderMainCurrency || 0);
 
   customer.total += totalMain;
@@ -649,7 +649,6 @@ exports.applySalesCustomerEffectsService = async ({
     referenceId: newSalesInvoice._id,
     sourceModule: "sales",
     actionType: "create",
-    balanceEffectType: "Withdrawal",
     description: newSalesInvoice.description,
     transactionCurrency: currency?.currencyCode,
     session,
