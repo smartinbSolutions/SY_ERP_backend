@@ -37,7 +37,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -76,16 +76,16 @@ exports.prepareExpensesDataService = async ({ req, companyId, session }) => {
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -172,7 +172,7 @@ exports.createExpensesInvoiceRecordService = async ({
 
   const paymentTransactionDate = addSeconds(
     req.body.paymentDate || req.body.date || formattedDate,
-    5
+    5,
   );
 
   if (req.body.financialFund) {
@@ -195,7 +195,7 @@ exports.createExpensesInvoiceRecordService = async ({
   const resolvedRemainderMain = Math.max(0, invoiceTotalMain - actualPaidMain);
   const resolvedRemainder = Math.max(
     0,
-    invoiceTotalInvoice - actualPaidInvoice
+    invoiceTotalInvoice - actualPaidInvoice,
   );
 
   /*
@@ -203,18 +203,18 @@ exports.createExpensesInvoiceRecordService = async ({
       HANDLE PAYMENT FUND
       =============================
     */
-  if (actualPaidMain > 0 && !invoiceDraft) {
-    financialFund = await financialFundsModel
-      .findOne({ _id: parsedFinancialFund?.id, companyId })
-      .populate("fundCurrency")
-      .session(session);
+  // if (actualPaidMain > 0 && !invoiceDraft) {
+  //   financialFund = await financialFundsModel
+  //     .findOne({ _id: parsedFinancialFund?.id, companyId })
+  //     .populate("fundCurrency")
+  //     .session(session);
 
-    if (!financialFund) {
-      throw new ApiError("Financial fund not found", 404);
-    }
+  //   if (!financialFund) {
+  //     throw new ApiError("Financial fund not found", 404);
+  //   }
 
-    financialFund.fundBalance -= Number(paymentInFundCurrency || 0);
-  }
+  //   financialFund.fundBalance -= Number(paymentInFundCurrency || 0);
+  // }
 
   /*
       =============================
@@ -277,10 +277,10 @@ exports.createExpensesInvoiceRecordService = async ({
       : null;
   }
 
-  if (actualPaidMain > 0 && !invoiceDraft) {
-    invoicePayload.financailFund = parsedFinancialFund;
-    invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
-  }
+  // if (actualPaidMain > 0 && !invoiceDraft) {
+  //   invoicePayload.financailFund = parsedFinancialFund;
+  //   invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
+  // }
 
   if (!invoiceDraft && resolvedPaidStatus === "unpaid") {
     invoicePayload.dueDate = paymentTransactionDate;
@@ -302,105 +302,105 @@ exports.createExpensesInvoiceRecordService = async ({
       PAYMENT CREATION
       =============================
     */
-  if (actualPaidMain > 0 && !invoiceDraft && paymentStatus !== "unpaid") {
-    const payment = await paymentModel.create(
-      [
-        {
-          source: {
-            id: financialFund._id,
-            name: financialFund.fundName,
-          },
-          destination: {
-            id: supllierObject?.id || "",
-            name: supllierObject?.name || "",
-          },
-          sourceType: "fund",
-          destinationType: "supplier",
-          totalInPaymentCurrency: actualPaidInvoice,
-          totalMainCurrency: actualPaidMain,
-          paymentInDestinationCurrency: paymentInFundCurrency,
-          paymentCurrency: {
-            id: currency?.id,
-            name: currency?.name,
-            code: currency?.currencyCode,
-            exchangeRate: currency?.exchangeRate,
-          },
-          destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
-          destinationCurrencyCode: parsedFinancialFund?.code,
-          type: "expense",
-          paymentType: "Withdrawal",
-          description: req.body.paymentDescription,
-          date: paymentTransactionDate || formattedDate,
-          counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
-          companyId,
-          payid: [
-            {
-              id: newExpenseInvoice._id,
-              status: resolvedPaidStatus,
-              invoiceTotal: req.body.expenceTotal,
-              invoiceName: req.body.expenseName,
-              invoiceCurrencyCode: currency?.currencyCode,
-              paymentInFundCurrency: paymentInFundCurrency,
-              paymentMainCurrency: actualPaidMain,
-              paymentInInvoiceCurrency: actualPaidInvoice,
-            },
-          ],
-        },
-      ],
-      { session }
-    );
+  // if (actualPaidMain > 0 && !invoiceDraft && paymentStatus !== "unpaid") {
+  //   const payment = await paymentModel.create(
+  //     [
+  //       {
+  //         source: {
+  //           id: financialFund._id,
+  //           name: financialFund.fundName,
+  //         },
+  //         destination: {
+  //           id: supllierObject?.id || "",
+  //           name: supllierObject?.name || "",
+  //         },
+  //         sourceType: "fund",
+  //         destinationType: "supplier",
+  //         totalInPaymentCurrency: actualPaidInvoice,
+  //         totalMainCurrency: actualPaidMain,
+  //         paymentInDestinationCurrency: paymentInFundCurrency,
+  //         paymentCurrency: {
+  //           id: currency?.id,
+  //           name: currency?.name,
+  //           code: currency?.currencyCode,
+  //           exchangeRate: currency?.exchangeRate,
+  //         },
+  //         destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
+  //         destinationCurrencyCode: parsedFinancialFund?.code,
+  //         type: "expense",
+  //         paymentType: "Withdrawal",
+  //         description: req.body.paymentDescription,
+  //         date: paymentTransactionDate || formattedDate,
+  //         counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
+  //         companyId,
+  //         payid: [
+  //           {
+  //             id: newExpenseInvoice._id,
+  //             status: resolvedPaidStatus,
+  //             invoiceTotal: req.body.expenceTotal,
+  //             invoiceName: req.body.expenseName,
+  //             invoiceCurrencyCode: currency?.currencyCode,
+  //             paymentInFundCurrency: paymentInFundCurrency,
+  //             paymentMainCurrency: actualPaidMain,
+  //             paymentInInvoiceCurrency: actualPaidInvoice,
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //     { session },
+  //   );
 
-    await createPaymentHistoryV2({
-      companyId,
-      entryType: "payment",
-      transactionDate: paymentTransactionDate || formattedDate,
-      amountTransactionCurrency: invoiceTotalInvoice,
-      amountMainCurrency: invoiceTotalMain,
-      supplierId: supplier?._id || "",
-      referenceId: newExpenseInvoice._id,
-      sourceModule: "payment",
-      actionType: "create",
-      description: req.body.description,
-      transactionCurrency: currency?.currencyCode,
-      session,
-      balanceEffectType: "Deposit",
-    });
+  //   await createPaymentHistoryV2({
+  //     companyId,
+  //     entryType: "payment",
+  //     transactionDate: paymentTransactionDate || formattedDate,
+  //     amountTransactionCurrency: invoiceTotalInvoice,
+  //     amountMainCurrency: invoiceTotalMain,
+  //     supplierId: supplier?._id || "",
+  //     referenceId: newExpenseInvoice._id,
+  //     sourceModule: "payment",
+  //     actionType: "create",
+  //     description: req.body.description,
+  //     transactionCurrency: currency?.currencyCode,
+  //     session,
+  //     balanceEffectType: "Deposit",
+  //   });
 
-    const reports = await reportsFinancialFunds.create(
-      [
-        {
-          date: paymentTransactionDate || formattedDate,
-          ref: newExpenseInvoice._id,
-          amount: paymentInFundCurrency,
-          type: "expense",
-          exchangeRate: financialFund?.fundCurrency?.exchangeRate,
-          financialFundId: parsedFinancialFund?.id,
-          financialFundRest: financialFund.fundBalance,
-          paymentType: "Withdrawal",
-          payment: payment[0]._id,
-          description: req.body.paymentDescription,
-          companyId,
-        },
-      ],
-      { session }
-    );
+  //   const reports = await reportsFinancialFunds.create(
+  //     [
+  //       {
+  //         date: paymentTransactionDate || formattedDate,
+  //         ref: newExpenseInvoice._id,
+  //         amount: paymentInFundCurrency,
+  //         type: "expense",
+  //         exchangeRate: financialFund?.fundCurrency?.exchangeRate,
+  //         financialFundId: parsedFinancialFund?.id,
+  //         financialFundRest: financialFund.fundBalance,
+  //         paymentType: "Withdrawal",
+  //         payment: payment[0]._id,
+  //         description: req.body.paymentDescription,
+  //         companyId,
+  //       },
+  //     ],
+  //     { session },
+  //   );
 
-    newExpenseInvoice.payments.push({
-      payment: paymentInFundCurrency,
-      paymentMainCurrency: actualPaidMain,
-      financialFunds: financialFund.fundName,
-      financialFundsCurrencyCode: parsedFinancialFund?.code,
-      date: paymentTransactionDate || formattedDate,
-      paymentID: payment[0]._id,
-      paymentInInvoiceCurrency: actualPaidInvoice,
-      financialFundsId: parsedFinancialFund?.id,
-    });
+  //   newExpenseInvoice.payments.push({
+  //     payment: paymentInFundCurrency,
+  //     paymentMainCurrency: actualPaidMain,
+  //     financialFunds: financialFund.fundName,
+  //     financialFundsCurrencyCode: parsedFinancialFund?.code,
+  //     date: paymentTransactionDate || formattedDate,
+  //     paymentID: payment[0]._id,
+  //     paymentInInvoiceCurrency: actualPaidInvoice,
+  //     financialFundsId: parsedFinancialFund?.id,
+  //   });
 
-    newExpenseInvoice.reportsBalanceId = reports[0]._id;
+  //   newExpenseInvoice.reportsBalanceId = reports[0]._id;
 
-    await newExpenseInvoice.save({ session });
-    await financialFund.save({ session });
-  }
+  //   await newExpenseInvoice.save({ session });
+  //   await financialFund.save({ session });
+  // }
 
   /*
       =============================
@@ -415,7 +415,7 @@ exports.createExpensesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Expense invoice draft created" : "Expense invoice created",
     "expense",
-    session
+    session,
   );
 
   if (actualPaidMain > 0 && !invoiceDraft) {
@@ -427,7 +427,7 @@ exports.createExpensesInvoiceRecordService = async ({
       paymentTransactionDate || formattedDate,
       "Invoice payment recorded",
       "expense",
-      session
+      session,
     );
   }
 
@@ -688,7 +688,7 @@ exports.reverseExpenseJournalEffectsService = async ({
   if (!expense?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on expense invoice",
-      400
+      400,
     );
   }
 
@@ -746,18 +746,18 @@ exports.reverseExpenseJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -943,7 +943,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
       [invoicePayload],
       {
         session,
-      }
+      },
     );
     invoiceDoc = createdInvoice[0];
   } else if (mode === "update") {
@@ -1003,7 +1003,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -1039,7 +1039,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     invoiceDoc.payments.push({
@@ -1077,16 +1077,16 @@ exports.prepareExpenseInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -1184,11 +1184,11 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   expense.payments = expense.payments.filter(
-    (p) => String(p.paymentId) !== String(findExpensePayment._id)
+    (p) => String(p.paymentId) !== String(findExpensePayment._id),
   );
 
   expense.type = "Expense cancelled";
@@ -1203,7 +1203,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
 
   findExpensePayment.payid = findExpensePayment.payid.filter(
-    (p) => String(p.id) !== String(expense._id)
+    (p) => String(p.id) !== String(expense._id),
   );
 
   findExpensePayment.type = "cancelled payment";
@@ -1257,7 +1257,7 @@ exports.getExpenseAndPurchaseForSupplierService = async ({
 
   // Merge both arrays and sort by date if needed
   const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
+    (a, b) => new Date(b.date) - new Date(a.date),
   );
 
   // Paginate the combined result

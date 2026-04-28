@@ -645,14 +645,14 @@ const handlePurchasePayment = async (
         file: req.body.file || "",
         allocations: [
           {
-            id: purchase._id,
-            status: purchase.paid,
-            invoiceTotal: purchase.invoiceGrandTotal,
-            invoiceName: purchase.invoiceName,
-            invoiceCurrencyCode: purchase.currency?.currencyCode || "",
-            paymentInFundCurrency: payment.amount,
-            paymentMainCurrency: payment.amountMainCurrency,
-            // paymentInvoiceCurrency: paymentAmountInvoice,
+            documentId: purchase._id,
+            documentName: purchase.invoiceName,
+            documentCounter: purchase.counter || "",
+            documentCurrencyCode: purchase.currency?.currencyCode || "",
+            allocatedAmountMainCurrency: paymentAmountMain,
+            allocatedAmountDocumentCurrency: paymentAmountInvoice,
+            documentTotal: purchase.invoiceGrandTotal,
+            documentType: "purchase_invoice",
           },
         ],
         postedBy: postedBy || null,
@@ -1105,14 +1105,14 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
         file: req.body.file || "",
         allocations: [
           {
-            id: sales._id,
-            status: sales.paymentsStatus,
-            invoiceTotal: sales.invoiceGrandTotal,
-            invoiceName: sales.invoiceName,
-            invoiceCurrencyCode: sales.currency?.currencyCode || "",
-            paymentInFundCurrency: payment.amount,
-            paymentMainCurrency: payment.amountMainCurrency,
-            // paymentInvoiceCurrency: paymentAmountInvoice,
+            documentId: sales._id,
+            documentName: sales.invoiceName,
+            documentCounter: sales.counter,
+            documentCurrencyCode: sales.currency?.currencyCode || "",
+            allocatedAmountMainCurrency: paymentAmountMain,
+            allocatedAmountDocumentCurrency: paymentAmountInvoice,
+            documentTotal: sales.invoiceGrandTotal,
+            documentType: "sales_invoice",
           },
         ],
         postedBy: postedBy || null,
@@ -1231,7 +1231,7 @@ const handleExpensePayment = async (
         throw new Error("Fund id is required");
       }
 
-      if (!party?.id || !party?.type) {
+      if (req.body.isCash === false && (!party?.id || !party?.type)) {
         throw new Error("Party is required");
       }
       if (party.type !== "supplier") {
@@ -1249,18 +1249,19 @@ const handleExpensePayment = async (
       if (!expense) {
         throw new Error("Expense invoice not found");
       }
+      let supplier = null;
+      if (!req.body.isCash) {
+        supplier = await suppliersModel
+          .findOne({
+            _id: expense.supllier.id,
+            companyId,
+          })
+          .session(session);
 
-      const supplier = await suppliersModel
-        .findOne({
-          _id: expense.supllier.id,
-          companyId,
-        })
-        .session(session);
-
-      if (!supplier) {
-        throw new Error("Supplier not found");
+        if (!supplier) {
+          throw new Error("Supplier not found");
+        }
       }
-
       let paymentAmountMain = Number(payment.amountMainCurrency || 0);
       let paymentAmountInvoice = Number(payment.amount || 0);
 
@@ -1305,7 +1306,7 @@ const handleExpensePayment = async (
         allocations: [
           {
             documentId: expense._id,
-            documentName: expense.name,
+            documentName: expense.expenseName,
             documentCounter: expense.counter,
             documentCurrencyCode: expense.currency?.currencyCode || "",
             allocatedAmountMainCurrency: paymentAmountMain,
@@ -1363,22 +1364,22 @@ const handleExpensePayment = async (
         "invoice",
         session,
       );
-
-      await handleSupplierPaymentEntity({
-        supplier,
-        companyId,
-        totalMainCurrency: paymentAmountMain,
-        paymentInFundCurrency: payment.amount,
-        paymentId: newPayment._id,
-        refId: expense._id,
-        date,
-        description,
-        currencyCode: fund.currencyCode,
-        paymentText: "Deposit",
-        effectSide: "destination",
-        session,
-      });
-
+      if (!req.body.isCash) {
+        await handleSupplierPaymentEntity({
+          supplier,
+          companyId,
+          totalMainCurrency: paymentAmountMain,
+          paymentInFundCurrency: payment.amount,
+          paymentId: newPayment._id,
+          refId: expense._id,
+          date,
+          description,
+          currencyCode: fund.currencyCode,
+          paymentText: "Deposit",
+          effectSide: "destination",
+          session,
+        });
+      }
       await handleFundPaymentEntity({
         fund: fund,
         companyId,

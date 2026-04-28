@@ -50,16 +50,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -202,30 +202,30 @@ exports.createSalesInvoiceRecordService = async ({
   let financialFund = null;
   let parsedFinancialFund = null;
 
-  if (req.body.financailFund) {
-    parsedFinancialFund =
-      typeof req.body.financailFund === "string"
-        ? JSON.parse(req.body.financailFund)
-        : req.body.financailFund;
-  }
+  // if (req.body.financailFund) {
+  //   parsedFinancialFund =
+  //     typeof req.body.financailFund === "string"
+  //       ? JSON.parse(req.body.financailFund)
+  //       : req.body.financailFund;
+  // }
   let resolvedPaidStatus = paymentsStatus;
-  if (paymentsStatus === "paid" && !invoiceDraft) {
-    const paidAmountMain = Number(req.body.paymentInMainCurrency || 0);
-    const invoiceTotalMain = Number(totalInMainCurrency || 0);
+  // if (paymentsStatus === "paid" && !invoiceDraft) {
+  //   const paidAmountMain = Number(req.body.paymentInMainCurrency || 0);
+  //   const invoiceTotalMain = Number(totalInMainCurrency || 0);
 
-    const actualPaidMain = Math.min(paidAmountMain, invoiceTotalMain);
-    const isFullyPaid = actualPaidMain >= invoiceTotalMain - 0.000001;
-    resolvedPaidStatus = isFullyPaid ? "paid" : "unpaid";
-    financialFund = await financialFundsModel
-      .findOne({ _id: parsedFinancialFund?.id, companyId })
-      .session(session);
+  //   const actualPaidMain = Math.min(paidAmountMain, invoiceTotalMain);
+  //   const isFullyPaid = actualPaidMain >= invoiceTotalMain - 0.000001;
+  //   resolvedPaidStatus = isFullyPaid ? "paid" : "unpaid";
+  //   financialFund = await financialFundsModel
+  //     .findOne({ _id: parsedFinancialFund?.id, companyId })
+  //     .session(session);
 
-    if (!financialFund) {
-      throw new ApiError("Financial fund not found", 404);
-    }
+  //   if (!financialFund) {
+  //     throw new ApiError("Financial fund not found", 404);
+  //   }
 
-    financialFund.fundBalance += Number(paymentInFundCurrency || 0);
-  }
+  //   financialFund.fundBalance += Number(paymentInFundCurrency || 0);
+  // }
   const invoicePayload = {
     employee: { id: req.user._id, name: req.user.name },
     invoicesItems: invoicesItem,
@@ -277,10 +277,10 @@ exports.createSalesInvoiceRecordService = async ({
       : null;
   }
 
-  if (paymentsStatus === "paid" && !invoiceDraft) {
-    invoicePayload.financailFund = parsedFinancialFund;
-    invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
-  }
+  // if (paymentsStatus === "paid" && !invoiceDraft) {
+  //   invoicePayload.financailFund = parsedFinancialFund;
+  //   invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
+  // }
 
   if (paymentsStatus === "unpaid") {
     invoicePayload.dueDate = paymentDate;
@@ -292,106 +292,106 @@ exports.createSalesInvoiceRecordService = async ({
 
   const newSalesInvoice = createdInvoice[0];
 
-  if (paymentsStatus === "paid" && !invoiceDraft) {
-    const payment = await paymentModel.create(
-      [
-        {
-          source: {
-            id: financialFund._id,
-            name: financialFund.fundName,
-          },
-          destination: {
-            id: customerObject.id,
-            name: customerObject.name,
-          },
-          sourceType: "sales",
-          destinationType: "fund",
-          totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
-          totalMainCurrency: req.body.paymentInMainCurrency,
-          paymentInDestinationCurrency: req.body.paymentInFundCurrency,
-          paymentCurrency: {
-            id: currency?.id,
-            name: currency?.name,
-            code: currency?.currencyCode,
-            exchangeRate: currency?.exchangeRate,
-          },
-          destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
-          destinationCurrencyCode: parsedFinancialFund?.code,
-          type: "sales",
-          paymentType: "Deposit",
-          description: req.body.paymentDescription,
-          date: req.body.paymentDate || formattedDate,
-          counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
-          companyId,
-          payid: [
-            {
-              id: newSalesInvoice._id,
-              status: req.body.paid,
-              invoiceTotal: req.body.invoiceGrandTotal,
-              invoiceName: req.body.invoiceName,
-              invoiceCurrencyCode: currency?.currencyCode,
-              paymentInFundCurrency: paymentInFundCurrency,
-              paymentMainCurrency: req.body.paymentInMainCurrency,
-              paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-            },
-          ],
-        },
-      ],
-      { session }
-    );
+  // if (paymentsStatus === "paid" && !invoiceDraft) {
+  //   const payment = await paymentModel.create(
+  //     [
+  //       {
+  //         source: {
+  //           id: financialFund._id,
+  //           name: financialFund.fundName,
+  //         },
+  //         destination: {
+  //           id: customerObject.id,
+  //           name: customerObject.name,
+  //         },
+  //         sourceType: "sales",
+  //         destinationType: "fund",
+  //         totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
+  //         totalMainCurrency: req.body.paymentInMainCurrency,
+  //         paymentInDestinationCurrency: req.body.paymentInFundCurrency,
+  //         paymentCurrency: {
+  //           id: currency?.id,
+  //           name: currency?.name,
+  //           code: currency?.currencyCode,
+  //           exchangeRate: currency?.exchangeRate,
+  //         },
+  //         destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
+  //         destinationCurrencyCode: parsedFinancialFund?.code,
+  //         type: "sales",
+  //         paymentType: "Deposit",
+  //         description: req.body.paymentDescription,
+  //         date: req.body.paymentDate || formattedDate,
+  //         counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
+  //         companyId,
+  //         payid: [
+  //           {
+  //             id: newSalesInvoice._id,
+  //             status: req.body.paid,
+  //             invoiceTotal: req.body.invoiceGrandTotal,
+  //             invoiceName: req.body.invoiceName,
+  //             invoiceCurrencyCode: currency?.currencyCode,
+  //             paymentInFundCurrency: paymentInFundCurrency,
+  //             paymentMainCurrency: req.body.paymentInMainCurrency,
+  //             paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //     { session },
+  //   );
 
-    await createPaymentHistoryV2({
-      companyId,
-      entryType: "payment",
-      transactionDate: req.body.paymentDate || formattedDate,
-      amountTransactionCurrency: paymentInFundCurrency,
-      amountMainCurrency:
-        paymentInFundCurrency /
-        (newSalesInvoice.financailFund[0]?.exchangeRate || 1),
-      customerId: customerObject.id,
-      referenceId: newSalesInvoice._id,
-      sourceModule: "sales",
-      actionType: "create",
-      balanceEffectType: "Deposit",
-      description: req.body.description,
-      transactionCurrency: newSalesInvoice.financailFund[0]?.currency,
-      session,
-    });
-    const reports = await reportsFinancialFunds.create(
-      [
-        {
-          date: req.body.paymentDate || formattedDate,
-          ref: newSalesInvoice._id,
-          amount: paymentInFundCurrency,
-          type: "sales",
-          exchangeRate,
-          financialFundId: parsedFinancialFund?.id,
-          financialFundRest: financialFund.fundBalance,
-          paymentType: "Deposit",
-          payment: payment[0]._id,
-          description: req.body.paymentDescription,
-          companyId,
-        },
-      ],
-      { session }
-    );
+  //   await createPaymentHistoryV2({
+  //     companyId,
+  //     entryType: "payment",
+  //     transactionDate: req.body.paymentDate || formattedDate,
+  //     amountTransactionCurrency: paymentInFundCurrency,
+  //     amountMainCurrency:
+  //       paymentInFundCurrency /
+  //       (newSalesInvoice.financailFund[0]?.exchangeRate || 1),
+  //     customerId: customerObject.id,
+  //     referenceId: newSalesInvoice._id,
+  //     sourceModule: "sales",
+  //     actionType: "create",
+  //     balanceEffectType: "Deposit",
+  //     description: req.body.description,
+  //     transactionCurrency: newSalesInvoice.financailFund[0]?.currency,
+  //     session,
+  //   });
+  //   const reports = await reportsFinancialFunds.create(
+  //     [
+  //       {
+  //         date: req.body.paymentDate || formattedDate,
+  //         ref: newSalesInvoice._id,
+  //         amount: paymentInFundCurrency,
+  //         type: "sales",
+  //         exchangeRate,
+  //         financialFundId: parsedFinancialFund?.id,
+  //         financialFundRest: financialFund.fundBalance,
+  //         paymentType: "Deposit",
+  //         payment: payment[0]._id,
+  //         description: req.body.paymentDescription,
+  //         companyId,
+  //       },
+  //     ],
+  //     { session },
+  //   );
 
-    newSalesInvoice.payments.push({
-      payment: paymentInFundCurrency,
-      paymentMainCurrency: req.body.paymentInMainCurrency,
-      financialFunds: financialFund.fundName,
-      financialFundsCurrencyCode: parsedFinancialFund?.code,
-      date: req.body.paymentDate || formattedDate,
-      paymentID: payment[0]._id,
-      paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-      financialFundsId: parsedFinancialFund?.id,
-    });
+  //   newSalesInvoice.payments.push({
+  //     payment: paymentInFundCurrency,
+  //     paymentMainCurrency: req.body.paymentInMainCurrency,
+  //     financialFunds: financialFund.fundName,
+  //     financialFundsCurrencyCode: parsedFinancialFund?.code,
+  //     date: req.body.paymentDate || formattedDate,
+  //     paymentID: payment[0]._id,
+  //     paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
+  //     financialFundsId: parsedFinancialFund?.id,
+  //   });
 
-    newSalesInvoice.reportsBalanceId = reports[0]._id;
+  //   newSalesInvoice.reportsBalanceId = reports[0]._id;
 
-    await newSalesInvoice.save({ session });
-    await financialFund.save({ session });
-  }
+  //   await newSalesInvoice.save({ session });
+  //   await financialFund.save({ session });
+  // }
 
   await createInvoiceHistory(
     companyId,
@@ -401,7 +401,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session
+    session,
   );
 
   if (paymentsStatus === "paid" && !invoiceDraft) {
@@ -413,7 +413,7 @@ exports.createSalesInvoiceRecordService = async ({
       req.body.paymentDate || formattedDate,
       "Invoice payment recorded",
       "sales",
-      session
+      session,
     );
   }
 
@@ -453,14 +453,14 @@ exports.applySalesInventoryEffectsService = async ({
     const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id)
+      (s) => String(s.stockId) === String(item.stock._id),
     );
     const oldQty = Number(stockRow?.productQuantity || 0);
 
     if (soldQty > oldQty) {
       throw new ApiError(
         `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
-        400
+        400,
       );
     }
 
@@ -511,15 +511,15 @@ exports.applySalesInventoryEffectsService = async ({
     if (qtyToSell > 0) {
       throw new ApiError(
         `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
-        400
+        400,
       );
     }
 
     const invoiceItem = newSalesInvoice.invoicesItems.find(
-      (i) => String(i.id) === String(item.id)
+      (i) => String(i.id) === String(item.id),
     );
     const returnCartItem = newSalesInvoice.returnCartItem.find(
-      (i) => String(i.id) === String(item.id)
+      (i) => String(i.id) === String(item.id),
     );
 
     if (invoiceItem) {
@@ -547,7 +547,7 @@ exports.applySalesInventoryEffectsService = async ({
             actionType: actionType,
           },
         ],
-        { session }
+        { session },
       );
 
       await createProductMovement({
@@ -686,18 +686,18 @@ exports.debugAndCreateSalesDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -772,7 +772,7 @@ exports.updateSalesInvoiceDraftService = async ({
   const invoiceTax = Number(req.body.invoiceTax || 0);
   const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0
+    req.body.ManualInvoiceDiscountValue || 0,
   );
 
   const paid = "unpaid";
@@ -783,7 +783,7 @@ exports.updateSalesInvoiceDraftService = async ({
 
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.orderDate,
-    req.body.orderDate
+    req.body.orderDate,
   );
 
   const updatePayload = {
@@ -828,7 +828,7 @@ exports.updateSalesInvoiceDraftService = async ({
     {
       new: true,
       session,
-    }
+    },
   );
 
   await createInvoiceHistory(
@@ -839,7 +839,7 @@ exports.updateSalesInvoiceDraftService = async ({
     normalizedDate,
     "Draft Sales invoice updated",
     "sales",
-    session
+    session,
   );
 
   return invoice;
@@ -868,7 +868,7 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session }
+    { session },
   );
 
   return true;
@@ -891,7 +891,7 @@ exports.reverseSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0
+        0,
     );
 
   const reversalConfig = {
@@ -929,7 +929,7 @@ exports.reverseSalesInventoryEffectsService = async ({
     }
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id)
+      (s) => String(s.stockId) === String(item.stock._id),
     );
 
     if (!stockRow) {
@@ -1011,7 +1011,7 @@ exports.reverseSalesInventoryEffectsService = async ({
             actionType: currentMode.actionType,
           },
         ],
-        { session }
+        { session },
       );
 
       await batch.save({ session });
@@ -1117,7 +1117,7 @@ exports.reverseSalesJournalEffectsService = async ({
   if (!salesInvoice?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on sales invoice",
-      400
+      400,
     );
   }
 
@@ -1175,18 +1175,18 @@ exports.reverseSalesJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -1448,7 +1448,7 @@ exports.upsertSalesInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -1486,7 +1486,7 @@ exports.upsertSalesInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     invoiceDoc.payments.push({
