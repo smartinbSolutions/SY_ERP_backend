@@ -105,6 +105,84 @@ exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.getLoggedUserFingerPrintsByDays = asyncHandler(
+  async (req, res, next) => {
+    const { companyId } = req.query;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    const pageSize = 20;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const skip = (page - 1) * pageSize;
+    const filter = {
+      userID: req.user._id,
+      companyId,
+    };
+
+    const [result] = await fingerPrintModel.aggregate([
+      { $match: filter },
+
+      {
+        $facet: {
+          totalDays: [
+            {
+              $group: {
+                _id: "$date",
+              },
+            },
+            { $count: "count" },
+          ],
+
+          data: [
+            { $sort: { createdAt: -1 } },
+
+            {
+              $group: {
+                _id: "$date",
+                date: { $first: "$date" },
+                records: {
+                  $push: {
+                    _id: "$_id",
+                    name: "$name",
+                    userID: "$userID",
+                    email: "$email",
+                    Time: "$Time",
+                    date: "$date",
+                    type: "$type",
+                    companyId: "$companyId",
+                    createdAt: "$createdAt",
+                    updatedAt: "$updatedAt",
+                  },
+                },
+                latestRecord: { $first: "$createdAt" },
+                totalRecords: { $sum: 1 },
+              },
+            },
+
+            { $sort: { latestRecord: -1 } },
+            { $skip: skip },
+            { $limit: pageSize },
+          ],
+        },
+      },
+    ]);
+
+    const totalItems = result?.totalDays?.[0]?.count || 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    res.status(200).json({
+      status: true,
+      Pages: totalPages,
+      results: totalItems,
+      currentPage: page,
+      pageSize,
+      data: result?.data || [],
+    });
+  },
+);
+
 exports.getTodayFingerPrint = asyncHandler(async (req, res, next) => {
   console.log("triggerd");
   const companyId = req.query.companyId;

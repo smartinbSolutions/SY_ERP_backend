@@ -10,6 +10,7 @@ const {
   createLoggedFingerPrint,
   createFingerPrint,
   getTodayFingerPrint,
+  getLoggedUserFingerPrintsByDays,
 } = require("../../services/Hr/fingerPrintServices");
 const authService = require("../../services/authService");
 
@@ -18,6 +19,11 @@ const FingerPrintRout = express.Router();
 FingerPrintRout.route("/loged")
   .get(hrAuthServices.protectStaffOrERP, getLoggedUserFingerPrint)
   .post(hrAuthServices.protectStaffOrERP, createLoggedFingerPrint);
+
+FingerPrintRout.route("/days").get(
+  hrAuthServices.protectStaffOrERP,
+  getLoggedUserFingerPrintsByDays,
+);
 
 FingerPrintRout.post(
   "/erp-to-staff",
