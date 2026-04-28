@@ -21,18 +21,13 @@ router
   .post(hrAuthServices.protectStaffOrERP, createWorkspace)
   .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
 
-
-// TREE 
-router.get(
-  "/tree",
-  hrAuthServices.protectStaffOrERP,
-  getUserWorkspaceTree
-);
+// TREE
+router.get("/tree", hrAuthServices.protectStaffOrERP, getUserWorkspaceTree);
 // GET ONE + UPDATE + DELETE
 router
   .route("/:id")
   .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getWorkspace)
-  .put(hrAuthServices.protectStaffOrERP, workspaceAccess, updateWorkspace)
+  .patch(hrAuthServices.protectStaffOrERP, workspaceAccess, updateWorkspace)
   .delete(hrAuthServices.protectStaffOrERP, workspaceAccess, deleteWorkspace);
 
 // MEMBERS

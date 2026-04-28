@@ -2,11 +2,27 @@ const Workspace = require("../../models/Tasks/WorkspaceModel");
 const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const { default: mongoose } = require("mongoose");
-// 🔹 CREATE
-exports.createWorkspace = async (data, userId) => {
+const staffModel = require("../../models/Hr/staffModel");
+
+exports.createWorkspace = async (data, userId, companyId) => {
+  if (!companyId) {
+    throw new Error("Company ID is required");
+  }
+
+  const exists = await Workspace.findOne({
+    name: data.name.trim(),
+    companyId,
+  });
+
+  if (exists) {
+    throw new Error("Workspace with this name already exists");
+  }
+
   const workspace = await Workspace.create({
-    name: data.name,
+    name: data.name.trim(),
+    companyId,
     createdBy: userId,
+
     members: [
       {
         user: userId,
@@ -87,7 +103,6 @@ exports.getUserWorkspaceTree = async (userId) => {
   return tree;
 };
 
-// 🔹 GET USER WORKSPACES
 exports.getUserWorkspaces = async (userId) => {
   return await Workspace.find({
     "members.user": userId,
@@ -95,7 +110,6 @@ exports.getUserWorkspaces = async (userId) => {
   });
 };
 
-// 🔹 GET ONE
 exports.getWorkspaceById = async (workspaceId) => {
   const workspace = await Workspace.findById(workspaceId).populate(
     "members.user",
@@ -107,7 +121,6 @@ exports.getWorkspaceById = async (workspaceId) => {
   return workspace;
 };
 
-// 🔹 UPDATE
 exports.updateWorkspace = async (workspaceId, data) => {
   const workspace = await Workspace.findByIdAndUpdate(
     workspaceId,
@@ -120,7 +133,6 @@ exports.updateWorkspace = async (workspaceId, data) => {
   return workspace;
 };
 
-// 🔹 DELETE
 exports.deleteWorkspace = async (workspaceId) => {
   const workspace = await Workspace.findByIdAndDelete(workspaceId);
 
@@ -129,19 +141,30 @@ exports.deleteWorkspace = async (workspaceId) => {
   return workspace;
 };
 
-// 🔹 ADD MEMBER
 exports.addMember = async (workspaceId, userId, role = "member") => {
-  const exists = await Workspace.findOne({
-    _id: workspaceId,
-    "members.user": userId,
-  });
+  const workspace = await Workspace.findById(workspaceId);
 
-  if (exists) throw new Error("User already exists");
+  if (!workspace) {
+    throw new Error("Workspace not found");
+  }
 
-  return await Workspace.findByIdAndUpdate(
+  const staff = await staffModel.findById(userId);
+  if (!staff) {
+    throw new Error("User not found");
+  }
+
+  const exists = workspace.members.some(
+    (m) => m.user.toString() === userId.toString(),
+  );
+
+  if (exists) {
+    throw new Error("User already exists in workspace");
+  }
+
+  const updatedWorkspace = await Workspace.findByIdAndUpdate(
     workspaceId,
     {
-      $push: {
+      $addToSet: {
         members: {
           user: userId,
           role,
@@ -150,11 +173,30 @@ exports.addMember = async (workspaceId, userId, role = "member") => {
     },
     { new: true },
   );
+
+  return updatedWorkspace;
 };
 
-// 🔹 REMOVE MEMBER
 exports.removeMember = async (workspaceId, userId) => {
-  return await Workspace.findByIdAndUpdate(
+  const workspace = await Workspace.findById(workspaceId);
+
+  if (!workspace) {
+    throw new Error("Workspace not found");
+  }
+
+  const isMember = workspace.members.some(
+    (m) => m.user.toString() === userId.toString(),
+  );
+
+  if (!isMember) {
+    throw new Error("User is not a member of this workspace");
+  }
+
+  if (workspace.members.length === 1) {
+    throw new Error("Cannot remove the last member of workspace");
+  }
+
+  const updatedWorkspace = await Workspace.findByIdAndUpdate(
     workspaceId,
     {
       $pull: {
@@ -163,4 +205,6 @@ exports.removeMember = async (workspaceId, userId) => {
     },
     { new: true },
   );
+
+  return updatedWorkspace;
 };

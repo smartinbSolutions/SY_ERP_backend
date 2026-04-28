@@ -3,7 +3,7 @@ const Folder = require("../../models/Tasks/FolderModel");
 
 exports.folderAccess = async (req, res, next) => {
   try {
-    const folderId = req.params.id || req.params.folderId;
+    const folderId = req.params.id; // ✅ FIX HERE
 
     const folder = await Folder.findById(folderId);
 
@@ -11,13 +11,16 @@ exports.folderAccess = async (req, res, next) => {
       return res.status(404).json({ message: "Folder not found" });
     }
 
-    const workspace = await Workspace.findById(folder.workspace);
-
-    const isMember = workspace.members.some(
-      (m) => m.user.toString() === req.user._id.toString()
+    const workspace = await Workspace.findOne(
+      {
+        _id: folder.workspace,
+        "members.user": req.user._id,
+        "members.status": "active",
+      },
+      { _id: 1, members: 1 },
     );
 
-    if (!isMember) {
+    if (!workspace) {
       return res.status(403).json({ message: "Access denied" });
     }
 

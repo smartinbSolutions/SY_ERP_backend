@@ -1,51 +1,86 @@
 const folderService = require("../../services/Tasks/folder.service");
 
-// CREATE
+// ===============================
+// CREATE FOLDER
+// ===============================
 exports.createFolder = async (req, res) => {
   try {
     const data = await folderService.createFolder(req.body, req.user._id);
-    res.status(201).json({ message: "Created", data });
+
+    return res.status(201).json({
+      success: true,
+      message: "Folder created successfully",
+      data,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// GET BY WORKSPACE
+// ===============================
+// GET FOLDERS BY WORKSPACE
+// ===============================
 exports.getFolders = async (req, res) => {
   try {
     const data = await folderService.getFoldersByWorkspace(
       req.params.workspaceId,
-      req.user._id
+      req.user._id,
     );
 
-    res.json({ count: data.length, data });
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
   } catch (err) {
-    res.status(403).json({ message: err.message });
+    return res.status(403).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// UPDATE
+// ===============================
+// UPDATE FOLDER
+// ===============================
 exports.updateFolder = async (req, res) => {
   try {
     const data = await folderService.updateFolder(
       req.params.id,
       req.body,
-      req.user._id
+      req.user._id,
     );
 
-    res.json({ message: "Updated", data });
+    return res.status(200).json({
+      success: true,
+      message: "Folder updated successfully",
+      data,
+    });
   } catch (err) {
-    res.status(403).json({ message: err.message });
+    return res.status(403).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// DELETE
+// ===============================
+// DELETE FOLDER
+// ===============================
 exports.deleteFolder = async (req, res) => {
   try {
     await folderService.deleteFolder(req.params.id, req.user._id);
 
-    res.json({ message: "Deleted" });
+    return res
+      .status(204)
+      .send({ success: true, message: "Folder deleted successfully" });
   } catch (err) {
-    res.status(403).json({ message: err.message });
+    return res.status(403).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

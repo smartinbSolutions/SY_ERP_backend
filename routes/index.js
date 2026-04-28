@@ -131,7 +131,6 @@ const WorkspaceRoute = require("./Tasks/workspace.routes");
 const FolderRoute = require("./Tasks/folder.routes");
 const ListRoute = require("./Tasks/list.routes");
 
-
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
   app.use("/api/brand", brandRout);
@@ -242,18 +241,17 @@ const mountRoutes = (app) => {
   app.use("/api/deduction-types", deductionTypesRoute);
   app.use("/api/payroll-periods", payrollPeriodRoute);
   app.use("/api/payroll-groups", payrollGroupsRoute);
-  app.use("/api/tasks", tasksRoute);
-  app.use("/api/subtasks", subtasksRoute);
   app.use("/api/comments", commentRoute);
   app.use("/api/attachments", attachmentRoute);
   app.use("/api/action-execution", actionExecutionRoute);
   app.use("/api/violation-logs", violationLogRoute);
 
-  
   //task
   app.use("/api/workspace", WorkspaceRoute);
   app.use("/api/folder", FolderRoute);
   app.use("/api/list", ListRoute);
+  app.use("/api/tasks", tasksRoute);
+  app.use("/api/subtasks", subtasksRoute);
   //Payment
   app.use("/api", paytrRouter);
 

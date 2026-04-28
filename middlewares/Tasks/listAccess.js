@@ -11,19 +11,24 @@ exports.listAccess = async (req, res, next) => {
       return res.status(404).json({ message: "List not found" });
     }
 
-    const workspace = await Workspace.findById(list.workspace);
-
-    const isWorkspaceMember = workspace.members.some(
-      (m) => m.user.toString() === req.user._id.toString()
+    // ✅ تحقق من workspace + membership بنفس الوقت
+    const workspace = await Workspace.findOne(
+      {
+        _id: list.workspace,
+        "members.user": req.user._id,
+        "members.status": "active",
+      },
+      { _id: 1, members: 1 },
     );
 
-    if (!isWorkspaceMember) {
+    if (!workspace) {
       return res.status(403).json({ message: "Workspace access denied" });
     }
 
+    // 🔒 private list check
     if (list.visibility === "private") {
       const isListMember = list.members.some(
-        (m) => m.user.toString() === req.user._id.toString()
+        (m) => m.user.toString() === req.user._id.toString(),
       );
 
       if (!isListMember) {

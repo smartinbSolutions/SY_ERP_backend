@@ -26,7 +26,7 @@ const listSchema = new mongoose.Schema(
       index: true,
     },
 
-    // 🔥 visibility system
+    //  visibility system
     visibility: {
       type: String,
       enum: ["public", "private"],

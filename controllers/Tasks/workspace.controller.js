@@ -1,103 +1,169 @@
 const workspaceService = require("../../services/Tasks/workspace.service");
 
-// CREATE
+// ===============================
+// CREATE WORKSPACE
+// ===============================
 exports.createWorkspace = async (req, res) => {
   try {
     const data = await workspaceService.createWorkspace(
       req.body,
-      req.user._id
+      req.user._id,
+      req.query.companyId,
     );
 
-    res.status(201).json({ message: "Created", data });
+    return res.status(201).json({
+      success: true,
+      message: "Workspace created successfully",
+      data,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
+// ===============================
+// GET USER WORKSPACE TREE
+// ===============================
 exports.getUserWorkspaceTree = async (req, res) => {
   try {
-    const data = await workspaceService.getUserWorkspaceTree(
-      req.user._id
-    );
+    const data = await workspaceService.getUserWorkspaceTree(req.user._id);
 
-    res.json({ data });
+    return res.status(200).json({
+      success: true,
+      data,
+    });
   } catch (err) {
-    res.status(403).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
+// ===============================
 // GET MY WORKSPACES
+// ===============================
 exports.getMyWorkspaces = async (req, res) => {
   try {
     const data = await workspaceService.getUserWorkspaces(req.user._id);
 
-    res.json({ count: data.length, data });
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// GET ONE
+// ===============================
+// GET WORKSPACE BY ID
+// ===============================
 exports.getWorkspace = async (req, res) => {
   try {
     const data = await workspaceService.getWorkspaceById(req.params.id);
 
-    res.json({ data });
+    return res.status(200).json({
+      success: true,
+      data,
+    });
   } catch (err) {
-    res.status(404).json({ message: err.message });
+    return res.status(404).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// UPDATE
+// ===============================
+// UPDATE WORKSPACE
+// ===============================
 exports.updateWorkspace = async (req, res) => {
   try {
     const data = await workspaceService.updateWorkspace(
       req.params.id,
-      req.body
+      req.body,
     );
 
-    res.json({ message: "Updated", data });
+    return res.status(200).json({
+      success: true,
+      message: "Workspace updated successfully",
+      data,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-// DELETE
+// ===============================
+// DELETE WORKSPACE
+// ===============================
 exports.deleteWorkspace = async (req, res) => {
   try {
     await workspaceService.deleteWorkspace(req.params.id);
 
-    res.json({ message: "Deleted" });
+    return res.status(204).send();
   } catch (err) {
-    res.status(404).json({ message: err.message });
+    return res.status(404).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
+// ===============================
 // ADD MEMBER
+// ===============================
 exports.addMember = async (req, res) => {
   try {
     const data = await workspaceService.addMember(
       req.params.id,
       req.body.userId,
-      req.body.role
+      req.body.role,
     );
 
-    res.json({ message: "Member added", data });
+    return res.status(200).json({
+      success: true,
+      message: "Member added successfully",
+      data,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
+// ===============================
 // REMOVE MEMBER
+// ===============================
 exports.removeMember = async (req, res) => {
   try {
     const data = await workspaceService.removeMember(
       req.params.id,
-      req.params.userId
+      req.params.userId,
     );
 
-    res.json({ message: "Member removed", data });
+    return res.status(200).json({
+      success: true,
+      message: "Member removed successfully",
+      data,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

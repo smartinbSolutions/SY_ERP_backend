@@ -2,35 +2,30 @@ const express = require("express");
 const router = express.Router();
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
+
 const {
   createFolder,
   updateFolder,
   deleteFolder,
+  getFolders,
 } = require("../../controllers/Tasks/folder.controller");
-const {
-  getFoldersByWorkspace,
-} = require("../../services/Tasks/folder.service");
-const { folderAccess } = require("../../middlewares/Tasks/folderAccess");
 
-// CREATE
+const { folderAccess } = require("../../middlewares/Tasks/folderAccess");
 router.post("/", hrAuthServices.protectStaffOrERP, createFolder);
 
-// GET BY WORKSPACE
 router.get(
-  "/:workspaceId",
+  "/workspace/:workspaceId",
   hrAuthServices.protectStaffOrERP,
-  getFoldersByWorkspace,
+  getFolders,
 );
 
-// UPDATE
-router.put(
+router.patch(
   "/:id",
   hrAuthServices.protectStaffOrERP,
   folderAccess,
   updateFolder,
 );
 
-// DELETE
 router.delete(
   "/:id",
   hrAuthServices.protectStaffOrERP,

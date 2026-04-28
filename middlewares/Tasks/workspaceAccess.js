@@ -1,18 +1,21 @@
 const Workspace = require("../../models/Tasks/WorkspaceModel");
 
-// 🔹 SERVICE FUNCTION (داخل نفس الملف أو خارجه)
+// 🔹 Helper (موحد)
 const isUserInWorkspace = async (workspaceId, userId) => {
-  return await Workspace.findOne({
-    _id: workspaceId,
-    "members.user": userId,
-    "members.status": "active",
-  });
+  return await Workspace.findOne(
+    {
+      _id: workspaceId,
+      "members.user": userId,
+      "members.status": "active",
+    },
+    { _id: 1, members: 1 }, // تقليل البيانات
+  );
 };
 
-// 🔐 MIDDLEWARE
+// 🔐 Middleware
 exports.workspaceAccess = async (req, res, next) => {
   try {
-    const workspaceId = req.params.workspaceId || req.params.id;
+    const workspaceId = req.params.id;
 
     if (!workspaceId) {
       return res.status(400).json({
@@ -20,10 +23,7 @@ exports.workspaceAccess = async (req, res, next) => {
       });
     }
 
-    const workspace = await isUserInWorkspace(
-      workspaceId,
-      req.user._id
-    );
+    const workspace = await isUserInWorkspace(workspaceId, req.user._id);
 
     if (!workspace) {
       return res.status(403).json({
