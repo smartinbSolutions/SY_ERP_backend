@@ -437,7 +437,7 @@ exports.applySalesInventoryEffectsService = async ({
       item.type === "expense" ||
       item.type === "Service"
     ) {
-      console.log("Skipping item بسبب type:", item.type);
+      console.log("Skipping item  type:", item.type);
       continue;
     }
 
@@ -628,14 +628,7 @@ exports.applySalesCustomerEffectsService = async ({
   const remainderMain = Number(totalRemainderMainCurrency || 0);
 
   customer.total += totalMain;
-
-  if (paymentsStatus === "unpaid") {
-    customer.TotalUnpaid += totalMain;
-  }
-
-  if (paymentsStatus === "paid") {
-    customer.TotalUnpaid += remainderMain;
-  }
+  customer.TotalUnpaid += totalMain;
 
   await customer.save({ session });
 

@@ -289,7 +289,7 @@ const handleCustomerPaymentEntity = async ({
   if (effectSide === "destination") {
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
-      { $inc: { TotalUnpaid: -amountMainCurrency } },
+      { $inc: { TotalUnpaid: +amountMainCurrency } },
       { new: true, session },
     );
 
@@ -325,7 +325,7 @@ const handleCustomerPaymentEntity = async ({
   if (effectSide === "source") {
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
-      { $inc: { TotalUnpaid: +amountMainCurrency } },
+      { $inc: { TotalUnpaid: -amountMainCurrency } },
       { new: true, session },
     );
 
