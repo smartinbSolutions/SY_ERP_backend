@@ -1,3 +1,4 @@
+const { default: mongoose } = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 
@@ -21,7 +22,7 @@ exports.getTaskById = async (taskId) => {
 };
 
 exports.getAllTasks = async (req) => {
-  const { type, includeSubTasks } = req.query;
+  const { type, includeSubTasks, listId } = req.query;
 
   const userId = req.user._id;
 
@@ -29,6 +30,9 @@ exports.getAllTasks = async (req) => {
 
   if (type === "my") filter.assignedTo = userId;
   if (type === "team") filter.createdBy = userId;
+  if (listId) {
+    filter.list = new mongoose.Types.ObjectId(listId);
+  }
 
   let query = Task.find(filter)
     .populate("assignedTo", "name email")

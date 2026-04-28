@@ -1,4 +1,4 @@
-const subTaskService = require("../../services/Hr/subTaskService");
+const subTaskService = require("../../services/Tasks/subTask.service");
 
 exports.createSubTask = async (req, res) => {
   try {

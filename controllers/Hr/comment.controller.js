@@ -1,4 +1,4 @@
-const commentService = require("../../services/Hr/commentService");
+const commentService = require("../../services/Tasks/comment.service");
 
 exports.createComment = async (req, res) => {
   try {
