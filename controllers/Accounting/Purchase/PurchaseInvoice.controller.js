@@ -21,6 +21,7 @@ const {
   findAllPurchaseInvoicesService,
   findOnePurchaseInvoiceService,
   findSupplierPurchaseInvoicesForRefundService,
+  paymentService,
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice.service");
 
 const counterModel = require("../../../models/Settings/counterModel");
@@ -169,6 +170,16 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         paid: req.body.paid,
         session,
       });
+
+      if (req.body.havepayments === "paid") {
+        await paymentService({
+          ...prepared,
+          req,
+          companyId,
+          session,
+          newPurchaseInvoice,
+        });
+      }
     }
 
     await session.commitTransaction();
@@ -396,6 +407,16 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       journalLinkCounter,
       session,
     });
+
+    if (req.body.havepayments === "paid") {
+      await paymentService({
+        ...newPrepared,
+        req,
+        companyId,
+        session,
+        newPurchaseInvoice: updatedPurchaseInvoice,
+      });
+    }
 
     updatedPurchaseInvoice.journalCounter = journalLinkCounter;
 

@@ -15,6 +15,7 @@ const {
   prepareExpenseInvoiceDataService,
   reverseExpenseNoSupplierEffectsService,
   getExpenseAndPurchaseForSupplierService,
+  paymentService,
 } = require("../../../services/Accounting/Expenses/Expenses.service");
 const expensesModel = require("../../../models/expensesModel");
 const {
@@ -108,6 +109,15 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
     });
 
     if (!invoiceDraft && !isCash) {
+      if (req.body.havepayments === "paid") {
+        await paymentService({
+          ...prepared,
+          req,
+          companyId,
+          session,
+          newExpenseInvoice,
+        });
+      }
       await applyExpenseSupplierEffectsService({
         ...prepared,
         newExpenseInvoice,
