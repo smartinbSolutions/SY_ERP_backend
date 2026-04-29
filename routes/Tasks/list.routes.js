@@ -2,6 +2,12 @@ const express = require("express");
 const router = express.Router();
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
+
+const {
+  workspaceAccess,
+  listAccess,
+} = require("../../middlewares/Tasks/AccessMiddleware");
+
 const {
   createList,
   getLists,
@@ -10,15 +16,32 @@ const {
   deleteList,
   addMember,
 } = require("../../controllers/Tasks/list.controller");
-const { listAccess } = require("../../middlewares/Tasks/listAccess");
+const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
-// CREATE
-router.post("/", hrAuthServices.protectStaffOrERP, createList);
+// ===============================
+// CREATE LIST
+// ===============================
+router.post(
+  "/",
+  hrAuthServices.protectStaffOrERP,
+  workspaceAccess,
+  checkPermission("create:task"),
+  createList,
+);
 
-// GET BY WORKSPACE
-router.get("/:workspaceId", hrAuthServices.protectStaffOrERP, getLists);
+// ===============================
+// GET LISTS BY WORKSPACE
+// ===============================
+router.get(
+  "/:workspaceId",
+  hrAuthServices.protectStaffOrERP,
+  workspaceAccess,
+  getLists,
+);
 
-// GET ONE
+// ===============================
+// GET SINGLE LIST
+// ===============================
 router.get(
   "/single/:id",
   hrAuthServices.protectStaffOrERP,
@@ -26,17 +49,36 @@ router.get(
   getList,
 );
 
-// UPDATE
-router.put("/:id", hrAuthServices.protectStaffOrERP, listAccess, updateList);
+// ===============================
+// UPDATE LIST
+// ===============================
+router.patch(
+  "/:id",
+  hrAuthServices.protectStaffOrERP,
+  listAccess,
+  checkPermission("update:task"),
+  updateList,
+);
 
-// DELETE
-router.delete("/:id", hrAuthServices.protectStaffOrERP, listAccess, deleteList);
+// ===============================
+// DELETE LIST
+// ===============================
+router.delete(
+  "/:id",
+  hrAuthServices.protectStaffOrERP,
+  listAccess,
+  checkPermission("delete:task"),
+  deleteList,
+);
 
-// ADD MEMBER
+// ===============================
+// ADD MEMBER TO LIST
+// ===============================
 router.post(
   "/:id/members",
   hrAuthServices.protectStaffOrERP,
   listAccess,
+  checkPermission("manage:members"),
   addMember,
 );
 

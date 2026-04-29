@@ -7,7 +7,7 @@ const {
   getAllSubTasks,
   getSubTaskById,
   updateSubTask,
-} = require("../../controllers/Hr/subtask.controller");
+} = require("../../controllers/Tasks/subtask.controller");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 

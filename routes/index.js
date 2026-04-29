@@ -115,10 +115,10 @@ const deductionPolicyRoute = require("./Hr/deductionPolicyRoute");
 const deductionTypesRoute = require("./Hr/deductionTypesRoute");
 const payrollPeriodRoute = require("./Hr/payrollPeriodRoute");
 const payrollGroupsRoute = require("./Hr/payrollGroupsRoute");
-const tasksRoute = require("./Hr/taskRoute");
-const subtasksRoute = require("./Hr/subTaskRoute");
-const commentRoute = require("./Hr/commentRoute");
-const attachmentRoute = require("./Hr/attachmentRoute");
+const tasksRoute = require("./Tasks/task.route");
+const subtasksRoute = require("./Tasks/subTask.route");
+const commentRoute = require("./Tasks/comment.route");
+const attachmentRoute = require("./Tasks/attachment.route");
 const ExpenseInvoices = require("./Accounting/Expense/expenseInvoices.route");
 const SalesInvoices = require("./Accounting/Sales/salesInvoice.route");
 const RefundSalesInvoices = require("./Accounting/Sales/refundSalesIvoice.route");
@@ -130,6 +130,7 @@ const violationLogRoute = require("./Hr/violationLogRoute");
 const WorkspaceRoute = require("./Tasks/workspace.routes");
 const FolderRoute = require("./Tasks/folder.routes");
 const ListRoute = require("./Tasks/list.routes");
+const timeTrackingRoute = require("./Tasks/timeTracking.route");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -241,8 +242,7 @@ const mountRoutes = (app) => {
   app.use("/api/deduction-types", deductionTypesRoute);
   app.use("/api/payroll-periods", payrollPeriodRoute);
   app.use("/api/payroll-groups", payrollGroupsRoute);
-  app.use("/api/comments", commentRoute);
-  app.use("/api/attachments", attachmentRoute);
+
   app.use("/api/action-execution", actionExecutionRoute);
   app.use("/api/violation-logs", violationLogRoute);
 
@@ -252,6 +252,9 @@ const mountRoutes = (app) => {
   app.use("/api/list", ListRoute);
   app.use("/api/tasks", tasksRoute);
   app.use("/api/subtasks", subtasksRoute);
+  app.use("/api/comments", commentRoute);
+  app.use("/api/attachments", attachmentRoute);
+  app.use("/api/time-tracking", timeTrackingRoute);
   //Payment
   app.use("/api", paytrRouter);
 

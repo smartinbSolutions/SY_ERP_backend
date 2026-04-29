@@ -1,8 +1,9 @@
+const mongoose = require("mongoose");
 const List = require("../../models/Tasks/ListModel");
 const Workspace = require("../../models/Tasks/WorkspaceModel");
 
 // ===============================
-// HELPER: workspace membership
+// HELPER
 // ===============================
 const isMember = (workspace, userId) => {
   return workspace.members?.some(
@@ -13,12 +14,15 @@ const isMember = (workspace, userId) => {
 // ===============================
 // CREATE LIST
 // ===============================
-exports.createList = async (data, userId) => {
-  if (!data.name) throw new Error("Name is required");
+exports.createList = async (data, userId, companyId) => {
+  if (!companyId) throw new Error("Company ID is required");
   if (!data.workspace) throw new Error("Workspace is required");
   if (!data.folder) throw new Error("Folder is required");
 
-  const workspace = await Workspace.findById(data.workspace);
+  const workspace = await Workspace.findOne({
+    _id: data.workspace,
+    companyId,
+  });
 
   if (!workspace) throw new Error("Workspace not found");
 
@@ -30,13 +34,14 @@ exports.createList = async (data, userId) => {
     name: data.name.trim(),
     folder: data.folder,
     workspace: data.workspace,
+    companyId,
     visibility: data.visibility || "private",
     createdBy: userId,
-
+    order: data.order || 0,
     members: [
       {
         user: userId,
-        role: "admin",
+        role: "manager", 
       },
     ],
   });
@@ -45,67 +50,29 @@ exports.createList = async (data, userId) => {
 };
 
 // ===============================
-// GET LISTS BY WORKSPACE
-// ===============================
-exports.getListsByWorkspace = async (workspaceId, userId) => {
-  const workspace = await Workspace.findById(workspaceId);
-
-  if (!workspace) throw new Error("Workspace not found");
-
-  if (!isMember(workspace, userId)) {
-    throw new Error("Access denied");
-  }
-
-  return await List.find({ workspace: workspaceId }).sort({ order: 1 });
-};
-
-// ===============================
-// GET ONE LIST
-// ===============================
-exports.getListById = async (listId, userId) => {
-  const list = await List.findById(listId);
-
-  if (!list) throw new Error("List not found");
-
-  const workspace = await Workspace.findById(list.workspace);
-
-  if (!workspace) throw new Error("Workspace not found");
-
-  if (!isMember(workspace, userId)) {
-    throw new Error("Workspace access denied");
-  }
-
-  if (list.visibility === "public") return list;
-
-  const isListMember = list.members?.some(
-    (m) => m.user.toString() === userId.toString(),
-  );
-
-  if (!isListMember) {
-    throw new Error("List access denied");
-  }
-
-  return list;
-};
-
-// ===============================
 // UPDATE LIST
 // ===============================
-exports.updateList = async (listId, data, userId) => {
-  const list = await List.findById(listId);
+exports.updateList = async (listId, data, userId, companyId) => {
+  if (!companyId) throw new Error("Company ID is required");
+
+  const list = await List.findOne({
+    _id: listId,
+    companyId,
+  });
 
   if (!list) throw new Error("List not found");
 
-  const isAdmin = list.members?.some(
-    (m) => m.user.toString() === userId.toString() && m.role === "admin",
+  const isManager = list.members?.some(
+    (m) => m.user.toString() === userId.toString() && m.role === "manager",
   );
 
-  if (!isAdmin) {
-    throw new Error("Only admin can update list");
+  if (!isManager) {
+    throw new Error("Only manager can update list");
   }
 
-  list.name = data.name ?? list.name;
-  list.visibility = data.visibility ?? list.visibility;
+  if (data.name) list.name = data.name.trim();
+  if (data.visibility) list.visibility = data.visibility;
+  if (data.order !== undefined) list.order = data.order;
 
   await list.save();
 
@@ -115,17 +82,22 @@ exports.updateList = async (listId, data, userId) => {
 // ===============================
 // DELETE LIST
 // ===============================
-exports.deleteList = async (listId, userId) => {
-  const list = await List.findById(listId);
+exports.deleteList = async (listId, userId, companyId) => {
+  if (!companyId) throw new Error("Company ID is required");
+
+  const list = await List.findOne({
+    _id: listId,
+    companyId,
+  });
 
   if (!list) throw new Error("List not found");
 
-  const isAdmin = list.members?.some(
-    (m) => m.user.toString() === userId.toString() && m.role === "admin",
+  const isManager = list.members?.some(
+    (m) => m.user.toString() === userId.toString() && m.role === "manager",
   );
 
-  if (!isAdmin) {
-    throw new Error("Only admin can delete list");
+  if (!isManager) {
+    throw new Error("Only manager can delete list");
   }
 
   await list.deleteOne();
@@ -136,17 +108,22 @@ exports.deleteList = async (listId, userId) => {
 // ===============================
 // ADD MEMBER
 // ===============================
-exports.addMember = async (listId, targetUserId, role, userId) => {
-  const list = await List.findById(listId);
+exports.addMember = async (listId, targetUserId, role, userId, companyId) => {
+  if (!companyId) throw new Error("Company ID is required");
+
+  const list = await List.findOne({
+    _id: listId,
+    companyId,
+  });
 
   if (!list) throw new Error("List not found");
 
-  const isAdmin = list.members?.some(
-    (m) => m.user.toString() === userId.toString() && m.role === "admin",
+  const isManager = list.members?.some(
+    (m) => m.user.toString() === userId.toString() && m.role === "manager",
   );
 
-  if (!isAdmin) {
-    throw new Error("Only admin can add members");
+  if (!isManager) {
+    throw new Error("Only manager can add members");
   }
 
   const exists = list.members?.some(

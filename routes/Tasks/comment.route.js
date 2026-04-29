@@ -6,7 +6,7 @@ const {
   deleteComment,
   getComments,
   updateComment,
-} = require("../../controllers/Hr/comment.controller");
+} = require("../../controllers/Tasks/comment.controller");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
