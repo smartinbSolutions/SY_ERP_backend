@@ -34,11 +34,22 @@ exports.getOneTask = async (req, res) => {
 // GET ALL TASKS
 exports.getAllTasks = async (req, res) => {
   try {
-    const tasks = await taskService.getAllTasks(req);
+    const result = await taskService.getAllTasks({
+      userId: req.user._id,
+      type: req.query.type,
+      listId: req.query.listId,
+      includeSubTasks: req.query.includeSubTasks,
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 10,
+      status: req.query.status,
+      priority: req.query.priority,
+    });
 
     return res.status(200).json({
-      count: tasks.length,
-      data: tasks,
+      pagination: result.pagination,
+
+      success: true,
+      data: result.tasks || result.result,
     });
   } catch (err) {
     return res.status(400).json({

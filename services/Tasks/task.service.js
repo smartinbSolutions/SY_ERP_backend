@@ -21,7 +21,6 @@ exports.getTaskById = async (taskId) => {
   return task;
 };
 
-// GET ALL (🔥 clean version)
 exports.getAllTasks = async ({
   userId,
   type,
@@ -32,24 +31,60 @@ exports.getAllTasks = async ({
   status,
   priority,
 }) => {
+
+
+
   const filter = { isArchived: false };
 
-  // type filter
-  if (type === "my") filter.assignedTo = userId;
-  if (type === "team") filter.createdBy = userId;
+  // ===============================
+  // TYPE FILTER
+  // ===============================
+  // if (type === "my") {
+  //   filter.assignedTo = userId;
+  //   console.log("Filter applied: assignedTo =", userId);
+  // }
 
-  // list filter
-  if (listId && mongoose.Types.ObjectId.isValid(listId)) {
-    filter.list = new mongoose.Types.ObjectId(listId);
+  // if (type === "team") {
+  //   filter.createdBy = userId;
+  //   console.log("Filter applied: createdBy =", userId);
+  // }
+
+  // ===============================
+  // LIST FILTER
+  // ===============================
+
+  if (listId) {
+    const isValid = mongoose.Types.ObjectId.isValid(listId);
+    console.log("Is listId valid ObjectId?", isValid);
+
+    if (isValid) {
+      filter.list = new mongoose.Types.ObjectId(listId); 
+      console.log("Filter applied: list =", listId);
+    } else {
+      console.log("Invalid listId provided, skipping list filter");
+    }
+
   }
 
-  // extra filters
-  if (status) filter.status = status;
-  if (priority) filter.priority = priority;
+  // ===============================
+  // EXTRA FILTERS
+  // ===============================
+  if (status) {
+    filter.status = status;
+    console.log("Filter applied: status =", status);
+  }
+
+  if (priority) {
+    filter.priority = priority;
+    console.log("Filter applied: priority =", priority);
+  }
+
 
   const skip = (page - 1) * limit;
 
-  // main query
+  // ===============================
+  // MAIN QUERY
+  // ===============================
   const tasks = await Task.find(filter)
     .populate("assignedTo", "name email")
     .populate("createdBy", "name")
@@ -57,12 +92,22 @@ exports.getAllTasks = async ({
     .skip(skip)
     .limit(limit);
 
+  console.log("Tasks fetched:", tasks.length);
+
   const total = await Task.countDocuments(filter);
 
-  // 🔥 بدون subTasks
+  console.log("Total count:", total);
+
+  // ===============================
+  // WITHOUT SUBTASKS
+  // ===============================
   if (includeSubTasks !== "true") {
+    console.log("Returning WITHOUT subTasks");
+
+    console.log("==== END DEBUG ====");
+
     return {
-      data: tasks,
+      tasks,
       pagination: {
         total,
         page,
@@ -71,10 +116,19 @@ exports.getAllTasks = async ({
     };
   }
 
-  // 🔥 WITH subTasks
-  const taskIds = tasks.map((t) => t._id);
+  // ===============================
+  // WITH SUBTASKS
+  // ===============================
+  console.log("Including subTasks...");
 
-  const subTasks = await subTaskModel.find({ task: { $in: taskIds } }).lean();
+  const taskIds = tasks.map((t) => t._id);
+  console.log("Task IDs:", taskIds);
+
+  const subTasks = await subTaskModel
+    .find({ task: { $in: taskIds } })
+    .lean();
+
+  console.log("SubTasks fetched:", subTasks.length);
 
   const map = {};
 
@@ -89,8 +143,12 @@ exports.getAllTasks = async ({
     subTasks: map[task._id.toString()] || [],
   }));
 
+  console.log("Final result with subTasks:", result.length);
+
+  console.log("==== END DEBUG ====");
+
   return {
-    data: result,
+    result,
     pagination: {
       total,
       page,
