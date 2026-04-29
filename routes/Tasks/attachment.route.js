@@ -6,7 +6,7 @@ const {
   getAttachmentById,
   getAttachments,
   uploadAttachment,
-} = require("../../controllers/Hr/attachment.controller");
+} = require("../../controllers/Tasks/attachment.controller");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
@@ -22,8 +22,8 @@ attachmentRoute
   .get(hrAuthServices.protectStaffOrERP, getAttachments)
   .post(
     hrAuthServices.protectStaffOrERP,
-    upload.single("file"), 
-    uploadAttachment
+    upload.single("file"),
+    uploadAttachment,
   );
 
 attachmentRoute

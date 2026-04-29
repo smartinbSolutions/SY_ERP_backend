@@ -7,7 +7,7 @@ const {
   getAllTasks,
   getOneTask,
   updateTask,
-} = require("../../controllers/Hr/task.controller");
+} = require("../../controllers/Tasks/task.controller");
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
