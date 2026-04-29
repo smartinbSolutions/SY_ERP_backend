@@ -16,6 +16,7 @@ const {
   findAllSalesInvoicesService,
   findOneSalesInvoiceService,
   findCustomerSalesInvoicesService,
+  paymentService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
@@ -38,7 +39,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
     let nextCounterSalesInvoices = null;
 
     if (!invoiceDraft) {
-      if (req.body.paymentsStatus !== "unpaid") {
+      if (req.body.havepayments !== "unpaid") {
         nextCounterPayment = await counterModel.findOneAndUpdate(
           { companyId, name: "Payment" },
           { $inc: { seq: 1 } },
@@ -88,6 +89,15 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         paymentsStatus: req.body.paymentsStatus,
         session,
       });
+      if (req.body.havepayments !== "unpaid") {
+        await paymentService({
+          ...prepared,
+          req,
+          companyId,
+          session,
+          newSalesInvoice,
+        });
+      }
     }
 
     await session.commitTransaction();
@@ -244,7 +254,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       newSalesInvoice: updatedSalesInvoice,
       companyId,
       date: updatedSalesInvoice.orderDate,
-      totalInMainCurrency: updatedSalesInvoice.totalInMainCurrency,
+      totalSalesPriceMainCurrency: updatedSalesInvoice.totalInMainCurrency,
       totalRemainderMainCurrency:
         updatedSalesInvoice.totalRemainderMainCurrency,
       paymentsStatus: updatedSalesInvoice.paymentsStatus,
@@ -287,7 +297,14 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       session,
     );
 
-    if (updatedSalesInvoice.paymentsStatus === "paid") {
+    if (req.body.havepayments === "paid") {
+      await paymentService({
+        ...newPrepared,
+        req,
+        companyId,
+        session,
+        newSalesInvoice: updatedSalesInvoice,
+      });
       await createInvoiceHistory(
         companyId,
         updatedSalesInvoice._id,
