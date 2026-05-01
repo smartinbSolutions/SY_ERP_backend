@@ -32,7 +32,7 @@ LeaveRequestRouter.route("/")
     processLeaveAttachment,
     createLeaveRequest,
   )
-  .get(getAllLeaveRequests);
+  .get(hrAuthServices.protectStaffOrERP, getAllLeaveRequests);
 
 LeaveRequestRouter.route("/handle-leave-status/:id").post(
   hrAuthServices.protectStaffOrERP,

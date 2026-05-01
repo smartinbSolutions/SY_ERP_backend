@@ -60,14 +60,35 @@ exports.deleteById = async (id) => {
 };
 
 // ================= GET MY APPROVALS =================
-exports.getMyApprovals = async (userId) => {
-  return await AdvanceRequest.find({
-    "approval.currentApprover": userId,
-    status: "pending",
-  })
+exports.getMyApprovals = async ({ userId, page = 1, limit = 10, status }) => {
+  const skip = (page - 1) * limit;
+  const filter =
+    status && status !== "pending"
+      ? { "approval.steps.actedBy": userId, status }
+      : status === "pending"
+        ? { "approval.currentApprover": userId, status: "pending" }
+        : {
+            $or: [
+              { "approval.currentApprover": userId, status: "pending" },
+              { "approval.steps.actedBy": userId },
+            ],
+          };
+
+  const totalItems = await AdvanceRequest.countDocuments(filter);
+  const requests = await AdvanceRequest.find(filter)
     .populate("userId", "fullName email")
     .populate("advanceTypeId")
+    .skip(skip)
+    .limit(limit)
     .sort({ createdAt: -1 });
+
+  return {
+    page,
+    limit,
+    totalItems,
+    totalPages: Math.ceil(totalItems / limit),
+    requests,
+  };
 };
 
 // ================= HANDLE APPROVAL =================

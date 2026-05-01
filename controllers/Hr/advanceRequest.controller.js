@@ -258,10 +258,25 @@ exports.updateAdvanceRequest = asyncHandler(async (req, res, next) => {
 
 // ================= GET MY APPROVALS =================
 exports.getMyApprovals = asyncHandler(async (req, res) => {
-  const requests = await service.getMyApprovals(req.user._id);
-  res
-    .status(200)
-    .json({ status: true, results: requests.length, data: requests });
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const { status } = req.query;
+  const { requests, totalItems, totalPages } = await service.getMyApprovals({
+    userId: req.user._id,
+    page,
+    limit,
+    status,
+  });
+
+  res.status(200).json({
+    status: true,
+    page,
+    limit,
+    totalItems,
+    totalPages,
+    results: requests.length,
+    data: requests,
+  });
 });
 
 // ================= HANDLE =================

@@ -262,17 +262,38 @@ exports.getOvertimeRequestById = asyncHandler(async (req, res, next) => {
 });
 
 exports.getMyApprovals = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const { status } = req.query;
+
+  const filter =
+    status && status !== "pending"
+      ? { "approval.steps.actedBy": req.user._id, status }
+      : status === "pending"
+        ? { "approval.currentApprover": req.user._id, status: "pending" }
+        : {
+            $or: [
+              { "approval.currentApprover": req.user._id, status: "pending" },
+              { "approval.steps.actedBy": req.user._id },
+            ],
+          };
+
+  const totalItems = await overtimeRequestModel.countDocuments(filter);
   const requests = await overtimeRequestModel
-    .find({
-      "approval.currentApprover": req.user._id,
-      status: "pending",
-    })
+    .find(filter)
     .populate("userId", "fullName email")
     .populate("overtimeTypeId")
+    .skip(skip)
+    .limit(limit)
     .sort({ createdAt: -1 });
 
   res.status(200).json({
     status: true,
+    page,
+    limit,
+    totalItems,
+    totalPages: Math.ceil(totalItems / limit),
     results: requests.length,
     data: requests,
   });

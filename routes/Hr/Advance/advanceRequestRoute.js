@@ -32,7 +32,7 @@ advanceRequestRouter
     processAdvanceAttachment,
     createAdvanceRequest,
   )
-  .get(getAllAdvanceRequests);
+  .get(hrAuthServices.protectStaffOrERP, getAllAdvanceRequests);
 
 advanceRequestRouter
   .route("/handle-advance-status/:id")

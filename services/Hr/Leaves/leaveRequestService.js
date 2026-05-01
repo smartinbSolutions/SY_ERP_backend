@@ -15,6 +15,54 @@ const mongoose = require("mongoose");
 const NotificationModel = require("../../../models/Hr/NotificationModel");
 const staffModel = require("../../../models/Hr/staffModel");
 
+const getRequestDays = (request) => {
+  if (
+    request.days !== undefined &&
+    request.days !== null &&
+    Number.isFinite(Number(request.days))
+  ) {
+    return Number(request.days);
+  }
+
+  if (!request.startDate || !request.endDate) return 0;
+
+  const start = new Date(request.startDate);
+  const end = new Date(request.endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+
+  return Math.max(
+    1,
+    Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+  );
+};
+
+const getLeaveTypeAllowance = (leaveType) => {
+  switch (leaveType.typeKey) {
+    case "annual":
+      return leaveType.annualRules?.[0]?.days || 0;
+    case "sick":
+      return (leaveType.sickRules || []).reduce(
+        (total, rule) => total + (Number(rule.days) || 0),
+        0,
+      );
+    case "maternity":
+      return (leaveType.maternityRules || []).reduce(
+        (total, rule) => total + (Number(rule.days) || 0),
+        0,
+      );
+    default:
+      return leaveType.singleRules?.days || 0;
+  }
+};
+
+const getStaffLeavePolicyId = (staff) =>
+  staff.groupId?.leavePolicy?._id ||
+  staff.groupId?.leavePolicy ||
+  staff.payrollGroupId?.policiesSnapshot?.leavePolicy?._id ||
+  staff.payrollGroupId?.policiesSnapshot?.leavePolicy ||
+  null;
+
 const attachmentFilter = function (req, file, cb) {
   const allowedTypes = [
     "image/jpeg",
@@ -40,6 +88,8 @@ exports.uploadLeaveAttachment = uploadAttachment.single("attachment");
 
 exports.processLeaveAttachment = asyncHandler(async (req, res, next) => {
   if (!req.file) return next();
+
+  await fs.promises.mkdir("uploads/leaveAttachments", { recursive: true });
 
   const ext = path.extname(req.file.originalname);
   const filename = `leave-${uuidv4()}-${Date.now()}${ext}`;
@@ -146,6 +196,47 @@ exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
 
   const filter = { userId: req.user._id };
 
+  if (req.query.status) filter.status = req.query.status;
+
+  const allRequests = await LeaveRequest.find({ userId: req.user._id }).select(
+    "status startDate endDate days",
+  );
+
+  const used = allRequests.filter(
+    (request) => request.status === "approved",
+  ).length;
+
+  const pending = allRequests.filter(
+    (request) => request.status === "pending",
+  ).length;
+
+  const staff = await staffModel
+    .findById(req.user._id)
+    .populate({ path: "groupId", select: "leavePolicy" })
+    .populate({
+      path: "payrollGroupId",
+      select: "policiesSnapshot.leavePolicy",
+    });
+
+  const leavePolicyId = getStaffLeavePolicyId(staff);
+  const leaveTypeFilter = {
+    companyId: staff?.companyId || req.user.companyId,
+    ...(leavePolicyId ? { policyId: leavePolicyId } : {}),
+  };
+
+  const leaveTypes = await leavesModel.find(leaveTypeFilter);
+  const totalBalance = leaveTypes.reduce(
+    (total, leaveType) => total + getLeaveTypeAllowance(leaveType),
+    0,
+  );
+
+  const summary = {
+    totalBalance,
+    used,
+    remaining: Math.max(totalBalance - used, 0),
+    pending,
+  };
+
   const totalItems = await LeaveRequest.countDocuments(filter);
   const totalPages = Math.ceil(totalItems / limit);
 
@@ -161,9 +252,11 @@ exports.getMyLeaveRequests = asyncHandler(async (req, res) => {
     totalPages,
     results: requests.length,
     totalItems,
+    summary,
     data: requests,
   });
 });
+
 /* ================= GET ALL COMPANY REQUESTS (ADMIN OR MANAGER) ================= */
 exports.getAllLeaveRequests = asyncHandler(async (req, res) => {
   const {
@@ -238,19 +331,65 @@ exports.getLeaveRequestById = asyncHandler(async (req, res, next) => {
 });
 
 exports.getMyApprovals = asyncHandler(async (req, res) => {
-  const requests = await leaveRequestModel
-    .find({
-      "approval.currentApprover": req.user._id,
-      status: "pending",
-    })
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const { status, startDate, endDate, search } = req.query;
+
+  const filter =
+    status && status !== "pending"
+      ? { "approval.steps.actedBy": req.user._id, status }
+      : status === "pending"
+        ? { "approval.currentApprover": req.user._id, status: "pending" }
+        : {
+            $or: [
+              { "approval.currentApprover": req.user._id, status: "pending" },
+              { "approval.steps.actedBy": req.user._id },
+            ],
+          };
+
+  if (startDate || endDate) {
+    if (startDate) filter.startDate = { $gte: new Date(startDate) };
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      filter.endDate = { $lte: endOfDay };
+    }
+  }
+
+  const searchTerm = search?.trim().toLowerCase();
+
+  let requests = await leaveRequestModel
+    .find(filter)
     .populate("userId", "fullName email")
     .populate("leaveType")
     .sort({ createdAt: -1 });
 
+  if (searchTerm) {
+    requests = requests.filter((request) => {
+      const employeeName = request.userId?.fullName?.toLowerCase() || "";
+      const employeeEmail = request.userId?.email?.toLowerCase() || "";
+      const leaveType = request.leaveType?.typeKey?.toLowerCase() || "";
+
+      return (
+        employeeName.includes(searchTerm) ||
+        employeeEmail.includes(searchTerm) ||
+        leaveType.includes(searchTerm)
+      );
+    });
+  }
+
+  const totalItems = requests.length;
+  const paginatedRequests = requests.slice(skip, skip + limit);
+
   res.status(200).json({
     status: true,
-    results: requests.length,
-    data: requests,
+    page,
+    limit,
+    totalItems,
+    totalPages: Math.ceil(totalItems / limit),
+    results: paginatedRequests.length,
+    data: paginatedRequests,
   });
 });
 

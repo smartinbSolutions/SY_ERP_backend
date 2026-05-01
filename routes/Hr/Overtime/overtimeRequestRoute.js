@@ -32,7 +32,7 @@ overtimeRequestRouter
     processOvertimeAttachment,
     createOvertimeRequest,
   )
-  .get(getAllOvertimeRequests);
+  .get(hrAuthServices.protectStaffOrERP, getAllOvertimeRequests);
 
 overtimeRequestRouter
   .route("/handle-overtime-status/:id")
