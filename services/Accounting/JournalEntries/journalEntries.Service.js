@@ -104,6 +104,87 @@ exports.createJournalEntryService = async ({
   return create;
 };
 
+exports.createJournalServiceV2 = async ({
+  journalInfo,
+  journalAccounts,
+  companyId,
+  session,
+  nextCounterJournal,
+}) => {
+  if (!companyId) {
+    throw new ApiError("companyId is required", 400);
+  }
+
+  if (!journalInfo) {
+    throw new ApiError("journalInfo is required", 400);
+  }
+
+  if (!Array.isArray(journalAccounts) || journalAccounts.length === 0) {
+    throw new ApiError("journalAccounts are required", 400);
+  }
+
+  const padZero = (value) => (value < 10 ? `0${value}` : value);
+
+  const ts = Date.now();
+  const dateOb = new Date(ts);
+  const formattedTime = `${padZero(dateOb.getHours())}:${padZero(
+    dateOb.getMinutes(),
+  )}:${padZero(dateOb.getSeconds())}.${String(
+    dateOb.getMilliseconds(),
+  ).padStart(3, "0")}`;
+
+  const isoJournalDate = `${journalInfo.journalDate}T${formattedTime}Z`;
+
+  const totalJournalDebit = journalAccounts.reduce(
+    (sum, account) => sum + Number(account.MainDebit || 0),
+    0,
+  );
+
+  const totalJournalCredit = journalAccounts.reduce(
+    (sum, account) => sum + Number(account.MainCredit || 0),
+    0,
+  );
+
+  const payload = {
+    ...journalInfo,
+    companyId,
+    journalDate: isoJournalDate,
+    journalAccounts,
+    filesArray: journalInfo.filesArray || [],
+    counter: Number(journalInfo.counter || 0) + nextCounterJournal.seq,
+    journalRefNum: nextCounterJournal.seq,
+    journalDebit: totalJournalDebit,
+    journalCredit: totalJournalCredit,
+  };
+
+  const [createdJournal] = await journalModel.create([payload], { session });
+
+  const updateOperations = journalAccounts.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id, companyId },
+      update: {
+        $inc: {
+          debtor: Number(item.MainDebit || 0),
+          creditor: Number(item.MainCredit || 0),
+        },
+      },
+    },
+  }));
+
+  if (updateOperations.length > 0) {
+    await accountingTreeModel.bulkWrite(updateOperations, { session });
+  }
+
+  await existingPeriodicService({
+    journalDate: isoJournalDate,
+    journalAccounts,
+    companyId,
+    session,
+  });
+
+  return createdJournal;
+};
+
 exports.auditingJournalService = async ({ companyId, session }) => {
   const { id } = req.params;
   const { auditing } = req.body;
@@ -189,4 +270,84 @@ exports.getOneJournalByLinkServices = async ({ req, companyId }) => {
   }
 
   return { data: journal };
+};
+
+exports.existingPeriodicService = async ({
+  journalDate,
+  journalAccounts,
+  companyId,
+  session,
+}) => {
+  const MONTHS = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
+  ];
+  for (const item of journalAccounts) {
+    const date = new Date(journalDate);
+    const year = date.getFullYear();
+    const monthName = MONTHS[date.getMonth()];
+
+    const monthAmount = (item.MainDebit || 0) - (item.MainCredit || 0);
+
+    const existingPeriodic = await periodicJournalEntriesModel.findOne(
+      {
+        accountId: item.id,
+        year,
+        companyId,
+      },
+      null,
+      { session },
+    );
+
+    if (existingPeriodic) {
+      const existingMonth = existingPeriodic.months.find(
+        (x) => x.month === monthName,
+      );
+
+      if (existingMonth) {
+        existingMonth.amount += monthAmount;
+      } else {
+        existingPeriodic.months.push({ month: monthName, amount: monthAmount });
+      }
+
+      existingPeriodic.yearTotal = existingPeriodic.months.reduce(
+        (sum, mo) => sum + (mo.amount || 0),
+        0,
+      );
+
+      await existingPeriodic.save(session);
+    } else {
+      const newPeriodic = new periodicJournalEntriesModel({
+        name: item.name || "",
+        year: year,
+
+        months: [
+          {
+            month: monthName,
+            amount: monthAmount || 0,
+          },
+        ],
+
+        accountId: item.id,
+        companyId,
+        yearTotal: monthAmount || 0,
+        parentId: item.parentId || null,
+        parentCode: item.parentCode || null,
+        code: item.code || "",
+      });
+
+      await newPeriodic.save(session);
+    }
+  }
+  return { message: "Periodic entries updated successfully" };
 };

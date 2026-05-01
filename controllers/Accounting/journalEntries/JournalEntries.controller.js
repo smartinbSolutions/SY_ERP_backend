@@ -113,6 +113,13 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
       nextCounterJournal,
       session,
     });
+
+    createJournalEntryService({
+      journalDate: newJournal.journalDate,
+      journalAccounts: req.body.journalAccounts,
+      companyId,
+      session,
+    });
     await session.commitTransaction();
 
     res.status(201).json({
