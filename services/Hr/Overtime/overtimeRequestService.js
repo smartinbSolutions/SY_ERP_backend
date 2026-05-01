@@ -286,7 +286,7 @@ exports.getMyApprovals = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-  const { status } = req.query;
+  const { status, search } = req.query;
 
   const filter =
     status && status !== "pending"
@@ -300,14 +300,31 @@ exports.getMyApprovals = asyncHandler(async (req, res) => {
             ],
           };
 
-  const totalItems = await overtimeRequestModel.countDocuments(filter);
-  const requests = await overtimeRequestModel
+  const searchTerm = search?.trim().toLowerCase();
+
+  let requests = await overtimeRequestModel
     .find(filter)
     .populate("userId", "fullName email")
     .populate("overtimeTypeId")
-    .skip(skip)
-    .limit(limit)
     .sort({ createdAt: -1 });
+
+  if (searchTerm) {
+    requests = requests.filter((request) => {
+      const employeeName = request.userId?.fullName?.toLowerCase() || "";
+      const employeeEmail = request.userId?.email?.toLowerCase() || "";
+      const overtimeType =
+        request.overtimeTypeId?.typeKey?.toLowerCase() || "";
+
+      return (
+        employeeName.includes(searchTerm) ||
+        employeeEmail.includes(searchTerm) ||
+        overtimeType.includes(searchTerm)
+      );
+    });
+  }
+
+  const totalItems = requests.length;
+  const paginatedRequests = requests.slice(skip, skip + limit);
 
   res.status(200).json({
     status: true,
@@ -315,8 +332,8 @@ exports.getMyApprovals = asyncHandler(async (req, res) => {
     limit,
     totalItems,
     totalPages: Math.ceil(totalItems / limit),
-    results: requests.length,
-    data: requests,
+    results: paginatedRequests.length,
+    data: paginatedRequests,
   });
 });
 

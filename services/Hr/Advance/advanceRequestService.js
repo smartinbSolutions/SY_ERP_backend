@@ -60,7 +60,13 @@ exports.deleteById = async (id) => {
 };
 
 // ================= GET MY APPROVALS =================
-exports.getMyApprovals = async ({ userId, page = 1, limit = 10, status }) => {
+exports.getMyApprovals = async ({
+  userId,
+  page = 1,
+  limit = 10,
+  status,
+  search,
+}) => {
   const skip = (page - 1) * limit;
   const filter =
     status && status !== "pending"
@@ -74,20 +80,36 @@ exports.getMyApprovals = async ({ userId, page = 1, limit = 10, status }) => {
             ],
           };
 
-  const totalItems = await AdvanceRequest.countDocuments(filter);
-  const requests = await AdvanceRequest.find(filter)
+  const searchTerm = search?.trim().toLowerCase();
+
+  let requests = await AdvanceRequest.find(filter)
     .populate("userId", "fullName email")
     .populate("advanceTypeId")
-    .skip(skip)
-    .limit(limit)
     .sort({ createdAt: -1 });
+
+  if (searchTerm) {
+    requests = requests.filter((request) => {
+      const employeeName = request.userId?.fullName?.toLowerCase() || "";
+      const employeeEmail = request.userId?.email?.toLowerCase() || "";
+      const advanceType = request.advanceTypeId?.typeKey?.toLowerCase() || "";
+
+      return (
+        employeeName.includes(searchTerm) ||
+        employeeEmail.includes(searchTerm) ||
+        advanceType.includes(searchTerm)
+      );
+    });
+  }
+
+  const totalItems = requests.length;
+  const paginatedRequests = requests.slice(skip, skip + limit);
 
   return {
     page,
     limit,
     totalItems,
     totalPages: Math.ceil(totalItems / limit),
-    requests,
+    requests: paginatedRequests,
   };
 };
 
