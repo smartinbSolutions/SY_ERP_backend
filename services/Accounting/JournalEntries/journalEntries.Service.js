@@ -1,5 +1,5 @@
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
-const journalEntriesModel = require("../../../models/Accounting/journalEntries/journalEntries.model");
+const journalEntriesModel = require("../../../models/journalEntryModel");
 const accountingTreeModel = require("../../../models/accountingTreeModel");
 const expensesModel = require("../../../models/expensesModel");
 const orderModel = require("../../../models/orderModel");
@@ -7,6 +7,7 @@ const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
 const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceModel");
 const periodicJournalEntriesModel = require("../../../models/reports/periodicJournalEntriesModel");
 const returnOrderModel = require("../../../models/returnOrderModel");
+const counterModel = require("../../../models/Settings/counterModel");
 
 exports.journalEntriesService = async ({ req, companyId }) => {
   const pageSize = req.query.limit || 0;
@@ -15,21 +16,21 @@ exports.journalEntriesService = async ({ req, companyId }) => {
   const { startDate, endDate } = req.query;
 
   let query = { companyId };
-  if (startDate && endDate) {
-    query.journalDate = {
-      $gte: new Date(startDate + "T00:00:00.000Z"),
-      $lte: new Date(endDate + "T23:59:59.999Z"),
-    };
-  }
+  // if (startDate && endDate) {
+  //   query.journalDate = {
+  //     $gte: new Date(startDate + "T00:00:00.000Z"),
+  //     $lte: new Date(endDate + "T23:59:59.999Z"),
+  //   };
+  // }
 
-  if (req.query.keyword) {
-    query.$or = [
-      { journalName: { $regex: req.query.keyword, $options: "i" } },
-      { journalRefNum: { $regex: req.query.keyword, $options: "i" } },
-      { counter: { $regex: req.query.keyword, $options: "i" } },
-      { journalDesc: { $regex: req.query.keyword, $options: "i" } },
-    ];
-  }
+  // if (req.query.keyword) {
+  //   query.$or = [
+  //     { journalName: { $regex: req.query.keyword, $options: "i" } },
+  //     { journalRefNum: { $regex: req.query.keyword, $options: "i" } },
+  //     { counter: { $regex: req.query.keyword, $options: "i" } },
+  //     { journalDesc: { $regex: req.query.keyword, $options: "i" } },
+  //   ];
+  // }
   const totalItems = await journalEntriesModel.countDocuments(query);
 
   // Calculate total pages
@@ -40,6 +41,8 @@ exports.journalEntriesService = async ({ req, companyId }) => {
     .sort({ journalDate: -1 })
     .skip(skip)
     .limit(pageSize);
+
+  console.log(account);
 
   return { totalItems, totalPages, account };
 };
@@ -109,7 +112,8 @@ exports.createJournalServiceV2 = async ({
   journalAccounts,
   companyId,
   session,
-  nextCounterJournal,
+  totalDebit,
+  totalCredit,
 }) => {
   if (!companyId) {
     throw new ApiError("companyId is required", 400);
@@ -123,6 +127,12 @@ exports.createJournalServiceV2 = async ({
     throw new ApiError("journalAccounts are required", 400);
   }
 
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session },
+  );
+
   const padZero = (value) => (value < 10 ? `0${value}` : value);
 
   const ts = Date.now();
@@ -135,16 +145,6 @@ exports.createJournalServiceV2 = async ({
 
   const isoJournalDate = `${journalInfo.journalDate}T${formattedTime}Z`;
 
-  const totalJournalDebit = journalAccounts.reduce(
-    (sum, account) => sum + Number(account.MainDebit || 0),
-    0,
-  );
-
-  const totalJournalCredit = journalAccounts.reduce(
-    (sum, account) => sum + Number(account.MainCredit || 0),
-    0,
-  );
-
   const payload = {
     ...journalInfo,
     companyId,
@@ -153,11 +153,13 @@ exports.createJournalServiceV2 = async ({
     filesArray: journalInfo.filesArray || [],
     counter: Number(journalInfo.counter || 0) + nextCounterJournal.seq,
     journalRefNum: nextCounterJournal.seq,
-    journalDebit: totalJournalDebit,
-    journalCredit: totalJournalCredit,
+    journalDebit: totalDebit,
+    journalCredit: totalCredit,
   };
 
-  const [createdJournal] = await journalModel.create([payload], { session });
+  const [createdJournal] = await journalEntriesModel.create([payload], {
+    session,
+  });
 
   const updateOperations = journalAccounts.map((item) => ({
     updateOne: {
@@ -175,12 +177,12 @@ exports.createJournalServiceV2 = async ({
     await accountingTreeModel.bulkWrite(updateOperations, { session });
   }
 
-  await existingPeriodicService({
-    journalDate: isoJournalDate,
-    journalAccounts,
-    companyId,
-    session,
-  });
+  // await existingPeriodicService({
+  //   journalDate: isoJournalDate,
+  //   journalAccounts,
+  //   companyId,
+  //   session,
+  // });
 
   return createdJournal;
 };

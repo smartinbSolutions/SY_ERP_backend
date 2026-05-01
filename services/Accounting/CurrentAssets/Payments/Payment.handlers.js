@@ -17,9 +17,11 @@ const {
 } = require("../../../../utils/getNextCounterValue");
 const accountingTreeModel = require("../../../../models/accountingTreeModel");
 const expensesModel = require("../../../../models/expensesModel");
-const currencyModel = require("../../../../models/currencyModel");
+const currencyModel = require("../../../../models/Settings/currency.model");
 const linkPanelModel = require("../../../../models/linkPanelModel");
-const { createJournalServiceV2 } = require("../../../journalEntryServices");
+const {
+  createJournalServiceV2,
+} = require("../../../Accounting/JournalEntries/journalEntries.Service");
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED HELPER — reused by both handlers
@@ -175,7 +177,7 @@ const handleSupplierPaymentEntity = async ({
     const updatedSupplier = await suppliersModel.findOneAndUpdate(
       { _id: supplier.id || supplier._id, companyId },
       { $inc: { TotalUnpaid: amountMainCurrency } },
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!updatedSupplier) throw new Error("Supplier not found");
@@ -224,7 +226,7 @@ const settleSupplierOpenDocuments = async ({
   const getTodayRate = (currencyId) => {
     if (!currencyId) return 1;
     const found = allCurrencies.find(
-      (c) => c._id.toString() === currencyId.toString()
+      (c) => c._id.toString() === currencyId.toString(),
     );
     return Number(found?.exchangeRate || 1);
   };
@@ -272,7 +274,7 @@ const settleSupplierOpenDocuments = async ({
   console.log("========================================");
   console.log(`   Payment Amount (Main/USD): ${remainingPaymentMain}`);
   console.log(
-    `   Fund:                      ${fund?.name} (${fund?.currencyCode}) @ ${fund?.exchangeRate}`
+    `   Fund:                      ${fund?.name} (${fund?.currencyCode}) @ ${fund?.exchangeRate}`,
   );
   console.log(`   Total Open Docs:           ${openDocs.length}`);
   console.log("========================================\n");
@@ -290,13 +292,13 @@ const settleSupplierOpenDocuments = async ({
       const purchase = item.doc;
 
       const purchaseRemainderMain = Number(
-        purchase.totalRemainderMainCurrency || 0
+        purchase.totalRemainderMainCurrency || 0,
       );
       const purchaseRemainderForeign = Number(purchase.totalRemainder || 0);
 
       if (purchaseRemainderMain <= 0) {
         console.log(
-          `[SKIP] Purchase Invoice ${purchase.counter} — remainder is 0\n`
+          `[SKIP] Purchase Invoice ${purchase.counter} — remainder is 0\n`,
         );
         continue;
       }
@@ -352,56 +354,56 @@ const settleSupplierOpenDocuments = async ({
       const willBePaid = foreignFullyCovered || newRemainderMain <= 0.000001;
 
       console.log(
-        `[PURCHASE INVOICE] ${purchase.invoiceName} (${purchase.counter})`
+        `[PURCHASE INVOICE] ${purchase.invoiceName} (${purchase.counter})`,
       );
       console.log(
         `   Currency:                  ${
           purchase?.currency?.currencyCode || "USD"
-        }`
+        }`,
       );
       console.log(
-        `   Same Currency as Fund:     ${isSameCurrency ? "YES" : "NO"}`
+        `   Same Currency as Fund:     ${isSameCurrency ? "YES" : "NO"}`,
       );
       console.log(`   Invoice Rate (at booking): ${invoiceRate}`);
       console.log(`   Payment Rate:              ${paymentRate}`);
       console.log(`   ── Amounts ──`);
       console.log(
-        `   Remainder (USD):           ${purchaseRemainderMain.toFixed(6)}`
+        `   Remainder (USD):           ${purchaseRemainderMain.toFixed(6)}`,
       );
       console.log(
-        `   Remainder (Foreign):       ${purchaseRemainderForeign.toFixed(6)}`
+        `   Remainder (Foreign):       ${purchaseRemainderForeign.toFixed(6)}`,
       );
       console.log(
-        `   Available Foreign:         ${availableForeignAmount.toFixed(6)}`
+        `   Available Foreign:         ${availableForeignAmount.toFixed(6)}`,
       );
       console.log(`   Applied (USD):             ${appliedMain.toFixed(6)}`);
       console.log(
-        `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`
+        `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`,
       );
       console.log(
-        `   Applied (Fund/Cash Out):   ${appliedFundCurrency.toFixed(6)}`
+        `   Applied (Fund/Cash Out):   ${appliedFundCurrency.toFixed(6)}`,
       );
       console.log(`   ── FX ──`);
       console.log(`   USD at invoice rate:       ${appliedMain.toFixed(6)}`);
       console.log(
-        `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`
+        `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`,
       );
       console.log(
         `   FX Diff:                   ${fxDiff.toFixed(6)} ${
           fxDiff > 0 ? "⚠️  LOSS" : fxDiff < 0 ? "✅ GAIN" : "➖ NONE"
-        }`
+        }`,
       );
       console.log(`   ── After Settlement ──`);
       console.log(
-        `   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`
+        `   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`,
       );
       console.log(
-        `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`
+        `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`,
       );
       console.log(
         `   Status:                    ${
           willBePaid ? "✅ FULLY PAID" : "⏳ PARTIALLY PAID"
-        }`
+        }`,
       );
       console.log("");
 
@@ -451,7 +453,7 @@ const settleSupplierOpenDocuments = async ({
       const expense = item.doc;
 
       const expenseRemainderMain = Number(
-        expense.totalRemainderMainCurrency || 0
+        expense.totalRemainderMainCurrency || 0,
       );
       const expenseRemainderForeign = Number(expense.totalRemainder || 0);
 
@@ -498,51 +500,51 @@ const settleSupplierOpenDocuments = async ({
       console.log(
         `   Currency:                  ${
           expense?.currency?.currencyCode || "USD"
-        }`
+        }`,
       );
       console.log(
-        `   Same Currency as Fund:     ${isSameCurrency ? "YES" : "NO"}`
+        `   Same Currency as Fund:     ${isSameCurrency ? "YES" : "NO"}`,
       );
       console.log(`   Invoice Rate (at booking): ${invoiceRate}`);
       console.log(`   Payment Rate:              ${paymentRate}`);
       console.log(`   ── Amounts ──`);
       console.log(
-        `   Remainder (USD):           ${expenseRemainderMain.toFixed(6)}`
+        `   Remainder (USD):           ${expenseRemainderMain.toFixed(6)}`,
       );
       console.log(
-        `   Remainder (Foreign):       ${expenseRemainderForeign.toFixed(6)}`
+        `   Remainder (Foreign):       ${expenseRemainderForeign.toFixed(6)}`,
       );
       console.log(
-        `   Available Foreign:         ${availableForeignAmount.toFixed(6)}`
+        `   Available Foreign:         ${availableForeignAmount.toFixed(6)}`,
       );
       console.log(`   Applied (USD):             ${appliedMain.toFixed(6)}`);
       console.log(
-        `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`
+        `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`,
       );
       console.log(
-        `   Applied (Fund/Cash Out):   ${appliedFundCurrency.toFixed(6)}`
+        `   Applied (Fund/Cash Out):   ${appliedFundCurrency.toFixed(6)}`,
       );
       console.log(`   ── FX ──`);
       console.log(`   USD at invoice rate:       ${appliedMain.toFixed(6)}`);
       console.log(
-        `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`
+        `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`,
       );
       console.log(
         `   FX Diff:                   ${fxDiff.toFixed(6)} ${
           fxDiff > 0 ? "⚠️  LOSS" : fxDiff < 0 ? "✅ GAIN" : "➖ NONE"
-        }`
+        }`,
       );
       console.log(`   ── After Settlement ──`);
       console.log(
-        `   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`
+        `   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`,
       );
       console.log(
-        `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`
+        `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`,
       );
       console.log(
         `   Status:                    ${
           willBePaid ? "✅ FULLY PAID" : "⏳ PARTIALLY PAID"
-        }`
+        }`,
       );
       console.log("");
 
@@ -589,36 +591,36 @@ const settleSupplierOpenDocuments = async ({
   console.log("========================================");
   console.log(`   Docs Processed:            ${allocations.length}`);
   console.log(
-    `   Remaining Payment (USD):   ${remainingPaymentMain.toFixed(6)}`
+    `   Remaining Payment (USD):   ${remainingPaymentMain.toFixed(6)}`,
   );
   console.log(
     `   Total FX Diff:             ${totalFxDiff.toFixed(6)} ${
       totalFxDiff > 0
         ? "⚠️  NET LOSS"
         : totalFxDiff < 0
-        ? "✅ NET GAIN"
-        : "➖ NO FX IMPACT"
-    }`
+          ? "✅ NET GAIN"
+          : "➖ NO FX IMPACT"
+    }`,
   );
   console.log("   Allocations:");
   allocations.forEach((a, i) => {
     console.log(
       `   [${i + 1}] ${a.documentType} | ${a.documentName} (${
         a.documentCounter
-      })`
+      })`,
     );
     console.log(
-      `       Applied USD:     ${a.allocatedAmountMainCurrency.toFixed(4)}`
+      `       Applied USD:     ${a.allocatedAmountMainCurrency.toFixed(4)}`,
     );
     console.log(
       `       Applied Foreign: ${a.allocatedAmountDocumentCurrency.toFixed(
-        4
-      )} ${a.documentCurrencyCode}`
+        4,
+      )} ${a.documentCurrencyCode}`,
     );
     console.log(
       `       FX Diff:         ${a.fxDiff.toFixed(4)} ${
         a.fxDiff > 0 ? "LOSS" : a.fxDiff < 0 ? "GAIN" : "NONE"
-      }`
+      }`,
     );
     console.log(`       Will Be Paid:    ${a.willBePaid ? "YES ✅" : "NO ⏳"}`);
   });
@@ -659,7 +661,7 @@ const handleCustomerPaymentEntity = async ({
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
       { $inc: { TotalUnpaid: -amountMainCurrency } }, // customer owes less
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!updatedCustomer) throw new Error("Customer not found");
@@ -718,7 +720,7 @@ const handleCustomerPaymentEntity = async ({
     const updatedCustomer = await customarModel.findOneAndUpdate(
       { _id: customer.id || customer._id, companyId },
       { $inc: { TotalUnpaid: +amountMainCurrency } }, // customer owes more
-      { new: true, session }
+      { new: true, session },
     );
 
     if (!updatedCustomer) throw new Error("Customer not found");
@@ -767,7 +769,7 @@ const settleCustomerOpenDocuments = async ({
   const getTodayRate = (currencyId) => {
     if (!currencyId) return 1;
     const found = allCurrencies.find(
-      (c) => c._id.toString() === currencyId.toString()
+      (c) => c._id.toString() === currencyId.toString(),
     );
     return Number(found?.exchangeRate || 1);
   };
@@ -805,7 +807,7 @@ const settleCustomerOpenDocuments = async ({
     console.log(
       `     ${c.currencyName} (${c.currencyCode}): rate = ${c.exchangeRate} ${
         c.is_primary ? "⭐ PRIMARY" : ""
-      }`
+      }`,
     );
   });
   console.log(`   Total Open Invoices:       ${openDocs.length}`);
@@ -820,7 +822,7 @@ const settleCustomerOpenDocuments = async ({
     const invoice = item.doc;
 
     const invoiceRemainderMain = Number(
-      invoice.totalRemainderMainCurrency || 0
+      invoice.totalRemainderMainCurrency || 0,
     );
 
     if (invoiceRemainderMain <= 0) {
@@ -869,40 +871,40 @@ const settleCustomerOpenDocuments = async ({
     console.log(
       `   Currency:                  ${
         invoice?.currency?.currencyCode || "USD"
-      }`
+      }`,
     );
     console.log(`   Invoice Rate (at booking): ${invoiceRate}`);
     console.log(`   Payment Rate (today):      ${paymentRate}`);
     console.log(`   ── Amounts ──`);
     console.log(
-      `   Remainder (USD):           ${invoiceRemainderMain.toFixed(6)}`
+      `   Remainder (USD):           ${invoiceRemainderMain.toFixed(6)}`,
     );
     console.log(`   Applied (USD):             ${appliedMain.toFixed(6)}`);
     console.log(
-      `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`
+      `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`,
     );
     console.log(
-      `   Applied (Fund Currency):   ${appliedFundCurrency.toFixed(6)}`
+      `   Applied (Fund Currency):   ${appliedFundCurrency.toFixed(6)}`,
     );
     console.log(`   ── FX ──`);
     console.log(`   USD at invoice rate:       ${appliedMain.toFixed(6)}`);
     console.log(
-      `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`
+      `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`,
     );
     console.log(
       `   FX Diff:                   ${fxDiff.toFixed(6)} ${
         fxDiff > 0 ? "⚠️  LOSS" : fxDiff < 0 ? "✅ GAIN" : "➖ NONE"
-      }`
+      }`,
     );
     console.log(`   ── After Settlement ──`);
     console.log(`   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`);
     console.log(
-      `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`
+      `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`,
     );
     console.log(
       `   Status:                    ${
         willBePaid ? "✅ FULLY PAID" : "⏳ PARTIALLY PAID"
-      }`
+      }`,
     );
 
     // ── EFFECTS COMMENTED OUT ──────────────────────────────────────────
@@ -939,7 +941,7 @@ const settleCustomerOpenDocuments = async ({
       allocatedAmountMainCurrency: appliedMain,
       allocatedAmountDocumentCurrency: appliedDocumentCurrency,
       documentTotal: Number(
-        invoice.invoiceGrandTotal || invoice.invoiceGrandTotalMainCurrency || 0
+        invoice.invoiceGrandTotal || invoice.invoiceGrandTotalMainCurrency || 0,
       ),
       fxDiff,
       invoiceRate,
@@ -955,36 +957,36 @@ const settleCustomerOpenDocuments = async ({
   console.log("========================================");
   console.log(`   Invoices Processed:        ${allocations.length}`);
   console.log(
-    `   Remaining Payment (USD):   ${remainingPaymentMain.toFixed(6)}`
+    `   Remaining Payment (USD):   ${remainingPaymentMain.toFixed(6)}`,
   );
   console.log(
     `   Total FX Diff:             ${totalFxDiff.toFixed(6)} ${
       totalFxDiff > 0
         ? "⚠️  NET LOSS"
         : totalFxDiff < 0
-        ? "✅ NET GAIN"
-        : "➖ NO FX IMPACT"
-    }`
+          ? "✅ NET GAIN"
+          : "➖ NO FX IMPACT"
+    }`,
   );
   console.log("   Allocations:");
   allocations.forEach((a, i) => {
     console.log(
       `   [${i + 1}] ${a.documentType} | ${a.documentName} (${
         a.documentCounter
-      })`
+      })`,
     );
     console.log(
-      `       Applied USD:     ${a.allocatedAmountMainCurrency.toFixed(4)}`
+      `       Applied USD:     ${a.allocatedAmountMainCurrency.toFixed(4)}`,
     );
     console.log(
       `       Applied Foreign: ${a.allocatedAmountDocumentCurrency.toFixed(
-        4
-      )} ${a.documentCurrencyCode}`
+        4,
+      )} ${a.documentCurrencyCode}`,
     );
     console.log(
       `       FX Diff:         ${a.fxDiff.toFixed(4)} ${
         a.fxDiff > 0 ? "LOSS" : a.fxDiff < 0 ? "GAIN" : "NONE"
-      }`
+      }`,
     );
     console.log(`       Will Be Paid:    ${a.willBePaid ? "YES ✅" : "NO ⏳"}`);
   });
@@ -1019,7 +1021,7 @@ const handleFundPaymentEntity = async ({
   const financialFund = await financialFundsModel.findOneAndUpdate(
     { _id: fund.id || fund._id, companyId },
     { $inc: { fundBalance: fundDelta } },
-    { new: true, session }
+    { new: true, session },
   );
 
   if (!financialFund) {
@@ -1042,7 +1044,7 @@ const handleFundPaymentEntity = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 };
 
@@ -1050,7 +1052,7 @@ const handlePurchasePayment = async (
   req,
   companyId,
   next,
-  normalizedPayment
+  normalizedPayment,
 ) => {
   const session = await mongoose.startSession();
 
@@ -1077,11 +1079,11 @@ const handlePurchasePayment = async (
       if (!party?.id || !party?.type) throw new Error("Party is required");
       if (!["customer", "supplier"].includes(party.type))
         throw new Error(
-          "Fund payment context supports only customer or supplier as party"
+          "Fund payment context supports only customer or supplier as party",
         );
       if (!["incoming", "outgoing"].includes(paymentNature))
         throw new Error(
-          "Fund payment context supports only incoming or outgoing paymentNature"
+          "Fund payment context supports only incoming or outgoing paymentNature",
         );
       console.log(req.body);
       // ── Fetch invoice ──────────────────────────────────────────
@@ -1095,7 +1097,7 @@ const handlePurchasePayment = async (
 
       if (!purchase)
         throw new Error(
-          `Purchase invoice not found for id ${req.body.paymentdata.invoiceId}`
+          `Purchase invoice not found for id ${req.body.paymentdata.invoiceId}`,
         );
 
       // ── Fetch supplier ─────────────────────────────────────────
@@ -1107,11 +1109,11 @@ const handlePurchasePayment = async (
 
       // ── Invoice amounts ────────────────────────────────────────
       const invoiceRemainderMain = Number(
-        purchase.totalRemainderMainCurrency || 0
+        purchase.totalRemainderMainCurrency || 0,
       );
       const invoiceRemainderForeign = Number(purchase.totalRemainder || 0);
       const invoiceRate = Number(
-        purchase.exchangeRate || purchase?.currency?.exchangeRate || 1
+        purchase.exchangeRate || purchase?.currency?.exchangeRate || 1,
       );
 
       // ── Currency scenario ──────────────────────────────────────
@@ -1184,48 +1186,48 @@ const handlePurchasePayment = async (
       console.log("   DIRECT INVOICE PAYMENT");
       console.log("========================================");
       console.log(
-        `   Invoice:              ${purchase.invoiceName} (${purchase.counter})`
+        `   Invoice:              ${purchase.invoiceName} (${purchase.counter})`,
       );
       console.log(
-        `   Invoice Currency:     ${purchase?.currency?.currencyCode}`
+        `   Invoice Currency:     ${purchase?.currency?.currencyCode}`,
       );
       console.log(`   Invoice Rate:         ${invoiceRate}`);
       console.log(
-        `   Fund:                 ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`
+        `   Fund:                 ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
       );
       console.log(`   Same Currency:        ${isSameCurrency ? "YES" : "NO"}`);
       console.log(`   ── Amounts ──`);
       console.log(
-        `   Invoice Remainder (USD):     ${invoiceRemainderMain.toFixed(6)}`
+        `   Invoice Remainder (USD):     ${invoiceRemainderMain.toFixed(6)}`,
       );
       console.log(
-        `   Invoice Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`
+        `   Invoice Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`,
       );
       console.log(
-        `   Payment (USD):               ${paymentAmountMain.toFixed(6)}`
+        `   Payment (USD):               ${paymentAmountMain.toFixed(6)}`,
       );
       console.log(
-        `   Payment (Fund):              ${paymentAmountFund.toFixed(6)}`
+        `   Payment (Fund):              ${paymentAmountFund.toFixed(6)}`,
       );
       console.log(
-        `   Applied (Foreign):           ${appliedDocumentCurrency.toFixed(6)}`
+        `   Applied (Foreign):           ${appliedDocumentCurrency.toFixed(6)}`,
       );
       console.log(`   ── FX ──`);
       console.log(
-        `   USD at invoice rate:         ${paymentAmountMain.toFixed(6)}`
+        `   USD at invoice rate:         ${paymentAmountMain.toFixed(6)}`,
       );
       console.log(
-        `   USD at payment rate:         ${usdValueAtPaymentRate.toFixed(6)}`
+        `   USD at payment rate:         ${usdValueAtPaymentRate.toFixed(6)}`,
       );
       console.log(
         `   FX Diff:                     ${fxDiff.toFixed(6)} ${
           fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-        }`
+        }`,
       );
       console.log(
         `   Will Be Paid:                ${
           willBePaid ? "✅ YES" : "⏳ PARTIAL"
-        }`
+        }`,
       );
       console.log("========================================\n");
 
@@ -1321,7 +1323,7 @@ const handlePurchasePayment = async (
         date,
         `${paymentAmountFund} ${fund.currencyCode}`,
         "invoice",
-        session
+        session,
       );
 
       // ── Supplier entity effect ─────────────────────────────────
@@ -1384,7 +1386,7 @@ const handleSupplierPayment = async (
   req,
   companyId,
   next,
-  normalizedPayment
+  normalizedPayment,
 ) => {
   const session = await mongoose.startSession();
 
@@ -1411,11 +1413,11 @@ const handleSupplierPayment = async (
       if (!party?.id || !party?.type) throw new Error("Party is required");
       if (!["customer", "supplier"].includes(party.type))
         throw new Error(
-          "Fund payment context supports only customer or supplier as party"
+          "Fund payment context supports only customer or supplier as party",
         );
       if (!["incoming", "outgoing"].includes(paymentNature))
         throw new Error(
-          "Fund payment context supports only incoming or outgoing paymentNature"
+          "Fund payment context supports only incoming or outgoing paymentNature",
         );
 
       const supplier = await suppliersModel
@@ -1794,7 +1796,7 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
         throw new Error("Fund payment context supports only customer as party");
       if (!["incoming", "outgoing"].includes(paymentNature))
         throw new Error(
-          "Fund payment context supports only incoming or outgoing paymentNature"
+          "Fund payment context supports only incoming or outgoing paymentNature",
         );
 
       // ── Fetch invoice ────────────────────────────────────────
@@ -1818,11 +1820,11 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
 
       // ── Resolve amounts with FX + tolerance ─────────────────
       const invoiceRemainderMain = Number(
-        sales.totalRemainderMainCurrency || 0
+        sales.totalRemainderMainCurrency || 0,
       );
       const invoiceRemainderForeign = Number(sales.totalRemainder || 0);
       const invoiceRate = Number(
-        sales.exchangeRate || sales?.currency?.exchangeRate || 1
+        sales.exchangeRate || sales?.currency?.exchangeRate || 1,
       );
 
       const {
@@ -1846,31 +1848,31 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
       console.log("   SALES INVOICE PAYMENT");
       console.log("========================================");
       console.log(
-        `   Invoice:          ${sales.invoiceName} (${sales.counter})`
+        `   Invoice:          ${sales.invoiceName} (${sales.counter})`,
       );
       console.log(`   Currency:         ${sales?.currency?.currencyCode}`);
       console.log(`   Invoice Rate:     ${invoiceRate}`);
       console.log(
-        `   Fund:             ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`
+        `   Fund:             ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
       );
       console.log(`   Same Currency:    ${isSameCurrency ? "YES" : "NO"}`);
       console.log(`   ── Amounts ──`);
       console.log(`   Remainder (USD):     ${invoiceRemainderMain.toFixed(6)}`);
       console.log(
-        `   Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`
+        `   Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`,
       );
       console.log(`   Applied (USD):       ${paymentAmountMain.toFixed(6)}`);
       console.log(`   Applied (Fund):      ${paymentAmountFund.toFixed(6)}`);
       console.log(
-        `   Applied (Foreign):   ${appliedDocumentCurrency.toFixed(6)}`
+        `   Applied (Foreign):   ${appliedDocumentCurrency.toFixed(6)}`,
       );
       console.log(
         `   FX Diff:             ${fxDiff.toFixed(6)} ${
           fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-        }`
+        }`,
       );
       console.log(
-        `   Will Be Paid:        ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`
+        `   Will Be Paid:        ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`,
       );
       console.log("========================================\n");
 
@@ -1966,7 +1968,7 @@ const handleSalesPayment = async (req, companyId, next, normalizedPayment) => {
         date,
         `${paymentAmountFund} ${fund.currencyCode}`,
         "invoice",
-        session
+        session,
       );
 
       // ── Customer entity effect ───────────────────────────────
@@ -2234,7 +2236,7 @@ const handleExpensePayment = async (
   req,
   companyId,
   next,
-  normalizedPayment
+  normalizedPayment,
 ) => {
   const session = await mongoose.startSession();
 
@@ -2286,7 +2288,7 @@ const handleExpensePayment = async (
 
       // ── Resolve amounts with FX + tolerance ─────────────────
       const invoiceRemainderMain = Number(
-        expense.totalRemainderMainCurrency || 0
+        expense.totalRemainderMainCurrency || 0,
       );
       const invoiceRemainderForeign = Number(expense.totalRemainder || 0);
       const invoiceRate = Number(expense.currency?.exchangeRate || 1);
@@ -2312,31 +2314,31 @@ const handleExpensePayment = async (
       console.log("   EXPENSE PAYMENT");
       console.log("========================================");
       console.log(
-        `   Expense:          ${expense.expenseName} (${expense.counter})`
+        `   Expense:          ${expense.expenseName} (${expense.counter})`,
       );
       console.log(`   Currency:         ${expense?.currency?.currencyCode}`);
       console.log(`   Invoice Rate:     ${invoiceRate}`);
       console.log(
-        `   Fund:             ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`
+        `   Fund:             ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
       );
       console.log(`   Same Currency:    ${isSameCurrency ? "YES" : "NO"}`);
       console.log(`   ── Amounts ──`);
       console.log(`   Remainder (USD):     ${invoiceRemainderMain.toFixed(6)}`);
       console.log(
-        `   Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`
+        `   Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`,
       );
       console.log(`   Applied (USD):       ${paymentAmountMain.toFixed(6)}`);
       console.log(`   Applied (Fund):      ${paymentAmountFund.toFixed(6)}`);
       console.log(
-        `   Applied (Foreign):   ${appliedDocumentCurrency.toFixed(6)}`
+        `   Applied (Foreign):   ${appliedDocumentCurrency.toFixed(6)}`,
       );
       console.log(
         `   FX Diff:             ${fxDiff.toFixed(6)} ${
           fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-        }`
+        }`,
       );
       console.log(
-        `   Will Be Paid:        ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`
+        `   Will Be Paid:        ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`,
       );
       console.log("========================================\n");
 
@@ -2431,7 +2433,7 @@ const handleExpensePayment = async (
         date,
         `${paymentAmountFund} ${fund.currencyCode}`,
         "invoice",
-        session
+        session,
       );
 
       // ── Supplier entity effect (if not cash) ─────────────────
@@ -2496,7 +2498,7 @@ const handleCustomerPayment = async (
   req,
   companyId,
   next,
-  normalizedPayment
+  normalizedPayment,
 ) => {
   const session = await mongoose.startSession();
 
@@ -2524,13 +2526,13 @@ const handleCustomerPayment = async (
 
       if (!["customer", "supplier"].includes(party.type)) {
         throw new Error(
-          "Fund payment context supports only customer or supplier as party"
+          "Fund payment context supports only customer or supplier as party",
         );
       }
 
       if (!["incoming", "outgoing"].includes(paymentNature)) {
         throw new Error(
-          "Fund payment context supports only incoming or outgoing paymentNature"
+          "Fund payment context supports only incoming or outgoing paymentNature",
         );
       }
 
@@ -2728,7 +2730,7 @@ const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
 
       if (paymentNature !== "outgoing") {
         throw new Error(
-          "Fund payment context supports only outgoing paymentNature"
+          "Fund payment context supports only outgoing paymentNature",
         );
       }
 
@@ -2826,7 +2828,7 @@ const savePaymentJournal = async ({
     throw new Error(`Cash account not found: ${journalAccounts.cashAccountId}`);
   if (!partyAccount)
     throw new Error(
-      `Party account not found: ${journalAccounts.partyAccountId}`
+      `Party account not found: ${journalAccounts.partyAccountId}`,
     );
 
   // ── 2. Fetch FX accounts from linkings (only if FX diff exists) ──────────
@@ -3038,11 +3040,11 @@ const savePaymentJournal = async ({
   // ── 6. Validate balanced ─────────────────────────────────────────────────
   const totalDebit = journalEntries.reduce(
     (sum, e) => sum + Number(e.MainDebit || 0),
-    0
+    0,
   );
   const totalCredit = journalEntries.reduce(
     (sum, e) => sum + Number(e.MainCredit || 0),
-    0
+    0,
   );
 
   console.log("========================================");
@@ -3053,40 +3055,42 @@ const savePaymentJournal = async ({
   console.log(
     `   FX Diff:        ${totalFxDiff.toFixed(4)} ${
       isLoss ? "⚠️ LOSS" : isGain ? "✅ GAIN" : "➖ NONE"
-    }`
+    }`,
   );
   console.log(`   Entries:`);
   journalEntries.forEach((e, i) => {
     console.log(`   [${i + 1}] ${e.name} (${e.code})`);
     console.log(
-      `       DR: ${e.MainDebit.toFixed(4)}  CR: ${e.MainCredit.toFixed(4)}`
+      `       DR: ${e.MainDebit.toFixed(4)}  CR: ${e.MainCredit.toFixed(4)}`,
     );
     console.log(`       Desc: ${e.Desc}`);
   });
   console.log(
-    `   Total DR: ${totalDebit.toFixed(4)}  Total CR: ${totalCredit.toFixed(4)}`
+    `   Total DR: ${totalDebit.toFixed(4)}  Total CR: ${totalCredit.toFixed(4)}`,
   );
   console.log(
     `   Balanced: ${
       Math.abs(totalDebit - totalCredit) < 0.001 ? "✅ YES" : "❌ NO"
-    }`
+    }`,
   );
   console.log("========================================\n");
 
   if (Math.abs(totalDebit - totalCredit) > 0.001) {
     throw new Error(
-      `Journal is not balanced — DR: ${totalDebit} CR: ${totalCredit}`
+      `Journal is not balanced — DR: ${totalDebit} CR: ${totalCredit}`,
     );
   }
 
   // ── 7. Save journal ──────────────────────────────────────────────────────
   // uncomment when ready:
-  // await createJournalServiceV2({
-  //   journalInfo,
-  //   journalAccounts: journalEntries,
-  //   companyId,
-  //   session,
-  // });
+  await createJournalServiceV2({
+    journalInfo,
+    journalAccounts: journalEntries,
+    companyId,
+    session,
+    totalDebit,
+    totalCredit,
+  });
 
   return {
     journalInfo,
