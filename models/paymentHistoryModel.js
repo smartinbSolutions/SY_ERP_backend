@@ -26,7 +26,13 @@ const PaymentHistorySchema = new mongoose.Schema(
 
     entryType: {
       type: String,
-      enum: ["payment", "invoice", "expense", "opening_balance"],
+      enum: [
+        "payment",
+        "invoice",
+        "expense",
+        "opening_balance",
+        "fx_adjustment",
+      ],
     }, // what kind of history row this is
 
     balanceEffectType: {

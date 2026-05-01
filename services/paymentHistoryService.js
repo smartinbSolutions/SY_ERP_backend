@@ -213,6 +213,20 @@ const getPaymentHistory = async (req, res, next) => {
       return 0;
     }
 
+    if (entryType === "fx_adjustment") {
+      if (role === "supplier") {
+        if (balanceEffectType === "Withdrawal") return +amountMainCurrency; // FX Loss
+        if (balanceEffectType === "Deposit") return -amountMainCurrency; // FX Gain
+      }
+
+      if (role === "customer") {
+        if (balanceEffectType === "Withdrawal") return -amountMainCurrency;
+        if (balanceEffectType === "Deposit") return +amountMainCurrency;
+      }
+
+      return 0;
+    }
+
     if (entryType === "expense") {
       if (role === "supplier" && sourceModule === "expense") {
         if (actionType === "create") return +amountMainCurrency;
