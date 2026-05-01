@@ -163,12 +163,31 @@ exports.getMyOvertimeRequests = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
+  const filter = { userId: req.user._id };
 
-  const totalRequests = await OvertimeRequest.countDocuments({
+  if (req.query.status) filter.status = req.query.status;
+
+  const allRequests = await OvertimeRequest.find({
     userId: req.user._id,
-  });
+  }).select("hours status");
 
-  const requests = await OvertimeRequest.find({ userId: req.user._id })
+  const getHours = (request) => Number(request.hours) || 0;
+  const summary = {
+    total: allRequests.reduce((sum, request) => sum + getHours(request), 0),
+    approved: allRequests
+      .filter((request) => request.status === "approved")
+      .reduce((sum, request) => sum + getHours(request), 0),
+    pending: allRequests
+      .filter((request) => request.status === "pending")
+      .reduce((sum, request) => sum + getHours(request), 0),
+    rejected: allRequests
+      .filter((request) => request.status === "rejected")
+      .reduce((sum, request) => sum + getHours(request), 0),
+  };
+
+  const totalRequests = await OvertimeRequest.countDocuments(filter);
+
+  const requests = await OvertimeRequest.find(filter)
     .populate("overtimeTypeId")
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -182,6 +201,8 @@ exports.getMyOvertimeRequests = asyncHandler(async (req, res) => {
     totalPages,
     page,
     limit,
+    totalItems: totalRequests,
+    summary,
     data: requests,
   });
 });

@@ -198,10 +198,50 @@ exports.createAdvanceRequest = asyncHandler(async (req, res, next) => {
 
 // ================= GET MY REQUESTS =================
 exports.getMyAdvanceRequests = asyncHandler(async (req, res) => {
-  const requests = await service.getMyRequests(req.user._id);
-  res
-    .status(200)
-    .json({ status: true, results: requests.length, data: requests });
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const filter = { userId: req.user._id };
+
+  if (req.query.status) filter.status = req.query.status;
+
+  const allRequests = await advanceRequestModel
+    .find({ userId: req.user._id })
+    .select("amount status");
+
+  const summary = {
+    totalAmount: allRequests.reduce(
+      (sum, request) => sum + (Number(request.amount) || 0),
+      0,
+    ),
+    approvedAmount: allRequests
+      .filter((request) => request.status === "approved")
+      .reduce((sum, request) => sum + (Number(request.amount) || 0), 0),
+    pending: allRequests.filter((request) => request.status === "pending")
+      .length,
+    rejected: allRequests.filter((request) => request.status === "rejected")
+      .length,
+  };
+
+  const totalItems = await advanceRequestModel.countDocuments(filter);
+  const requests = await advanceRequestModel
+    .find(filter)
+    .populate("userId", "fullName email")
+    .populate("advanceTypeId")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  res.status(200).json({
+    status: true,
+    page,
+    limit,
+    results: requests.length,
+    totalItems,
+    totalPages: Math.ceil(totalItems / limit),
+    summary,
+    data: requests,
+  });
 });
 
 // ================= GET ALL COMPANY REQUESTS =================
