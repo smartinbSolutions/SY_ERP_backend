@@ -249,6 +249,42 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.createJournalServiceV2 = async ({
+  journalInfo,
+  journalAccounts,
+  companyId,
+  session,
+}) => {
+  const nextJournalNumber =
+    (await journalModel.countDocuments({ companyId })) + 1;
+
+  const payload = {
+    ...journalInfo,
+    journalRefNum: nextJournalNumber,
+    counter: Number(journalInfo.counter || 0) + nextJournalNumber,
+    companyId,
+    journalAccounts,
+  };
+
+  const journal = await journalModel.create([payload], { session });
+
+  const updateOperations = journalAccounts.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id },
+      update: {
+        $inc: {
+          debtor: item.MainDebit || 0,
+          creditor: item.MainCredit || 0,
+        },
+      },
+    },
+  }));
+
+  await AccountModel.bulkWrite(updateOperations, { session });
+
+  return journal[0];
+};
+
 exports.createJournalService = async ({
   journalInfo,
   journalAccounts,

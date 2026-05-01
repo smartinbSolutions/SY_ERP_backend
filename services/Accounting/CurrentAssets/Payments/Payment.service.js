@@ -15,60 +15,69 @@ const padZero = (value) => {
 };
 
 const normalizePaymentRequest = async ({ req, companyId }) => {
-  req.body.companyId = companyId;
+  const data = req.body.paymentData || req.body;
 
   const now = new Date();
   const formattedTime = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes(),
+    now.getMinutes()
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0",
+    "0"
   )}`;
 
-  req.body.date = `${req.body.date}T${formattedTime}Z`;
+  const baseDate = data.date || new Date().toISOString().split("T")[0];
+
+  const fullDate = `${baseDate}T${formattedTime}Z`;
 
   return {
-    paymentContext: req.body.paymentContext,
+    paymentContext: data.paymentContext,
 
     companyId,
-    counter: req.body.counter,
-    journalCounter: req.body.journalCounter || "",
-    date: req.body.date,
-    description: req.body.description || "",
-    file: req.body.file || "",
+    counter: data.counter,
+    journalCounter: data.journalCounter || "",
+    date: fullDate,
+    description: data.description || "",
+    file: data.file || "",
 
     party: {
-      id: req.body.party?.id || "",
-      name: req.body.party?.name || "",
-      type: req.body.party?.type || "",
+      id: data.party?.id || "",
+      name: data.party?.name || "",
+      type: data.party?.type || "",
     },
 
     fund: {
-      id: req.body.fund?.id || "",
-      name: req.body.fund?.name || "",
-      currencyId: req.body.fund?.currencyId || "",
-      currencyCode: req.body.fund?.currencyCode || "",
-      exchangeRate: Number(req.body.fund?.exchangeRate || 1),
+      id: data.fund?.id || "",
+      name: data.fund?.name || "",
+      currencyId: data.fund?.currencyId || "",
+      currencyCode: data.fund?.currencyCode || "",
+      exchangeRate: Number(data.fund?.exchangeRate || 1),
     },
 
-    paymentNature: req.body.paymentNature,
+    paymentNature: data.paymentNature,
 
     payment: {
-      amount: Number(req.body.payment?.amount || 0),
-      currencyId: req.body.payment?.currencyId || "",
-      currencyCode: req.body.payment?.currencyCode || "",
-      exchangeRate: Number(req.body.payment?.exchangeRate || 1),
-      amountMainCurrency: Number(req.body.payment?.amountMainCurrency || 0),
+      amount: Number(data.payment?.amount || 0),
+      currencyId: data.payment?.currencyId || "",
+      currencyCode: data.payment?.currencyCode || "",
+      exchangeRate: Number(data.payment?.exchangeRate || 1),
+      amountMainCurrency: Number(data.payment?.amountMainCurrency || 0),
     },
 
-    allocations: Array.isArray(req.body.allocations)
-      ? req.body.allocations
-      : req.body.allocations
-        ? JSON.parse(req.body.allocations)
-        : [],
+    allocations: Array.isArray(data.allocations)
+      ? data.allocations
+      : data.allocations
+      ? JSON.parse(data.allocations)
+      : [],
 
     postedBy: req.user?._id || null,
     postedAt: new Date(),
+
+    // stays at root (same for both shapes)
+    journalAccounts: req.body.journalAccounts
+      ? typeof req.body.journalAccounts === "string"
+        ? JSON.parse(req.body.journalAccounts)
+        : req.body.journalAccounts
+      : null,
   };
 };
 
@@ -105,7 +114,7 @@ const paymentHandlers = {
 
 exports.processPaymentService = async ({ req, companyId, next }) => {
   const normalizedPayment = await normalizePaymentRequest({ req, companyId });
-
+  console.log(normalizedPayment.paymentContext);
   const route = paymentHandlers[normalizedPayment.paymentContext];
 
   if (!route) {
