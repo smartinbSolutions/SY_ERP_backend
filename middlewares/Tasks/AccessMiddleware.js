@@ -35,7 +35,7 @@ exports.workspaceAccess = async (req, res, next) => {
     );
 
     req.workspace = workspace;
-    req.workspaceRole = member.role;
+    req.workspaceRole = member?.role;
 
     next();
   } catch (err) {
@@ -44,6 +44,17 @@ exports.workspaceAccess = async (req, res, next) => {
       message: err.message,
     });
   }
+};
+
+exports.canCreateWorkspace = (req, res, next) => {
+  if (!req.user.canCreateWorkspace) {
+    return res.status(403).json({
+      success: false,
+      message: "You are not allowed to create workspace",
+    });
+  }
+
+  next();
 };
 
 // ======================================
@@ -69,7 +80,6 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    // 🔥 IMPORTANT: must be workspace member first
     const workspace = req.workspace;
 
     if (
@@ -94,7 +104,7 @@ exports.folderAccess = async (req, res, next) => {
 };
 
 // ======================================
-// 3. LIST ACCESS (workspace + optional restriction)
+// 3. LIST ACCESS (WORKSPACE SCOPED + LIST RULES)
 // ======================================
 exports.listAccess = async (req, res, next) => {
   try {
@@ -118,7 +128,6 @@ exports.listAccess = async (req, res, next) => {
 
     const workspace = req.workspace;
 
-    // 🔥 MUST belong to same workspace
     if (!workspace || list.workspace.toString() !== workspace._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -126,15 +135,7 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const role = req.workspaceRole;
-
-    // 🔥 bypass for high roles
-    if (role === "owner" || role === "manager") {
-      req.list = list;
-      return next();
-    }
-
-    // 🔒 private list restriction
+    // LIST IS THE REAL ACCESS LAYER
     if (list.visibility === "private") {
       const isAllowed = list.members?.some(
         (m) => m.user.toString() === req.user._id.toString(),
@@ -159,6 +160,9 @@ exports.listAccess = async (req, res, next) => {
   }
 };
 
+// ======================================
+// 4. TASK ACCESS (INHERITS LIST RULES)
+// ======================================
 exports.taskAccess = async (req, res, next) => {
   try {
     const taskId = req.params.id;
@@ -170,7 +174,6 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    // 1. find task
     const task = await TaskModel.findById(taskId);
 
     if (!task) {
@@ -180,7 +183,6 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    // 2. get list of this task
     const list = await List.findById(task.list);
 
     if (!list) {
@@ -190,24 +192,27 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    // 3. MUST be in same workspace (security boundary)
     const workspace = req.workspace;
 
-    if (!workspace) {
+    if (!workspace || list.workspace.toString() !== workspace._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Workspace access required first",
+        message: "Task does not belong to workspace",
       });
     }
 
-    if (list.workspace.toString() !== workspace._id.toString()) {
+    // TASK ACCESS DEPENDS ON LIST MEMBERSHIP ONLY
+    const isListMember =
+      list.visibility === "public" ||
+      list.members?.some((m) => m.user.toString() === req.user._id.toString());
+
+    if (!isListMember) {
       return res.status(403).json({
         success: false,
-        message: "Task does not belong to this workspace",
+        message: "No access to this task",
       });
     }
 
-    // 4. attach to request
     req.task = task;
     req.taskList = list;
 

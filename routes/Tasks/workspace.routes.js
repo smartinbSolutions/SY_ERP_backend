@@ -3,7 +3,11 @@ const router = express.Router();
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
-const { workspaceAccess } = require("../../middlewares/Tasks/AccessMiddleware");
+const {
+  workspaceAccess,
+  canCreateWorkspace,
+} = require("../../middlewares/Tasks/AccessMiddleware");
+
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 const {
@@ -21,14 +25,10 @@ const {
 
 router
   .route("/")
-  .post(
-    hrAuthServices.protectStaffOrERP,
-    checkPermission("create"),
-    createWorkspace,
-  )
+  .post(hrAuthServices.protectStaffOrERP, canCreateWorkspace, createWorkspace)
   .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
 
-// WORKSPACE TREE (USER VIEW)
+// WORKSPACE TREE
 
 router.get("/tree", hrAuthServices.protectStaffOrERP, getUserWorkspaceTree);
 
@@ -40,13 +40,13 @@ router
   .patch(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
-    checkPermission("update"),
+    checkPermission("update:workspace"),
     updateWorkspace,
   )
   .delete(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
-    checkPermission("delete"),
+    checkPermission("delete:workspace"),
     deleteWorkspace,
   );
 
@@ -56,7 +56,7 @@ router.post(
   "/:id/members",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("manage"),
+  checkPermission("manage:members"),
   addMember,
 );
 
@@ -64,7 +64,7 @@ router.delete(
   "/:id/members/:userId",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("manage"),
+  checkPermission("manage:members"),
   removeMember,
 );
 

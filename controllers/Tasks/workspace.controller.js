@@ -35,7 +35,7 @@ exports.getUserWorkspaceTree = async (req, res) => {
       success: true,
       data,
     });
-  } catch (err) {
+  } catch (err) { 
     return res.status(400).json({
       success: false,
       message: err.message,

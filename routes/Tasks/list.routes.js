@@ -19,14 +19,16 @@ const {
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
+// CREATE LIST
 router.post(
   "/",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("create"),
+  checkPermission("create:list"),
   createList,
 );
 
+// GET LISTS BY WORKSPACE
 router.get(
   "/:workspaceId",
   hrAuthServices.protectStaffOrERP,
@@ -34,37 +36,42 @@ router.get(
   getLists,
 );
 
+// GET SINGLE LIST
 router.get(
   "/single/:id",
   hrAuthServices.protectStaffOrERP,
+  workspaceAccess,
   listAccess,
   getList,
 );
 
+// UPDATE LIST
 router.patch(
   "/:id",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   listAccess,
-  checkPermission("update"),
+  checkPermission("update:list"),
   updateList,
 );
 
+// DELETE LIST
 router.delete(
   "/:id",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   listAccess,
-  checkPermission("delete"),
+  checkPermission("delete:list"),
   deleteList,
 );
 
+// ADD MEMBER TO LIST
 router.post(
   "/:id/members",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   listAccess,
-  checkPermission("manage"),
+  checkPermission("manage:members"),
   addMember,
 );
 

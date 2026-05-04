@@ -17,20 +17,16 @@ const {
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
-// ===============================
 // CREATE FOLDER
-// ===============================
 router.post(
   "/",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("create"),
+  checkPermission("create:folder"),
   createFolder,
 );
 
-// ===============================
 // GET FOLDERS BY WORKSPACE
-// ===============================
 router.get(
   "/workspace/:workspaceId",
   hrAuthServices.protectStaffOrERP,
@@ -38,27 +34,23 @@ router.get(
   getFolders,
 );
 
-// ===============================
 // UPDATE FOLDER
-// ===============================
 router.patch(
   "/:id",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   folderAccess,
-  checkPermission("update"), //
+  checkPermission("update:folder"),
   updateFolder,
 );
 
-// ===============================
 // DELETE FOLDER
-// ===============================
 router.delete(
   "/:id",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   folderAccess,
-  checkPermission("delete"),
+  checkPermission("delete:folder"),
   deleteFolder,
 );
 

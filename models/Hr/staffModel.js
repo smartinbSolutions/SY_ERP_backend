@@ -40,6 +40,11 @@ const StaffSchema = new mongoose.Schema(
 
     profileImage: String,
 
+    canCreateWorkspace: {
+      type: Boolean,
+      default: false,
+    },
+
     city: String,
     homeAddress: String,
 

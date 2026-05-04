@@ -19,16 +19,18 @@ const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 const taskRoute = express.Router();
 
+// TASK COLLECTION
 taskRoute
   .route("/")
   .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getAllTasks)
   .post(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
-    checkPermission("create"),
+    checkPermission("create:task"),
     createTask,
   );
 
+// SINGLE TASK
 taskRoute
   .route("/:id")
   .get(
@@ -41,14 +43,14 @@ taskRoute
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
     taskAccess,
-    checkPermission("update"),
+    checkPermission("update:task"),
     updateTask,
   )
   .delete(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
     taskAccess,
-    checkPermission("delete"),
+    checkPermission("delete:task"),
     deleteTask,
   );
 

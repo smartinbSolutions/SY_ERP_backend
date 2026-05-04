@@ -26,6 +26,7 @@ const listSchema = new mongoose.Schema(
       index: true,
     },
 
+    
     //  visibility system
     visibility: {
       type: String,
@@ -44,7 +45,7 @@ const listSchema = new mongoose.Schema(
         },
         role: {
           type: String,
-          enum: ["viewer", "editor", "admin"],
+          enum: ["owner", "manager", "member", "viewer"],
           default: "viewer",
         },
       },
@@ -61,7 +62,7 @@ const listSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("List", listSchema);
