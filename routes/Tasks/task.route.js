@@ -1,6 +1,5 @@
 const express = require("express");
 
-const authService = require("../../services/authService");
 const {
   createTask,
   deleteTask,
@@ -11,17 +10,46 @@ const {
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
+const {
+  workspaceAccess,
+  taskAccess,
+} = require("../../middlewares/Tasks/AccessMiddleware");
+
+const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
+
 const taskRoute = express.Router();
 
 taskRoute
   .route("/")
-  .get(hrAuthServices.protectStaffOrERP, getAllTasks)
-  .post(hrAuthServices.protectStaffOrERP, createTask);
+  .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getAllTasks)
+  .post(
+    hrAuthServices.protectStaffOrERP,
+    workspaceAccess,
+    checkPermission("create"),
+    createTask,
+  );
 
 taskRoute
   .route("/:id")
-  .get(hrAuthServices.protectStaffOrERP, getOneTask)
-  .patch(hrAuthServices.protectStaffOrERP, updateTask)
-  .delete(hrAuthServices.protectStaffOrERP, deleteTask);
+  .get(
+    hrAuthServices.protectStaffOrERP,
+    workspaceAccess,
+    taskAccess,
+    getOneTask,
+  )
+  .patch(
+    hrAuthServices.protectStaffOrERP,
+    workspaceAccess,
+    taskAccess,
+    checkPermission("update"),
+    updateTask,
+  )
+  .delete(
+    hrAuthServices.protectStaffOrERP,
+    workspaceAccess,
+    taskAccess,
+    checkPermission("delete"),
+    deleteTask,
+  );
 
 module.exports = taskRoute;

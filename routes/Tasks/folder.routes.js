@@ -14,6 +14,7 @@ const {
   deleteFolder,
   getFolders,
 } = require("../../controllers/Tasks/folder.controller");
+
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 // ===============================
@@ -23,7 +24,7 @@ router.post(
   "/",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("create:task"),
+  checkPermission("create"),
   createFolder,
 );
 
@@ -43,8 +44,9 @@ router.get(
 router.patch(
   "/:id",
   hrAuthServices.protectStaffOrERP,
+  workspaceAccess,
   folderAccess,
-  checkPermission("update:task"),
+  checkPermission("update"), //
   updateFolder,
 );
 
@@ -54,8 +56,9 @@ router.patch(
 router.delete(
   "/:id",
   hrAuthServices.protectStaffOrERP,
+  workspaceAccess,
   folderAccess,
-  checkPermission("delete:task"),
+  checkPermission("delete"),
   deleteFolder,
 );
 

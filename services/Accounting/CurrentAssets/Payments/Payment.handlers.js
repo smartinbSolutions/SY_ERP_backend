@@ -17,7 +17,7 @@ const {
 } = require("../../../../utils/getNextCounterValue");
 const accountingTreeModel = require("../../../../models/accountingTreeModel");
 const expensesModel = require("../../../../models/expensesModel");
-const currencyModel = require("../../../../models/Settings/currency.model");
+const currencyModel = require("../../../../models/currencyModel");
 const linkPanelModel = require("../../../../models/linkPanelModel");
 const {
   createJournalServiceV2,

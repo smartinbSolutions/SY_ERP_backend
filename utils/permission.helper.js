@@ -1,28 +1,46 @@
-const PERMISSIONS = {
-  viewer: ["read:task", "read:comment"],
-  member: ["read:task", "create:task", "update:task", "create:comment"],
-  manager: [
-    "read:task",
-    "create:task",
-    "update:task",
-    "delete:task",
-    "manage:members",
-  ],
+const ROLE_HIERARCHY = {
+  viewer: 1,
+  member: 2,
+  manager: 3,
+  owner: 4,
 };
 
-// get all permissions for a role
+// high level role bypass (important)
+const BYPASS_ROLES = ["owner", "manager"];
+
+// simple rule map (default permissions)
+const ROLE_PERMISSIONS = {
+  viewer: ["read"],
+  member: ["read", "create", "update"],
+  manager: ["read", "create", "update", "delete", "manage"],
+  owner: ["*"],
+};
+
+// GET PERMISSIONS
+
 const getPermissions = (role) => {
-  return PERMISSIONS[role] || [];
+  return ROLE_PERMISSIONS[role] || [];
 };
 
-// check if role has a specific permission
-const hasPermission = (role, permission) => {
+// CHECK PERMISSION
+
+const hasPermission = (role, action) => {
   const permissions = getPermissions(role);
-  return permissions.includes(permission);
+
+  if (permissions.includes("*")) return true;
+
+  return permissions.includes(action);
+};
+
+// ROLE LEVEL CHECK
+
+const hasRoleAtLeast = (userRole, requiredRole) => {
+  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
 };
 
 module.exports = {
-  PERMISSIONS,
   getPermissions,
   hasPermission,
+  hasRoleAtLeast,
+  BYPASS_ROLES,
 };

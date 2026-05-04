@@ -1,14 +1,13 @@
 const Workspace = require("../../models/Tasks/WorkspaceModel");
 const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
+const TaskModel = require("../../models/Tasks/TaskModel");
 
-
-// WORKSPACE ACCESS MIDDLEWARE
-// Checks if the user is a member of the workspace
-
+// ======================================
+// 1. WORKSPACE BASE ACCESS (CORE)
+// ======================================
 exports.workspaceAccess = async (req, res, next) => {
   try {
-    // Get workspace ID from route params
     const workspaceId = req.params.workspaceId || req.params.id;
 
     if (!workspaceId) {
@@ -18,14 +17,12 @@ exports.workspaceAccess = async (req, res, next) => {
       });
     }
 
-    // Find workspace and check if user is an active member
     const workspace = await Workspace.findOne({
       _id: workspaceId,
       "members.user": req.user._id,
       "members.status": "active",
     });
 
-    // If workspace not found or user is not a member
     if (!workspace) {
       return res.status(403).json({
         success: false,
@@ -33,8 +30,12 @@ exports.workspaceAccess = async (req, res, next) => {
       });
     }
 
-    // Attach workspace to request for later use
+    const member = workspace.members.find(
+      (m) => m.user.toString() === req.user._id.toString(),
+    );
+
     req.workspace = workspace;
+    req.workspaceRole = member.role;
 
     next();
   } catch (err) {
@@ -45,9 +46,9 @@ exports.workspaceAccess = async (req, res, next) => {
   }
 };
 
-// FOLDER ACCESS MIDDLEWARE
-// Checks if user can access a folder inside a workspace
-
+// ======================================
+// 2. FOLDER ACCESS (inherits workspace)
+// ======================================
 exports.folderAccess = async (req, res, next) => {
   try {
     const folderId = req.params.id;
@@ -59,7 +60,6 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    // Find folder by ID
     const folder = await Folder.findById(folderId);
 
     if (!folder) {
@@ -69,23 +69,20 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    // Check if user is member of the folder's workspace
-    const workspace = await Workspace.findOne({
-      _id: folder.workspace,
-      "members.user": req.user._id,
-      "members.status": "active",
-    });
+    // 🔥 IMPORTANT: must be workspace member first
+    const workspace = req.workspace;
 
-    if (!workspace) {
+    if (
+      !workspace ||
+      folder.workspace.toString() !== workspace._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Workspace access denied",
+        message: "Invalid workspace access",
       });
     }
 
-    // Attach data to request object
     req.folder = folder;
-    req.workspace = workspace;
 
     next();
   } catch (err) {
@@ -96,9 +93,9 @@ exports.folderAccess = async (req, res, next) => {
   }
 };
 
-// LIST ACCESS MIDDLEWARE
-// Handles workspace access + list visibility rules
-
+// ======================================
+// 3. LIST ACCESS (workspace + optional restriction)
+// ======================================
 exports.listAccess = async (req, res, next) => {
   try {
     const listId = req.params.id;
@@ -110,7 +107,6 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    // Find list by ID
     const list = await List.findById(listId);
 
     if (!list) {
@@ -120,27 +116,31 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    // Check workspace membership
-    const workspace = await Workspace.findOne({
-      _id: list.workspace,
-      "members.user": req.user._id,
-      "members.status": "active",
-    });
+    const workspace = req.workspace;
 
-    if (!workspace) {
+    // 🔥 MUST belong to same workspace
+    if (!workspace || list.workspace.toString() !== workspace._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Workspace access denied",
+        message: "Invalid workspace access",
       });
     }
 
-    // If list is private, check if user is explicitly added to it
+    const role = req.workspaceRole;
+
+    // 🔥 bypass for high roles
+    if (role === "owner" || role === "manager") {
+      req.list = list;
+      return next();
+    }
+
+    // 🔒 private list restriction
     if (list.visibility === "private") {
-      const isListMember = list.members.some(
-        (member) => member.user.toString() === req.user._id.toString(),
+      const isAllowed = list.members?.some(
+        (m) => m.user.toString() === req.user._id.toString(),
       );
 
-      if (!isListMember) {
+      if (!isAllowed) {
         return res.status(403).json({
           success: false,
           message: "List access denied",
@@ -148,9 +148,68 @@ exports.listAccess = async (req, res, next) => {
       }
     }
 
-    // Attach data to request
     req.list = list;
-    req.workspace = workspace;
+
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.taskAccess = async (req, res, next) => {
+  try {
+    const taskId = req.params.id;
+
+    if (!taskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Task ID is required",
+      });
+    }
+
+    // 1. find task
+    const task = await TaskModel.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    // 2. get list of this task
+    const list = await List.findById(task.list);
+
+    if (!list) {
+      return res.status(404).json({
+        success: false,
+        message: "Parent list not found",
+      });
+    }
+
+    // 3. MUST be in same workspace (security boundary)
+    const workspace = req.workspace;
+
+    if (!workspace) {
+      return res.status(403).json({
+        success: false,
+        message: "Workspace access required first",
+      });
+    }
+
+    if (list.workspace.toString() !== workspace._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Task does not belong to this workspace",
+      });
+    }
+
+    // 4. attach to request
+    req.task = task;
+    req.taskList = list;
 
     next();
   } catch (err) {

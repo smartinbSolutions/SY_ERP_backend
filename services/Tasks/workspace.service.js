@@ -26,7 +26,7 @@ exports.createWorkspace = async (data, userId, companyId) => {
     members: [
       {
         user: userId,
-        role: "manager",
+        role: "owner",
       },
     ],
   });
@@ -184,16 +184,18 @@ exports.removeMember = async (workspaceId, userId) => {
     throw new Error("Workspace not found");
   }
 
-  const isMember = workspace.members.some(
+  const member = workspace.members.find(
     (m) => m.user.toString() === userId.toString(),
   );
 
-  if (!isMember) {
+  if (!member) {
     throw new Error("User is not a member of this workspace");
   }
 
-  if (workspace.members.length === 1) {
-    throw new Error("Cannot remove the last member of workspace");
+  const owners = workspace.members.filter((m) => m.role === "owner");
+
+  if (member.role === "owner" && owners.length === 1) {
+    throw new Error("Cannot remove the last owner");
   }
 
   const updatedWorkspace = await Workspace.findByIdAndUpdate(

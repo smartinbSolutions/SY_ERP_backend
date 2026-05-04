@@ -4,6 +4,7 @@ const router = express.Router();
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
 const { workspaceAccess } = require("../../middlewares/Tasks/AccessMiddleware");
+const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 const {
   getMyWorkspaces,
@@ -15,48 +16,47 @@ const {
   deleteWorkspace,
   getUserWorkspaceTree,
 } = require("../../controllers/Tasks/workspace.controller");
-const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
-// ===============================
-// CREATE + GET ALL
-// ===============================
+// CREATE + GET ALL WORKSPACES
+
 router
   .route("/")
-  .post(hrAuthServices.protectStaffOrERP, createWorkspace)
+  .post(
+    hrAuthServices.protectStaffOrERP,
+    checkPermission("create"),
+    createWorkspace,
+  )
   .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
 
-// ===============================
-// TREE
-// ===============================
+// WORKSPACE TREE (USER VIEW)
+
 router.get("/tree", hrAuthServices.protectStaffOrERP, getUserWorkspaceTree);
 
-// ===============================
-// GET ONE + UPDATE + DELETE
-// ===============================
+// SINGLE WORKSPACE
+
 router
   .route("/:id")
   .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getWorkspace)
   .patch(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
-    checkPermission("manage:members"),
+    checkPermission("update"),
     updateWorkspace,
   )
   .delete(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
-    checkPermission("manage:members"),
+    checkPermission("delete"),
     deleteWorkspace,
   );
 
-// ===============================
-// MEMBERS
-// ===============================
+// MEMBERS MANAGEMENT
+
 router.post(
   "/:id/members",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("manage:members"),
+  checkPermission("manage"),
   addMember,
 );
 
@@ -64,7 +64,7 @@ router.delete(
   "/:id/members/:userId",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  checkPermission("manage:members"),
+  checkPermission("manage"),
   removeMember,
 );
 

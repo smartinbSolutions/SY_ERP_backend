@@ -25,15 +25,11 @@ exports.getAllTasks = async ({
   userId,
   type,
   listId,
-  includeSubTasks,
   page = 1,
   limit = 10,
   status,
   priority,
 }) => {
-
-
-
   const filter = { isArchived: false };
 
   // ===============================
@@ -58,12 +54,11 @@ exports.getAllTasks = async ({
     console.log("Is listId valid ObjectId?", isValid);
 
     if (isValid) {
-      filter.list = new mongoose.Types.ObjectId(listId); 
+      filter.list = new mongoose.Types.ObjectId(listId);
       console.log("Filter applied: list =", listId);
     } else {
       console.log("Invalid listId provided, skipping list filter");
     }
-
   }
 
   // ===============================
@@ -78,7 +73,6 @@ exports.getAllTasks = async ({
     filter.priority = priority;
     console.log("Filter applied: priority =", priority);
   }
-
 
   const skip = (page - 1) * limit;
 
@@ -101,20 +95,20 @@ exports.getAllTasks = async ({
   // ===============================
   // WITHOUT SUBTASKS
   // ===============================
-  if (includeSubTasks !== "true") {
-    console.log("Returning WITHOUT subTasks");
+  // if (includeSubTasks !== "true") {
+  //   console.log("Returning WITHOUT subTasks");
 
-    console.log("==== END DEBUG ====");
+  //   console.log("==== END DEBUG ====");
 
-    return {
-      tasks,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-      },
-    };
-  }
+  //   return {
+  //     tasks,
+  //     pagination: {
+  //       total,
+  //       page,
+  //       pages: Math.ceil(total / limit),
+  //     },
+  //   };
+  // }
 
   // ===============================
   // WITH SUBTASKS
@@ -124,9 +118,7 @@ exports.getAllTasks = async ({
   const taskIds = tasks.map((t) => t._id);
   console.log("Task IDs:", taskIds);
 
-  const subTasks = await subTaskModel
-    .find({ task: { $in: taskIds } })
-    .lean();
+  const subTasks = await subTaskModel.find({ task: { $in: taskIds } }).lean();
 
   console.log("SubTasks fetched:", subTasks.length);
 

@@ -1,26 +1,43 @@
-const { hasPermission } = require("../../utils/permission.helper");
+const {
+  hasPermission,
+  BYPASS_ROLES,
+  hasRoleAtLeast,
+} = require("../../utils/permission.helper");
 
-// ======================================
-const checkPermission = (permission) => {
+const checkPermission = (action, requiredRole = null) => {
   return (req, res, next) => {
-    // role must come from workspace (not global)
-    const role = req.workspaceRole || req.user.role; // fallback for now
+    const role = req.workspaceRole;
 
     if (!role) {
       return res.status(403).json({
         success: false,
-        message: "Role not found",
+        message: "No role found",
       });
     }
 
-    // check permission
-    const allowed = hasPermission(role, permission);
+    //  global bypass (owner/manager)
+    if (BYPASS_ROLES.includes(role)) {
+      return next();
+    }
+
+    //  role-based check
+    const allowed = hasPermission(role, action);
 
     if (!allowed) {
       return res.status(403).json({
         success: false,
-        message: "Permission denied",
+        message: `Permission denied: ${action}`,
       });
+    }
+
+    //   optional role level check (if needed)
+    if (requiredRole) {
+      if (!hasRoleAtLeast(role, requiredRole)) {
+        return res.status(403).json({
+          success: false,
+          message: "Insufficient role level",
+        });
+      }
     }
 
     next();
