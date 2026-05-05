@@ -4,7 +4,7 @@ const List = require("../../models/Tasks/ListModel");
 const TaskModel = require("../../models/Tasks/TaskModel");
 
 // ======================================
-// 1. WORKSPACE BASE ACCESS (CORE)
+// 1. WORKSPACE ACCESS (ADMIN ONLY)
 // ======================================
 exports.workspaceAccess = async (req, res, next) => {
   try {
@@ -35,7 +35,8 @@ exports.workspaceAccess = async (req, res, next) => {
     );
 
     req.workspace = workspace;
-    req.workspaceRole = member?.role;
+    req.workspaceRole = member?.role; // admin identity
+    req.isWorkspaceMember = true;
 
     next();
   } catch (err) {
@@ -46,6 +47,9 @@ exports.workspaceAccess = async (req, res, next) => {
   }
 };
 
+// ======================================
+// 2. CREATE WORKSPACE PERMISSION
+// ======================================
 exports.canCreateWorkspace = (req, res, next) => {
   if (!req.user.canCreateWorkspace) {
     return res.status(403).json({
@@ -58,11 +62,11 @@ exports.canCreateWorkspace = (req, res, next) => {
 };
 
 // ======================================
-// 2. FOLDER ACCESS (inherits workspace)
+// 3. FOLDER ACCESS (STRUCTURE ONLY)
 // ======================================
 exports.folderAccess = async (req, res, next) => {
   try {
-    const folderId = req.params.id;
+    const folderId = req.params.folderId || req.params.id;
 
     if (!folderId) {
       return res.status(400).json({
@@ -80,15 +84,11 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    const workspace = req.workspace;
-
-    if (
-      !workspace ||
-      folder.workspace.toString() !== workspace._id.toString()
-    ) {
+    // 🔥 STRUCTURE VALIDATION ONLY
+    if (folder.workspace.toString() !== req.params.workspaceId) {
       return res.status(403).json({
         success: false,
-        message: "Invalid workspace access",
+        message: "Folder does not belong to this workspace",
       });
     }
 
@@ -104,11 +104,11 @@ exports.folderAccess = async (req, res, next) => {
 };
 
 // ======================================
-// 3. LIST ACCESS (WORKSPACE SCOPED + LIST RULES)
+// 4. LIST ACCESS (OVERRIDE + RULES)
 // ======================================
 exports.listAccess = async (req, res, next) => {
   try {
-    const listId = req.params.id;
+    const listId = req.params.listId || req.params.id;
 
     if (!listId) {
       return res.status(400).json({
@@ -126,22 +126,27 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const workspace = req.workspace;
-
-    if (!workspace || list.workspace.toString() !== workspace._id.toString()) {
+    // 🔥 STRUCTURE CHECK
+    if (list.workspace.toString() !== req.params.workspaceId) {
       return res.status(403).json({
         success: false,
-        message: "Invalid workspace access",
+        message: "List does not belong to this workspace",
       });
     }
 
-    // LIST IS THE REAL ACCESS LAYER
+    // 🔥 ADMIN OVERRIDE (workspace members bypass everything)
+    if (req.workspaceRole) {
+      req.list = list;
+      return next();
+    }
+
+    // 🔐 STAFF RULES
     if (list.visibility === "private") {
-      const isAllowed = list.members?.some(
+      const allowed = list.members?.some(
         (m) => m.user.toString() === req.user._id.toString(),
       );
 
-      if (!isAllowed) {
+      if (!allowed) {
         return res.status(403).json({
           success: false,
           message: "List access denied",
@@ -150,7 +155,6 @@ exports.listAccess = async (req, res, next) => {
     }
 
     req.list = list;
-
     next();
   } catch (err) {
     return res.status(500).json({
@@ -161,11 +165,11 @@ exports.listAccess = async (req, res, next) => {
 };
 
 // ======================================
-// 4. TASK ACCESS (INHERITS LIST RULES)
+// 5. TASK ACCESS (INHERITS LIST RULES)
 // ======================================
 exports.taskAccess = async (req, res, next) => {
   try {
-    const taskId = req.params.id;
+    const taskId = req.params.taskId || req.params.id;
 
     if (!taskId) {
       return res.status(400).json({
@@ -192,29 +196,37 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const workspace = req.workspace;
-
-    if (!workspace || list.workspace.toString() !== workspace._id.toString()) {
+    // 🔥 STRUCTURE CHECK
+    if (list.workspace.toString() !== req.params.workspaceId) {
       return res.status(403).json({
         success: false,
-        message: "Task does not belong to workspace",
+        message: "Task does not belong to this workspace",
       });
     }
 
-    // TASK ACCESS DEPENDS ON LIST MEMBERSHIP ONLY
-    const isListMember =
-      list.visibility === "public" ||
-      list.members?.some((m) => m.user.toString() === req.user._id.toString());
+    // 🔥 ADMIN OVERRIDE
+    if (req.workspaceRole) {
+      req.task = task;
+      req.list = list;
+      return next();
+    }
 
-    if (!isListMember) {
-      return res.status(403).json({
-        success: false,
-        message: "No access to this task",
-      });
+    // 🔐 STAFF RULES
+    if (list.visibility === "private") {
+      const allowed = list.members?.some(
+        (m) => m.user.toString() === req.user._id.toString(),
+      );
+
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          message: "Task access denied",
+        });
+      }
     }
 
     req.task = task;
-    req.taskList = list;
+    req.list = list;
 
     next();
   } catch (err) {

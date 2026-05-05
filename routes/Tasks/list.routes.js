@@ -19,58 +19,55 @@ const {
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
+// ======================================
+// GLOBAL AUTH
+// ======================================
+router.use(hrAuthServices.protectStaffOrERP);
+
+// ======================================
 // CREATE LIST
-router.post(
-  "/",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
-  checkPermission("create:list"),
-  createList,
-);
+// ======================================
+router.post("/", workspaceAccess, checkPermission("create:list"), createList);
 
+// ======================================
 // GET LISTS BY WORKSPACE
-router.get(
-  "/:workspaceId",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
-  getLists,
-);
+// ======================================
+router.get("/workspace/:workspaceId", workspaceAccess, getLists);
 
+// ======================================
 // GET SINGLE LIST
-router.get(
-  "/single/:id",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
-  listAccess,
-  getList,
-);
+// ======================================
+router.get("/single/:id", workspaceAccess, listAccess, getList);
 
+// ======================================
 // UPDATE LIST
+// ======================================
 router.patch(
   "/:id",
-  hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   listAccess,
   checkPermission("update:list"),
   updateList,
 );
 
+// ======================================
 // DELETE LIST
+// ======================================
 router.delete(
   "/:id",
-  hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   listAccess,
   checkPermission("delete:list"),
   deleteList,
 );
 
+// ======================================
 // ADD MEMBER TO LIST
+// (admin operation → no listAccess needed)
+// ======================================
 router.post(
   "/:id/members",
-  hrAuthServices.protectStaffOrERP,
   workspaceAccess,
-  listAccess,
   checkPermission("manage:members"),
   addMember,
 );

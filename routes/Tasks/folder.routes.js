@@ -17,7 +17,9 @@ const {
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
+// ======================================
 // CREATE FOLDER
+// ======================================
 router.post(
   "/",
   hrAuthServices.protectStaffOrERP,
@@ -26,7 +28,9 @@ router.post(
   createFolder,
 );
 
+// ======================================
 // GET FOLDERS BY WORKSPACE
+// ======================================
 router.get(
   "/workspace/:workspaceId",
   hrAuthServices.protectStaffOrERP,
@@ -34,7 +38,9 @@ router.get(
   getFolders,
 );
 
+// ======================================
 // UPDATE FOLDER
+// ======================================
 router.patch(
   "/:id",
   hrAuthServices.protectStaffOrERP,
@@ -44,7 +50,9 @@ router.patch(
   updateFolder,
 );
 
+// ======================================
 // DELETE FOLDER
+// ======================================
 router.delete(
   "/:id",
   hrAuthServices.protectStaffOrERP,
