@@ -13,8 +13,8 @@ exports.createTask = async (data, userId) => {
 // GET ONE
 exports.getTaskById = async (taskId) => {
   const task = await Task.findById(taskId)
-    .populate("assignedTo", "name email")
-    .populate("createdBy", "name");
+    .populate("assignedTo", "fullName email")
+    .populate("createdBy", "fullName email");
 
   if (!task) throw new Error("Task not found");
 

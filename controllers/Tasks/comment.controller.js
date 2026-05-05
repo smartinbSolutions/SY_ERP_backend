@@ -2,7 +2,13 @@ const commentService = require("../../services/Tasks/comment.service");
 
 exports.createComment = async (req, res) => {
   try {
-    const comment = await commentService.createComment(req.body, req.user._id);
+    console.log(req.user._id);
+
+    const comment = await commentService.createComment(
+      req.body,
+      req.query.companyId,
+      req.user._id,
+    );
 
     res.status(201).json(comment);
   } catch (err) {

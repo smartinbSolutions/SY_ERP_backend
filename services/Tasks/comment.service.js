@@ -1,8 +1,13 @@
 const Comment = require("../../models/Tasks/CommentModel");
 
-exports.createComment = async (data, userId) => {
+exports.createComment = async (data, companyId, userId) => {
   if (!data.task && !data.subTask) {
     throw new Error("Comment must belong to a task or subtask");
+  }
+console.log(userId);
+
+  if (!companyId) {
+    throw new Error("Company ID is required");
   }
 
   const comment = await Comment.create({
@@ -11,6 +16,7 @@ exports.createComment = async (data, userId) => {
     subTask: data.subTask || null,
     createdBy: userId,
     mentions: data.mentions || [],
+    companyId,
   });
 
   return comment;

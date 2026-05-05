@@ -113,7 +113,7 @@ exports.getUserWorkspaces = async (userId) => {
 exports.getWorkspaceById = async (workspaceId) => {
   const workspace = await Workspace.findById(workspaceId).populate(
     "members.user",
-    "name email",
+    "fullName email",
   );
 
   if (!workspace) throw new Error("Workspace not found");

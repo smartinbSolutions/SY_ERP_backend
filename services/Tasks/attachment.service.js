@@ -44,7 +44,7 @@ exports.getAttachments = async (filter) => {
   if (filter.subTaskId) query.subTask = filter.subTaskId;
 
   const attachments = await Attachment.find(query)
-    .populate("uploadedBy", "name email")
+    .populate("uploadedBy", "fullName email")
     .sort({ createdAt: -1 });
 
   return attachments;

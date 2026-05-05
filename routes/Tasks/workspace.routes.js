@@ -25,7 +25,7 @@ const {
 
 router
   .route("/")
-  .post(hrAuthServices.protectStaffOrERP, canCreateWorkspace, createWorkspace)
+  .post(hrAuthServices.protectStaffOrERP, createWorkspace)
   .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
 
 // WORKSPACE TREE
@@ -43,6 +43,7 @@ router
     checkPermission("update:workspace"),
     updateWorkspace,
   )
+  //not for  now maybe will use in future
   .delete(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,

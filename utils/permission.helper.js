@@ -4,7 +4,7 @@ const ROLE_HIERARCHY = {
   manager: 3,
   owner: 4,
 };
-
+const BYPASS_ROLES = ["owner", "manager"];
 const ROLE_PERMISSIONS = {
   viewer: ["read:workspace", "read:list", "read:task"],
 
@@ -54,4 +54,5 @@ module.exports = {
   getPermissions,
   hasPermission,
   hasRoleAtLeast,
+  BYPASS_ROLES,
 };
