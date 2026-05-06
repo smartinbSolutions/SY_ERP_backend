@@ -14,7 +14,7 @@ exports.journalEntriesService = async ({ req, companyId }) => {
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
   const { startDate, endDate } = req.query;
-
+  console.log("here");
   let query = { companyId };
   // if (startDate && endDate) {
   //   query.journalDate = {
@@ -78,7 +78,7 @@ exports.createJournalEntryService = async ({
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
   const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
 
@@ -130,7 +130,7 @@ exports.createJournalServiceV2 = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session },
+    { new: true, upsert: true, session }
   );
 
   const padZero = (value) => (value < 10 ? `0${value}` : value);
@@ -138,9 +138,9 @@ exports.createJournalServiceV2 = async ({
   const ts = Date.now();
   const dateOb = new Date(ts);
   const formattedTime = `${padZero(dateOb.getHours())}:${padZero(
-    dateOb.getMinutes(),
+    dateOb.getMinutes()
   )}:${padZero(dateOb.getSeconds())}.${String(
-    dateOb.getMilliseconds(),
+    dateOb.getMilliseconds()
   ).padStart(3, "0")}`;
 
   const isoJournalDate = `${journalInfo.journalDate}T${formattedTime}Z`;
@@ -194,7 +194,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
   const journal = await journalEntriesModel.findOneAndUpdate(
     { _id: id, companyId },
     { auditing: auditing },
-    { new: true, session },
+    { new: true, session }
   );
 
   if (journal.journalType === "Sales") {
@@ -204,7 +204,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session },
+      { new: true, session }
     );
   } else if (
     journal.journalType === "Payment In" ||
@@ -216,7 +216,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session },
+      { new: true, session }
     );
   } else if (journal.journalType === "Expense") {
     await expensesModel.findOneAndUpdate(
@@ -225,7 +225,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session },
+      { new: true, session }
     );
   } else if (journal.journalType === "Purchase") {
     await purchaseinvoicesModel.findOneAndUpdate(
@@ -234,7 +234,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session },
+      { new: true, session }
     );
   } else if (journal.journalType === "SalesRefund") {
     await returnOrderModel.findOneAndUpdate(
@@ -243,7 +243,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session },
+      { new: true, session }
     );
   } else if (journal.journalType === "PurchaseRefund") {
     await refundPurchaseInviceModel.findOneAndUpdate(
@@ -252,7 +252,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session },
+      { new: true, session }
     );
   }
 
@@ -268,7 +268,7 @@ exports.getOneJournalByLinkServices = async ({ req, companyId }) => {
   });
 
   if (!journal) {
-    return next(new ApiError(`no journal by linkNum ${linkNum}`, 404));
+    throw new ApiError(`no journal by linkNum ${linkNum}`, 404); // ← throw
   }
 
   return { data: journal };
@@ -308,12 +308,12 @@ exports.existingPeriodicService = async ({
         companyId,
       },
       null,
-      { session },
+      { session }
     );
 
     if (existingPeriodic) {
       const existingMonth = existingPeriodic.months.find(
-        (x) => x.month === monthName,
+        (x) => x.month === monthName
       );
 
       if (existingMonth) {
@@ -324,7 +324,7 @@ exports.existingPeriodicService = async ({
 
       existingPeriodic.yearTotal = existingPeriodic.months.reduce(
         (sum, mo) => sum + (mo.amount || 0),
-        0,
+        0
       );
 
       await existingPeriodic.save(session);

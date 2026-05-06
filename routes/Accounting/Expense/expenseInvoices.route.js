@@ -9,7 +9,9 @@ const {
   cancelNoSupplierExpense,
   findAllExpensesAndPurchaseInvoices,
 } = require("../../../controllers/Accounting/Expenses/Expenses.controller");
-const { uploadFile } = require("../../../services/expenseService");
+const {
+  uploadFile,
+} = require("../../../services/Accounting/Expenses/Expenses.service");
 
 const ExpenseInvoices = express.Router();
 
@@ -21,20 +23,20 @@ ExpenseInvoices.route("/")
 
 ExpenseInvoices.route("/cancel/:id").put(
   authService.checkCompanyEditable,
-  cancelExpenseInvoice,
+  cancelExpenseInvoice
 );
 ExpenseInvoices.route("/cancel/iscash/:id").put(
   authService.checkCompanyEditable,
-  cancelNoSupplierExpense,
+  cancelNoSupplierExpense
 );
 ExpenseInvoices.route("/update/:id").put(
   authService.checkCompanyEditable,
   uploadFile,
-  updatePostedExpenseInvoice,
+  updatePostedExpenseInvoice
 );
 
 ExpenseInvoices.route("/expenseandpurchase/:id").get(
-  findAllExpensesAndPurchaseInvoices,
+  findAllExpensesAndPurchaseInvoices
 );
 ExpenseInvoices.route("/:id").get(findOneExpensesInvoice);
 

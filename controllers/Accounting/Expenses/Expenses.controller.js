@@ -15,13 +15,15 @@ const {
   prepareExpenseInvoiceDataService,
   reverseExpenseNoSupplierEffectsService,
   getExpenseAndPurchaseForSupplierService,
-  paymentService,
 } = require("../../../services/Accounting/Expenses/Expenses.service");
 const expensesModel = require("../../../models/expensesModel");
 const {
   createInvoiceHistory,
 } = require("../../../services/invoiceHistoryService");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
+const {
+  handleExpensePayment,
+} = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -65,6 +67,85 @@ exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
   });
 });
 
+// exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
+//   const companyId = req.query.companyId;
+//   const invoiceDraft = req.body.isDraft === "true";
+//   const isCash = req.body.isCash === "true";
+
+//   const session = await mongoose.startSession();
+
+//   try {
+//     session.startTransaction();
+
+//     let nextCounterPayment = null;
+//     let nextCounterExpensesInvoices = null;
+
+//     if (!invoiceDraft) {
+//       nextCounterPayment = await counterModel.findOneAndUpdate(
+//         { companyId, name: "Payment" },
+//         { $inc: { seq: 1 } },
+//         { new: true, upsert: true, session }
+//       );
+
+//       nextCounterExpensesInvoices = await counterModel.findOneAndUpdate(
+//         { companyId, name: "Expenses" },
+//         { $inc: { seq: 1 } },
+//         { new: true, upsert: true, session }
+//       );
+//     }
+
+//     const prepared = await prepareExpensesDataService({
+//       req,
+//       companyId,
+//       session,
+//     });
+
+//     const newExpenseInvoice = await createExpensesInvoiceRecordService({
+//       req,
+//       invoiceDraft,
+//       ...prepared,
+//       companyId,
+//       nextCounterPayment,
+//       nextCounterExpensesInvoices,
+//       session,
+//     });
+
+//     if (!invoiceDraft && !isCash) {
+//       if (req.body.havepayments === "paid") {
+//         await paymentService({
+//           ...prepared,
+//           req,
+//           companyId,
+//           session,
+//           newExpenseInvoice,
+//         });
+//       }
+//       await applyExpenseSupplierEffectsService({
+//         ...prepared,
+//         newExpenseInvoice,
+//         companyId,
+//         date: req.body.date,
+//         expenceTotalMainCurrency: req.body.expenceTotalMainCurrency,
+//         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+//         paymentStatus: req.body.paymentStatus,
+//         session,
+//       });
+//     }
+
+//     await session.commitTransaction();
+
+//     res.status(201).json({
+//       status: "success",
+//       data: newExpenseInvoice,
+//     });
+//   } catch (error) {
+//     await session.abortTransaction();
+//     next(error);
+//   } finally {
+//     session.endSession();
+//   }
+// });
+
 exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceDraft = req.body.isDraft === "true";
@@ -82,13 +163,12 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       nextCounterPayment = await counterModel.findOneAndUpdate(
         { companyId, name: "Payment" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
+        { new: true, upsert: true, session }
       );
-
       nextCounterExpensesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Expenses" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
+        { new: true, upsert: true, session }
       );
     }
 
@@ -96,6 +176,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       req,
       companyId,
       session,
+      isCash,
     });
 
     const newExpenseInvoice = await createExpensesInvoiceRecordService({
@@ -108,26 +189,69 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       session,
     });
 
-    if (!invoiceDraft && !isCash) {
-      if (req.body.havepayments === "paid") {
-        await paymentService({
+    if (!invoiceDraft) {
+      // ── Supplier effects — only when NOT cash ──────────────────
+      if (!isCash) {
+        await applyExpenseSupplierEffectsService({
           ...prepared,
-          req,
-          companyId,
-          session,
           newExpenseInvoice,
+          companyId,
+          date: req.body.date,
+          expenceTotalMainCurrency: req.body.expenceTotalMainCurrency,
+          totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
+          paymentStatus: req.body.paymentStatus,
+          session,
         });
       }
-      await applyExpenseSupplierEffectsService({
-        ...prepared,
-        newExpenseInvoice,
-        companyId,
-        date: req.body.date,
-        expenceTotalMainCurrency: req.body.expenceTotalMainCurrency,
-        totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-        paymentStatus: req.body.paymentStatus,
-        session,
-      });
+
+      // ── Payment — runs for BOTH cash and non-cash ──────────────
+      if (req.body.havepayments === "paid") {
+        const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
+        const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
+
+        const normalizedPayment = {
+          party: {
+            id: prepared.supplier?._id?.toString() || "",
+            name: prepared.supplier?.name || "",
+            type: "supplier",
+          },
+          fund: {
+            id: fund?.id || fund?._id || "",
+            name: fund?.name || "",
+            currencyId: fund?.currencyId || "",
+            currencyCode: fund?.currencyCode || "",
+            exchangeRate: Number(fund?.exchangeRate || 1),
+          },
+          paymentNature: "outgoing",
+          payment: {
+            amount: Number(payment?.amount || 0),
+            currencyId: payment?.currencyId || "",
+            currencyCode: payment?.currencyCode || "",
+            exchangeRate: Number(payment?.exchangeRate || 1),
+            amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+          },
+          invoiceId: newExpenseInvoice._id,
+          date: req.body.paymentDate || req.body.date,
+          description: req.body.description || "",
+          journalCounter: req.body.journalCounter || "",
+          counter: req.body.counter || "0",
+          companyId,
+          postedBy: req.user?._id || null,
+          postedAt: new Date(),
+          journalAccounts: req.body.journalAccounts || null,
+          // ← no req inside handler
+          isCash,
+          userId: req.user?._id || null,
+        };
+
+        await handleExpensePayment(
+          req,
+          companyId,
+          next,
+          normalizedPayment,
+          session
+        );
+      }
     }
 
     await session.commitTransaction();
@@ -171,7 +295,7 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     if (expense.auditing === true) {
       return next(
-        new ApiError("Audited expense invoice cannot be cancelled", 400),
+        new ApiError("Audited expense invoice cannot be cancelled", 400)
       );
     }
 
@@ -182,8 +306,8 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "Paid expense invoice cannot be cancelled in this step",
-          400,
-        ),
+          400
+        )
       );
     }
     const baseCounter = Number(req.body.counter || 0);
@@ -192,9 +316,9 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const prepared = await prepareExpenseDataFromDraftService({
@@ -235,7 +359,7 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Expenses cancelled",
       "expenses",
-      session,
+      session
     );
 
     await session.commitTransaction();
@@ -272,19 +396,19 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     if (expenseInvoice.isDraft === true || expenseInvoice.status === "draft") {
       return next(
-        new ApiError("Draft expense invoice should use draft update flow", 400),
+        new ApiError("Draft expense invoice should use draft update flow", 400)
       );
     }
 
     if (expenseInvoice.status === "cancelled") {
       return next(
-        new ApiError("Cancelled expense invoice cannot be updated", 400),
+        new ApiError("Cancelled expense invoice cannot be updated", 400)
       );
     }
 
     if (expenseInvoice.auditing === true) {
       return next(
-        new ApiError("Audited expense invoice cannot be updated", 400),
+        new ApiError("Audited expense invoice cannot be updated", 400)
       );
     }
 
@@ -293,10 +417,7 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
       (expenseInvoice.payments || []).length > 0
     ) {
       return next(
-        new ApiError(
-          "Paid expense invoice cannot be updated in this step",
-          400,
-        ),
+        new ApiError("Paid expense invoice cannot be updated in this step", 400)
       );
     }
 
@@ -305,9 +426,9 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const oldPrepared = await prepareExpenseDataFromDraftService({
@@ -418,7 +539,7 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
       updateDate,
       "Purchase invoice updated",
       "purchase",
-      session,
+      session
     );
 
     if (updatedExpenseInvoice.paymentStatus === "paid") {
@@ -430,7 +551,7 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
         req.body.paymentDate || updateDate,
         "Invoice payment recorded from update",
         "expense",
-        session,
+        session
       );
     }
 
@@ -462,9 +583,9 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
     const padMs = (value) => String(value).padStart(3, "0");
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     if (!companyId) {
@@ -500,7 +621,7 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Cancelled Expense",
       "expense",
-      session,
+      session
     );
 
     await session.commitTransaction();
@@ -536,5 +657,5 @@ exports.findAllExpensesAndPurchaseInvoices = asyncHandler(
       results: totalItems,
       data,
     });
-  },
+  }
 );

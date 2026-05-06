@@ -38,7 +38,10 @@ const PaymentHistorySchema = new mongoose.Schema(
     balanceEffectType: {
       type: String,
       enum: ["Deposit", "Withdrawal"],
-    }, // effect on supplier/customer balance
+    },
+    // effect on supplier/customer balance
+    // Deposit    = money goes FROM you → TO party
+    // Withdrawal = money comes FROM party → TO you
 
     amountTransactionCurrency: {
       type: Number,

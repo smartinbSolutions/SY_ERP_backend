@@ -13,7 +13,6 @@ const posReceiptsModel = require("../models/orderModelFish");
 const refundPosSales = require("../models/refundPosSales");
 const orderModel = require("../models/orderModel");
 const salsePointModel = require("../models/salesPointModel");
-const { createPaymentHistory } = require("./paymentHistoryService");
 const paymentModel = require("../models/paymentModelOld");
 const createJournalForPos = require("../utils/creaeteJornalForPos");
 const stockSchema = require("../models/stockModel");

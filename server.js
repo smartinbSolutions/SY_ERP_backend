@@ -48,9 +48,10 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 initSocket(server);
 
 process.on("unhandledRejection", (err) => {
-  console.error(`unhandledRejection Errors:${err.name} | ${err.message}`);
-  server.close(() => {
-    console.error(`Shutting down....`);
-    process.exit(1);
-  });
+  console.error("═══ UNHANDLED REJECTION ═══");
+  console.error(`Name:    ${err?.name}`);
+  console.error(`Message: ${err?.message}`);
+  console.error(`Stack:\n${err?.stack}`);
+  console.error("═══════════════════════════");
+  // no server.close() / process.exit() — keep running so we can see the stack
 });

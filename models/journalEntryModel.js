@@ -2,58 +2,58 @@
 // // ✅ SAME TYPES AS YOU ASKED (journalDate stays String)
 // // ✅ Only add indexes + keep your existing hooks
 
-// const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-// const journalEntrySchema = new mongoose.Schema(
-//   {
-//     journalName: String,
-//     journalDate: String, // keep as-is (string)
-//     journalSerialNum: String,
-//     journalRefNum: String,
-//     journalDesc: String,
-//     journalDebit: Number,
-//     journalCredit: Number,
-//     journalAccounts: [
-//       {
-//         counter: Number,
-//         id: String,
-//         name: String,
-//         accountDebit: Number,
-//         accountCredit: Number,
-//         MainDebit: Number,
-//         MainCredit: Number,
-//         accountCurrency: String,
-//         isPrimary: Boolean,
-//         accountExRate: Number,
-//         Desc: String,
-//         accountType: String,
-//         code: String,
-//         party: String,
-//         partyName: String,
-//         _id: false,
-//       },
-//     ],
-//     journalType: String,
-//     counter: String,
-//     linkCounter: String,
-//     refCounter: String,
-//     filesArray: [String],
-//     sync: { type: Boolean, default: false },
-//     companyId: { type: String, required: true, index: true },
-//     party: String,
-//     receiptNumber: String,
-//     refId: String,
-//     auditing: { type: Boolean, default: false },
-//     status: { type: String, enum: ["active", "reversed"], default: "active" },
-//     reversedAt: { type: Date, default: null },
-//     reverseJournalId: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "Journal",
-//       default: null,
-//     },
-//   },
-//   { timestamps: true }
-// );
+const journalEntrySchema = new mongoose.Schema(
+  {
+    journalName: String,
+    journalDate: String, // keep as-is (string)
+    journalSerialNum: String,
+    journalRefNum: String,
+    journalDesc: String,
+    journalDebit: Number,
+    journalCredit: Number,
+    journalAccounts: [
+      {
+        counter: Number,
+        id: String,
+        name: String,
+        accountDebit: Number,
+        accountCredit: Number,
+        MainDebit: Number,
+        MainCredit: Number,
+        accountCurrency: String,
+        isPrimary: Boolean,
+        accountExRate: Number,
+        Desc: String,
+        accountType: String,
+        code: String,
+        party: String,
+        partyName: String,
+        _id: false,
+      },
+    ],
+    journalType: String,
+    counter: String,
+    linkCounter: String,
+    refCounter: String,
+    filesArray: [String],
+    sync: { type: Boolean, default: false },
+    companyId: { type: String, required: true, index: true },
+    party: String,
+    receiptNumber: String,
+    refId: String,
+    auditing: { type: Boolean, default: false },
+    status: { type: String, enum: ["active", "reversed"], default: "active" },
+    reversedAt: { type: Date, default: null },
+    reverseJournalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Journal",
+      default: null,
+    },
+  },
+  { timestamps: true }
+);
 
 // /**
 //  * ✅ Add helpful indexes
@@ -62,22 +62,22 @@
 //  * - currently journalDate is String so Mongo can't use it for real date ranges,
 //  *   but this still helps if you do equality / prefix / sorting sometimes.
 //  */
-// journalEntrySchema.index({ companyId: 1, journalDate: 1 });
+journalEntrySchema.index({ companyId: 1, journalDate: 1 });
 
-// const setfilesURL = (doc) => {
-//   if (doc.filesArray && Array.isArray(doc.filesArray)) {
-//     doc.filesArray = doc.filesArray.map(
-//       (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`
-//     );
-//   }
-// };
+const setfilesURL = (doc) => {
+  if (doc.filesArray && Array.isArray(doc.filesArray)) {
+    doc.filesArray = doc.filesArray.map(
+      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`
+    );
+  }
+};
 
-// journalEntrySchema.post("save", function (doc) {
-//   setfilesURL(doc);
-// });
+journalEntrySchema.post("save", function (doc) {
+  setfilesURL(doc);
+});
 
-// journalEntrySchema.post("init", function (doc) {
-//   setfilesURL(doc);
-// });
+journalEntrySchema.post("init", function (doc) {
+  setfilesURL(doc);
+});
 
-// module.exports = mongoose.model("journalEntry", journalEntrySchema);
+module.exports = mongoose.model("journalEntry", journalEntrySchema);

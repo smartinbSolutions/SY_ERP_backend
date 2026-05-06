@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const expensesCategoryModel = require("../models/expensesCategoryModel");
-const ApiError = require("../utils/apiError");
-const AccountingTreeSchema = require("../models/accountingTreeModel");
-const currencySchema = require("../models/currencyModel");
+const expensesCategoryModel = require("../../../models/expensesCategoryModel");
+const ApiError = require("../../../utils/apiError");
+const AccountingTreeSchema = require("../../../models/accountingTreeModel");
+const currencySchema = require("../../../models/currencyModel");
 
 // Create new expense category
 // @route get /api/expenseCategories

@@ -10,6 +10,7 @@ const counterModel = require("../../../models/Settings/counterModel");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const ApiError = require("../../../utils/apiError");
+const { default: mongoose } = require("mongoose");
 
 const multerOptions = () => {
   const multerStorage = multer.memoryStorage();
@@ -17,7 +18,7 @@ const multerOptions = () => {
   const multerFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|webp/;
     const extname = allowedTypes.test(
-      file.originalname.toLowerCase().split(".").pop(),
+      file.originalname.toLowerCase().split(".").pop()
     );
     const mimeType = allowedTypes.test(file.mimetype);
     if (extname && mimeType) {
@@ -104,7 +105,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     const nextCounterJournal = await counterModel.findOneAndUpdate(
       { companyId, name: "Journal" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     const newJournal = await createJournalEntryService({
@@ -163,6 +164,7 @@ exports.auditingJournal = asyncHandler(async (req, res, next) => {
   }
 });
 
+// controller — destructure data not account
 exports.getOneJournalByLink = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
@@ -170,13 +172,10 @@ exports.getOneJournalByLink = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const { account } = await getOneJournalByLinkServices({
-    req,
-    companyId,
-  });
+  const { data } = await getOneJournalByLinkServices({ req, companyId }); // ← data
 
   res.status(200).json({
     status: "true",
-    data: account,
+    data,
   });
 });

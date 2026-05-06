@@ -3,9 +3,6 @@ const ApiError = require("../../../utils/apiError");
 const mongoose = require("mongoose");
 
 const {
-  purchaseInvoiceDraftService,
-} = require("../../../services/purchaseInvoicesServices");
-const {
   preparePurchaseInvoiceDataService,
   createPurchaseInvoiceRecordService,
   applyPurchaseInventoryEffectsService,
@@ -21,7 +18,6 @@ const {
   findAllPurchaseInvoicesService,
   findOnePurchaseInvoiceService,
   findSupplierPurchaseInvoicesForRefundService,
-  paymentService,
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice.service");
 
 const counterModel = require("../../../models/Settings/counterModel");
@@ -30,6 +26,12 @@ const {
   createInvoiceHistory,
 } = require("../../../services/invoiceHistoryService");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
+const {
+  handlePurchasePayment,
+} = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
+const {
+  prepareSalesInvoiceDataFromDraftService,
+} = require("../../../services/Accounting/Sales/SalesInvoice.service");
 
 /*
 |--------------------------------------------------------------------------
@@ -100,13 +102,14 @@ exports.findSupplierPurchaseInvoicesForRefund = asyncHandler(
       totalItems,
       data: purchaseInvoices,
     });
-  },
+  }
 );
 /*
 |--------------------------------------------------------------------------
 | Create Purchase Invoice 
 |--------------------------------------------------------------------------
 */
+
 exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceDraft = req.body.isDraft === "true";
@@ -124,14 +127,14 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         nextCounterPayment = await counterModel.findOneAndUpdate(
           { companyId, name: "Payment" },
           { $inc: { seq: 1 } },
-          { new: true, upsert: true, session },
+          { new: true, upsert: true, session }
         );
       }
 
       nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Purchase Invoice" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
+        { new: true, upsert: true, session }
       );
     }
 
@@ -170,15 +173,52 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         paid: req.body.paid,
         session,
       });
-
+      console.log(prepared);
+      // ── Replace paymentService with handlePurchasePayment ──────
       if (req.body.havepayments === "paid") {
-        await paymentService({
-          ...prepared,
+        const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
+        const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
+
+        // normalize inline — same shape as normalizePaymentRequest
+        const normalizedPayment = {
+          party: {
+            id: prepared.supplier?._id?.toString() || "",
+            name: prepared.supplier?.supplierName || "",
+            type: "supplier",
+          },
+          fund: {
+            id: fund?.id || fund?._id || "",
+            name: fund?.name || "",
+            currencyId: fund?.currencyId || "",
+            currencyCode: fund?.currencyCode || "",
+            exchangeRate: Number(fund?.exchangeRate || 1),
+          },
+          paymentNature: "outgoing",
+          payment: {
+            amount: Number(payment?.amount || 0),
+            currencyId: payment?.currencyId || "",
+            currencyCode: payment?.currencyCode || "",
+            exchangeRate: Number(payment?.exchangeRate || 1),
+            amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+          },
+          invoiceId: newPurchaseInvoice._id, // ← invoice just created
+          date: req.body.paymentDate || req.body.date,
+          description: req.body.description || "",
+          journalCounter: req.body.journalCounter || "",
+          counter: req.body.counter || "0",
+          companyId,
+          postedBy: req.user?._id || null,
+          postedAt: new Date(),
+          journalAccounts: req.body.journalAccounts || null,
+        };
+
+        await handlePurchasePayment(
           req,
           companyId,
-          session,
-          newPurchaseInvoice,
-        });
+          next,
+          normalizedPayment,
+          session // ← pass existing session, no nested transaction
+        );
       }
     }
 
@@ -200,6 +240,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 | Update Posted Purchase Invoice 
 |--------------------------------------------------------------------------
 */
+
 exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceId = req.params.id;
@@ -213,54 +254,42 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       .findOne({ _id: invoiceId, companyId })
       .session(session);
 
-    if (!purchaseInvoice) {
+    if (!purchaseInvoice)
       return next(new ApiError("Purchase invoice not found", 404));
-    }
 
-    if (
-      purchaseInvoice.isDraft === true ||
-      purchaseInvoice.status === "draft"
-    ) {
+    if (purchaseInvoice.isDraft === true || purchaseInvoice.status === "draft")
       return next(
-        new ApiError(
-          "Draft purchase invoice should use draft update flow",
-          400,
-        ),
+        new ApiError("Draft purchase invoice should use draft update flow", 400)
       );
-    }
 
-    if (purchaseInvoice.status === "cancelled") {
+    if (purchaseInvoice.status === "cancelled")
       return next(
-        new ApiError("Cancelled purchase invoice cannot be updated", 400),
+        new ApiError("Cancelled purchase invoice cannot be updated", 400)
       );
-    }
 
-    if (purchaseInvoice.auditing === true) {
+    if (purchaseInvoice.auditing === true)
       return next(
-        new ApiError("Audited purchase invoice cannot be updated", 400),
+        new ApiError("Audited purchase invoice cannot be updated", 400)
       );
-    }
 
     if (
       purchaseInvoice.paid === "paid" ||
       (purchaseInvoice.payments || []).length > 0
-    ) {
+    )
       return next(
         new ApiError(
           "Paid purchase invoice cannot be updated in this step",
-          400,
-        ),
+          400
+        )
       );
-    }
 
-    const padZero = (value) => String(value).padStart(2, "0");
-    const padMs = (value) => String(value).padStart(3, "0");
-
+    const padZero = (v) => String(v).padStart(2, "0");
+    const padMs = (v) => String(v).padStart(3, "0");
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     /*
@@ -293,6 +322,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate: updateDate,
       mode: "reverse_update",
     });
+
     const counterFormat = req.body.counterFormat;
     const reversalJournalLinkCounter = `${
       purchaseInvoice.journalCounter
@@ -321,7 +351,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     /*
     |--------------------------------------------------------------------------
-    | PREPARE PAYMENT COUNTER ONLY IF UPDATED VERSION WILL CREATE PAYMENT
+    | PAYMENT COUNTER — only if new version will create payment
     |--------------------------------------------------------------------------
     */
     let nextCounterPayment = null;
@@ -332,7 +362,6 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
         name: "Payment",
         session,
       });
-
       nextCounterPayment = { seq: paymentSeq };
     }
 
@@ -382,7 +411,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     /*
     |--------------------------------------------------------------------------
-    | RECREATE / REAPPLY JOURNAL FOR UPDATED VERSION
+    | RECREATE JOURNAL FOR UPDATED VERSION
     |--------------------------------------------------------------------------
     */
     const journalPreview =
@@ -390,9 +419,8 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
         ? JSON.parse(req.body.journalPreview)
         : req.body.journalPreview;
 
-    if (!journalPreview?.journalMeta) {
+    if (!journalPreview?.journalMeta)
       return next(new ApiError("journal preview is required", 400));
-    }
 
     const journalLinkCounter = `purchase-${
       updatedPurchaseInvoice._id
@@ -408,18 +436,57 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       session,
     });
 
+    /*
+    |--------------------------------------------------------------------------
+    | PAYMENT — replaced paymentService with handlePurchasePayment
+    |--------------------------------------------------------------------------
+    */
     if (req.body.havepayments === "paid") {
-      await paymentService({
-        ...newPrepared,
+      const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
+      const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
+
+      const normalizedPayment = {
+        party: {
+          id: newPrepared.supplier?._id?.toString() || "",
+          name: newPrepared.supplier?.name || "",
+          type: "supplier",
+        },
+        fund: {
+          id: fund?.id || fund?._id || "",
+          name: fund?.name || "",
+          currencyId: fund?.currencyId || "",
+          currencyCode: fund?.currencyCode || "",
+          exchangeRate: Number(fund?.exchangeRate || 1),
+        },
+        paymentNature: "outgoing",
+        payment: {
+          amount: Number(payment?.amount || 0),
+          currencyId: payment?.currencyId || "",
+          currencyCode: payment?.currencyCode || "",
+          exchangeRate: Number(payment?.exchangeRate || 1),
+          amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+        },
+        invoiceId: updatedPurchaseInvoice._id, // ← updated invoice
+        date: req.body.paymentDate || updateDate,
+        description: req.body.description || "",
+        journalCounter: req.body.journalCounter || "",
+        counter: req.body.counter || "0",
+        companyId,
+        postedBy: req.user?._id || null,
+        postedAt: new Date(),
+        journalAccounts: req.body.journalAccounts || null,
+      };
+
+      await handlePurchasePayment(
         req,
         companyId,
-        session,
-        newPurchaseInvoice: updatedPurchaseInvoice,
-      });
+        next,
+        normalizedPayment,
+        session // ← pass existing session
+      );
     }
 
     updatedPurchaseInvoice.journalCounter = journalLinkCounter;
-
     await updatedPurchaseInvoice.save({ session });
 
     /*
@@ -435,7 +502,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       updateDate,
       "Purchase invoice updated",
       "purchase",
-      session,
+      session
     );
 
     if (updatedPurchaseInvoice.paid === "paid") {
@@ -447,7 +514,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
         req.body.paymentDate || updateDate,
         "Invoice payment recorded from update",
         "purchase",
-        session,
+        session
       );
     }
 
@@ -502,7 +569,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     if (purchaseInvoice.auditing === true) {
       return next(
-        new ApiError("Audited purchase invoice cannot be cancelled", 400),
+        new ApiError("Audited purchase invoice cannot be cancelled", 400)
       );
     }
 
@@ -513,8 +580,8 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "Paid purchase invoice cannot be cancelled in this step",
-          400,
-        ),
+          400
+        )
       );
     }
     const baseCounter = Number(req.body.counter || 0);
@@ -523,9 +590,9 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const prepared = await preparePurchaseInvoiceDataFromDraftService({
@@ -576,7 +643,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Purchase invoice cancelled",
       "purchase",
-      session,
+      session
     );
 
     await session.commitTransaction();
@@ -635,7 +702,7 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
     const nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Purchase Invoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     const baseCounter = Number(req.body.counter || 0);
@@ -786,77 +853,4 @@ exports.deletePurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
     session.endSession();
     next(error);
   }
-});
-
-/*
-|--------------------------------------------------------------------------
-| Approve Draft
-|--------------------------------------------------------------------------
-*/
-exports.approvePurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-  const { id } = req.params;
-
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
-
-  const invoice = await purchaseInvoiceDraftService.approveDraft({
-    id,
-    companyId,
-    user: req.user,
-  });
-
-  res.status(200).json({
-    status: "success",
-    message: "Draft approved successfully",
-    data: invoice,
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Get Drafts
-|--------------------------------------------------------------------------
-*/
-exports.getPurchaseInvoiceDrafts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
-
-  const drafts = await purchaseInvoiceDraftService.getDrafts({
-    companyId,
-  });
-
-  res.status(200).json({
-    status: "success",
-    results: drafts.length,
-    data: drafts,
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Get Single Draft
-|--------------------------------------------------------------------------
-*/
-exports.getSinglePurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-  const { id } = req.params;
-
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
-
-  const draft = await purchaseInvoiceDraftService.getDraftById({
-    id,
-    companyId,
-  });
-
-  res.status(200).json({
-    status: "success",
-    data: draft,
-  });
 });

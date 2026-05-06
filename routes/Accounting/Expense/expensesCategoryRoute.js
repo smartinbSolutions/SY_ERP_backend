@@ -1,6 +1,6 @@
 const express = require("express");
 
-const authService = require("../services/authService");
+const authService = require("../../../services/authService");
 
 const expenseCategoriesRoute = express.Router();
 
@@ -10,7 +10,7 @@ const {
   getOneExpenseCategory,
   deleteOneExpenseCategory,
   updateOneExpenseCategory,
-} = require("../services/expensesCategoryService");
+} = require("../../../services/Accounting/Expenses/expensesCategoryService");
 
 expenseCategoriesRoute.use(authService.protect);
 expenseCategoriesRoute

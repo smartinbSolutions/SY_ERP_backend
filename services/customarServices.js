@@ -5,11 +5,7 @@ const customersModel = require("../models/customarModel");
 const { Search } = require("../utils/search");
 const bcrypt = require("bcrypt");
 const createToken = require("../utils/createToken");
-const {
-  createPaymentHistory,
-  editPaymentHistory,
-  createPaymentHistoryV2,
-} = require("./paymentHistoryService");
+const { createPaymentHistoryV2 } = require("./paymentHistoryService");
 const orderSchema = require("../models/orderModel");
 const xlsx = require("xlsx");
 const AccountingTreeSchema = require("../models/accountingTreeModel");
@@ -148,7 +144,7 @@ exports.updataCustomar = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      },
+      }
     );
 
     res.status(200).json({
@@ -176,7 +172,7 @@ exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
     },
     {
       new: true,
-    },
+    }
   );
 
   if (!user) {
@@ -207,7 +203,7 @@ exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   if (paymentHistory.length > 0) {
     return next(
       new ApiError(`you have a payment for this customer ${id}`),
-      400,
+      400
     );
   }
 

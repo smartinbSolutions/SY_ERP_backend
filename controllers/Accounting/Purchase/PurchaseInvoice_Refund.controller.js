@@ -14,6 +14,9 @@ const {
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice_Refund.service");
 
 const counterModel = require("../../../models/Settings/counterModel");
+const {
+  handlePurchasePayment,
+} = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
 
 exports.findAllPurchaseRefunds = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -94,18 +97,14 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    const nextCounterPayment = await counterModel.findOneAndUpdate(
-      { companyId, name: "payment" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
-    );
-
+    // counter for refund invoice only — payment counter handled inside handler
     const nextCounterRefundPurchaseInvoice =
       await counterModel.findOneAndUpdate(
         { companyId, name: "refundPurchaseInvoice" },
         { $inc: { seq: 1 } },
         { new: true, upsert: true, session }
       );
+
     const prepared = await prepareRefundPurchaseInvoiceDataService({
       req,
       companyId,
@@ -124,23 +123,57 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         nextCounterRefundPurchaseInvoice,
       });
 
-    let financial = {
-      payment: null,
-      financialFund: null,
-    };
-
+    // ── Payment — replaced applyRefundPurchaseFinancialEffectsService ──
     if (req.body.paid === "paid") {
-      financial = await applyRefundPurchaseFinancialEffectsService({
+      const fund = req.body.financailFund
+        ? typeof req.body.financailFund === "string"
+          ? JSON.parse(req.body.financailFund)
+          : req.body.financailFund
+        : null;
+
+      const normalizedPayment = {
+        party: {
+          id: prepared.supplier?._id?.toString() || "",
+          name:
+            prepared.supplier?.supplierName || prepared.supplier?.name || "",
+          type: "supplier",
+        },
+        fund: {
+          id: fund?.id || fund?._id || "",
+          name: fund?.name || "",
+          currencyId: fund?.currencyId || "",
+          currencyCode: fund?.code || fund?.currencyCode || "",
+          exchangeRate: Number(fund?.exchangeRate || 1),
+        },
+        paymentNature: "incoming", // ← refund = money coming IN from supplier
+        payment: {
+          amount: Number(req.body.paymentInFundCurrency || 0),
+          currencyId: fund?.currencyId || "",
+          currencyCode: fund?.code || fund?.currencyCode || "",
+          exchangeRate: Number(fund?.exchangeRate || 1),
+          amountMainCurrency: Number(req.body.paymentInMainCurrency || 0),
+        },
+        invoiceId: newRefundPurchaseInvoice._id,
+        date: req.body.paymentDate || prepared.formattedDate,
+        description: req.body.paymentDescription || "",
+        journalCounter: req.body.journalCounter || "",
+        counter: req.body.counter || "0",
+        companyId,
+        postedBy: req.user?._id || null,
+        postedAt: new Date(),
+        journalAccounts: req.body.journalAccounts || null,
+      };
+
+      await handlePurchasePayment(
         req,
         companyId,
-        session,
-        supplier: prepared.supplier,
-        newRefundPurchaseInvoice,
-        formattedDate: prepared.formattedDate,
-        nextCounterPayment,
-      });
+        next,
+        normalizedPayment,
+        session // ← pass existing session, no nested transaction
+      );
     }
 
+    // ── Inventory effects ──────────────────────────────────────
     await applyRefundPurchaseInventoryEffectsService({
       companyId,
       session,
@@ -149,6 +182,7 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       newRefundPurchaseInvoice,
     });
 
+    // ── Supplier balance effects ───────────────────────────────
     await applyRefundPurchaseSupplierEffectsService({
       supplier: prepared.supplier,
       newRefundPurchaseInvoice,

@@ -3,6 +3,7 @@ const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceM
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const ProductBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const ApiError = require("../../../utils/apiError");
+const multer = require("multer");
 const productModel = require("../../../models/productModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const paymentModel = require("../../../models/paymentModel");
@@ -10,14 +11,44 @@ const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/
 const suppliersModel = require("../../../models/suppliersModel");
 const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const { createProductMovement } = require("../../../utils/productMovement");
-const {
-  createPaymentHistory,
-  createPaymentHistoryV2,
-} = require("../../paymentHistoryService");
+const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 
 function padZero(value) {
   return value < 10 ? `0${value}` : value;
 }
+//Fixed Ourchse invoice
+const multerStorage = multer.diskStorage({
+  destination: function (req, file, callback) {
+    // Specify the destination folder for storing the files
+    callback(null, "./uploads/invoice");
+  },
+  filename: function (req, file, callback) {
+    // Specify the filename for the uploaded file
+    const originalname = file.originalname;
+    const lastDotIndex = originalname.lastIndexOf(".");
+    const fileExtension =
+      lastDotIndex !== -1 ? originalname.slice(lastDotIndex + 1) : "";
+    const filename = `file-${Date.now()}.${fileExtension}`;
+
+    callback(null, filename);
+  },
+});
+
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: (req, file, callback) => {
+    const allowedMimes = ["image/jpeg", "image/png", "application/pdf"];
+    if (allowedMimes.includes(file.mimetype)) {
+      callback(null, true);
+    } else {
+      callback(
+        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+      );
+    }
+  },
+});
+
+exports.uploadFile = upload.single("file");
 
 exports.findAllPurchaseRefundsService = async ({ req, companyId }) => {
   const pageSize = Number(req.query.limit) || 20;

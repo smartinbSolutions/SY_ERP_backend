@@ -4,14 +4,16 @@ const authService = require("../../../services/authService");
 const {
   createPayment,
   getOnePayment,
+  getAllPayments,
 } = require("../../../controllers/Accounting/CurrentAssets/Payments.controller");
 
 const paymentRoute = express.Router();
 paymentRoute.use(authService.protect);
 
-paymentRoute.route("/").post(authService.checkCompanyEditable, createPayment);
 paymentRoute
-  .route("/:id")
-  .post(authService.checkCompanyEditable, getOnePayment);
+  .route("/")
+  .get(authService.checkCompanyEditable, getAllPayments)
+  .post(authService.checkCompanyEditable, createPayment);
+paymentRoute.route("/:id").get(authService.checkCompanyEditable, getOnePayment);
 
 module.exports = paymentRoute;

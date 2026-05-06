@@ -1,5 +1,5 @@
 const paymentsModel = require("../../../../models/Accounting/CurrentAssets/payments.model");
-const paymentModel = require("../../../../models/paymentModel");
+
 const {
   handlePurchasePayment,
   handleSupplierPayment,
@@ -31,7 +31,7 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
 
   return {
     paymentContext: data.paymentContext,
-
+    invoiceId: data.invoiceId || "",
     companyId,
     counter: data.counter,
     journalCounter: data.journalCounter || "",
@@ -152,4 +152,47 @@ exports.getOnePaymentService = async ({ paymentId, companyId }) => {
   }
 
   return payment;
+};
+
+exports.getAllPaymentsService = async ({
+  companyId,
+  paymentNature, // "outgoing" | "incoming" | undefined (all)
+  paymentContext, // "purchase" | "supplier" | "sales" etc — optional filter
+  page = 1,
+  limit = 20,
+  dateFrom,
+  dateTo,
+  partyId,
+}) => {
+  const filter = { companyId };
+
+  if (paymentNature) filter.paymentNature = paymentNature;
+  if (paymentContext) filter.paymentContext = paymentContext;
+  if (partyId) filter["party.id"] = partyId;
+  if (dateFrom || dateTo) {
+    filter.date = {};
+    if (dateFrom) filter.date.$gte = new Date(dateFrom);
+    if (dateTo) filter.date.$lte = new Date(dateTo);
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const total = await paymentsModel.countDocuments(filter);
+
+  const payments = await paymentsModel
+    .find(filter)
+    .sort({ date: -1 })
+    .skip(skip)
+    .limit(Number(limit))
+    .populate("postedBy", "fullName")
+    .lean();
+
+  return {
+    data: payments,
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / Number(limit)),
+    },
+  };
 };

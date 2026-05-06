@@ -7,7 +7,6 @@ const {
   updateCartItemQuantity,
 } = require("../../services/ecommerce/cartServices");
 const authService = require("../../services/authService");
-const { createCashOrder } = require("../../services/orderServices");
 
 const cartRout = express.Router();
 cartRout.use(authService.ecommerceProtect);

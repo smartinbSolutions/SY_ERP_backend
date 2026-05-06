@@ -18,6 +18,7 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
+        "opening Balance",
         "Deposit transfer",
         "Withdrawal transfer",
         "Deposit",
@@ -39,10 +40,10 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 module.exports = mongoose.model(
   "ReportsFinancialFunds",
-  reportsFinancialFundsSchema,
+  reportsFinancialFundsSchema
 );
