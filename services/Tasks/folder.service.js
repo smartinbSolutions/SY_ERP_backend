@@ -1,24 +1,11 @@
 const Folder = require("../../models/Tasks/FolderModel");
-const Workspace = require("../../models/Tasks/WorkspaceModel");
 
-exports.createFolder = async (data, userId) => {
-  if (!data.workspace) {
-    throw new Error("Workspace ID is required");
-  }
-
-  const workspace = await Workspace.findById(data.workspace);
-
+// ===============================
+// CREATE FOLDER
+// ===============================
+exports.createFolder = async (data, userId, workspace) => {
   if (!workspace) {
-    throw new Error("Workspace not found");
-  }
-
-  const isMember = workspace.members.some(
-    (m) => m.user.toString() === userId.toString() && m.status === "active",
-  );
-
-  
-  if (!isMember) {
-    throw new Error("Not allowed in this workspace");
+    throw new Error("Workspace is required");
   }
 
   const folder = await Folder.create({
@@ -32,34 +19,29 @@ exports.createFolder = async (data, userId) => {
   return folder;
 };
 
-exports.getFoldersByWorkspace = async (workspaceId, userId) => {
-  const workspace = await Workspace.findById(workspaceId);
-
+// ===============================
+// GET FOLDERS BY WORKSPACE
+// ===============================
+exports.getFoldersByWorkspace = async (workspace, userId) => {
   if (!workspace) throw new Error("Workspace not found");
 
-  const isMember = workspace.members.some(
-    (m) => m.user.toString() === userId.toString(),
-  );
-
-  if (!isMember) throw new Error("Access denied");
-
   return await Folder.find({
-    workspace: workspaceId,
+    workspace: workspace._id,
   }).sort({ order: 1 });
 };
 
-exports.updateFolder = async (folderId, data, userId) => {
+// ===============================
+// UPDATE FOLDER
+// ===============================
+exports.updateFolder = async (folderId, data, userId, workspace) => {
   const folder = await Folder.findById(folderId);
 
   if (!folder) throw new Error("Folder not found");
 
-  const workspace = await Workspace.findById(folder.workspace);
-
-  const isMember = workspace.members.some(
-    (m) => m.user.toString() === userId.toString(),
-  );
-
-  if (!isMember) throw new Error("Access denied");
+  // 🔥 ensure folder belongs to workspace (safety layer)
+  if (folder.workspace.toString() !== workspace._id.toString()) {
+    throw new Error("Folder does not belong to this workspace");
+  }
 
   if (data.name) folder.name = data.name.trim();
   if (data.order !== undefined) folder.order = data.order;
@@ -69,19 +51,24 @@ exports.updateFolder = async (folderId, data, userId) => {
   return folder;
 };
 
-exports.deleteFolder = async (folderId, userId) => {
+// ===============================
+// DELETE FOLDER
+// ===============================
+exports.deleteFolder = async (folderId, userId, workspaceRole, workspace) => {
   const folder = await Folder.findById(folderId);
 
   if (!folder) throw new Error("Folder not found");
 
-  const workspace = await Workspace.findById(folder.workspace);
+  // 🔥 ensure ownership scope
+  if (folder.workspace.toString() !== workspace._id.toString()) {
+    throw new Error("Folder does not belong to this workspace");
+  }
 
-  const isManager = workspace.members.some(
-    (m) => m.user.toString() === userId.toString() && m.role === "manager",
-  );
+  // 🔐 business rule: only manager/owner can delete
+  const allowed = workspaceRole === "manager" || workspaceRole === "owner";
 
-  if (!isManager) {
-    throw new Error("Only manager can delete folder");
+  if (!allowed) {
+    throw new Error("Only manager or owner can delete folder");
   }
 
   await folder.deleteOne();

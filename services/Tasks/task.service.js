@@ -2,125 +2,81 @@ const mongoose = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 
-// CREATE
-exports.createTask = async (data, userId) => {
+// ======================================
+// CREATE TASK (workspace aware)
+// ======================================
+exports.createTask = async (data, userId, workspace) => {
+  if (!workspace) throw new Error("Workspace is required");
+  if (!data.list) throw new Error("List is required");
+
   return await Task.create({
     ...data,
+    workspace: workspace._id,
+    companyId: workspace.companyId,
     createdBy: userId,
   });
 };
 
-// GET ONE
+// ======================================
+// GET TASK BY ID
+// ======================================
 exports.getTaskById = async (taskId) => {
   const task = await Task.findById(taskId)
-    .populate("assignedTo", "fullName email")
-    .populate("createdBy", "fullName email");
+    .populate("assignedTo", "name email")
+    .populate("createdBy", "name email");
 
   if (!task) throw new Error("Task not found");
 
   return task;
 };
 
+// ======================================
+// GET ALL TASKS (workspace scoped)
+// ======================================
 exports.getAllTasks = async ({
+  workspaceId,
   userId,
-  type,
-  listId,
   page = 1,
   limit = 10,
   status,
   priority,
+  listId,
 }) => {
-  const filter = { isArchived: false };
-
-  // ===============================
-  // TYPE FILTER
-  // ===============================
-  // if (type === "my") {
-  //   filter.assignedTo = userId;
-  //   console.log("Filter applied: assignedTo =", userId);
-  // }
-
-  // if (type === "team") {
-  //   filter.createdBy = userId;
-  //   console.log("Filter applied: createdBy =", userId);
-  // }
+  const filter = {
+    workspace: workspaceId,
+    isArchived: false,
+  };
 
   // ===============================
   // LIST FILTER
   // ===============================
-
-  if (listId) {
-    const isValid = mongoose.Types.ObjectId.isValid(listId);
-    console.log("Is listId valid ObjectId?", isValid);
-
-    if (isValid) {
-      filter.list = new mongoose.Types.ObjectId(listId);
-      console.log("Filter applied: list =", listId);
-    } else {
-      console.log("Invalid listId provided, skipping list filter");
-    }
+  if (listId && mongoose.Types.ObjectId.isValid(listId)) {
+    filter.list = listId;
   }
 
   // ===============================
   // EXTRA FILTERS
   // ===============================
-  if (status) {
-    filter.status = status;
-    console.log("Filter applied: status =", status);
-  }
-
-  if (priority) {
-    filter.priority = priority;
-    console.log("Filter applied: priority =", priority);
-  }
+  if (status) filter.status = status;
+  if (priority) filter.priority = priority;
 
   const skip = (page - 1) * limit;
 
-  // ===============================
-  // MAIN QUERY
-  // ===============================
   const tasks = await Task.find(filter)
     .populate("assignedTo", "name email")
-    .populate("createdBy", "name")
+    .populate("createdBy", "name email")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
 
-  console.log("Tasks fetched:", tasks.length);
-
   const total = await Task.countDocuments(filter);
 
-  console.log("Total count:", total);
-
   // ===============================
-  // WITHOUT SUBTASKS
+  // SUBTASKS ATTACHMENT
   // ===============================
-  // if (includeSubTasks !== "true") {
-  //   console.log("Returning WITHOUT subTasks");
-
-  //   console.log("==== END DEBUG ====");
-
-  //   return {
-  //     tasks,
-  //     pagination: {
-  //       total,
-  //       page,
-  //       pages: Math.ceil(total / limit),
-  //     },
-  //   };
-  // }
-
-  // ===============================
-  // WITH SUBTASKS
-  // ===============================
-  console.log("Including subTasks...");
-
   const taskIds = tasks.map((t) => t._id);
-  console.log("Task IDs:", taskIds);
 
   const subTasks = await subTaskModel.find({ task: { $in: taskIds } }).lean();
-
-  console.log("SubTasks fetched:", subTasks.length);
 
   const map = {};
 
@@ -135,10 +91,6 @@ exports.getAllTasks = async ({
     subTasks: map[task._id.toString()] || [],
   }));
 
-  console.log("Final result with subTasks:", result.length);
-
-  console.log("==== END DEBUG ====");
-
   return {
     result,
     pagination: {
@@ -149,7 +101,9 @@ exports.getAllTasks = async ({
   };
 };
 
-// UPDATE
+// ======================================
+// UPDATE TASK
+// ======================================
 exports.updateTask = async (taskId, data) => {
   const task = await Task.findByIdAndUpdate(taskId, data, {
     new: true,
@@ -160,7 +114,9 @@ exports.updateTask = async (taskId, data) => {
   return task;
 };
 
-// DELETE
+// ======================================
+// DELETE TASK
+// ======================================
 exports.deleteTask = async (taskId) => {
   const task = await Task.findByIdAndDelete(taskId);
 

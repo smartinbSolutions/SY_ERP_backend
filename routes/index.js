@@ -241,9 +241,9 @@ const mountRoutes = (app) => {
 
   //task
   app.use("/api/workspace", WorkspaceRoute);
-  app.use("/api/folder", FolderRoute);
-  app.use("/api/list", ListRoute);
-  app.use("/api/tasks", tasksRoute);
+  app.use("/api/workspaces/:workspaceId/folders", FolderRoute);
+  app.use("/api/workspaces/:workspaceId/lists", ListRoute);
+  app.use("/api/workspaces/:workspaceId/tasks", tasksRoute);
   app.use("/api/subtasks", subtasksRoute);
   app.use("/api/comments", commentRoute);
   app.use("/api/attachments", attachmentRoute);

@@ -8,6 +8,26 @@ exports.createList = async (data, userId, companyId) => {
   if (!data.workspace) throw new Error("Workspace is required");
   if (!data.folder) throw new Error("Folder is required");
 
+  const exists = await List.findOne({
+    name: data.name.trim(),
+    workspace: data.workspace,
+    companyId,
+  });
+
+  if (exists) {
+    throw new Error("List with this name already exists");
+  }
+
+  const members = data.members || [];
+
+  const finalMembers = [
+    {
+      user: userId,
+      role: "owner",
+    },
+    ...members.filter((m) => String(m.user) !== String(userId)),
+  ];
+
   const list = await List.create({
     name: data.name.trim(),
     folder: data.folder,
@@ -16,13 +36,7 @@ exports.createList = async (data, userId, companyId) => {
     visibility: data.visibility || "private",
     createdBy: userId,
     order: data.order || 0,
-
-    members: [
-      {
-        user: userId,
-        role: "manager",
-      },
-    ],
+    members: finalMembers,
   });
 
   return list;

@@ -1,5 +1,5 @@
 const express = require("express");
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
@@ -26,21 +26,25 @@ router.use(hrAuthServices.protectStaffOrERP);
 
 // ======================================
 // CREATE LIST
+// POST /api/workspaces/:workspaceId/lists
 // ======================================
 router.post("/", workspaceAccess, checkPermission("create:list"), createList);
 
 // ======================================
 // GET LISTS BY WORKSPACE
+// GET /api/workspaces/:workspaceId/lists
 // ======================================
-router.get("/workspace/:workspaceId", workspaceAccess, getLists);
+router.get("/", workspaceAccess, getLists);
 
 // ======================================
 // GET SINGLE LIST
+// GET /api/workspaces/:workspaceId/lists/:id
 // ======================================
-router.get("/single/:id", workspaceAccess, listAccess, getList);
+router.get("/:id", workspaceAccess, listAccess, getList);
 
 // ======================================
 // UPDATE LIST
+// PATCH /api/workspaces/:workspaceId/lists/:id
 // ======================================
 router.patch(
   "/:id",
@@ -52,6 +56,7 @@ router.patch(
 
 // ======================================
 // DELETE LIST
+// DELETE /api/workspaces/:workspaceId/lists/:id
 // ======================================
 router.delete(
   "/:id",
@@ -63,11 +68,12 @@ router.delete(
 
 // ======================================
 // ADD MEMBER TO LIST
-// (admin operation → no listAccess needed)
+// POST /api/workspaces/:workspaceId/lists/:id/members
 // ======================================
 router.post(
   "/:id/members",
   workspaceAccess,
+  listAccess,
   checkPermission("manage:members"),
   addMember,
 );

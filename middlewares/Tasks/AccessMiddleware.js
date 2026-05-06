@@ -35,7 +35,7 @@ exports.workspaceAccess = async (req, res, next) => {
     );
 
     req.workspace = workspace;
-    req.workspaceRole = member?.role; // admin identity
+    req.workspaceRole = member?.role;
     req.isWorkspaceMember = true;
 
     next();
@@ -62,16 +62,17 @@ exports.canCreateWorkspace = (req, res, next) => {
 };
 
 // ======================================
-// 3. FOLDER ACCESS (STRUCTURE ONLY)
+// 3. FOLDER ACCESS (STRUCTURE VALIDATION)
 // ======================================
 exports.folderAccess = async (req, res, next) => {
   try {
     const folderId = req.params.folderId || req.params.id;
+    const workspaceId = req.params.workspaceId;
 
-    if (!folderId) {
+    if (!folderId || !workspaceId) {
       return res.status(400).json({
         success: false,
-        message: "Folder ID is required",
+        message: "Folder ID and Workspace ID are required",
       });
     }
 
@@ -84,8 +85,8 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    // 🔥 STRUCTURE VALIDATION ONLY
-    if (folder.workspace.toString() !== req.params.workspaceId) {
+    // 🔥 STRUCTURE CHECK
+    if (String(folder.workspace) !== String(workspaceId)) {
       return res.status(403).json({
         success: false,
         message: "Folder does not belong to this workspace",
@@ -104,16 +105,17 @@ exports.folderAccess = async (req, res, next) => {
 };
 
 // ======================================
-// 4. LIST ACCESS (OVERRIDE + RULES)
+// 4. LIST ACCESS (STRUCTURE + RULES)
 // ======================================
 exports.listAccess = async (req, res, next) => {
   try {
     const listId = req.params.listId || req.params.id;
+    const workspaceId = req.params.workspaceId;
 
-    if (!listId) {
+    if (!listId || !workspaceId) {
       return res.status(400).json({
         success: false,
-        message: "List ID is required",
+        message: "List ID and Workspace ID are required",
       });
     }
 
@@ -127,20 +129,20 @@ exports.listAccess = async (req, res, next) => {
     }
 
     // 🔥 STRUCTURE CHECK
-    if (list.workspace.toString() !== req.params.workspaceId) {
+    if (String(list.workspace) !== String(workspaceId)) {
       return res.status(403).json({
         success: false,
         message: "List does not belong to this workspace",
       });
     }
 
-    // 🔥 ADMIN OVERRIDE (workspace members bypass everything)
+    // 🔥 ADMIN OVERRIDE (workspace members)
     if (req.workspaceRole) {
       req.list = list;
       return next();
     }
 
-    // 🔐 STAFF RULES
+    // 🔐 LIST MEMBERSHIP RULES
     if (list.visibility === "private") {
       const allowed = list.members?.some(
         (m) => m.user.toString() === req.user._id.toString(),
@@ -170,11 +172,12 @@ exports.listAccess = async (req, res, next) => {
 exports.taskAccess = async (req, res, next) => {
   try {
     const taskId = req.params.taskId || req.params.id;
+    const workspaceId = req.params.workspaceId;
 
-    if (!taskId) {
+    if (!taskId || !workspaceId) {
       return res.status(400).json({
         success: false,
-        message: "Task ID is required",
+        message: "Task ID and Workspace ID are required",
       });
     }
 
@@ -197,7 +200,7 @@ exports.taskAccess = async (req, res, next) => {
     }
 
     // 🔥 STRUCTURE CHECK
-    if (list.workspace.toString() !== req.params.workspaceId) {
+    if (String(list.workspace) !== String(workspaceId)) {
       return res.status(403).json({
         success: false,
         message: "Task does not belong to this workspace",
@@ -211,7 +214,7 @@ exports.taskAccess = async (req, res, next) => {
       return next();
     }
 
-    // 🔐 STAFF RULES
+    // 🔐 LIST MEMBERSHIP RULES
     if (list.visibility === "private") {
       const allowed = list.members?.some(
         (m) => m.user.toString() === req.user._id.toString(),

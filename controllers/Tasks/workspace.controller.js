@@ -8,7 +8,7 @@ exports.createWorkspace = async (req, res) => {
     const data = await workspaceService.createWorkspace(
       req.body,
       req.user._id,
-      req.query.companyId,
+      req.query.companyId, // 🔥 ممكن نحسّنها لاحقًا
     );
 
     return res.status(201).json({
@@ -35,7 +35,7 @@ exports.getUserWorkspaceTree = async (req, res) => {
       success: true,
       data,
     });
-  } catch (err) { 
+  } catch (err) {
     return res.status(400).json({
       success: false,
       message: err.message,
@@ -68,7 +68,9 @@ exports.getMyWorkspaces = async (req, res) => {
 // ===============================
 exports.getWorkspace = async (req, res) => {
   try {
-    const data = await workspaceService.getWorkspaceById(req.params.id);
+    const data = await workspaceService.getWorkspaceById(
+      req.params.workspaceId, // ✅ FIX
+    );
 
     return res.status(200).json({
       success: true,
@@ -88,7 +90,7 @@ exports.getWorkspace = async (req, res) => {
 exports.updateWorkspace = async (req, res) => {
   try {
     const data = await workspaceService.updateWorkspace(
-      req.params.id,
+      req.params.workspaceId, // ✅ FIX
       req.body,
     );
 
@@ -110,7 +112,9 @@ exports.updateWorkspace = async (req, res) => {
 // ===============================
 exports.deleteWorkspace = async (req, res) => {
   try {
-    await workspaceService.deleteWorkspace(req.params.id);
+    await workspaceService.deleteWorkspace(
+      req.params.workspaceId, // ✅ FIX
+    );
 
     return res.status(204).send();
   } catch (err) {
@@ -127,7 +131,7 @@ exports.deleteWorkspace = async (req, res) => {
 exports.addMember = async (req, res) => {
   try {
     const data = await workspaceService.addMember(
-      req.params.id,
+      req.params.workspaceId, // ✅ FIX
       req.body.userId,
       req.body.role,
     );
@@ -151,7 +155,7 @@ exports.addMember = async (req, res) => {
 exports.removeMember = async (req, res) => {
   try {
     const data = await workspaceService.removeMember(
-      req.params.id,
+      req.params.workspaceId, // ✅ FIX
       req.params.userId,
     );
 

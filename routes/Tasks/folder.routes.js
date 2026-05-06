@@ -1,5 +1,5 @@
 const express = require("express");
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
@@ -19,6 +19,7 @@ const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 // ======================================
 // CREATE FOLDER
+// POST /workspaces/:workspaceId/folders
 // ======================================
 router.post(
   "/",
@@ -29,20 +30,17 @@ router.post(
 );
 
 // ======================================
-// GET FOLDERS BY WORKSPACE
+// GET FOLDERS
+// GET /workspaces/:workspaceId/folders
 // ======================================
-router.get(
-  "/workspace/:workspaceId",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
-  getFolders,
-);
+router.get("/", hrAuthServices.protectStaffOrERP, workspaceAccess, getFolders);
 
 // ======================================
 // UPDATE FOLDER
+// PATCH /workspaces/:workspaceId/folders/:folderId
 // ======================================
 router.patch(
-  "/:id",
+  "/:folderId",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   folderAccess,
@@ -52,9 +50,10 @@ router.patch(
 
 // ======================================
 // DELETE FOLDER
+// DELETE /workspaces/:workspaceId/folders/:folderId
 // ======================================
 router.delete(
-  "/:id",
+  "/:folderId",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   folderAccess,

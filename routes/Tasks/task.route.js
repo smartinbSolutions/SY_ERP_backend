@@ -1,4 +1,5 @@
 const express = require("express");
+const taskRoute = express.Router({ mergeParams: true });
 
 const {
   createTask,
@@ -17,41 +18,30 @@ const {
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
-const taskRoute = express.Router();
+// ======================================
+// GLOBAL AUTH + WORKSPACE
+// ======================================
+taskRoute.use(hrAuthServices.protectStaffOrERP);
+taskRoute.use(workspaceAccess);
 
+// ======================================
 // TASK COLLECTION
+// GET /workspaces/:workspaceId/tasks
+// POST /workspaces/:workspaceId/tasks
+// ======================================
 taskRoute
   .route("/")
-  .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getAllTasks)
-  .post(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    checkPermission("create:task"),
-    createTask,
-  );
+  .get(getAllTasks)
+  .post(checkPermission("create:task"), createTask);
 
+// ======================================
 // SINGLE TASK
+// GET /workspaces/:workspaceId/tasks/:id
+// ======================================
 taskRoute
   .route("/:id")
-  .get(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    taskAccess,
-    getOneTask,
-  )
-  .patch(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    taskAccess,
-    checkPermission("update:task"),
-    updateTask,
-  )
-  .delete(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    taskAccess,
-    checkPermission("delete:task"),
-    deleteTask,
-  );
+  .get(taskAccess, getOneTask)
+  .patch(taskAccess, checkPermission("update:task"), updateTask)
+  .delete(taskAccess, checkPermission("delete:task"), deleteTask);
 
 module.exports = taskRoute;

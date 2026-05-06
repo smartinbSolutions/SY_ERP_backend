@@ -18,17 +18,40 @@ exports.createWorkspace = async (data, userId, companyId) => {
     throw new Error("Workspace with this name already exists");
   }
 
+  // 🔥 members من request
+  const members = data.members || [];
+
+  // 🔥 تنظيف + منع التكرار
+  const uniqueMembers = [];
+  const seen = new Set();
+
+  for (const m of members) {
+    const id = String(m.user);
+
+    if (!seen.has(id) && id !== String(userId)) {
+      seen.add(id);
+
+      uniqueMembers.push({
+        user: m.user,
+        role: m.role || "member",
+      });
+    }
+  }
+
+  // 🔥 creator دائمًا owner
+  const finalMembers = [
+    {
+      user: userId,
+      role: "owner",
+    },
+    ...uniqueMembers,
+  ];
+
   const workspace = await Workspace.create({
     name: data.name.trim(),
     companyId,
     createdBy: userId,
-
-    members: [
-      {
-        user: userId,
-        role: "owner",
-      },
-    ],
+    members: finalMembers,
   });
 
   return workspace;

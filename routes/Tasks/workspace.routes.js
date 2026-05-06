@@ -21,21 +21,30 @@ const {
   getUserWorkspaceTree,
 } = require("../../controllers/Tasks/workspace.controller");
 
-// CREATE + GET ALL WORKSPACES
+// ======================================
+// ROOT: /workspaces
+// ======================================
 
+// CREATE + GET ALL
 router
   .route("/")
-  .post(hrAuthServices.protectStaffOrERP, createWorkspace)
+  .post(
+    hrAuthServices.protectStaffOrERP,
+    // canCreateWorkspace,
+    createWorkspace,
+  )
   .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
 
 // WORKSPACE TREE
-
 router.get("/tree", hrAuthServices.protectStaffOrERP, getUserWorkspaceTree);
 
+// ======================================
 // SINGLE WORKSPACE
+// /workspaces/:workspaceId
+// ======================================
 
 router
-  .route("/:id")
+  .route("/:workspaceId")
   .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getWorkspace)
   .patch(
     hrAuthServices.protectStaffOrERP,
@@ -43,7 +52,6 @@ router
     checkPermission("update:workspace"),
     updateWorkspace,
   )
-  //not for  now maybe will use in future
   .delete(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
@@ -51,18 +59,22 @@ router
     deleteWorkspace,
   );
 
+// ======================================
 // MEMBERS MANAGEMENT
+// ======================================
 
+// ADD MEMBER
 router.post(
-  "/:id/members",
+  "/:workspaceId/members",
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   checkPermission("manage:members"),
   addMember,
 );
 
+// REMOVE MEMBER
 router.delete(
-  "/:id/members/:userId",
+  "/:workspaceId/members/:userId",    
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   checkPermission("manage:members"),
