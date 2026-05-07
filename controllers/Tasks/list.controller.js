@@ -131,6 +131,7 @@ exports.deleteList = async (req, res) => {
   }
 };
 
+
 // ===============================
 // ADD MEMBER TO LIST
 // ===============================
@@ -150,6 +151,34 @@ exports.addMember = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Member added successfully",
+      data,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ===============================
+// REMOVE MEMBER FROM LIST
+// ===============================
+exports.removeMember = async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const { companyId } = req.query;
+
+    const data = await listService.removeMember(
+      listId,
+      req.body.userId,
+      req.user._id,
+      companyId,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Member removed successfully",
       data,
     });
   } catch (err) {

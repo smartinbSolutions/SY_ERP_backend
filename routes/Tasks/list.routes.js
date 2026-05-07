@@ -15,6 +15,7 @@ const {
   updateList,
   deleteList,
   addMember,
+  removeMember,
 } = require("../../controllers/Tasks/list.controller");
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
@@ -26,28 +27,28 @@ router.use(hrAuthServices.protectStaffOrERP);
 
 // ======================================
 // CREATE LIST
-// POST /api/workspaces/:workspaceId/lists
+// POST /workspaces/:workspaceId/lists
 // ======================================
 router.post("/", workspaceAccess, checkPermission("create:list"), createList);
 
 // ======================================
-// GET LISTS BY WORKSPACE
-// GET /api/workspaces/:workspaceId/lists
+// GET LISTS
+// GET /workspaces/:workspaceId/lists
 // ======================================
 router.get("/", workspaceAccess, getLists);
 
 // ======================================
 // GET SINGLE LIST
-// GET /api/workspaces/:workspaceId/lists/:id
+// GET /workspaces/:workspaceId/lists/:listId
 // ======================================
-router.get("/:id", workspaceAccess, listAccess, getList);
+router.get("/:listId", workspaceAccess, listAccess, getList);
 
 // ======================================
 // UPDATE LIST
-// PATCH /api/workspaces/:workspaceId/lists/:id
+// PATCH /workspaces/:workspaceId/lists/:listId
 // ======================================
 router.patch(
-  "/:id",
+  "/:listId",
   workspaceAccess,
   listAccess,
   checkPermission("update:list"),
@@ -56,10 +57,10 @@ router.patch(
 
 // ======================================
 // DELETE LIST
-// DELETE /api/workspaces/:workspaceId/lists/:id
+// DELETE /workspaces/:workspaceId/lists/:listId
 // ======================================
 router.delete(
-  "/:id",
+  "/:listId",
   workspaceAccess,
   listAccess,
   checkPermission("delete:list"),
@@ -68,14 +69,26 @@ router.delete(
 
 // ======================================
 // ADD MEMBER TO LIST
-// POST /api/workspaces/:workspaceId/lists/:id/members
+// POST /workspaces/:workspaceId/lists/:listId/members
 // ======================================
 router.post(
-  "/:id/members",
+  "/:listId/members",
   workspaceAccess,
   listAccess,
   checkPermission("manage:members"),
   addMember,
+);
+
+// ======================================
+// REMOVE MEMBER FROM LIST
+// DELETE /workspaces/:workspaceId/lists/:listId/members
+// ======================================
+router.delete(
+  "/:listId/members",
+  workspaceAccess,
+  listAccess,
+  checkPermission("manage:members"),
+  removeMember,
 );
 
 module.exports = router;

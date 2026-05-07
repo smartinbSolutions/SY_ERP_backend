@@ -36,10 +36,10 @@ taskRoute
 
 // ======================================
 // SINGLE TASK
-// GET /workspaces/:workspaceId/tasks/:id
+// GET /workspaces/:workspaceId/tasks/:taskId
 // ======================================
 taskRoute
-  .route("/:id")
+  .route("/:taskId")
   .get(taskAccess, getOneTask)
   .patch(taskAccess, checkPermission("update:task"), updateTask)
   .delete(taskAccess, checkPermission("delete:task"), deleteTask);

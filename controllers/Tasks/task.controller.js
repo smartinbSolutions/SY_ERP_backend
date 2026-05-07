@@ -29,7 +29,10 @@ exports.createTask = async (req, res) => {
 // ======================================
 exports.getOneTask = async (req, res) => {
   try {
-    const task = await taskService.getTaskById(req.params.id);
+    const task = await taskService.getTaskById(
+      req.params.taskId,
+      req.workspace._id,
+    );
 
     return res.status(200).json({
       success: true,
@@ -44,7 +47,7 @@ exports.getOneTask = async (req, res) => {
 };
 
 // ======================================
-// GET ALL TASKS (workspace scoped)
+// GET ALL TASKS
 // ======================================
 exports.getAllTasks = async (req, res) => {
   try {
@@ -76,7 +79,11 @@ exports.getAllTasks = async (req, res) => {
 // ======================================
 exports.updateTask = async (req, res) => {
   try {
-    const task = await taskService.updateTask(req.params.id, req.body);
+    const task = await taskService.updateTask(
+      req.params.taskId,
+      req.body,
+      req.workspace._id,
+    );
 
     return res.status(200).json({
       success: true,
@@ -96,7 +103,7 @@ exports.updateTask = async (req, res) => {
 // ======================================
 exports.deleteTask = async (req, res) => {
   try {
-    await taskService.deleteTask(req.params.id);
+    await taskService.deleteTask(req.params.taskId, req.workspace._id);
 
     return res.status(200).json({
       success: true,

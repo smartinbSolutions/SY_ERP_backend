@@ -4,11 +4,11 @@ const List = require("../../models/Tasks/ListModel");
 const TaskModel = require("../../models/Tasks/TaskModel");
 
 // ======================================
-// 1. WORKSPACE ACCESS (ADMIN ONLY)
+// 1. WORKSPACE ACCESS
 // ======================================
 exports.workspaceAccess = async (req, res, next) => {
   try {
-    const workspaceId = req.params.workspaceId || req.params.id;
+    const workspaceId = req.params.workspaceId;
 
     if (!workspaceId) {
       return res.status(400).json({
@@ -62,11 +62,11 @@ exports.canCreateWorkspace = (req, res, next) => {
 };
 
 // ======================================
-// 3. FOLDER ACCESS (STRUCTURE VALIDATION)
+// 3. FOLDER ACCESS
 // ======================================
 exports.folderAccess = async (req, res, next) => {
   try {
-    const folderId = req.params.folderId || req.params.id;
+    const folderId = req.params.folderId;
     const workspaceId = req.params.workspaceId;
 
     if (!folderId || !workspaceId) {
@@ -76,20 +76,15 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    const folder = await Folder.findById(folderId);
+    const folder = await Folder.findOne({
+      _id: folderId,
+      workspace: workspaceId,
+    });
 
     if (!folder) {
       return res.status(404).json({
         success: false,
         message: "Folder not found",
-      });
-    }
-
-    // 🔥 STRUCTURE CHECK
-    if (String(folder.workspace) !== String(workspaceId)) {
-      return res.status(403).json({
-        success: false,
-        message: "Folder does not belong to this workspace",
       });
     }
 
@@ -105,11 +100,11 @@ exports.folderAccess = async (req, res, next) => {
 };
 
 // ======================================
-// 4. LIST ACCESS (STRUCTURE + RULES)
+// 4. LIST ACCESS
 // ======================================
 exports.listAccess = async (req, res, next) => {
   try {
-    const listId = req.params.listId || req.params.id;
+    const listId = req.params.listId;
     const workspaceId = req.params.workspaceId;
 
     if (!listId || !workspaceId) {
@@ -119,7 +114,10 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const list = await List.findById(listId);
+    const list = await List.findOne({
+      _id: listId,
+      workspace: workspaceId,
+    });
 
     if (!list) {
       return res.status(404).json({
@@ -128,21 +126,13 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    // 🔥 STRUCTURE CHECK
-    if (String(list.workspace) !== String(workspaceId)) {
-      return res.status(403).json({
-        success: false,
-        message: "List does not belong to this workspace",
-      });
-    }
+    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
 
-    // 🔥 ADMIN OVERRIDE (workspace members)
-    if (req.workspaceRole) {
+    if (isAdmin) {
       req.list = list;
       return next();
     }
 
-    // 🔐 LIST MEMBERSHIP RULES
     if (list.visibility === "private") {
       const allowed = list.members?.some(
         (m) => m.user.toString() === req.user._id.toString(),
@@ -167,7 +157,7 @@ exports.listAccess = async (req, res, next) => {
 };
 
 // ======================================
-// 5. TASK ACCESS (INHERITS LIST RULES)
+// 5. TASK ACCESS
 // ======================================
 exports.taskAccess = async (req, res, next) => {
   try {
@@ -181,7 +171,10 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const task = await TaskModel.findById(taskId);
+    const task = await TaskModel.findOne({
+      _id: taskId,
+      workspace: workspaceId,
+    });
 
     if (!task) {
       return res.status(404).json({
@@ -190,7 +183,10 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const list = await List.findById(task.list);
+    const list = await List.findOne({
+      _id: task.list,
+      workspace: workspaceId,
+    });
 
     if (!list) {
       return res.status(404).json({
@@ -199,22 +195,14 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    // 🔥 STRUCTURE CHECK
-    if (String(list.workspace) !== String(workspaceId)) {
-      return res.status(403).json({
-        success: false,
-        message: "Task does not belong to this workspace",
-      });
-    }
+    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
 
-    // 🔥 ADMIN OVERRIDE
-    if (req.workspaceRole) {
+    if (isAdmin) {
       req.task = task;
       req.list = list;
       return next();
     }
 
-    // 🔐 LIST MEMBERSHIP RULES
     if (list.visibility === "private") {
       const allowed = list.members?.some(
         (m) => m.user.toString() === req.user._id.toString(),

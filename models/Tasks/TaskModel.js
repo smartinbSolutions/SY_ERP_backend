@@ -21,6 +21,13 @@ const taskSchema = new mongoose.Schema(
       index: true,
     },
 
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      required: true,
+      index: true,
+    },
+
     status: {
       type: String,
       enum: ["todo", "in_progress", "review", "done", "cancelled"],
@@ -61,7 +68,7 @@ const taskSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Task", taskSchema);

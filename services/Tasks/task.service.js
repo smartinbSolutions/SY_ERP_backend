@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
+const ListModel = require("../../models/Tasks/ListModel");
 
 // ======================================
 // CREATE TASK (workspace aware)
@@ -8,6 +9,15 @@ const Task = require("../../models/Tasks/TaskModel");
 exports.createTask = async (data, userId, workspace) => {
   if (!workspace) throw new Error("Workspace is required");
   if (!data.list) throw new Error("List is required");
+
+  const list = await ListModel.findOne({
+    _id: data.list,
+    workspace: workspace._id,
+  });
+
+  if (!list) {
+    throw new Error("Invalid list for this workspace");
+  }
 
   return await Task.create({
     ...data,
@@ -20,8 +30,11 @@ exports.createTask = async (data, userId, workspace) => {
 // ======================================
 // GET TASK BY ID
 // ======================================
-exports.getTaskById = async (taskId) => {
-  const task = await Task.findById(taskId)
+exports.getTaskById = async (taskId, workspaceId) => {
+  const task = await Task.findOne({
+    _id: taskId,
+    workspace: workspaceId,
+  })
     .populate("assignedTo", "name email")
     .populate("createdBy", "name email");
 
@@ -76,13 +89,19 @@ exports.getAllTasks = async ({
   // ===============================
   const taskIds = tasks.map((t) => t._id);
 
-  const subTasks = await subTaskModel.find({ task: { $in: taskIds } }).lean();
+  const subTasks = await subTaskModel
+    .find({
+      task: { $in: taskIds },
+    })
+    .lean();
 
   const map = {};
 
   subTasks.forEach((st) => {
     const key = st.task.toString();
+
     if (!map[key]) map[key] = [];
+
     map[key].push(st);
   });
 
@@ -104,10 +123,17 @@ exports.getAllTasks = async ({
 // ======================================
 // UPDATE TASK
 // ======================================
-exports.updateTask = async (taskId, data) => {
-  const task = await Task.findByIdAndUpdate(taskId, data, {
-    new: true,
-  });
+exports.updateTask = async (taskId, data, workspaceId) => {
+  const task = await Task.findOneAndUpdate(
+    {
+      _id: taskId,
+      workspace: workspaceId,
+    },
+    data,
+    {
+      new: true,
+    },
+  );
 
   if (!task) throw new Error("Task not found");
 
@@ -117,8 +143,11 @@ exports.updateTask = async (taskId, data) => {
 // ======================================
 // DELETE TASK
 // ======================================
-exports.deleteTask = async (taskId) => {
-  const task = await Task.findByIdAndDelete(taskId);
+exports.deleteTask = async (taskId, workspaceId) => {
+  const task = await Task.findOneAndDelete({
+    _id: taskId,
+    workspace: workspaceId,
+  });
 
   if (!task) throw new Error("Task not found");
 

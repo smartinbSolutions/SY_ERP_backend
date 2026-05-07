@@ -111,3 +111,80 @@ exports.getListById = async (listId) => {
 
   return list;
 };
+
+// ===============================
+// REMOVE MEMBER
+// ===============================
+exports.removeMember = async (listId, targetUserId) => {
+  const list = await List.findById(listId);
+
+  if (!list) throw new Error("List not found");
+
+  const isMember = list.members.some(
+    (m) => m.user.toString() === targetUserId.toString(),
+  );
+
+  if (!isMember) {
+    throw new Error("User is not in the list");
+  }
+
+  // 🚫 لا تسمح بحذف الـ owner
+  const target = list.members.find(
+    (m) => m.user.toString() === targetUserId.toString(),
+  );
+
+  if (target.role === "owner") {
+    throw new Error("Cannot remove the owner");
+  }
+
+  list.members = list.members.filter(
+    (m) => m.user.toString() !== targetUserId.toString(),
+  );
+
+  await list.save();
+
+  return list;
+};
+// ===============================
+// GET LISTS BY WORKSPACE
+// ===============================
+exports.getListsByWorkspace = async ({
+  page = 1,
+  limit = 10,
+  search = "",
+  workspaceId,
+  companyId,
+  userId,
+}) => {
+  const query = {
+    workspace: workspaceId,
+    companyId,
+  };
+
+  // 🔍 search by name
+  if (search) {
+    query.name = { $regex: search, $options: "i" };
+  }
+
+  // 🔐 ensure user is member
+  query["members.user"] = userId;
+
+  const skip = (page - 1) * limit;
+
+  const lists = await List.find(query)
+    .sort({ order: 1 })
+    .skip(skip)
+    .limit(Number(limit))
+    .populate("members.user", "name email");
+
+  const total = await List.countDocuments(query);
+
+  return {
+    data: lists,
+    pagination: {
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit),
+    },
+  };
+};
