@@ -17,26 +17,16 @@ exports.workspaceAccess = async (req, res, next) => {
       });
     }
 
-    const workspace = await Workspace.findOne({
-      _id: workspaceId,
-      "members.user": req.user._id,
-      "members.status": "active",
-    });
+    const workspace = await Workspace.findById(workspaceId);
 
     if (!workspace) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: "Access denied to this workspace",
+        message: "Workspace not found",
       });
     }
 
-    const member = workspace.members.find(
-      (m) => m.user.toString() === req.user._id.toString(),
-    );
-
     req.workspace = workspace;
-    req.workspaceRole = member?.role;
-    req.isWorkspaceMember = true;
 
     next();
   } catch (err) {
