@@ -2,6 +2,7 @@ const Workspace = require("../../models/Tasks/WorkspaceModel");
 const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const TaskModel = require("../../models/Tasks/TaskModel");
+const SubTaskModel = require("../../models/Tasks/SubTaskModel");
 
 // ======================================
 // 1. WORKSPACE ACCESS
@@ -25,6 +26,13 @@ exports.workspaceAccess = async (req, res, next) => {
         message: "Workspace not found",
       });
     }
+
+    // optional role attach
+    const userId = req.user._id.toString();
+
+    const member = workspace.members.find((m) => m.user.toString() === userId);
+
+    req.workspaceRole = member?.role || null;
 
     req.workspace = workspace;
 
@@ -116,24 +124,24 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
+    const isAdmin = ["owner", "manager"].includes(req.workspaceRole);
 
     if (isAdmin) {
       req.list = list;
       return next();
     }
 
-    if (list.visibility === "private") {
-      const allowed = list.members?.some(
-        (m) => m.user.toString() === req.user._id.toString(),
-      );
+    const listMember = list.members?.find(
+      (m) => m.user.toString() === req.user._id.toString(),
+    );
 
-      if (!allowed) {
-        return res.status(403).json({
-          success: false,
-          message: "List access denied",
-        });
-      }
+    req.listRole = listMember?.role || null;
+
+    if (list.visibility === "private" && !listMember) {
+      return res.status(403).json({
+        success: false,
+        message: "List access denied",
+      });
     }
 
     req.list = list;
@@ -185,7 +193,7 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
+    const isAdmin = ["owner", "manager"].includes(req.workspaceRole);
 
     if (isAdmin) {
       req.task = task;
@@ -208,6 +216,40 @@ exports.taskAccess = async (req, res, next) => {
 
     req.task = task;
     req.list = list;
+
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+exports.subTaskResolver = async (req, res, next) => {
+  try {
+    const subTaskId = req.params.subTaskId || req.params.id;
+
+    if (!subTaskId) {
+      return res.status(400).json({
+        success: false,
+        message: "SubTask ID is required",
+      });
+    }
+
+    const subTask = await SubTaskModel.findOne({
+      _id: subTaskId,
+      task: req.task._id, 
+    });
+
+    if (!subTask) {
+      return res.status(404).json({
+        success: false,
+        message: "SubTask not found",
+      });
+    }
+
+    req.subTask = subTask;
 
     next();
   } catch (err) {

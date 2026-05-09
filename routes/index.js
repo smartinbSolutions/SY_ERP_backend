@@ -126,6 +126,7 @@ const WorkspaceRoute = require("./Tasks/workspace.routes");
 const FolderRoute = require("./Tasks/folder.routes");
 const ListRoute = require("./Tasks/list.routes");
 const timeTrackingRoute = require("./Tasks/timeTracking.route");
+const subTaskRoute = require("./Tasks/subTask.route");
 
 const mountRoutes = (app) => {
   app.use("/api/product", productRout);
@@ -244,7 +245,7 @@ const mountRoutes = (app) => {
   app.use("/api/workspaces/:workspaceId/folders", FolderRoute);
   app.use("/api/workspaces/:workspaceId/lists", ListRoute);
   app.use("/api/workspaces/:workspaceId/tasks", tasksRoute);
-  app.use("/api/subtasks", subtasksRoute);
+  app.use("/api/workspaces/:workspaceId/tasks/:taskId/subtasks", subTaskRoute);
   app.use("/api/comments", commentRoute);
   app.use("/api/attachments", attachmentRoute);
   app.use("/api/time-tracking", timeTrackingRoute);

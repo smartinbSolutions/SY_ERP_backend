@@ -1,8 +1,15 @@
 const subTaskService = require("../../services/Tasks/subTask.service");
 
+// ======================================
+// CREATE SUBTASK
+// ======================================
 exports.createSubTask = async (req, res) => {
   try {
-    const subTask = await subTaskService.createSubTask(req.body, req.user.id);
+    const subTask = await subTaskService.createSubTask(
+      req.body,
+      req.user._id,
+      req.task,
+    );
 
     res.status(201).json({
       success: true,
@@ -16,9 +23,12 @@ exports.createSubTask = async (req, res) => {
   }
 };
 
+// ======================================
+// GET ALL SUBTASKS
+// ======================================
 exports.getAllSubTasks = async (req, res) => {
   try {
-    const { taskId } = req.query;
+    const taskId = req.task?._id || req.query.taskId;
 
     const subTasks = await subTaskService.getAllSubTasks(taskId);
 
@@ -35,9 +45,14 @@ exports.getAllSubTasks = async (req, res) => {
   }
 };
 
+// ======================================
+// GET SUBTASK BY ID
+// ======================================
 exports.getSubTaskById = async (req, res) => {
   try {
-    const subTask = await subTaskService.getSubTaskById(req.params.id);
+    const subTask = await subTaskService.getSubTaskById(
+      req.subTask._id, // 🔥 جاء من subTaskResolver
+    );
 
     res.status(200).json({
       success: true,
@@ -51,9 +66,15 @@ exports.getSubTaskById = async (req, res) => {
   }
 };
 
+// ======================================
+// UPDATE SUBTASK
+// ======================================
 exports.updateSubTask = async (req, res) => {
   try {
-    const subTask = await subTaskService.updateSubTask(req.params.id, req.body);
+    const subTask = await subTaskService.updateSubTask(
+      req.subTask._id, 
+      req.body,
+    );
 
     res.status(200).json({
       success: true,
@@ -67,9 +88,12 @@ exports.updateSubTask = async (req, res) => {
   }
 };
 
+// ======================================
+// DELETE SUBTASK
+// ======================================
 exports.deleteSubTask = async (req, res) => {
   try {
-    await subTaskService.deleteSubTask(req.params.id);
+    await subTaskService.deleteSubTask(req.subTask._id); 
 
     res.status(200).json({
       success: true,

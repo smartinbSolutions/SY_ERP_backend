@@ -6,8 +6,8 @@ const {
 
 const checkPermission = (action, requiredRole = null) => {
   return (req, res, next) => {
-    const role = req.workspaceRole;
-
+    const role = req.workspaceRole || req.listRole;
+    
     if (!role) {
       return res.status(403).json({
         success: false,

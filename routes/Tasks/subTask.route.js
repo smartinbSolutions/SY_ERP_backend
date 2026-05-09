@@ -1,4 +1,15 @@
 const express = require("express");
+const subTaskRoute = express.Router({ mergeParams: true });
+
+const hrAuthServices = require("../../services/Hr/hrAuthServices");
+
+const {
+  workspaceAccess,
+  taskAccess,
+  subTaskResolver,
+} = require("../../middlewares/Tasks/AccessMiddleware");
+
+const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 const {
   createSubTask,
@@ -8,48 +19,65 @@ const {
   updateSubTask,
 } = require("../../controllers/Tasks/subtask.controller");
 
-const hrAuthServices = require("../../services/Hr/hrAuthServices");
+// ======================================
+// GLOBAL AUTH
+// ======================================
+subTaskRoute.use(hrAuthServices.protectStaffOrERP);
 
-const {
+// ======================================
+// GET ALL SUBTASKS (of task)
+// GET /workspaces/:workspaceId/tasks/:taskId/subtasks
+// ======================================
+subTaskRoute.get("/", workspaceAccess, taskAccess, getAllSubTasks);
+
+// ======================================
+// CREATE SUBTASK
+// POST /workspaces/:workspaceId/tasks/:taskId/subtasks
+// ======================================
+subTaskRoute.post(
+  "/",
   workspaceAccess,
   taskAccess,
-} = require("../../middlewares/Tasks/AccessMiddleware");
+  checkPermission("create:task"),
+  createSubTask,
+);
 
-const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
+// ======================================
+// SINGLE SUBTASK
+// GET /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
+// ======================================
+subTaskRoute.get(
+  "/:subTaskId",
+  workspaceAccess,
+  taskAccess,
+  subTaskResolver,
+  getSubTaskById,
+);
 
-const subTaskRoute = express.Router();
+// ======================================
+// UPDATE SUBTASK
+// PUT /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
+// ======================================
+subTaskRoute.put(
+  "/:subTaskId",
+  workspaceAccess,
+  taskAccess,
+  subTaskResolver,
+  checkPermission("update:task"),
+  updateSubTask,
+);
 
-subTaskRoute
-  .route("/")
-  .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getAllSubTasks)
-  .post(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    checkPermission("create"),
-    createSubTask,
-  );
-
-subTaskRoute
-  .route("/:id")
-  .get(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    taskAccess,
-    getSubTaskById,
-  )
-  .put(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    taskAccess,
-    checkPermission("update"),
-    updateSubTask,
-  )
-  .delete(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    taskAccess,
-    checkPermission("delete"),
-    deleteSubTask,
-  );
+// ======================================
+// DELETE SUBTASK
+// DELETE /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
+// ======================================
+subTaskRoute.delete(
+  "/:subTaskId",
+  workspaceAccess,
+  taskAccess,
+  subTaskResolver,
+  checkPermission("delete:task"),
+  deleteSubTask,
+);
 
 module.exports = subTaskRoute;
