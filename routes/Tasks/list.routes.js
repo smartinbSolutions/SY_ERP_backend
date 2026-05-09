@@ -41,7 +41,7 @@ router.get("/", workspaceAccess, getLists);
 // GET SINGLE LIST
 // GET /workspaces/:workspaceId/lists/:listId
 // ======================================
-router.get("/:listId", workspaceAccess, listAccess, getList);
+router.get("/:listId", listAccess, getList);
 
 // ======================================
 // UPDATE LIST
@@ -84,7 +84,7 @@ router.post(
 // DELETE /workspaces/:workspaceId/lists/:listId/members
 // ======================================
 router.delete(
-  "/:listId/members",
+  "/:listId/members/:userId",
   workspaceAccess,
   listAccess,
   checkPermission("manage:members"),

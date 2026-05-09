@@ -59,31 +59,71 @@ exports.createWorkspace = async (data, userId, companyId) => {
 
 exports.getUserWorkspaceTree = async (userId) => {
   const normalize = (id) => id?.toString();
-
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  // 1. workspaces الخاصة بالمستخدم
+  /* =========================
+     1. Workspaces (direct membership)
+  ========================= */
   const workspaces = await Workspace.find({
     "members.user": userObjectId,
   }).lean();
 
   const workspaceIds = workspaces.map((w) => w._id);
 
-  // 2. folders
+  const workspaceRoleMap = {};
+
+  workspaces.forEach((ws) => {
+    const member = (ws.members || []).find(
+      (m) => m.user?.toString() === userId.toString()
+    );
+
+    workspaceRoleMap[ws._id.toString()] = member?.role || "viewer";
+  });
+
+  /* =========================
+     2. Lists where user is member
+  ========================= */
+  const memberLists = await List.find({
+    "members.user": userObjectId,
+  }).lean();
+
+  const extraWorkspaceIds = [
+    ...new Set(memberLists.map((l) => normalize(l.workspace))),
+  ];
+
+  /* =========================
+     3. Fetch missing workspaces
+  ========================= */
+  const missingWorkspaceIds = extraWorkspaceIds.filter(
+    (id) => !workspaceIds.map(normalize).includes(id)
+  );
+
+  const extraWorkspaces = await Workspace.find({
+    _id: { $in: missingWorkspaceIds },
+  }).lean();
+
+  /* =========================
+     4. Fetch folders
+  ========================= */
+  const allWorkspaceIds = [
+    ...workspaceIds,
+    ...missingWorkspaceIds,
+  ];
+
   const folders = await Folder.find({
-    workspace: { $in: workspaceIds },
-  })
-    .sort({ order: 1 })
-    .lean();
+    workspace: { $in: allWorkspaceIds },
+  }).lean();
 
-  // 3. lists
+  /* =========================
+     5. Fetch lists (all for members + workspace lists)
+  ========================= */
   const lists = await List.find({
-    workspace: { $in: workspaceIds },
-  })
-    .sort({ order: 1 })
-    .lean();
+    workspace: { $in: allWorkspaceIds },
+  }).lean();
 
-  // 4. بناء index مضبوط للفولدرات
+  /* =========================
+     6. Build folder map
+  ========================= */
   const folderMap = {};
 
   folders.forEach((f) => {
@@ -98,33 +138,87 @@ exports.getUserWorkspaceTree = async (userId) => {
     };
   });
 
-  // 5. توزيع الـ lists بشكل صحيح
+  /* =========================
+     7. Distribute lists
+  ========================= */
   lists.forEach((list) => {
     const wsId = normalize(list.workspace);
     const fId = normalize(list.folder);
 
     const folder = folderMap?.[wsId]?.[fId];
+    if (!folder) return;
 
-    if (folder) {
-      folder.lists.push(list);
+    const wsRole = workspaceRoleMap[wsId];
+
+    const listMembers = Array.isArray(list.members) ? list.members : [];
+
+    const listMember = listMembers.find(
+      (m) => m.user?.toString() === userId.toString()
+    );
+
+    const isWorkspaceMember = !!wsRole;
+    const isListMember = !!listMember;
+
+    let canAccess = false;
+
+    if (isWorkspaceMember) {
+      // normal behavior
+      if (list.visibility === "public") canAccess = true;
+      else if (isListMember) canAccess = true;
+      else if (["owner", "manager"].includes(wsRole)) canAccess = true;
+    } else {
+      // 🔥 new rule
+      if (isListMember) {
+        canAccess = true;
+
+        // ❗ important: restrict folder to this list only
+        folder.lists = [];
+      }
     }
+
+    if (!canAccess) return;
+
+    folder.lists.push({
+      _id: list._id,
+      name: list.name,
+      visibility: list.visibility,
+      workspaceRole: wsRole || null,
+      listRole: listMember?.role || null,
+      order: list.order,
+    });
   });
 
-  // 6. بناء الـ tree النهائي
-  const tree = workspaces.map((ws) => {
-    const wsId = normalize(ws._id);
+  /* =========================
+     8. Build final tree
+  ========================= */
+  const allWorkspaces = [...workspaces, ...extraWorkspaces];
 
-    const wsFoldersObj = folderMap[wsId] || {};
+  const tree = allWorkspaces.map((ws) => {
+    const wsId = normalize(ws._id);
+    const wsRole = workspaceRoleMap[wsId] || null;
+
+    let foldersObj = folderMap[wsId] || {};
+
+    // 🔥 critical: filter folders if not workspace member
+    if (!wsRole) {
+      foldersObj = Object.fromEntries(
+        Object.entries(foldersObj).filter(([_, folder]) => {
+          return folder.lists.length > 0;
+        })
+      );
+    }
 
     return {
       _id: ws._id,
       name: ws.name,
-      folders: Object.values(wsFoldersObj),
+      role: wsRole,
+      folders: Object.values(foldersObj),
     };
   });
 
   return tree;
 };
+
 
 exports.getUserWorkspaces = async (userId) => {
   return await Workspace.find({

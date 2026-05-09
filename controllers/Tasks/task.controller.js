@@ -50,6 +50,8 @@ exports.getOneTask = async (req, res) => {
 // GET ALL TASKS
 // ======================================
 exports.getAllTasks = async (req, res) => {
+  console.log("1111");
+  
   try {
     const result = await taskService.getAllTasks({
       workspaceId: req.workspace._id,

@@ -166,14 +166,12 @@ exports.addMember = async (req, res) => {
 // ===============================
 exports.removeMember = async (req, res) => {
   try {
-    const { listId } = req.params;
-    const { companyId } = req.query;
+    const { listId, userId } = req.params;
 
     const data = await listService.removeMember(
       listId,
-      req.body.userId,
+      userId,
       req.user._id,
-      companyId,
     );
 
     res.status(200).json({

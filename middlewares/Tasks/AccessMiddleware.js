@@ -2,7 +2,6 @@ const Workspace = require("../../models/Tasks/WorkspaceModel");
 const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const TaskModel = require("../../models/Tasks/TaskModel");
-const SubTaskModel = require("../../models/Tasks/SubTaskModel");
 
 // ======================================
 // 1. WORKSPACE ACCESS
@@ -124,7 +123,7 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const isAdmin = ["owner", "manager"].includes(req.workspaceRole);
+    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
 
     if (isAdmin) {
       req.list = list;
@@ -193,7 +192,7 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const isAdmin = ["owner", "manager"].includes(req.workspaceRole);
+    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
 
     if (isAdmin) {
       req.task = task;
@@ -225,7 +224,6 @@ exports.taskAccess = async (req, res, next) => {
     });
   }
 };
-
 exports.subTaskResolver = async (req, res, next) => {
   try {
     const subTaskId = req.params.subTaskId || req.params.id;

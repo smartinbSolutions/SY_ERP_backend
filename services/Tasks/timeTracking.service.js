@@ -6,20 +6,30 @@ exports.createTimeLog = async (data, userId, companyId) => {
   if (!data.task) throw new Error("Task is required");
   if (!data.from || !data.to) throw new Error("from and to are required");
 
-  if (data.to <= data.from) {
+  const fromDate = new Date(data.from);
+  const toDate = new Date(data.to);
+
+  if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+    throw new Error("Invalid date format");
+  }
+
+  if (toDate <= fromDate) {
     throw new Error("Invalid time range");
   }
 
-  const duration = Math.floor((data.to - data.from) / 1000);
+  const duration = Math.floor(
+    (toDate.getTime() - fromDate.getTime()) / 1000
+  );
 
   return await TimeLog.create({
     ...data,
+    from: fromDate,
+    to: toDate,
     duration,
     user: userId,
     companyId,
   });
 };
-
 // GET ONE
 exports.getTimeLogById = async (id) => {
   const log = await TimeLog.findById(id)
@@ -69,27 +79,32 @@ exports.updateTimeLog = async (id, data) => {
   const existing = await TimeLog.findById(id);
   if (!existing) throw new Error("TimeLog not found");
 
-  const from = data.from || existing.from;
-  const to = data.to || existing.to;
+  const fromDate = new Date(data.from || existing.from);
+  const toDate = new Date(data.to || existing.to);
 
-  if (to <= from) {
+  if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+    throw new Error("Invalid date format");
+  }
+
+  if (toDate <= fromDate) {
     throw new Error("Invalid time range");
   }
 
-  const duration = Math.floor((to - from) / 1000);
+  const duration = Math.floor(
+    (toDate.getTime() - fromDate.getTime()) / 1000
+  );
 
-  const updated = await TimeLog.findByIdAndUpdate(
+  return await TimeLog.findByIdAndUpdate(
     id,
     {
       ...data,
+      from: fromDate,
+      to: toDate,
       duration,
     },
-    { new: true },
+    { new: true }
   );
-
-  return updated;
 };
-
 // DELETE
 exports.deleteTimeLog = async (id) => {
   const log = await TimeLog.findByIdAndDelete(id);

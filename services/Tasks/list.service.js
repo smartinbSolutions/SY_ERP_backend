@@ -104,7 +104,7 @@ exports.addMember = async (listId, targetUserId, role) => {
 exports.getListById = async (listId) => {
   const list = await List.findById(listId).populate(
     "members.user",
-    "name email",
+    "fullName email",
   );
 
   if (!list) throw new Error("List not found");
