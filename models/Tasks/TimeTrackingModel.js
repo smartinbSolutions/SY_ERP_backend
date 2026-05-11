@@ -5,7 +5,12 @@ const timeLogSchema = new mongoose.Schema(
     task: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
-      required: true,
+      index: true,
+    },
+
+    subTask: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "subTask",
       index: true,
     },
 

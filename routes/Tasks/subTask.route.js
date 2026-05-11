@@ -58,7 +58,7 @@ subTaskRoute.get(
 // UPDATE SUBTASK
 // PUT /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
 // ======================================
-subTaskRoute.put(
+subTaskRoute.patch(
   "/:subTaskId",
   workspaceAccess,
   taskAccess,

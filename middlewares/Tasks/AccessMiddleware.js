@@ -2,6 +2,7 @@ const Workspace = require("../../models/Tasks/WorkspaceModel");
 const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const TaskModel = require("../../models/Tasks/TaskModel");
+const SubTaskModel = require("../../models/Tasks/SubTaskModel");
 
 // ======================================
 // 1. WORKSPACE ACCESS

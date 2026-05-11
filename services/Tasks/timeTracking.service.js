@@ -3,7 +3,7 @@ const TimeLog = require("../../models/Tasks/TimeTrackingModel");
 
 // CREATE
 exports.createTimeLog = async (data, userId, companyId) => {
-  if (!data.task) throw new Error("Task is required");
+  // if (!data.task) throw new Error("Task is required");
   if (!data.from || !data.to) throw new Error("from and to are required");
 
   const fromDate = new Date(data.from);

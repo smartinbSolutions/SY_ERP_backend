@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 const ListModel = require("../../models/Tasks/ListModel");
+const staffModel = require("../../models/Hr/staffModel");
 
 // ======================================
 // CREATE TASK (workspace aware)
@@ -49,11 +50,16 @@ exports.getTaskById = async (taskId, workspaceId) => {
 exports.getAllTasks = async ({
   workspaceId,
   userId,
+
   page = 1,
   limit = 10,
+
   status,
   priority,
   listId,
+
+  assignedTo,
+  due,
 }) => {
   const filter = {
     workspace: workspaceId,
@@ -68,13 +74,62 @@ exports.getAllTasks = async ({
   }
 
   // ===============================
-  // EXTRA FILTERS
+  // STATUS
   // ===============================
-  if (status) filter.status = status;
-  if (priority) filter.priority = priority;
+  if (status) {
+    filter.status = status;
+  }
+
+  // ===============================
+  // PRIORITY
+  // ===============================
+  if (priority) {
+    filter.priority = priority;
+  }
+
+  // ===============================
+  // ASSIGNED TO (BY NAME)
+  // ===============================
+  if (assignedTo) {
+    console.log(assignedTo);
+    
+    const employees = await staffModel.find({
+      fullName: {
+        $regex: assignedTo,
+        $options: "i",
+      },
+    }).select("_id");
+console.log(employees);
+
+    const employeeIds = employees.map((e) => e._id);
+console.log(employeeIds);
+
+    filter.assignedTo = {
+      $in: employeeIds,
+    };
+  }
+
+  // ===============================
+  // DUE DATE
+  // ===============================
+  if (due) {
+    const start = new Date(due);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(due);
+    end.setHours(23, 59, 59, 999);
+
+    filter.dueDate = {
+      $gte: start,
+      $lte: end,
+    };
+  }
 
   const skip = (page - 1) * limit;
 
+  // ===============================
+  // TASKS
+  // ===============================
   const tasks = await Task.find(filter)
     .populate("assignedTo", "name email")
     .populate("createdBy", "name email")
@@ -85,7 +140,7 @@ exports.getAllTasks = async ({
   const total = await Task.countDocuments(filter);
 
   // ===============================
-  // SUBTASKS ATTACHMENT
+  // SUBTASKS
   // ===============================
   const taskIds = tasks.map((t) => t._id);
 
@@ -93,18 +148,28 @@ exports.getAllTasks = async ({
     .find({
       task: { $in: taskIds },
     })
+    .populate("assignedTo", "name email")
+    .populate("createdBy", "name email")
     .lean();
 
+  // ===============================
+  // GROUP SUBTASKS
+  // ===============================
   const map = {};
 
   subTasks.forEach((st) => {
     const key = st.task.toString();
 
-    if (!map[key]) map[key] = [];
+    if (!map[key]) {
+      map[key] = [];
+    }
 
     map[key].push(st);
   });
 
+  // ===============================
+  // ATTACH SUBTASKS
+  // ===============================
   const result = tasks.map((task) => ({
     ...task.toObject(),
     subTasks: map[task._id.toString()] || [],
@@ -112,6 +177,7 @@ exports.getAllTasks = async ({
 
   return {
     result,
+
     pagination: {
       total,
       page,
@@ -119,7 +185,6 @@ exports.getAllTasks = async ({
     },
   };
 };
-
 // ======================================
 // UPDATE TASK
 // ======================================
@@ -151,83 +216,5 @@ exports.deleteTask = async (taskId, workspaceId) => {
 
   if (!task) throw new Error("Task not found");
 
-  return task;
-};
-
-exports.addChecklistItem = async (taskId, data, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
-  });
-
-  if (!task) throw new Error("Task not found");
-
-  task.checklist.push({
-    title: data.title,
-    isDone: false,
-    completedAt: null,
-  });
-
-  await task.save();
-  return task;
-};
-
-// ✏️ UPDATE ITEM
-exports.updateChecklistItem = async (taskId, itemId, data, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
-  });
-
-  if (!task) throw new Error("Task not found");
-
-  const item = task.checklist.id(itemId);
-  if (!item) throw new Error("Checklist item not found");
-
-  if (data.title !== undefined) item.title = data.title;
-
-  if (data.isDone !== undefined) {
-    item.isDone = data.isDone;
-    item.completedAt = data.isDone ? new Date() : null;
-  }
-
-  await task.save();
-  return task;
-};
-
-// ❌ DELETE ITEM
-exports.deleteChecklistItem = async (taskId, itemId, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
-  });
-
-  if (!task) throw new Error("Task not found");
-
-  const item = task.checklist.id(itemId);
-  if (!item) throw new Error("Checklist item not found");
-
-  item.remove();
-
-  await task.save();
-  return task;
-};
-
-// 🔄 TOGGLE ITEM
-exports.toggleChecklistItem = async (taskId, itemId, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
-  });
-
-  if (!task) throw new Error("Task not found");
-
-  const item = task.checklist.id(itemId);
-  if (!item) throw new Error("Checklist item not found");
-
-  item.isDone = !item.isDone;
-  item.completedAt = item.isDone ? new Date() : null;
-
-  await task.save();
   return task;
 };
