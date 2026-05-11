@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const {
   findAllBatchLedgerForProductService,
-} = require("../../../services/Stocks/batch/BatchLedger.service");
+} = require("../../../services/Stocks/Batch/BatchLedger.service");
 
 exports.findAllBatchLedgerForProduct = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
