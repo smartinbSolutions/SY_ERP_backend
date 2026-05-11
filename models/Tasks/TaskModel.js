@@ -1,74 +1,109 @@
-  const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-  const taskSchema = new mongoose.Schema(
-    {
-      title: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      companyId: {
-        type: String,
-        required: true,
-        index: true,
-      },
-      description: String,
+const checklistItemSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-      list: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "List",
-        required: true,
-        index: true,
-      },
+    isDone: {
+      type: Boolean,
+      default: false,
+    },
 
-      workspace: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Workspace",
-        required: true,
-        index: true,
-      },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: true, timestamps: true },
+);
 
-      status: {
-        type: String,
-        enum: ["todo", "in_progress", "review", "done", "cancelled"],
-        default: "todo",
-        index: true,
-      },
+// =========================
+// TASK SCHEMA
+// =========================
 
-      priority: {
-        type: String,
-        enum: ["low", "medium", "high", "urgent"],
-        default: "medium",
-        index: true,
-      },
+const taskSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-      assignedTo: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "staff",
-        },
-      ],
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
 
-      createdBy: {
+    description: String,
+
+    list: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "List",
+      required: true,
+      index: true,
+    },
+
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      required: true,
+      index: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["todo", "in_progress", "review", "done", "cancelled"],
+      default: "todo",
+      index: true,
+    },
+
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
+      index: true,
+    },
+
+    assignedTo: [
+      {
         type: mongoose.Schema.Types.ObjectId,
         ref: "staff",
-        required: true,
       },
+    ],
 
-      dueDate: Date,
-      startDate: Date,
-      completedAt: Date,
-
-      subTasksCount: { type: Number, default: 0 },
-      completedSubTasksCount: { type: Number, default: 0 },
-      progress: { type: Number, default: 0 },
-
-      isArchived: {
-        type: Boolean,
-        default: false,
-      },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "staff",
+      required: true,
     },
-    { timestamps: true },
-  );
 
-  module.exports = mongoose.model("Task", taskSchema);
+    dueDate: Date,
+    startDate: Date,
+    completedAt: Date,
+
+    // =========================
+    // SUBTASKS
+    // =========================
+    subTasksCount: { type: Number, default: 0 },
+    completedSubTasksCount: { type: Number, default: 0 },
+    progress: { type: Number, default: 0 },
+
+    // =========================
+    // CHECKLIST
+    // =========================
+    checklist: [checklistItemSchema],
+
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { timestamps: true },
+);
+
+module.exports = mongoose.model("Task", taskSchema);

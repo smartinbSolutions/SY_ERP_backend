@@ -46,7 +46,6 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     if (!user) {
       return next(new ApiError("Invalid email or password", 401));
     }
-    await user.save();
     // Check passwords
     const passwordMatch = await bcrypt.compare(
       req.body.password,

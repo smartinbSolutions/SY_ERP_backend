@@ -1,5 +1,35 @@
 const mongoose = require("mongoose");
 
+// =========================
+// CHECKLIST ITEM
+// =========================
+const checklistItemSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    isDone: {
+      type: Boolean,
+      default: false,
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
+
+// =========================
+// SUBTASK SCHEMA
+// =========================
+
 const subTaskSchema = new mongoose.Schema(
   {
     title: {
@@ -56,18 +86,13 @@ const subTaskSchema = new mongoose.Schema(
       required: true,
     },
 
-    startDate: {
-      type: Date,
-    },
-
+    startDate: Date,
     dueDate: {
       type: Date,
       index: true,
     },
 
-    completedAt: {
-      type: Date,
-    },
+    completedAt: Date,
 
     companyId: {
       type: String,
@@ -75,9 +100,12 @@ const subTaskSchema = new mongoose.Schema(
       index: true,
     },
 
-    order: {
-      type: Number,
-    },
+    order: Number,
+
+    // =========================
+    // CHECKLIST 
+    // =========================
+    checklist: [checklistItemSchema],
   },
   { timestamps: true },
 );
