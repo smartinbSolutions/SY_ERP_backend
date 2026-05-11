@@ -24,6 +24,9 @@ const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 const {
   handleExpensePayment,
 } = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
+const {
+  createJournalEntryService,
+} = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -67,85 +70,6 @@ exports.findOneExpensesInvoice = asyncHandler(async (req, res, next) => {
   });
 });
 
-// exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
-//   const companyId = req.query.companyId;
-//   const invoiceDraft = req.body.isDraft === "true";
-//   const isCash = req.body.isCash === "true";
-
-//   const session = await mongoose.startSession();
-
-//   try {
-//     session.startTransaction();
-
-//     let nextCounterPayment = null;
-//     let nextCounterExpensesInvoices = null;
-
-//     if (!invoiceDraft) {
-//       nextCounterPayment = await counterModel.findOneAndUpdate(
-//         { companyId, name: "Payment" },
-//         { $inc: { seq: 1 } },
-//         { new: true, upsert: true, session }
-//       );
-
-//       nextCounterExpensesInvoices = await counterModel.findOneAndUpdate(
-//         { companyId, name: "Expenses" },
-//         { $inc: { seq: 1 } },
-//         { new: true, upsert: true, session }
-//       );
-//     }
-
-//     const prepared = await prepareExpensesDataService({
-//       req,
-//       companyId,
-//       session,
-//     });
-
-//     const newExpenseInvoice = await createExpensesInvoiceRecordService({
-//       req,
-//       invoiceDraft,
-//       ...prepared,
-//       companyId,
-//       nextCounterPayment,
-//       nextCounterExpensesInvoices,
-//       session,
-//     });
-
-//     if (!invoiceDraft && !isCash) {
-//       if (req.body.havepayments === "paid") {
-//         await paymentService({
-//           ...prepared,
-//           req,
-//           companyId,
-//           session,
-//           newExpenseInvoice,
-//         });
-//       }
-//       await applyExpenseSupplierEffectsService({
-//         ...prepared,
-//         newExpenseInvoice,
-//         companyId,
-//         date: req.body.date,
-//         expenceTotalMainCurrency: req.body.expenceTotalMainCurrency,
-//         totalRemainderMainCurrency: req.body.totalRemainderMainCurrency,
-//         paymentStatus: req.body.paymentStatus,
-//         session,
-//       });
-//     }
-
-//     await session.commitTransaction();
-
-//     res.status(201).json({
-//       status: "success",
-//       data: newExpenseInvoice,
-//     });
-//   } catch (error) {
-//     await session.abortTransaction();
-//     next(error);
-//   } finally {
-//     session.endSession();
-//   }
-// });
-
 exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceDraft = req.body.isDraft === "true";
@@ -158,6 +82,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     let nextCounterPayment = null;
     let nextCounterExpensesInvoices = null;
+    let nextCounterJournal = null;
 
     if (!invoiceDraft) {
       nextCounterPayment = await counterModel.findOneAndUpdate(
@@ -167,6 +92,11 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       );
       nextCounterExpensesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Expenses" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true, session }
+      );
+      nextCounterJournal = await counterModel.findOneAndUpdate(
+        { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
         { new: true, upsert: true, session }
       );
@@ -212,7 +142,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
         const normalizedPayment = {
           party: {
             id: prepared.supplier?._id?.toString() || "",
-            name: prepared.supplier?.name || "",
+            name: prepared.supplier?.supplierName || "",
             type: "supplier",
           },
           fund: {
@@ -238,8 +168,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
           postedBy: req.user?._id || null,
           postedAt: new Date(),
-          journalAccounts: req.body.journalAccounts || null,
-          // ← no req inside handler
+          journalAccounts: null, // journal handled separately below
           isCash,
           userId: req.user?._id || null,
         };
@@ -251,6 +180,27 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           normalizedPayment,
           session
         );
+      }
+
+      // ── Journal — same session, atomic with invoice + payment ──
+      // Frontend builds preview and sends it as journalPreview
+      // Backend just saves it — no logic duplication
+      const journalPreview = req.body.journalPreview
+        ? JSON.parse(req.body.journalPreview)
+        : null;
+
+      if (journalPreview && nextCounterJournal) {
+        await createJournalEntryService({
+          data: {
+            ...journalPreview.journalMeta,
+            journalAccounts: journalPreview.journalAccounts,
+            counter: req.body.counter || 0,
+            refId: newExpenseInvoice._id, // ← real id now available
+          },
+          companyId,
+          nextCounterJournal,
+          session, // ← same transaction
+        });
       }
     }
 
@@ -271,7 +221,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
 exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceId = req.params.id;
-
+  console.log("Bodyy", req.body);
   const session = await mongoose.startSession();
 
   try {
@@ -299,13 +249,22 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
       );
     }
 
-    if (
-      expense.paymentStatus === "paid" ||
-      (expense.payments || []).length > 0
-    ) {
+    // AFTER — blocks any payment (full or partial)
+    const totalPaidMain =
+      expense.expenceTotalMainCurrency - expense.totalRemainderMainCurrency;
+    const hasPayments = (expense.payments || []).length > 0;
+    const hasBeenPaid = totalPaidMain > 0.001;
+
+    if (hasPayments || hasBeenPaid) {
       return next(
         new ApiError(
-          "Paid expense invoice cannot be cancelled in this step",
+          `Cannot cancel — ${
+            expense.paymentStatus === "paid"
+              ? "invoice is fully paid"
+              : `invoice has ${totalPaidMain.toFixed(
+                  2
+                )} ${primary_currency} in payments applied`
+          }. Please reverse the payments first.`,
           400
         )
       );

@@ -2,17 +2,21 @@ const expensesModel = require("../../../models/expensesModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const journalEntryModel = require("../../../models/journalEntryModel");
-const paymentModel = require("../../../models/paymentModel");
+const paymentModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const suppliersModel = require("../../../models/suppliersModel");
 const ApiError = require("../../../utils/apiError");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
-const { createJournalService } = require("../../journalEntryServices");
+
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const multer = require("multer");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
+const {
+  createJournalEntryService,
+} = require("../JournalEntries/journalEntries.Service");
+const counterModel = require("../../../models/Settings/counterModel");
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, callback) {
@@ -477,22 +481,6 @@ exports.reverseExpenseSupplierEffectsService = async ({
   }
 
   const totalMain = Number(expense.expenceTotalMainCurrency || 0);
-  const remainderMain = Number(expense.totalRemainderMainCurrency || 0);
-
-  supplier.total = Number(supplier.total || 0) - totalMain;
-
-  if (expense.paymentStatus === "unpaid") {
-    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - totalMain;
-  }
-
-  if (expense.paymentStatus === "paid") {
-    supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - remainderMain;
-  }
-
-  if (supplier.total < 0) supplier.total = 0;
-  if (supplier.TotalUnpaid < 0) supplier.TotalUnpaid = 0;
-
-  await supplier.save({ session });
 
   await createPaymentHistoryV2({
     companyId,
@@ -516,7 +504,6 @@ exports.reverseExpenseJournalEffectsService = async ({
   session,
   counterFormat,
   cancellationDate,
-  reversalJournalLinkCounter,
   mode = "cancel",
 }) => {
   if (!expense?.journalCounter) {
@@ -569,14 +556,18 @@ exports.reverseExpenseJournalEffectsService = async ({
     throw new ApiError("original journal accounts are missing", 400);
   }
 
-  const reversedLines = originalLines.map((line, index) => ({
-    ...line,
-    MainDebit: Number(line?.MainCredit || 0),
-    MainCredit: Number(line?.MainDebit || 0),
-    accountDebit: Number(line?.accountCredit || 0),
-    accountCredit: Number(line?.accountDebit || 0),
-    counter: index + 1,
-  }));
+  const reversedLines = originalLines.map((line, index) => {
+    const plain = line.toObject ? line.toObject() : { ...(line._doc || line) };
+
+    return {
+      ...plain,
+      MainDebit: Number(plain?.MainCredit || 0),
+      MainCredit: Number(plain?.MainDebit || 0),
+      accountDebit: Number(plain?.accountCredit || 0),
+      accountCredit: Number(plain?.accountDebit || 0),
+      counter: index + 1,
+    };
+  });
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
@@ -604,7 +595,7 @@ exports.reverseExpenseJournalEffectsService = async ({
       expense?.invoiceName || ""
     }`,
     journalType: currentMode.journalType,
-    linkCounter: String(reversalJournalLinkCounter),
+    linkCounter: String(expense.journalCounter),
     refCounter: String(expense?.counter || ""),
     counter: counterFormat,
     refId: expense?._id,
@@ -616,10 +607,19 @@ exports.reverseExpenseJournalEffectsService = async ({
     journalCredit: totalCredit,
   };
 
-  const createdReversalJournal = await createJournalService({
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session }
+  );
+
+  const createdReversalJournal = await createJournalEntryService({
+    data: {
+      ...reversalJournalPayload,
+      journalAccounts: reversedLines,
+    },
     companyId,
-    journalInfo: reversalJournalPayload,
-    journalAccounts: reversedLines,
+    nextCounterJournal,
     session,
   });
 

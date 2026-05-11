@@ -4,6 +4,7 @@ const PARTY_TYPES = ["supplier", "customer", "employee"];
 const DOCUMENT_TYPES = [
   "purchase_invoice",
   "sales_invoice",
+  "expense",
   "opening_balance",
   "advance",
   "refund",
@@ -16,6 +17,12 @@ const PaymentSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "cancelled"],
+      default: "active",
     },
 
     counter: {
@@ -112,6 +119,15 @@ const PaymentSchema = new mongoose.Schema(
         documentTotal: {
           type: Number,
           default: 0,
+        },
+
+        cancelled: {
+          type: Boolean,
+          default: false,
+        },
+        cancelledAt: {
+          type: Date,
+          default: null,
         },
 
         _id: false,

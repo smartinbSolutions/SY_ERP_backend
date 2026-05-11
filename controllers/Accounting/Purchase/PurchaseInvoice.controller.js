@@ -32,6 +32,10 @@ const {
 const {
   prepareSalesInvoiceDataFromDraftService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
+const {
+  createJournalEntryService,
+} = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
+const linkPanelModel = require("../../../models/linkPanelModel");
 
 /*
 |--------------------------------------------------------------------------
@@ -104,11 +108,6 @@ exports.findSupplierPurchaseInvoicesForRefund = asyncHandler(
     });
   }
 );
-/*
-|--------------------------------------------------------------------------
-| Create Purchase Invoice 
-|--------------------------------------------------------------------------
-*/
 
 exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -121,6 +120,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     let nextCounterPayment = null;
     let nextCounterPurchaseInvoices = null;
+    let nextCounterJournal = null;
 
     if (!invoiceDraft) {
       if (req.body.paid !== "unpaid") {
@@ -133,6 +133,12 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
       nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Purchase Invoice" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true, session }
+      );
+
+      nextCounterJournal = await counterModel.findOneAndUpdate(
+        { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
         { new: true, upsert: true, session }
       );
@@ -155,6 +161,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
     });
 
     if (!invoiceDraft) {
+      // ── Inventory effects ──────────────────────────────────────
       await applyPurchaseInventoryEffectsService({
         ...prepared,
         newPurchaseInvoice,
@@ -163,6 +170,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         session,
       });
 
+      // ── Supplier effects ───────────────────────────────────────
       await applyPurchaseSupplierEffectsService({
         ...prepared,
         newPurchaseInvoice,
@@ -173,13 +181,19 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         paid: req.body.paid,
         session,
       });
-      console.log(prepared);
-      // ── Replace paymentService with handlePurchasePayment ──────
+
+      // ── Parse journalPreview FIRST ─────────────────────────────
+      const journalPreview = req.body.journalPreview
+        ? JSON.parse(req.body.journalPreview)
+        : null;
+
+      // ── Payment ────────────────────────────────────────────────
+      let fxDiff = 0; // ← declare outside so it's accessible below
+
       if (req.body.havepayments === "paid") {
         const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
         const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
 
-        // normalize inline — same shape as normalizePaymentRequest
         const normalizedPayment = {
           party: {
             id: prepared.supplier?._id?.toString() || "",
@@ -200,8 +214,9 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             currencyCode: payment?.currencyCode || "",
             exchangeRate: Number(payment?.exchangeRate || 1),
             amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+            amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
           },
-          invoiceId: newPurchaseInvoice._id, // ← invoice just created
+          invoiceId: newPurchaseInvoice._id,
           date: req.body.paymentDate || req.body.date,
           description: req.body.description || "",
           journalCounter: req.body.journalCounter || "",
@@ -209,16 +224,97 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
           postedBy: req.user?._id || null,
           postedAt: new Date(),
-          journalAccounts: req.body.journalAccounts || null,
+          journalAccounts: null,
         };
 
-        await handlePurchasePayment(
+        const result = await handlePurchasePayment(
           req,
           companyId,
           next,
           normalizedPayment,
-          session // ← pass existing session, no nested transaction
+          session
         );
+
+        fxDiff = result.fxDiff || 0; // ← capture fxDiff
+      }
+
+      // ── Append FX lines to journalPreview if needed ───────────
+      if (
+        req.body.havepayments === "paid" &&
+        journalPreview &&
+        Math.abs(fxDiff) > 0.001
+      ) {
+        const linkings = await linkPanelModel
+          .find({ companyId })
+          .populate("accountData")
+          .session(session);
+
+        const fxGainLink = linkings.find(
+          (l) => l.name === "Foreign Exchange Gain"
+        );
+        const fxLossLink = linkings.find(
+          (l) => l.name === "Foreign Exchange Loss"
+        );
+
+        const isLoss = fxDiff > 0;
+        const fxAccount = isLoss
+          ? fxLossLink?.accountData
+          : fxGainLink?.accountData;
+        const partyJournalAccount = journalPreview.journalAccounts.find(
+          (a) => a.accountType === "Supplier_Payment"
+        );
+
+        if (fxAccount && partyJournalAccount) {
+          const absFx = Math.abs(fxDiff);
+
+          journalPreview.journalAccounts.push({
+            counter: journalPreview.journalAccounts.length + 1,
+            id: fxAccount._id,
+            name: fxAccount.name,
+            code: fxAccount.code,
+            MainDebit: isLoss ? absFx : 0,
+            MainCredit: isLoss ? 0 : absFx,
+            accountDebit: isLoss ? absFx : 0,
+            accountCredit: isLoss ? 0 : absFx,
+            accountCurrency: fxAccount.currency?.currencyCode || "",
+            accountExRate: Number(fxAccount.currency?.exchangeRate) || 1,
+            isPrimary: fxAccount.currency?.is_primary === "true",
+            Desc: `FX ${isLoss ? "Loss" : "Gain"} on payment`,
+            accountType: isLoss ? "FX_Loss" : "FX_Gain",
+          });
+
+          journalPreview.journalAccounts.push({
+            counter: journalPreview.journalAccounts.length + 1,
+            id: partyJournalAccount.id,
+            name: partyJournalAccount.name,
+            code: partyJournalAccount.code,
+            MainDebit: isLoss ? 0 : absFx,
+            MainCredit: isLoss ? absFx : 0,
+            accountDebit: isLoss ? 0 : absFx,
+            accountCredit: isLoss ? absFx : 0,
+            accountCurrency: partyJournalAccount.accountCurrency || "",
+            accountExRate: partyJournalAccount.accountExRate || 1,
+            isPrimary: partyJournalAccount.isPrimary || false,
+            Desc: `FX ${isLoss ? "Loss" : "Gain"} offset`,
+            accountType: "Supplier_Payment",
+          });
+        }
+      }
+
+      // ── Journal ────────────────────────────────────────────────
+      if (journalPreview && nextCounterJournal) {
+        await createJournalEntryService({
+          data: {
+            ...journalPreview.journalMeta,
+            journalAccounts: journalPreview.journalAccounts,
+            counter: req.body.counter || 0,
+            refId: newPurchaseInvoice._id,
+            refCounter: newPurchaseInvoice.counter,
+          },
+          companyId,
+          nextCounterJournal,
+          session,
+        });
       }
     }
 
@@ -324,17 +420,12 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
     });
 
     const counterFormat = req.body.counterFormat;
-    const reversalJournalLinkCounter = `${
-      purchaseInvoice.journalCounter
-    }-reverse-update-${Date.now()}`;
-
     await reversePurchaseJournalEffectsService({
       purchaseInvoice,
       companyId,
       session,
       cancellationDate: updateDate,
       counterFormat,
-      reversalJournalLinkCounter,
       mode: "reverse_update",
     });
 
@@ -465,6 +556,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
           currencyCode: payment?.currencyCode || "",
           exchangeRate: Number(payment?.exchangeRate || 1),
           amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+          amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
         },
         invoiceId: updatedPurchaseInvoice._id, // ← updated invoice
         date: req.body.paymentDate || updateDate,
@@ -738,6 +830,7 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
       session,
     });
 
+    // ── Journal ────────────────────────────────────────────────────
     const { createdJournal } = await debugAndCreatePurchaseDraftJournalService({
       companyId,
       purchaseInvoice,

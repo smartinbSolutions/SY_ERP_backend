@@ -5,6 +5,7 @@ const {
   auditingJournalService,
   createJournalEntryService,
   getOneJournalByLinkServices,
+  getOneAccountAndJournalService,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 const counterModel = require("../../../models/Settings/counterModel");
 const multer = require("multer");
@@ -92,35 +93,75 @@ exports.getOneJournal = asyncHandler(async (req, res, next) => {
   });
 });
 
+// exports.createJournal = asyncHandler(async (req, res, next) => {
+//   const companyId = req.query.companyId;
+
+//   if (!companyId) {
+//     return res.status(400).json({ message: "companyId is required" });
+//   }
+//   const session = await mongoose.startSession();
+
+//   try {
+//     session.startTransaction();
+//     const nextCounterJournal = await counterModel.findOneAndUpdate(
+//       { companyId, name: "Journal" },
+//       { $inc: { seq: 1 } },
+//       { new: true, upsert: true, session }
+//     );
+
+//     const newJournal = await createJournalEntryService({
+//       req,
+//       companyId,
+//       nextCounterJournal,
+//       session,
+//     });
+
+//     createJournalEntryService({
+//       journalDate: newJournal.journalDate,
+//       journalAccounts: req.body.journalAccounts,
+//       companyId,
+//       session,
+//     });
+//     await session.commitTransaction();
+
+//     res.status(201).json({
+//       status: "true",
+//       data: newJournal,
+//     });
+//   } catch (error) {
+//     await session.abortTransaction();
+//     next(error);
+//   } finally {
+//     session.endSession();
+//   }
+// });
+
 exports.createJournal = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
+
     const nextCounterJournal = await counterModel.findOneAndUpdate(
       { companyId, name: "Journal" },
       { $inc: { seq: 1 } },
       { new: true, upsert: true, session }
     );
 
+    // ── validation happens inside service ──────────────────────
     const newJournal = await createJournalEntryService({
-      req,
+      req, // ← standalone route passes req
       companyId,
       nextCounterJournal,
       session,
     });
 
-    createJournalEntryService({
-      journalDate: newJournal.journalDate,
-      journalAccounts: req.body.journalAccounts,
-      companyId,
-      session,
-    });
     await session.commitTransaction();
 
     res.status(201).json({
@@ -133,6 +174,39 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
   } finally {
     session.endSession();
   }
+});
+
+exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
+  const {
+    companyId,
+    limit,
+    page,
+    keyword,
+    filters: filtersRaw,
+    gotoLastMatched,
+  } = req.query;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const filters = filtersRaw ? JSON.parse(filtersRaw) : {};
+
+  const result = await getOneAccountAndJournalService({
+    companyId,
+    id,
+    limit,
+    page,
+    keyword,
+    filters,
+    gotoLastMatched: gotoLastMatched === "true",
+  });
+
+  return res.status(200).json({
+    status: "true",
+    ...result,
+  });
 });
 
 exports.auditingJournal = asyncHandler(async (req, res, next) => {

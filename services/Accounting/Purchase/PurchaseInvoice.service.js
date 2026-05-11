@@ -30,6 +30,10 @@ const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerMod
 const journalEntryModel = require("../../../models/journalEntryModel");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
+const {
+  createJournalEntryService,
+} = require("../JournalEntries/journalEntries.Service");
+const counterModel = require("../../../models/Settings/counterModel");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -543,28 +547,6 @@ exports.upsertPurchaseInvoiceRecordService = async ({
     totalRemainderMainCurrency,
   } = req.body;
 
-  let financialFund = null;
-  let parsedFinancialFund = null;
-
-  // if (req.body.financailFund) {
-  //   parsedFinancialFund =
-  //     typeof req.body.financailFund === "string"
-  //       ? JSON.parse(req.body.financailFund)
-  //       : req.body.financailFund;
-  // }
-
-  // if (paid === "paid" && !invoiceDraft) {
-  //   financialFund = await financialFundsModel
-  //     .findOne({ _id: parsedFinancialFund?.id, companyId })
-  //     .session(session);
-
-  // if (!financialFund) {
-  //   throw new ApiError("Financial fund not found", 404);
-  // }
-
-  // financialFund.fundBalance -= Number(paymentInFundCurrency || 0);
-  //}
-
   const invoicePayload = {
     employee: req.user._id,
     invoicesItems: invoicesItem,
@@ -625,11 +607,6 @@ exports.upsertPurchaseInvoiceRecordService = async ({
       : null;
   }
 
-  // if (paid === "paid" && !invoiceDraft) {
-  //   invoicePayload.financailFund = parsedFinancialFund;
-  //   invoicePayload.paymentInFundCurrency = paymentInFundCurrency;
-  // }
-
   if (paid === "unpaid") {
     invoicePayload.dueDate = paymentDate;
   }
@@ -655,107 +632,6 @@ exports.upsertPurchaseInvoiceRecordService = async ({
   } else {
     throw new ApiError("Invalid mode", 400);
   }
-
-  // if (paid === "paid" && !invoiceDraft) {
-  //   const payment = await PaymentModel.create(
-  //     [
-  //       {
-  //         source: {
-  //           id: financialFund._id,
-  //           name: financialFund.fundName,
-  //         },
-  //         destination: {
-  //           id: supllierObject.id,
-  //           name: supllierObject.name,
-  //         },
-  //         sourceType: "purchase", // keep old model for now
-  //         destinationType: "fund",
-  //         totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
-  //         totalMainCurrency: req.body.paymentInMainCurrency,
-  //         paymentInDestinationCurrency: req.body.paymentInFundCurrency,
-  //         paymentCurrency: {
-  //           id: currency?.id,
-  //           name: currency?.name,
-  //           code: currency?.currencyCode,
-  //           exchangeRate: currency?.exchangeRate,
-  //         },
-  //         destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
-  //         destinationCurrencyCode: parsedFinancialFund?.code,
-  //         type: "purchase",
-  //         paymentType: "Withdrawal",
-  //         description: req.body.paymentDescription,
-  //         date: req.body.paymentDate || formattedDate,
-  //         counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
-  //         companyId,
-  //         payid: [
-  //           {
-  //             id: invoiceDoc._id,
-  //             status: req.body.paid,
-  //             invoiceTotal: req.body.invoiceGrandTotal,
-  //             invoiceName: req.body.invoiceName,
-  //             invoiceCurrencyCode: currency?.currencyCode,
-  //             paymentInFundCurrency: paymentInFundCurrency,
-  //             paymentMainCurrency: req.body.paymentInMainCurrency,
-  //             paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-  //           },
-  //         ],
-  //       },
-  //     ],
-  //     { session },
-  //   );
-
-  //   await createPaymentHistoryV2({
-  //     companyId,
-  //     entryType: "payment",
-  //     transactionDate: req.body.paymentDate || formattedDate,
-  //     amountTransactionCurrency: paymentInFundCurrency,
-  //     amountMainCurrency: req.body.paymentInMainCurrency,
-  //     supplierId: supllierObject.id,
-  //     referenceId: invoiceDoc._id,
-  //     sourceModule: "purchase",
-  //     actionType: "create",
-  //     paymentId: payment[0]._id,
-  //     balanceEffectType: "Deposit",
-  //     description: req.body.paymentDescription,
-  //     transactionCurrency: parsedFinancialFund?.code,
-  //     session,
-  //   });
-
-  //   const reports = await reportsFinancialFunds.create(
-  //     [
-  //       {
-  //         date: req.body.paymentDate || formattedDate,
-  //         ref: invoiceDoc._id,
-  //         amount: paymentInFundCurrency,
-  //         type: "purchase",
-  //         exchangeRate,
-  //         financialFundId: parsedFinancialFund?.id,
-  //         financialFundRest: financialFund.fundBalance,
-  //         paymentType: "Withdrawal",
-  //         payment: payment[0]._id,
-  //         description: req.body.paymentDescription,
-  //         companyId,
-  //       },
-  //     ],
-  //     { session },
-  //   );
-
-  //   invoiceDoc.payments.push({
-  //     payment: paymentInFundCurrency,
-  //     paymentMainCurrency: req.body.paymentInMainCurrency,
-  //     financialFunds: financialFund.fundName,
-  //     financialFundsCurrencyCode: parsedFinancialFund?.code,
-  //     date: req.body.paymentDate || formattedDate,
-  //     paymentID: payment[0]._id,
-  //     paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-  //     financialFundsId: parsedFinancialFund?.id,
-  //   });
-
-  //   invoiceDoc.reportsBalanceId = reports[0]._id;
-
-  //   await invoiceDoc.save({ session });
-  //   await financialFund.save({ session });
-  // }
 
   return invoiceDoc;
 };
@@ -1186,11 +1062,6 @@ exports.applyPurchaseSupplierEffectsService = async ({
   }
 
   const totalMain = Number(totalPurchasePriceMainCurrency || 0);
-  const remainderMain = Number(totalRemainderMainCurrency || 0);
-
-  supplier.total += totalMain;
-
-  supplier.TotalUnpaid += totalMain;
 
   for (const item of invoicesItem) {
     if (item.type === "unTracedproduct") {
@@ -1208,8 +1079,6 @@ exports.applyPurchaseSupplierEffectsService = async ({
       );
     }
   }
-
-  await supplier.save({ session });
 
   await createPaymentHistoryV2({
     companyId,
@@ -1311,14 +1180,10 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
   const journalMeta = journalPreview?.journalMeta || {};
   const journalAccounts = journalPreview?.journalAccounts || [];
 
-  if (!journalMeta?.journalName) {
+  if (!journalMeta?.journalName)
     throw new ApiError("journal name is missing", 400);
-  }
-
-  if (!journalMeta?.journalDate) {
+  if (!journalMeta?.journalDate)
     throw new ApiError("journal date is missing", 400);
-  }
-
   if (!Array.isArray(journalAccounts) || journalAccounts.length === 0) {
     throw new ApiError("journal accounts are missing", 400);
   }
@@ -1327,7 +1192,6 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
     (sum, item) => sum + Number(item?.MainDebit || 0),
     0
   );
-
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
     0
@@ -1340,33 +1204,34 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
     );
   }
 
-  const journalPayload = {
-    ...journalMeta,
-    linkCounter: String(journalLinkCounter),
-    refCounter: String(invoiceRefCounter || ""),
-    counter: counterFormat,
-    refId: purchaseInvoice?._id,
-    party: journalMeta?.party || purchaseInvoice?.supllier?.id || "",
-    journalType: journalMeta?.journalType || "Purchase",
-    filesArray: [],
-    journalDebit: totalDebit,
-    journalCredit: totalCredit,
-    journalAccounts,
-  };
+  // ── Get journal counter ────────────────────────────────────────
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session }
+  );
 
-  const { journalAccounts: lines, ...journalInfo } = journalPayload;
-
-  const createdJournal = await createJournalService({
+  // ── Save using new service ─────────────────────────────────────
+  const createdJournal = await createJournalEntryService({
+    data: {
+      ...journalMeta,
+      journalAccounts,
+      linkCounter: String(journalLinkCounter),
+      refCounter: String(invoiceRefCounter || ""),
+      counter: counterFormat,
+      refId: purchaseInvoice?._id,
+      party: journalMeta?.party || purchaseInvoice?.supllier?.id || "",
+      journalType: journalMeta?.journalType || "Purchase",
+      filesArray: [],
+      journalDebit: totalDebit,
+      journalCredit: totalCredit,
+    },
     companyId,
-    journalInfo,
-    journalAccounts: lines,
+    nextCounterJournal,
     session,
   });
 
-  return {
-    createdJournal,
-    journalPayload,
-  };
+  return { createdJournal };
 };
 
 exports.reversePurchaseJournalEffectsService = async ({
@@ -1375,7 +1240,6 @@ exports.reversePurchaseJournalEffectsService = async ({
   session,
   counterFormat,
   cancellationDate,
-  reversalJournalLinkCounter,
   mode = "cancel",
 }) => {
   if (!purchaseInvoice?.journalCounter) {
@@ -1407,11 +1271,9 @@ exports.reversePurchaseJournalEffectsService = async ({
     throw new ApiError(`Invalid journal reversal mode: ${mode}`, 400);
   }
 
+  // ── Fetch original journal ─────────────────────────────────────
   const originalJournal = await journalEntryModel
-    .findOne({
-      companyId,
-      linkCounter: purchaseInvoice.journalCounter,
-    })
+    .findOne({ companyId, linkCounter: purchaseInvoice.journalCounter })
     .session(session);
 
   if (!originalJournal) {
@@ -1428,20 +1290,23 @@ exports.reversePurchaseJournalEffectsService = async ({
     throw new ApiError("original journal accounts are missing", 400);
   }
 
-  const reversedLines = originalLines.map((line, index) => ({
-    ...line,
-    MainDebit: Number(line?.MainCredit || 0),
-    MainCredit: Number(line?.MainDebit || 0),
-    accountDebit: Number(line?.accountCredit || 0),
-    accountCredit: Number(line?.accountDebit || 0),
-    counter: index + 1,
-  }));
+  // ── Reverse lines — toObject() strips Mongoose internals ───────
+  const reversedLines = originalLines.map((line, index) => {
+    const plain = line.toObject ? line.toObject() : { ...(line._doc || line) };
+    return {
+      ...plain,
+      MainDebit: Number(plain?.MainCredit || 0),
+      MainCredit: Number(plain?.MainDebit || 0),
+      accountDebit: Number(plain?.accountCredit || 0),
+      accountCredit: Number(plain?.accountDebit || 0),
+      counter: index + 1,
+    };
+  });
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
     0
   );
-
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
     0
@@ -1454,6 +1319,7 @@ exports.reversePurchaseJournalEffectsService = async ({
     );
   }
 
+  // ── Build reversal payload ─────────────────────────────────────
   const reversalJournalPayload = {
     journalName: `${currentMode.journalNamePrefix} - ${
       originalJournal?.journalName || purchaseInvoice?.invoiceName || ""
@@ -1463,7 +1329,7 @@ exports.reversePurchaseJournalEffectsService = async ({
       purchaseInvoice?.invoiceName || ""
     }`,
     journalType: currentMode.journalType,
-    linkCounter: String(reversalJournalLinkCounter),
+    linkCounter: String(purchaseInvoice.journalCounter), // ← tied to invoice
     refCounter: String(purchaseInvoice?.counter || ""),
     counter: counterFormat,
     refId: purchaseInvoice?._id,
@@ -1475,13 +1341,24 @@ exports.reversePurchaseJournalEffectsService = async ({
     journalCredit: totalCredit,
   };
 
-  const createdReversalJournal = await createJournalService({
+  // ── Save reversal journal using new service ────────────────────
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session }
+  );
+
+  const createdReversalJournal = await createJournalEntryService({
+    data: {
+      ...reversalJournalPayload,
+      journalAccounts: reversedLines,
+    },
     companyId,
-    journalInfo: reversalJournalPayload,
-    journalAccounts: reversedLines,
+    nextCounterJournal,
     session,
   });
 
+  // ── Mark original as reversed ──────────────────────────────────
   originalJournal.status = currentMode.originalStatus;
   originalJournal.reversedAt = cancellationDate;
   originalJournal.reverseJournalId = createdReversalJournal?._id || null;
@@ -1664,179 +1541,3 @@ exports.deletePurchaseInvoiceDraftService = async ({
 
   return true;
 };
-
-// exports.paymentService = async ({
-//   req,
-//   companyId,
-//   session,
-//   newPurchaseInvoice,
-//   supplier,
-// }) => {
-//   const {
-//     party,
-
-//     paymentNature,
-
-//     paymentDate,
-//     description,
-//     journalCounter,
-//     counter,
-//     postedBy,
-//     postedAt,
-//     paymentInFundCurrency,
-//   } = req.body;
-
-//   const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
-//   const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
-
-//   if (!fund?.id) {
-//     throw new Error("Fund id is required");
-//   }
-
-//   if (!supplier?._id) {
-//     throw new Error("Party is required");
-//   }
-//   const financialFund = await financialFundsModel.findOneAndUpdate(
-//     { _id: fund.id || fund._id, companyId },
-//     { $inc: { fundBalance: -paymentInFundCurrency } },
-//     { new: true, session }
-//   );
-
-//   if (!financialFund) {
-//     throw new Error("Financial fund not found");
-//   }
-
-//   let paymentAmountMain = Number(payment.amountMainCurrency || 0);
-//   let paymentAmountInvoice =
-//     Number(payment.amountMainCurrency || 0) *
-//     Number(newPurchaseInvoice.currency?.exchangeRate || 1);
-
-//   const paymentSeq = await getNextCounterValue({
-//     companyId,
-//     name: "Payment",
-//     session,
-//   });
-//   const paymentPayload = {
-//     companyId,
-//     counter: Number(counter || 0) + Number(paymentSeq),
-//     party: {
-//       id: supplier._id,
-//       name: supplier.name,
-//       type: "supplier",
-//     },
-//     fund: {
-//       id: fund.id,
-//       name: fund.name,
-//       currencyId: fund.currencyId || "",
-//       currencyCode: fund.currencyCode || "",
-//       exchangeRate: Number(fund.exchangeRate || 1),
-//     },
-//     totalMainCurrency: paymentAmountMain,
-//     paymentNature: "outgoing",
-//     payment: {
-//       amount: Number(payment?.amount || 0),
-//       currencyId: payment?.currencyId || "",
-//       currencyCode: payment?.currencyCode || "",
-//       exchangeRate: Number(payment?.exchangeRate || 1),
-//       amountMainCurrency: Number(payment?.amountMainCurrency || 0),
-//     },
-//     date: paymentDate,
-//     description,
-//     journalCounter,
-//     file: req.body.file || "",
-//     allocations: [
-//       {
-//         documentId: newPurchaseInvoice._id,
-//         documentName: newPurchaseInvoice.invoiceName,
-//         documentCounter: newPurchaseInvoice.counter,
-//         documentCurrencyCode: newPurchaseInvoice.currency?.currencyCode || "",
-//         allocatedAmountMainCurrency: paymentAmountMain,
-//         allocatedAmountDocumentCurrency: paymentAmountInvoice,
-//         documentTotal: newPurchaseInvoice.invoiceGrandTotal,
-//         documentType: "purchase_invoice",
-//       },
-//     ],
-//     postedBy: postedBy || null,
-//     postedAt: postedAt || new Date(),
-//   };
-
-//   const paymentDocs = await paymentsModel.create([paymentPayload], {
-//     session,
-//   });
-//   const newPayment = paymentDocs[0];
-//   createdPayment = newPayment;
-
-//   if (newPurchaseInvoice.totalRemainderMainCurrency <= 0.9) {
-//     newPurchaseInvoice.paymentsStatus = "paid";
-//     newPurchaseInvoice.totalRemainderMainCurrency = 0;
-//     newPurchaseInvoice.totalRemainder = 0;
-//   }
-
-//   newPurchaseInvoice.payments.push({
-//     payment: Number(payment.amount || paymentAmountInvoice),
-//     paymentMainCurrency: payment.amountMainCurrency || paymentAmountMain,
-//     financialFunds: fund.name,
-//     paymentID: newPayment._id,
-//     financialFundsCurrencyCode: fund.currencyCode,
-//     exchangeRate: fund.exchangeRate,
-//     date: paymentDate,
-//     paymentInInvoiceCurrency:
-//       payment.amountMainCurrency * newPurchaseInvoice.currency.exchangeRate ||
-//       paymentAmountInvoice,
-//     financialFundsId: fund._id,
-//   });
-
-//   await newPurchaseInvoice.save({ session });
-
-//   await createInvoiceHistory(
-//     companyId,
-//     newPurchaseInvoice._id,
-//     "payment",
-//     req.user._id,
-//     paymentDate,
-//     `${payment.amount} ${fund.currencyCode}`,
-//     "invoice",
-//     session
-//   );
-
-//   supplier.TotalUnpaid = Number(supplier.TotalUnpaid || 0) - paymentAmountMain;
-//   if (supplier.TotalUnpaid < 0) supplier.TotalUnpaid = 0;
-//   await supplier.save({ session });
-
-//   await createPaymentHistoryV2({
-//     companyId,
-//     entryType: "payment",
-//     transactionDate: paymentDate,
-//     amountTransactionCurrency: paymentInFundCurrency,
-//     amountMainCurrency: payment.amountMainCurrency,
-//     supplierId: supplier._id,
-//     referenceId: newPurchaseInvoice._id,
-//     sourceModule: "payment",
-//     actionType: "create",
-//     paymentId: newPayment._id,
-//     balanceEffectType: "Deposit",
-//     description,
-//     transactionCurrency: fund.currencyCode,
-//     session,
-//   });
-
-//   await reportsFinancialFunds.create(
-//     [
-//       {
-//         date: paymentDate,
-//         amount: Number(paymentInFundCurrency || 0),
-//         ref: newPurchaseInvoice._id,
-//         type: "Withdrawal",
-//         financialFundId: financialFund._id,
-//         financialFundRest: financialFund.fundBalance,
-//         exchangeRate: newPurchaseInvoice.currency?.exchangeRate || 1,
-//         paymentType: "Withdrawal",
-//         payment: newPayment._id,
-//         description,
-//         companyId,
-//       },
-//     ],
-//     { session }
-//   );
-//   return true;
-// };

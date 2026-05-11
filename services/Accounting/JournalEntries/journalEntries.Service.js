@@ -8,13 +8,53 @@ const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceM
 const periodicJournalEntriesModel = require("../../../models/reports/periodicJournalEntriesModel");
 const returnOrderModel = require("../../../models/returnOrderModel");
 const counterModel = require("../../../models/Settings/counterModel");
+const reconciliationModel = require("../../../models/reconciliationModel");
+
+const validateJournalData = ({ journalAccounts, journalDate, journalMeta }) => {
+  if (!journalDate) {
+    throw new Error("Journal date is required");
+  }
+
+  if (!Array.isArray(journalAccounts) || journalAccounts.length === 0) {
+    throw new Error("Journal must have at least one account entry");
+  }
+
+  // no undefined account ids
+  const hasUndefinedAccount = journalAccounts.some(
+    (acc) => !acc.id && !acc._id
+  );
+  if (hasUndefinedAccount) {
+    throw new Error("All journal entries must have a valid account id");
+  }
+
+  // debit must equal credit
+  const totalDebit = journalAccounts.reduce(
+    (sum, acc) => sum + Number(acc.MainDebit || 0),
+    0
+  );
+  const totalCredit = journalAccounts.reduce(
+    (sum, acc) => sum + Number(acc.MainCredit || 0),
+    0
+  );
+
+  const diff = Math.abs(totalDebit - totalCredit);
+  if (diff > 0.01) {
+    throw new Error(
+      `Journal is not balanced — Debit: ${totalDebit.toFixed(
+        4
+      )}, Credit: ${totalCredit.toFixed(4)}, Diff: ${diff.toFixed(4)}`
+    );
+  }
+
+  return { totalDebit, totalCredit };
+};
 
 exports.journalEntriesService = async ({ req, companyId }) => {
   const pageSize = req.query.limit || 0;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
   const { startDate, endDate } = req.query;
-  console.log("here");
+
   let query = { companyId };
   // if (startDate && endDate) {
   //   query.journalDate = {
@@ -42,8 +82,6 @@ exports.journalEntriesService = async ({ req, companyId }) => {
     .skip(skip)
     .limit(pageSize);
 
-  console.log(account);
-
   return { totalItems, totalPages, account };
 };
 
@@ -58,53 +96,99 @@ exports.getOneJournalService = async ({ req, companyId }) => {
 };
 
 exports.createJournalEntryService = async ({
-  req,
+  req, // ← provided by standalone route
+  data, // ← provided by internal controller calls
   companyId,
   nextCounterJournal,
   session,
 }) => {
-  req.body.companyId = companyId;
+  // ── Resolve source ─────────────────────────────────────────────
+  // data takes priority — internal calls pass clean plain objects
+  // req.body is used for manual journal route
+  const body = data || req?.body;
 
-  req.body.counter = Number(req.body.counter) + nextCounterJournal.seq;
-  req.body.journalRefNum = req.body.counter;
+  if (!body) throw new Error("Journal data is required");
 
-  function padZero(value) {
-    return value < 10 ? `0${value}` : value;
-  }
+  const padZero = (value) => (value < 10 ? `0${value}` : String(value));
 
-  if (typeof req.body.journalAccounts === "string") {
-    req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
-  }
+  // ── Build ISO date ─────────────────────────────────────────────
   const ts = Date.now();
   const date_ob = new Date(ts);
-  const formattedDateAdd = `${padZero(date_ob.getHours())}:${padZero(
+  const formattedTime = `${padZero(date_ob.getHours())}:${padZero(
     date_ob.getMinutes()
-  )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
-  const isoDate = `${req.body.journalDate}T${formattedDateAdd}Z`;
+  )}:${padZero(date_ob.getSeconds())}.${String(
+    date_ob.getMilliseconds()
+  ).padStart(3, "0")}`;
+  const isoDate = body.journalDate?.includes("T")
+    ? body.journalDate
+    : `${body.journalDate}T${formattedTime}Z`;
 
-  req.body.journalDate = isoDate;
-  req.body.filesArray = req.body.filesArray || [];
-  let create;
+  // ── Parse accounts if string (form-data from UI) ──────────────
+  const journalAccounts =
+    typeof body.journalAccounts === "string"
+      ? JSON.parse(body.journalAccounts)
+      : body.journalAccounts || [];
 
-  create = await journalEntriesModel.create([{ ...req.body }], {
+  // ── Counter ────────────────────────────────────────────────────
+  const counter = Number(body.counter || 0) + nextCounterJournal.seq;
+  console.log("body", body);
+  // ── Validate ───────────────────────────────────────────────────
+  validateJournalData({
+    journalDate: body.journalDate,
+    journalAccounts,
+  });
+
+  // ── Build journal payload ──────────────────────────────────────
+  const journalPayload = {
+    companyId,
+    counter,
+    journalRefNum: counter,
+    journalName: body.journalName || "",
+    journalDate: isoDate,
+    journalDesc: body.journalDesc || "",
+    journalType: body.journalType || "",
+    linkCounter: body.linkCounter || "",
+    refCounter: body.refCounter || "",
+    refId: body.refId || null,
+    party: body.party || null,
+    receiptNumber: body.receiptNumber || "",
+    filesArray: body.filesArray || [],
+    sync: false,
+    journalAccounts,
+    journalDebit: journalAccounts.reduce(
+      (s, a) => s + Number(a.MainDebit || 0),
+      0
+    ),
+    journalCredit: journalAccounts.reduce(
+      (s, a) => s + Number(a.MainCredit || 0),
+      0
+    ),
+  };
+
+  // ── Create journal entry ───────────────────────────────────────
+  const created = await journalEntriesModel.create([journalPayload], {
     session,
   });
-  create = create[0];
+  const newJournal = created[0];
 
-  const updateOperations = req.body.journalAccounts.map((item) => ({
+  // ── Update account balances ────────────────────────────────────
+  const updateOperations = journalAccounts.map((item) => ({
     updateOne: {
-      filter: { _id: item.id },
+      filter: { _id: item.id || item._id },
       update: {
         $inc: {
-          debtor: item.MainDebit || 0,
-          creditor: item.MainCredit || 0,
+          debtor: Number(item.MainDebit || 0),
+          creditor: Number(item.MainCredit || 0),
         },
       },
     },
   }));
-  await accountingTreeModel.bulkWrite(updateOperations, { session });
 
-  return create;
+  if (updateOperations.length > 0) {
+    await accountingTreeModel.bulkWrite(updateOperations, { session });
+  }
+
+  return newJournal;
 };
 
 exports.createJournalServiceV2 = async ({
@@ -352,4 +436,172 @@ exports.existingPeriodicService = async ({
     }
   }
   return { message: "Periodic entries updated successfully" };
+};
+
+exports.getOneAccountAndJournalService = async ({
+  companyId,
+  id,
+  limit,
+  page,
+  keyword,
+  filters = {},
+  gotoLastMatched = false,
+}) => {
+  const pageSize = parseInt(limit, 10) || 10;
+  let currentPage = parseInt(page, 10) || 1;
+
+  // ── Fetch account ──────────────────────────────────────────────
+  const account = await accountingTreeModel
+    .findOne({ _id: id, companyId })
+    .populate("currency")
+    .lean();
+
+  if (!account) throw new ApiError("Account not found", 404);
+
+  // ── Build query ────────────────────────────────────────────────
+  const query = { companyId, "journalAccounts.id": id };
+
+  if (filters.partyId) query.party = filters.partyId;
+  if (filters.journalType) query.journalType = filters.journalType;
+  if (filters.auditing) query.auditing = filters.auditing;
+
+  if (filters.startDate || filters.endDate) {
+    query.journalDate = {};
+    if (filters.startDate)
+      query.journalDate.$gte = `${filters.startDate}T00:00:00.000Z`;
+    if (filters.endDate)
+      query.journalDate.$lte = `${filters.endDate}T23:59:59.999Z`;
+  }
+
+  if (keyword) {
+    query.$or = [
+      { journalName: { $regex: keyword, $options: "i" } },
+      { journalRefNum: { $regex: keyword, $options: "i" } },
+      { counter: { $regex: keyword, $options: "i" } },
+      { refCounter: { $regex: keyword, $options: "i" } },
+    ];
+  }
+
+  // ── Fetch all matching journals (for running balance) ──────────
+  const totalItems = await journalEntriesModel.countDocuments(query);
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const allJournals = await journalEntriesModel.find(query).lean();
+
+  // ── Fetch reconciliations ──────────────────────────────────────
+  const reconciliations = await reconciliationModel
+    .find({ companyId })
+    .sort({ createdAt: -1 })
+    .select("journalLineCounter journalEntryId desc matchedBy matchedAt")
+    .lean();
+
+  const reconciliationMap = {};
+  reconciliations.forEach((rec) => {
+    reconciliationMap[rec.journalLineCounter] = rec;
+  });
+
+  // ── Go to last matched page ────────────────────────────────────
+  if (gotoLastMatched && reconciliations.length > 0) {
+    const lastRec = reconciliations[0];
+    const beforeDash = lastRec.journalLineCounter?.split("-")[0];
+
+    if (beforeDash) {
+      const lastJournal = await journalEntriesModel
+        .findOne({ counter: beforeDash, companyId })
+        .lean();
+
+      if (lastJournal) {
+        const sorted = [...allJournals].sort(
+          (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
+        );
+        const index = sorted.findIndex(
+          (j) => j._id.toString() === lastJournal._id.toString()
+        );
+        currentPage = index >= 0 ? Math.floor(index / pageSize) + 1 : 1;
+      } else {
+        currentPage = 1;
+      }
+    } else {
+      currentPage = 1;
+    }
+  }
+
+  // ── Build running balance ──────────────────────────────────────
+  let runningBalanceMaine = 0;
+  let runningBalance = 0;
+  let totalDebtor = 0;
+  let totalCreditor = 0;
+
+  const filteredJournals = allJournals
+    .sort((a, b) => new Date(a.journalDate) - new Date(b.journalDate))
+    .map((journal) => {
+      const filteredAccounts = (journal.journalAccounts || [])
+        .filter((acc) => {
+          let match =
+            acc.id?.toString() === id.toString() && acc.posted !== false;
+          if (filters.currency) {
+            match =
+              match && acc.accountCurrency?.toString() === filters.currency;
+          }
+          return match;
+        })
+        .map((accEntry) => {
+          const mainDebit = Number(accEntry.MainDebit || 0);
+          const mainCredit = Number(accEntry.MainCredit || 0);
+          const accountDebit = Number(accEntry.accountDebit || 0);
+          const accountCredit = Number(accEntry.accountCredit || 0);
+
+          runningBalanceMaine +=
+            account.balanceType === "credit"
+              ? mainCredit - mainDebit
+              : mainDebit - mainCredit;
+
+          totalDebtor += mainDebit;
+          totalCreditor += mainCredit;
+
+          // runningBalance always in account currency
+          runningBalance +=
+            account.balanceType === "credit"
+              ? accountCredit - accountDebit
+              : accountDebit - accountCredit;
+
+          const reconciliationInfo =
+            reconciliationMap[`${journal.counter}-${accEntry.counter}`] || null;
+
+          return {
+            ...accEntry,
+            runningBalanceMaine,
+            runningBalance,
+            reconciliation: reconciliationInfo,
+          };
+        });
+
+      return {
+        ...journal,
+        journalAccounts: filteredAccounts,
+        runningBalanceMaine,
+        runningBalance,
+        totalDebtor,
+        totalCreditor,
+      };
+    })
+    .filter((journal) => journal.journalAccounts.length > 0);
+
+  // ── Paginate ───────────────────────────────────────────────────
+  const skip = (currentPage - 1) * pageSize;
+
+  const paginatedJournals = filteredJournals
+    .sort((a, b) => new Date(b.journalDate) - new Date(a.journalDate))
+    .slice(skip, skip + pageSize);
+
+  return {
+    pages: totalPages,
+    results: totalItems,
+    currentPage,
+    runningBalanceMaine,
+    runningBalance,
+    totalDebtor,
+    totalCreditor,
+    data: account,
+    journals: paginatedJournals,
+  };
 };
