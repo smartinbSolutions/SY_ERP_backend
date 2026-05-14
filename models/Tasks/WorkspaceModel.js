@@ -21,6 +21,7 @@ const workspaceSchema = new mongoose.Schema(
       index: true,
     },
 
+  
     members: [
       {
         user: {

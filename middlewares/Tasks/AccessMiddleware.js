@@ -27,12 +27,17 @@ exports.workspaceAccess = async (req, res, next) => {
       });
     }
 
-    // optional role attach
     const userId = req.user._id.toString();
 
-    const member = workspace.members.find((m) => m.user.toString() === userId);
+    // ======================================
+    // WORKSPACE MEMBER
+    // ======================================
 
-    req.workspaceRole = member?.role || null;
+    const workspaceMember = workspace.members?.find(
+      (m) => m.user.toString() === userId,
+    );
+
+    req.workspaceRole = workspaceMember?.role || null;
 
     req.workspace = workspace;
 
@@ -86,7 +91,50 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
+    const userId = req.user._id.toString();
+
+    // ======================================
+    // WORKSPACE OWNER / MANAGER BYPASS
+    // ======================================
+
+    const isWorkspaceAdmin =
+      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+
+    if (isWorkspaceAdmin) {
+      req.folder = folder;
+      req.folderRole = req.workspaceRole;
+
+      return next();
+    }
+
+    // ======================================
+    // PUBLIC FOLDER
+    // ======================================
+
+    if (folder.visibility === "public") {
+      req.folder = folder;
+      req.folderRole = req.workspaceRole || "viewer";
+
+      return next();
+    }
+
+    // ======================================
+    // PRIVATE FOLDER MEMBER CHECK
+    // ======================================
+
+    const folderMember = folder.members?.find(
+      (m) => m.user.toString() === userId,
+    );
+
+    if (!folderMember) {
+      return res.status(403).json({
+        success: false,
+        message: "Folder access denied",
+      });
+    }
+
     req.folder = folder;
+    req.folderRole = folderMember.role;
 
     next();
   } catch (err) {
@@ -115,6 +163,7 @@ exports.listAccess = async (req, res, next) => {
     const list = await List.findOne({
       _id: listId,
       workspace: workspaceId,
+      folder: req.params.folderId,
     });
 
     if (!list) {
@@ -124,27 +173,80 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
+    const userId = req.user._id.toString();
 
-    if (isAdmin) {
+    // ======================================
+    // WORKSPACE OWNER / MANAGER BYPASS
+    // ======================================
+
+    const isWorkspaceAdmin =
+      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+
+    if (isWorkspaceAdmin) {
       req.list = list;
+      req.listRole = req.workspaceRole;
+
       return next();
     }
 
-    const listMember = list.members?.find(
-      (m) => m.user.toString() === req.user._id.toString(),
+    // ======================================
+    // FOLDER OWNER / MANAGER BYPASS
+    // ======================================
+
+    const folder = await Folder.findById(list.folder);
+
+    if (!folder) {
+      return res.status(404).json({
+        success: false,
+        message: "Parent folder not found",
+      });
+    }
+
+    const folderMember = folder.members?.find(
+      (m) => m.user.toString() === userId,
     );
 
-    req.listRole = listMember?.role || null;
+    const isFolderAdmin =
+      folderMember?.role === "owner" || folderMember?.role === "manager";
 
-    if (list.visibility === "private" && !listMember) {
+    if (isFolderAdmin) {
+      req.folder = folder;
+      req.folderRole = folderMember.role;
+
+      req.list = list;
+      req.listRole = folderMember.role;
+
+      return next();
+    }
+
+    // ======================================
+    // PUBLIC LIST
+    // ======================================
+
+    if (list.visibility === "public") {
+      req.folder = folder;
+      req.list = list;
+
+      return next();
+    }
+
+    // ======================================
+    // PRIVATE LIST MEMBER CHECK
+    // ======================================
+
+    const listMember = list.members?.find((m) => m.user.toString() === userId);
+
+    if (!listMember) {
       return res.status(403).json({
         success: false,
         message: "List access denied",
       });
     }
 
+    req.folder = folder;
     req.list = list;
+    req.listRole = listMember.role;
+
     next();
   } catch (err) {
     return res.status(500).json({
@@ -172,6 +274,7 @@ exports.taskAccess = async (req, res, next) => {
     const task = await TaskModel.findOne({
       _id: taskId,
       workspace: workspaceId,
+      list: req.params.listId,
     });
 
     if (!task) {
@@ -181,10 +284,7 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const list = await List.findOne({
-      _id: task.list,
-      workspace: workspaceId,
-    });
+    const list = await List.findById(task.list);
 
     if (!list) {
       return res.status(404).json({
@@ -193,29 +293,95 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const isAdmin = ["owner", "admin"].includes(req.workspaceRole);
+    const folder = await Folder.findById(list.folder);
 
-    if (isAdmin) {
-      req.task = task;
+    if (!folder) {
+      return res.status(404).json({
+        success: false,
+        message: "Parent folder not found",
+      });
+    }
+
+    const userId = req.user._id.toString();
+
+    // ======================================
+    // WORKSPACE OWNER / MANAGER BYPASS
+    // ======================================
+
+    const isWorkspaceAdmin =
+      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+
+    if (isWorkspaceAdmin) {
+      req.folder = folder;
       req.list = list;
+      req.task = task;
+
       return next();
     }
 
-    if (list.visibility === "private") {
-      const allowed = list.members?.some(
-        (m) => m.user.toString() === req.user._id.toString(),
-      );
+    // ======================================
+    // FOLDER OWNER / MANAGER BYPASS
+    // ======================================
 
-      if (!allowed) {
-        return res.status(403).json({
-          success: false,
-          message: "Task access denied",
-        });
-      }
+    const folderMember = folder.members?.find(
+      (m) => m.user.toString() === userId,
+    );
+
+    const isFolderAdmin =
+      folderMember?.role === "owner" || folderMember?.role === "manager";
+
+    if (isFolderAdmin) {
+      req.folder = folder;
+      req.list = list;
+      req.task = task;
+
+      return next();
     }
 
-    req.task = task;
+    // ======================================
+    // LIST OWNER / MANAGER BYPASS
+    // ======================================
+
+    const listMember = list.members?.find((m) => m.user.toString() === userId);
+
+    const isListAdmin =
+      listMember?.role === "owner" || listMember?.role === "manager";
+
+    if (isListAdmin) {
+      req.folder = folder;
+      req.list = list;
+      req.task = task;
+
+      return next();
+    }
+
+    // ======================================
+    // PUBLIC LIST
+    // ======================================
+
+    if (list.visibility === "public") {
+      req.folder = folder;
+      req.list = list;
+      req.task = task;
+
+      return next();
+    }
+
+    // ======================================
+    // PRIVATE LIST MEMBER CHECK
+    // ======================================
+
+    if (!listMember) {
+      return res.status(403).json({
+        success: false,
+        message: "Task access denied",
+      });
+    }
+
+    req.folder = folder;
     req.list = list;
+    req.task = task;
+    req.listRole = listMember.role;
 
     next();
   } catch (err) {
@@ -225,6 +391,10 @@ exports.taskAccess = async (req, res, next) => {
     });
   }
 };
+
+// ======================================
+// 6. SUBTASK ACCESS
+// ======================================
 exports.subTaskResolver = async (req, res, next) => {
   try {
     const subTaskId = req.params.subTaskId || req.params.id;
@@ -238,7 +408,7 @@ exports.subTaskResolver = async (req, res, next) => {
 
     const subTask = await SubTaskModel.findOne({
       _id: subTaskId,
-      task: req.task._id, 
+      task: req.task._id,
     });
 
     if (!subTask) {

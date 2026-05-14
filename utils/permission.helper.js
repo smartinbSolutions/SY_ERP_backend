@@ -6,11 +6,12 @@ const ROLE_HIERARCHY = {
 };
 const BYPASS_ROLES = ["owner"];
 const ROLE_PERMISSIONS = {
-  viewer: ["read:workspace", "read:list", "read:task"],
+  viewer: ["read:workspace", "read:list", "read:folder", "read:task"],
 
   member: [
     "read:workspace",
     "read:list",
+    "read:folder",
     "read:task",
     "create:task",
     "update:task",
@@ -23,6 +24,7 @@ const ROLE_PERMISSIONS = {
     "create:folder",
     "update:folder",
     "delete:folder",
+    "read:folder",
 
     "create:list",
     "update:list",

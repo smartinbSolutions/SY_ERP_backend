@@ -10,12 +10,15 @@ const sendEmail = require("../../utils/sendEmail");
 
 exports.hrLogin = asyncHandler(async (req, res, next) => {
   try {
-    // Fetch the user and check email and password in parallel
+    const email = req.body.email?.trim().toLowerCase();
+    const password = req.body.password;
 
-    const user = await StaffsModel.findOne({
-      email: req.body.email,
-      // session: false,
-    })
+    if (!email || !password) {
+      return next(new ApiError("Email and password are required", 400));
+    }
+
+    // 🔍 Find user only by email
+    const user = await StaffsModel.findOne({ email })
       .populate({ path: "position", select: "name -_id" })
       .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" })
       .populate("branch")
@@ -43,31 +46,36 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
       })
       .populate("roleId");
 
+    // ❌ user not found
     if (!user) {
+      console.log("❌ User not found");
       return next(new ApiError("Invalid email or password", 401));
     }
-    // Check passwords
-    const passwordMatch = await bcrypt.compare(
-      req.body.password,
-      user.password,
-    );
+
+    // 🔐 Compare password
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      return next(new ApiError("Incorrect Password", 401));
+      console.log("❌ Incorrect password");
+      return next(new ApiError("Incorrect password", 401));
     }
-    user.session = true;
+
+    await StaffsModel.updateOne({ _id: user._id }, { $set: { session: true } });
 
     user.password = undefined;
-    const companyData = await companyInfoModel.findById(user.companyId);
+
+    // 🎟 generate token
     const token = createToken(user, null, "staff");
+
+    console.log("✅ Token Generated");
+
     res.status(200).json({
-      status: "true",
-      company: companyData.companyName,
+      status: true,
       data: user,
       token,
     });
   } catch (error) {
-    console.error("Error during login:", error);
+    console.error("❌ Error during login:", error);
     next(error);
   }
 });

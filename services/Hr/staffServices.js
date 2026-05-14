@@ -200,17 +200,35 @@ exports.getStaff = asyncHandler(async (req, res) => {
 /* ===================== CREATE STAFF ===================== */
 exports.createStaff = asyncHandler(async (req, res) => {
   const companyId = req.query.companyId;
+
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
 
   req.body.companyId = companyId;
 
+  const email = req.body.email?.trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ message: "email is required" });
+  }
+
+  req.body.email = email;
+
+  // 🔥 GLOBAL CHECK
+  const existingStaff = await StaffsModel.findOne({ email });
+
+  if (existingStaff) {
+    return res.status(400).json({
+      message: "Email already exists in system",
+    });
+  }
+
   const employeePass = generatePassword();
 
-  if (req.body.email) {
+  if (email) {
     await sendEmail({
-      email: req.body.email,
+      email,
       subject: "New Account Password",
       message: `Hello ${req.body.fullName}, your password is: ${employeePass}`,
     });
@@ -218,13 +236,10 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
   req.body.password = await bcrypt.hash(employeePass, 12);
 
-  if (
-    req.body.customAttributes &&
-    typeof req.body.customAttributes === "string"
-  ) {
+  if (typeof req.body.customAttributes === "string") {
     try {
       req.body.customAttributes = JSON.parse(req.body.customAttributes);
-    } catch (err) {
+    } catch {
       return res.status(400).json({
         message: "Invalid customAttributes JSON",
       });
@@ -233,7 +248,7 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
   const staff = await StaffsModel.create(req.body);
 
-  if (req.body.staffFilesMeta && req.savedFiles && req.savedFiles.length) {
+  if (req.body.staffFilesMeta && req.savedFiles?.length) {
     const filesMeta = JSON.parse(req.body.staffFilesMeta);
 
     const staffFilesDocs = req.savedFiles.map((file, index) => ({

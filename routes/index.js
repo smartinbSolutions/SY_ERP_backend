@@ -241,11 +241,11 @@ const mountRoutes = (app) => {
   app.use("/api/violation-logs", violationLogRoute);
 
   //task
-  app.use("/api/workspace", WorkspaceRoute);
+  app.use("/api/workspaces", WorkspaceRoute);
   app.use("/api/workspaces/:workspaceId/folders", FolderRoute);
-  app.use("/api/workspaces/:workspaceId/lists", ListRoute);
-  app.use("/api/workspaces/:workspaceId/tasks", tasksRoute);
-  app.use("/api/workspaces/:workspaceId/tasks/:taskId/subtasks", subTaskRoute);
+  app.use("/api/workspaces/:workspaceId/folders/:folderId/lists", ListRoute);
+  app.use("/api/lists/:listId/tasks", tasksRoute);
+  app.use("/api/tasks/:taskId/subtasks", subTaskRoute);
   app.use("/api/comments", commentRoute);
   app.use("/api/attachments", attachmentRoute);
   app.use("/api/time-tracking", timeTrackingRoute);

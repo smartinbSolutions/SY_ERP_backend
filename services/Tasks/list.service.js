@@ -155,19 +155,23 @@ exports.getListsByWorkspace = async ({
   workspaceId,
   companyId,
   userId,
+  workspaceRole,
 }) => {
   const query = {
     workspace: workspaceId,
     companyId,
   };
 
-  // 🔍 search by name
   if (search) {
     query.name = { $regex: search, $options: "i" };
   }
 
-  // 🔐 ensure user is member
-  query["members.user"] = userId;
+  const isWorkspaceAdmin =
+    workspaceRole === "owner" || workspaceRole === "manager";
+
+  if (!isWorkspaceAdmin) {
+    query.$or = [{ visibility: "public" }, { "members.user": userId }];
+  }
 
   const skip = (page - 1) * limit;
 

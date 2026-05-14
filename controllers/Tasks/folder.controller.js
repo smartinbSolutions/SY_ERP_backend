@@ -32,8 +32,8 @@ exports.getFolders = async (req, res) => {
     const data = await folderService.getFoldersByWorkspace(
       req.workspace,
       req.user._id,
+      req.workspaceRole,
     );
-
     return res.status(200).json({
       success: true,
       count: data.length,
@@ -41,6 +41,25 @@ exports.getFolders = async (req, res) => {
     });
   } catch (err) {
     return res.status(403).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ===============================
+// GET FOLDER BY ID
+// ===============================
+exports.getFolder = async (req, res) => {
+  try {
+    const data = await folderService.getFolderById(req.params.folderId);
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (err) {
+    return res.status(404).json({
       success: false,
       message: err.message,
     });
@@ -56,7 +75,7 @@ exports.updateFolder = async (req, res) => {
       req.params.folderId,
       req.body,
       req.user._id,
-      req.workspace,
+      req.workspaceRole,
     );
 
     return res.status(200).json({
@@ -77,12 +96,7 @@ exports.updateFolder = async (req, res) => {
 // ===============================
 exports.deleteFolder = async (req, res) => {
   try {
-    await folderService.deleteFolder(
-      req.params.folderId,
-      req.user._id,
-      req.workspaceRole,
-      req.workspace,
-    );
+    await folderService.deleteFolder(req.params.folderId);
 
     return res.status(200).json({
       success: true,
@@ -90,6 +104,53 @@ exports.deleteFolder = async (req, res) => {
     });
   } catch (err) {
     return res.status(403).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ===============================
+// ADD MEMBER
+// ===============================
+exports.addMember = async (req, res) => {
+  try {
+    const data = await folderService.addMember(
+      req.params.folderId,
+      req.body.userId,
+      req.body.role,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Member added successfully",
+      data,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ===============================
+// REMOVE MEMBER
+// ===============================
+exports.removeMember = async (req, res) => {
+  try {
+    const data = await folderService.removeMember(
+      req.params.folderId,
+      req.params.userId,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Member removed successfully",
+      data,
+    });
+  } catch (err) {
+    return res.status(400).json({
       success: false,
       message: err.message,
     });

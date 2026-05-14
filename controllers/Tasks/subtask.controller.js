@@ -72,7 +72,7 @@ exports.getSubTaskById = async (req, res) => {
 exports.updateSubTask = async (req, res) => {
   try {
     const subTask = await subTaskService.updateSubTask(
-      req.subTask._id, 
+      req.subTask._id,
       req.body,
     );
 
@@ -93,7 +93,7 @@ exports.updateSubTask = async (req, res) => {
 // ======================================
 exports.deleteSubTask = async (req, res) => {
   try {
-    await subTaskService.deleteSubTask(req.subTask._id); 
+    await subTaskService.deleteSubTask(req.subTask._id);
 
     res.status(200).json({
       success: true,
@@ -103,6 +103,99 @@ exports.deleteSubTask = async (req, res) => {
     res.status(404).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+// ======================================
+// ADD CHECKLIST ITEM
+// ======================================
+exports.addChecklistItem = async (req, res) => {
+  try {
+    const subTask = await subTaskService.addChecklistItem(
+      req.params.subTaskId,
+      req.body,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Checklist item added successfully",
+      data: subTask,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ======================================
+// UPDATE CHECKLIST ITEM
+// ======================================
+exports.updateChecklistItem = async (req, res) => {
+  try {
+    const subTask = await subTaskService.updateChecklistItem(
+      req.params.subTaskId,
+      req.params.itemId,
+      req.body,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Checklist item updated successfully",
+      data: subTask,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ======================================
+// DELETE CHECKLIST ITEM
+// ======================================
+exports.deleteChecklistItem = async (req, res) => {
+  try {
+    const subTask = await subTaskService.deleteChecklistItem(
+      req.params.subTaskId,
+      req.params.itemId,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Checklist item deleted successfully",
+      data: subTask,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ======================================
+// TOGGLE CHECKLIST ITEM
+// ======================================
+exports.toggleChecklistItem = async (req, res) => {
+  try {
+    const subTask = await subTaskService.toggleChecklistItem(
+      req.params.subTaskId,
+      req.params.itemId,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Checklist item toggled successfully",
+      data: subTask,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
     });
   }
 };

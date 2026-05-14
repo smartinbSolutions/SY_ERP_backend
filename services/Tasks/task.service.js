@@ -92,17 +92,19 @@ exports.getAllTasks = async ({
   // ===============================
   if (assignedTo) {
     console.log(assignedTo);
-    
-    const employees = await staffModel.find({
-      fullName: {
-        $regex: assignedTo,
-        $options: "i",
-      },
-    }).select("_id");
-console.log(employees);
+
+    const employees = await staffModel
+      .find({
+        fullName: {
+          $regex: assignedTo,
+          $options: "i",
+        },
+      })
+      .select("_id");
+    console.log(employees);
 
     const employeeIds = employees.map((e) => e._id);
-console.log(employeeIds);
+    console.log(employeeIds);
 
     filter.assignedTo = {
       $in: employeeIds,
@@ -216,5 +218,82 @@ exports.deleteTask = async (taskId, workspaceId) => {
 
   if (!task) throw new Error("Task not found");
 
+  return task;
+};
+
+exports.addChecklistItem = async (taskId, data, workspaceId) => {
+  const task = await Task.findOne({
+    _id: taskId,
+    workspace: workspaceId,
+  });
+
+  if (!task) throw new Error("Task not found");
+
+  task.checklist.push({
+    title: data.title,
+    isDone: false,
+    completedAt: null,
+  });
+
+  await task.save();
+  return task;
+};
+
+//  UPDATE ITEM
+exports.updateChecklistItem = async (taskId, itemId, data, workspaceId) => {
+  const task = await Task.findOne({
+    _id: taskId,
+    workspace: workspaceId,
+  });
+
+  if (!task) throw new Error("Task not found");
+
+  const item = task.checklist.id(itemId);
+  if (!item) throw new Error("Checklist item not found");
+
+  if (data.title !== undefined) item.title = data.title;
+
+  if (data.isDone !== undefined) {
+    item.isDone = data.isDone;
+    item.completedAt = data.isDone ? new Date() : null;
+  }
+
+  await task.save();
+  return task;
+};
+
+//  DELETE ITEM
+exports.deleteChecklistItem = async (taskId, itemId, workspaceId) => {
+  const task = await Task.findOne({
+    _id: taskId,
+    workspace: workspaceId,
+  });
+
+  if (!task) throw new Error("Task not found");
+
+  const item = task.checklist.id(itemId);
+  if (!item) throw new Error("Checklist item not found");
+
+  item.remove();
+
+  await task.save();
+  return task;
+};
+
+exports.toggleChecklistItem = async (taskId, itemId, workspaceId) => {
+  const task = await Task.findOne({
+    _id: taskId,
+    workspace: workspaceId,
+  });
+
+  if (!task) throw new Error("Task not found");
+
+  const item = task.checklist.id(itemId);
+  if (!item) throw new Error("Checklist item not found");
+
+  item.isDone = !item.isDone;
+  item.completedAt = item.isDone ? new Date() : null;
+
+  await task.save();
   return task;
 };

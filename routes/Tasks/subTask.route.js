@@ -17,6 +17,12 @@ const {
   getAllSubTasks,
   getSubTaskById,
   updateSubTask,
+
+  // CHECKLIST
+  addChecklistItem,
+  updateChecklistItem,
+  deleteChecklistItem,
+  toggleChecklistItem,
 } = require("../../controllers/Tasks/subtask.controller");
 
 // ======================================
@@ -25,59 +31,90 @@ const {
 subTaskRoute.use(hrAuthServices.protectStaffOrERP);
 
 // ======================================
-// GET ALL SUBTASKS (of task)
+// SUBTASK COLLECTION
 // GET /workspaces/:workspaceId/tasks/:taskId/subtasks
-// ======================================
-subTaskRoute.get("/", workspaceAccess, taskAccess, getAllSubTasks);
-
-// ======================================
-// CREATE SUBTASK
 // POST /workspaces/:workspaceId/tasks/:taskId/subtasks
 // ======================================
-subTaskRoute.post(
-  "/",
-  workspaceAccess,
-  taskAccess,
-  checkPermission("create:task"),
-  createSubTask,
-);
+subTaskRoute
+  .route("/")
+  .get(workspaceAccess, taskAccess, getAllSubTasks)
+  .post(
+    workspaceAccess,
+    taskAccess,
+    checkPermission("create:task"),
+    createSubTask,
+  );
 
 // ======================================
 // SINGLE SUBTASK
 // GET /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
+// PATCH /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
+// DELETE /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
 // ======================================
-subTaskRoute.get(
-  "/:subTaskId",
-  workspaceAccess,
-  taskAccess,
-  subTaskResolver,
-  getSubTaskById,
-);
+subTaskRoute
+  .route("/:subTaskId")
+  .get(workspaceAccess, taskAccess, subTaskResolver, getSubTaskById)
+  .patch(
+    workspaceAccess,
+    taskAccess,
+    subTaskResolver,
+    checkPermission("update:task"),
+    updateSubTask,
+  )
+  .delete(
+    workspaceAccess,
+    taskAccess,
+    subTaskResolver,
+    checkPermission("delete:task"),
+    deleteSubTask,
+  );
 
 // ======================================
-// UPDATE SUBTASK
-// PUT /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
+// CHECKLIST ROUTES (SUBTASK)
 // ======================================
-subTaskRoute.patch(
-  "/:subTaskId",
+
+// ADD CHECKLIST ITEM
+// POST /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist
+subTaskRoute.post(
+  "/:subTaskId/checklist",
   workspaceAccess,
   taskAccess,
   subTaskResolver,
   checkPermission("update:task"),
-  updateSubTask,
+  addChecklistItem,
 );
 
-// ======================================
-// DELETE SUBTASK
-// DELETE /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId
-// ======================================
-subTaskRoute.delete(
-  "/:subTaskId",
+// UPDATE CHECKLIST ITEM
+// PATCH /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist/:itemId
+subTaskRoute.patch(
+  "/:subTaskId/checklist/:itemId",
   workspaceAccess,
   taskAccess,
   subTaskResolver,
-  checkPermission("delete:task"),
-  deleteSubTask,
+  checkPermission("update:task"),
+  updateChecklistItem,
+);
+
+// DELETE CHECKLIST ITEM
+// DELETE /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist/:itemId
+subTaskRoute.delete(
+  "/:subTaskId/checklist/:itemId",
+  workspaceAccess,
+  taskAccess,
+  subTaskResolver,
+  checkPermission("update:task"),
+  deleteChecklistItem,
+);
+
+// TOGGLE CHECKLIST ITEM
+// PATCH /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist/:itemId/toggle
+subTaskRoute.patch(
+  "/:subTaskId/checklist/:itemId/toggle",
+  workspaceAccess,
+  taskAccess,
+  subTaskResolver,
+  checkPermission("update:task"),
+  toggleChecklistItem,
 );
 
 module.exports = subTaskRoute;

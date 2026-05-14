@@ -87,3 +87,103 @@ exports.deleteSubTask = async (subTaskId) => {
 
   return subTask;
 };
+
+// ======================================
+// ADD CHECKLIST ITEM
+// ======================================
+exports.addChecklistItem = async (subTaskId, data) => {
+  const subTask = await SubTask.findById(subTaskId);
+
+  if (!subTask) {
+    throw new Error("SubTask not found");
+  }
+
+  subTask.checklist.push({
+    title: data.title,
+    isDone: false,
+    completedAt: null,
+  });
+
+  await subTask.save();
+
+  return subTask;
+};
+
+// ======================================
+// UPDATE CHECKLIST ITEM
+// ======================================
+exports.updateChecklistItem = async (subTaskId, itemId, data) => {
+  const subTask = await SubTask.findById(subTaskId);
+
+  if (!subTask) {
+    throw new Error("SubTask not found");
+  }
+
+  const item = subTask.checklist.id(itemId);
+
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
+
+  if (data.title !== undefined) {
+    item.title = data.title;
+  }
+
+  if (data.isDone !== undefined) {
+    item.isDone = data.isDone;
+    item.completedAt = data.isDone ? new Date() : null;
+  }
+
+  await subTask.save();
+
+  return subTask;
+};
+
+// ======================================
+// DELETE CHECKLIST ITEM
+// ======================================
+exports.deleteChecklistItem = async (subTaskId, itemId) => {
+  const subTask = await SubTask.findById(subTaskId);
+
+  if (!subTask) {
+    throw new Error("SubTask not found");
+  }
+
+  const item = subTask.checklist.id(itemId);
+
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
+
+  item.deleteOne();
+
+  await subTask.save();
+
+  return subTask;
+};
+
+// ======================================
+// TOGGLE CHECKLIST ITEM
+// ======================================
+exports.toggleChecklistItem = async (subTaskId, itemId) => {
+  const subTask = await SubTask.findById(subTaskId);
+
+  if (!subTask) {
+    throw new Error("SubTask not found");
+  }
+
+  const item = subTask.checklist.id(itemId);
+
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
+
+  item.isDone = !item.isDone;
+
+  item.completedAt = item.isDone ? new Date() : null;
+
+  await subTask.save();
+
+  return subTask;
+};
+

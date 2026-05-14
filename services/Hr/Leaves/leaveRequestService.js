@@ -557,7 +557,7 @@ exports.handleLeaveRequest = asyncHandler(async (req, res, next) => {
             userId: updatedRequest.userId,
             leaveRequestId: updatedRequest._id,
             companyId: updatedRequest.companyId,
-
+            
             leaveSnapshot,
             calculation,
             approvalSnapshot,

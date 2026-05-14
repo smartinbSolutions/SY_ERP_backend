@@ -45,6 +45,7 @@ exports.getLists = async (req, res) => {
       workspaceId,
       companyId,
       userId: req.user._id,
+      workspaceRole: req.workspaceRole,
     });
 
     res.status(200).json({
@@ -131,7 +132,6 @@ exports.deleteList = async (req, res) => {
   }
 };
 
-
 // ===============================
 // ADD MEMBER TO LIST
 // ===============================
@@ -168,11 +168,7 @@ exports.removeMember = async (req, res) => {
   try {
     const { listId, userId } = req.params;
 
-    const data = await listService.removeMember(
-      listId,
-      userId,
-      req.user._id,
-    );
+    const data = await listService.removeMember(listId, userId, req.user._id);
 
     res.status(200).json({
       success: true,
