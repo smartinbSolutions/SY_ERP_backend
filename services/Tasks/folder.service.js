@@ -9,26 +9,42 @@ exports.createFolder = async (data, userId, workspace) => {
     throw new Error("Workspace is required");
   }
 
+  const members = data.members || [];
+
+  const unique = [];
+  const seen = new Set();
+
+  // creator always owner
+  unique.push({
+    user: userId,
+    role: "owner",
+    joinedAt: new Date(),
+  });
+
+  for (const m of members) {
+    const id = String(m.user);
+
+    if (id === String(userId)) continue;
+
+    if (!seen.has(id)) {
+      seen.add(id);
+
+      unique.push({
+        user: m.user,
+        role: m.role || "viewer",
+        joinedAt: new Date(),
+      });
+    }
+  }
+
   const folder = await Folder.create({
     name: data.name.trim(),
     workspace: workspace._id,
     companyId: workspace.companyId,
     createdBy: userId,
-
     visibility: data.visibility || "private",
-
     order: data.order || 0,
-
-    members:
-      data.visibility === "private"
-        ? [
-            {
-              user: userId,
-              role: "owner",
-              joinedAt: new Date(),
-            },
-          ]
-        : [],
+    members: unique,
   });
 
   return folder;
@@ -37,35 +53,27 @@ exports.createFolder = async (data, userId, workspace) => {
 // ===============================
 // GET FOLDERS BY WORKSPACE
 // ===============================
-exports.getFoldersByWorkspace = async (workspace, userId, workspaceRole) => {
+exports.getFoldersByWorkspace = async (workspace, userId, isAdmin) => {
   if (!workspace) {
     throw new Error("Workspace not found");
   }
 
-  const isWorkspaceAdmin = ["owner", "manager"].includes(workspaceRole);
-
-  // ======================================
-  // 1. ADMIN (OWNER / MANAGER)
-  // ======================================
-  if (isWorkspaceAdmin) {
+  if (isAdmin) {
     return await Folder.find({
       workspace: workspace._id,
     }).sort({ order: 1 });
   }
 
-  // ======================================
-  // 2. NORMAL USER
-  // ======================================
   return await Folder.find({
     workspace: workspace._id,
     $or: [{ visibility: "public" }, { "members.user": userId }],
   }).sort({ order: 1 });
 };
+
 // ===============================
 // GET FOLDER BY ID
 // ===============================
-
-exports.getFolderById = async (folderId, userId, workspaceRole) => {
+exports.getFolderById = async (folderId) => {
   const folder = await Folder.findById(folderId).populate(
     "members.user",
     "fullName email",
@@ -75,49 +83,31 @@ exports.getFolderById = async (folderId, userId, workspaceRole) => {
     throw new Error("Folder not found");
   }
 
-  const isWorkspaceAdmin = ["owner", "manager"].includes(workspaceRole);
-
-  if (isWorkspaceAdmin) return folder;
-
-  const isMember = folder.members?.some(
-    (m) => m.user.toString() === userId.toString(),
-  );
-
-  if (folder.visibility === "public" || isMember) {
-    return folder;
-  }
-
-  throw new Error("Folder access denied");
+  return folder;
 };
 
 // ===============================
 // UPDATE FOLDER
 // ===============================
-exports.updateFolder = async (folderId, data, userId, workspaceRole) => {
+exports.updateFolder = async (folderId, data) => {
   const folder = await Folder.findById(folderId);
 
-  if (!folder) {
-    throw new Error("Folder not found");
-  }
-
-  const isWorkspaceAdmin = ["owner", "manager"].includes(workspaceRole);
-
-  const isOwner = folder.members?.some(
-    (m) => m.user.toString() === userId.toString() && m.role === "owner",
-  );
-
-  if (!isWorkspaceAdmin && !isOwner) {
-    throw new Error("Not allowed to update folder");
-  }
+  if (!folder) throw new Error("Folder not found");
 
   if (data.name) folder.name = data.name.trim();
   if (data.order !== undefined) folder.order = data.order;
   if (data.visibility) folder.visibility = data.visibility;
 
+  // ✅ FIX HERE
+  if (data.members) {
+    folder.members = data.members;
+  }
+
   await folder.save();
 
   return folder;
 };
+
 // ===============================
 // DELETE FOLDER
 // ===============================
@@ -157,7 +147,7 @@ exports.addMember = async (folderId, userId, role = "member") => {
     throw new Error("User already exists in folder");
   }
 
-  const updatedFolder = await Folder.findByIdAndUpdate(
+  return await Folder.findByIdAndUpdate(
     folderId,
     {
       $addToSet: {
@@ -169,8 +159,6 @@ exports.addMember = async (folderId, userId, role = "member") => {
     },
     { new: true },
   );
-
-  return updatedFolder;
 };
 
 // ===============================
@@ -191,13 +179,7 @@ exports.removeMember = async (folderId, userId) => {
     throw new Error("User is not a member of this folder");
   }
 
-  const owners = folder.members.filter((m) => m.role === "owner");
-
-  if (member.role === "owner" && owners.length === 1) {
-    throw new Error("Cannot remove the last owner");
-  }
-
-  const updatedFolder = await Folder.findByIdAndUpdate(
+  return await Folder.findByIdAndUpdate(
     folderId,
     {
       $pull: {
@@ -206,6 +188,4 @@ exports.removeMember = async (folderId, userId) => {
     },
     { new: true },
   );
-
-  return updatedFolder;
 };

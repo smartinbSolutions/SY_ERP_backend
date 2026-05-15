@@ -6,7 +6,10 @@ const taskService = require("../../services/Tasks/task.service");
 exports.createTask = async (req, res) => {
   try {
     const task = await taskService.createTask(
-      req.body,
+      {
+        ...req.body,
+        list: req.params.listId,
+      },
       req.user._id,
       req.workspace,
     );
@@ -29,10 +32,7 @@ exports.createTask = async (req, res) => {
 // ======================================
 exports.getOneTask = async (req, res) => {
   try {
-    const task = await taskService.getTaskById(
-      req.params.taskId,
-      req.workspace._id,
-    );
+    const task = await taskService.getTaskById(req.params.taskId);
 
     return res.status(200).json({
       success: true,
@@ -55,7 +55,7 @@ exports.getAllTasks = async (req, res) => {
       workspaceId: req.workspace._id,
       userId: req.user._id,
 
-      listId: req.query.listId,
+      listId: req.params.listId,
 
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 10,
@@ -85,11 +85,7 @@ exports.getAllTasks = async (req, res) => {
 // ======================================
 exports.updateTask = async (req, res) => {
   try {
-    const task = await taskService.updateTask(
-      req.params.taskId,
-      req.body,
-      req.workspace._id,
-    );
+    const task = await taskService.updateTask(req.params.taskId, req.body);
 
     return res.status(200).json({
       success: true,
@@ -109,7 +105,7 @@ exports.updateTask = async (req, res) => {
 // ======================================
 exports.deleteTask = async (req, res) => {
   try {
-    await taskService.deleteTask(req.params.taskId, req.workspace._id);
+    await taskService.deleteTask(req.params.taskId);
 
     return res.status(200).json({
       success: true,

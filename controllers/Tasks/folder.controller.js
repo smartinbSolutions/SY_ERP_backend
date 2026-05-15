@@ -29,11 +29,15 @@ exports.createFolder = async (req, res) => {
 // ===============================
 exports.getFolders = async (req, res) => {
   try {
+    const isAdmin =
+      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+
     const data = await folderService.getFoldersByWorkspace(
       req.workspace,
       req.user._id,
-      req.workspaceRole,
+      isAdmin,
     );
+
     return res.status(200).json({
       success: true,
       count: data.length,
@@ -52,7 +56,10 @@ exports.getFolders = async (req, res) => {
 // ===============================
 exports.getFolder = async (req, res) => {
   try {
-    const data = await folderService.getFolderById(req.params.folderId);
+    const data = await folderService.getFolderById(
+      req.params.folderId,
+      req.user._id,
+    );
 
     return res.status(200).json({
       success: true,
@@ -74,8 +81,6 @@ exports.updateFolder = async (req, res) => {
     const data = await folderService.updateFolder(
       req.params.folderId,
       req.body,
-      req.user._id,
-      req.workspaceRole,
     );
 
     return res.status(200).json({

@@ -17,7 +17,11 @@ const leaveLogSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-
+    leaveType: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Leave",
+      required: true,
+    },
     companyId: {
       type: String,
       required: true,

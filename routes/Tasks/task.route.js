@@ -18,8 +18,8 @@ const {
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
 const {
-  workspaceAccess,
   taskAccess,
+  listAccess,
 } = require("../../middlewares/Tasks/AccessMiddleware");
 
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
@@ -28,7 +28,7 @@ const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 // GLOBAL AUTH + WORKSPACE
 // ======================================
 taskRoute.use(hrAuthServices.protectStaffOrERP);
-taskRoute.use(workspaceAccess);
+taskRoute.use(listAccess);
 
 // ======================================
 // TASK COLLECTION

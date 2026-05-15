@@ -4,7 +4,6 @@ const subTaskRoute = express.Router({ mergeParams: true });
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
 const {
-  workspaceAccess,
   taskAccess,
   subTaskResolver,
 } = require("../../middlewares/Tasks/AccessMiddleware");
@@ -37,13 +36,8 @@ subTaskRoute.use(hrAuthServices.protectStaffOrERP);
 // ======================================
 subTaskRoute
   .route("/")
-  .get(workspaceAccess, taskAccess, getAllSubTasks)
-  .post(
-    workspaceAccess,
-    taskAccess,
-    checkPermission("create:task"),
-    createSubTask,
-  );
+  .get(taskAccess, getAllSubTasks)
+  .post(taskAccess, checkPermission("create:task"), createSubTask);
 
 // ======================================
 // SINGLE SUBTASK
@@ -53,16 +47,14 @@ subTaskRoute
 // ======================================
 subTaskRoute
   .route("/:subTaskId")
-  .get(workspaceAccess, taskAccess, subTaskResolver, getSubTaskById)
+  .get(taskAccess, subTaskResolver, getSubTaskById)
   .patch(
-    workspaceAccess,
     taskAccess,
     subTaskResolver,
     checkPermission("update:task"),
     updateSubTask,
   )
   .delete(
-    workspaceAccess,
     taskAccess,
     subTaskResolver,
     checkPermission("delete:task"),
@@ -77,7 +69,7 @@ subTaskRoute
 // POST /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist
 subTaskRoute.post(
   "/:subTaskId/checklist",
-  workspaceAccess,
+
   taskAccess,
   subTaskResolver,
   checkPermission("update:task"),
@@ -88,7 +80,7 @@ subTaskRoute.post(
 // PATCH /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist/:itemId
 subTaskRoute.patch(
   "/:subTaskId/checklist/:itemId",
-  workspaceAccess,
+
   taskAccess,
   subTaskResolver,
   checkPermission("update:task"),
@@ -99,7 +91,7 @@ subTaskRoute.patch(
 // DELETE /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist/:itemId
 subTaskRoute.delete(
   "/:subTaskId/checklist/:itemId",
-  workspaceAccess,
+
   taskAccess,
   subTaskResolver,
   checkPermission("update:task"),
@@ -110,7 +102,7 @@ subTaskRoute.delete(
 // PATCH /workspaces/:workspaceId/tasks/:taskId/subtasks/:subTaskId/checklist/:itemId/toggle
 subTaskRoute.patch(
   "/:subTaskId/checklist/:itemId/toggle",
-  workspaceAccess,
+
   taskAccess,
   subTaskResolver,
   checkPermission("update:task"),

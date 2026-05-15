@@ -48,17 +48,32 @@ exports.createList = async (data, userId, companyId) => {
 exports.updateList = async (listId, data) => {
   const list = await List.findById(listId);
 
-  if (!list) throw new Error("List not found");
+  if (!list) {
+    throw new Error("List not found");
+  }
 
   if (data.name) list.name = data.name.trim();
-  if (data.visibility) list.visibility = data.visibility;
-  if (data.order !== undefined) list.order = data.order;
+
+  if (data.visibility) {
+    list.visibility = data.visibility;
+  }
+
+  if (data.order !== undefined) {
+    list.order = data.order;
+  }
+
+  // ✅ تحديث الأعضاء
+  if (data.members) {
+    list.members = data.members;
+  }
 
   await list.save();
 
-  return list;
+  return await List.findById(listId).populate(
+    "members.user",
+    "fullName email"
+  );
 };
-
 // ===============================
 // DELETE LIST
 // ===============================

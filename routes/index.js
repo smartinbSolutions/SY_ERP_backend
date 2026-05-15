@@ -241,7 +241,7 @@ const mountRoutes = (app) => {
   app.use("/api/violation-logs", violationLogRoute);
 
   //task
-  app.use("/api/workspaces", WorkspaceRoute);
+  app.use("/api/workspace", WorkspaceRoute);
   app.use("/api/workspaces/:workspaceId/folders", FolderRoute);
   app.use("/api/workspaces/:workspaceId/folders/:folderId/lists", ListRoute);
   app.use("/api/lists/:listId/tasks", tasksRoute);

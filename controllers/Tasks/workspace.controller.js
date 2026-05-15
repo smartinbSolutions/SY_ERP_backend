@@ -29,7 +29,10 @@ exports.createWorkspace = async (req, res) => {
 // ===============================
 exports.getUserWorkspaceTree = async (req, res) => {
   try {
-    const data = await workspaceService.getUserWorkspaceTree(req.user._id);
+    const data = await workspaceService.getUserWorkspaceTree(
+      req.user._id,
+      req.user.companyId,
+    );
 
     return res.status(200).json({
       success: true,

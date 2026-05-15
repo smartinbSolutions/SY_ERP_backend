@@ -151,20 +151,19 @@ exports.folderAccess = async (req, res, next) => {
 exports.listAccess = async (req, res, next) => {
   try {
     const listId = req.params.listId;
-    const workspaceId = req.params.workspaceId;
 
-    if (!listId || !workspaceId) {
+    if (!listId) {
       return res.status(400).json({
         success: false,
-        message: "List ID and Workspace ID are required",
+        message: "List ID is required",
       });
     }
 
-    const list = await List.findOne({
-      _id: listId,
-      workspace: workspaceId,
-      folder: req.params.folderId,
-    });
+    // ======================================
+    // FIND LIST
+    // ======================================
+
+    const list = await List.findById(listId);
 
     if (!list) {
       return res.status(404).json({
@@ -173,24 +172,21 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    const userId = req.user._id.toString();
-
     // ======================================
-    // WORKSPACE OWNER / MANAGER BYPASS
+    // FIND WORKSPACE
     // ======================================
 
-    const isWorkspaceAdmin =
-      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+    const workspace = await Workspace.findById(list.workspace);
 
-    if (isWorkspaceAdmin) {
-      req.list = list;
-      req.listRole = req.workspaceRole;
-
-      return next();
+    if (!workspace) {
+      return res.status(404).json({
+        success: false,
+        message: "Workspace not found",
+      });
     }
 
     // ======================================
-    // FOLDER OWNER / MANAGER BYPASS
+    // FIND FOLDER
     // ======================================
 
     const folder = await Folder.findById(list.folder);
@@ -202,6 +198,40 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
+    const userId = req.user._id.toString();
+
+    // ======================================
+    // WORKSPACE ROLE
+    // ======================================
+
+    const workspaceMember = workspace.members?.find(
+      (m) => m.user.toString() === userId,
+    );
+
+    req.workspace = workspace;
+    req.workspaceRole = workspaceMember?.role || null;
+
+    // ======================================
+    // WORKSPACE ADMIN BYPASS
+    // ======================================
+
+    const isWorkspaceAdmin =
+      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+
+    if (isWorkspaceAdmin) {
+      req.folder = folder;
+      req.list = list;
+
+      req.folderRole = req.workspaceRole;
+      req.listRole = req.workspaceRole;
+
+      return next();
+    }
+
+    // ======================================
+    // FOLDER ADMIN BYPASS
+    // ======================================
+
     const folderMember = folder.members?.find(
       (m) => m.user.toString() === userId,
     );
@@ -211,9 +241,9 @@ exports.listAccess = async (req, res, next) => {
 
     if (isFolderAdmin) {
       req.folder = folder;
-      req.folderRole = folderMember.role;
-
       req.list = list;
+
+      req.folderRole = folderMember.role;
       req.listRole = folderMember.role;
 
       return next();
@@ -226,6 +256,8 @@ exports.listAccess = async (req, res, next) => {
     if (list.visibility === "public") {
       req.folder = folder;
       req.list = list;
+
+      req.listRole = "viewer";
 
       return next();
     }
@@ -262,20 +294,19 @@ exports.listAccess = async (req, res, next) => {
 exports.taskAccess = async (req, res, next) => {
   try {
     const taskId = req.params.taskId || req.params.id;
-    const workspaceId = req.params.workspaceId;
 
-    if (!taskId || !workspaceId) {
+    if (!taskId) {
       return res.status(400).json({
         success: false,
-        message: "Task ID and Workspace ID are required",
+        message: "Task ID is required",
       });
     }
 
-    const task = await TaskModel.findOne({
-      _id: taskId,
-      workspace: workspaceId,
-      list: req.params.listId,
-    });
+    // ======================================
+    // FIND TASK
+    // ======================================
+
+    const task = await TaskModel.findById(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -283,6 +314,10 @@ exports.taskAccess = async (req, res, next) => {
         message: "Task not found",
       });
     }
+
+    // ======================================
+    // FIND LIST
+    // ======================================
 
     const list = await List.findById(task.list);
 
@@ -293,6 +328,10 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
+    // ======================================
+    // FIND FOLDER
+    // ======================================
+
     const folder = await Folder.findById(list.folder);
 
     if (!folder) {
@@ -302,10 +341,34 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
+    // ======================================
+    // FIND WORKSPACE
+    // ======================================
+
+    const workspace = await Workspace.findById(task.workspace);
+
+    if (!workspace) {
+      return res.status(404).json({
+        success: false,
+        message: "Workspace not found",
+      });
+    }
+
     const userId = req.user._id.toString();
 
     // ======================================
-    // WORKSPACE OWNER / MANAGER BYPASS
+    // WORKSPACE ROLE
+    // ======================================
+
+    const workspaceMember = workspace.members?.find(
+      (m) => m.user.toString() === userId,
+    );
+
+    req.workspace = workspace;
+    req.workspaceRole = workspaceMember?.role || null;
+
+    // ======================================
+    // WORKSPACE ADMIN BYPASS
     // ======================================
 
     const isWorkspaceAdmin =
@@ -316,11 +379,14 @@ exports.taskAccess = async (req, res, next) => {
       req.list = list;
       req.task = task;
 
+      req.folderRole = req.workspaceRole;
+      req.listRole = req.workspaceRole;
+
       return next();
     }
 
     // ======================================
-    // FOLDER OWNER / MANAGER BYPASS
+    // FOLDER ADMIN BYPASS
     // ======================================
 
     const folderMember = folder.members?.find(
@@ -335,11 +401,14 @@ exports.taskAccess = async (req, res, next) => {
       req.list = list;
       req.task = task;
 
+      req.folderRole = folderMember.role;
+      req.listRole = folderMember.role;
+
       return next();
     }
 
     // ======================================
-    // LIST OWNER / MANAGER BYPASS
+    // LIST ADMIN BYPASS
     // ======================================
 
     const listMember = list.members?.find((m) => m.user.toString() === userId);
@@ -352,6 +421,8 @@ exports.taskAccess = async (req, res, next) => {
       req.list = list;
       req.task = task;
 
+      req.listRole = listMember.role;
+
       return next();
     }
 
@@ -363,6 +434,8 @@ exports.taskAccess = async (req, res, next) => {
       req.folder = folder;
       req.list = list;
       req.task = task;
+
+      req.listRole = "viewer";
 
       return next();
     }
@@ -381,6 +454,7 @@ exports.taskAccess = async (req, res, next) => {
     req.folder = folder;
     req.list = list;
     req.task = task;
+
     req.listRole = listMember.role;
 
     next();

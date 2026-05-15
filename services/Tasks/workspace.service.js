@@ -57,168 +57,401 @@ exports.createWorkspace = async (data, userId, companyId) => {
   return workspace;
 };
 
-exports.getUserWorkspaceTree = async (userId) => {
+exports.getUserWorkspaceTree = async (userId, companyId) => {
+  const mongoose = require("mongoose");
+
   const normalize = (id) => id?.toString();
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  /* =========================
-     1. Workspaces (direct membership)
-  ========================= */
-  const workspaces = await Workspace.find({
-    "members.user": userObjectId,
+  console.log("\n================ TREE DEBUG START ================\n");
+
+  console.log("TREE DEBUG: INPUT", {
+    userId: normalize(userObjectId),
+    companyId,
+  });
+
+  /* ======================================================
+     1. MEMBERSHIPS
+  ====================================================== */
+
+  const workspaceMemberships = await Workspace.find({
+    companyId,
+    members: {
+      $elemMatch: {
+        user: userObjectId,
+      },
+    },
   }).lean();
 
-  const workspaceIds = workspaces.map((w) => w._id);
+  const folderMemberships = await Folder.find({
+    companyId,
+    members: {
+      $elemMatch: {
+        user: userObjectId,
+      },
+    },
+  }).lean();
+
+  const listMemberships = await List.find({
+    companyId,
+    members: {
+      $elemMatch: {
+        user: userObjectId,
+      },
+    },
+  }).lean();
+
+  const publicLists = await List.find({
+    companyId,
+    visibility: "public",
+  }).lean();
+
+  console.log("TREE DEBUG: memberships", {
+    workspaceMemberships: workspaceMemberships.length,
+    folderMemberships: folderMemberships.length,
+    listMemberships: listMemberships.length,
+    publicLists: publicLists.length,
+  });
+
+  /* ======================================================
+     2. VISIBILITY SETS
+  ====================================================== */
+
+  const visibleWorkspaceIds = new Set();
+  const visibleFolderIds = new Set();
+  const visibleListIds = new Set();
 
   const workspaceRoleMap = {};
+  const folderRoleMap = {};
+  const listRoleMap = {};
 
-  workspaces.forEach((ws) => {
-    const member = (ws.members || []).find(
-      (m) => m.user?.toString() === userId.toString()
+  /* ======================================================
+     3. WORKSPACE MEMBERS
+     -> FULL WORKSPACE ACCESS
+  ====================================================== */
+
+  workspaceMemberships.forEach((ws) => {
+    const wsId = normalize(ws._id);
+
+    visibleWorkspaceIds.add(wsId);
+
+    const member = ws.members?.find(
+      (m) => normalize(m.user) === normalize(userObjectId),
     );
 
-    workspaceRoleMap[ws._id.toString()] = member?.role || "viewer";
-  });
+    workspaceRoleMap[wsId] = member?.role || "viewer";
 
-  /* =========================
-     2. Lists where user is member
-  ========================= */
-  const memberLists = await List.find({
-    "members.user": userObjectId,
-  }).lean();
-
-  const extraWorkspaceIds = [
-    ...new Set(memberLists.map((l) => normalize(l.workspace))),
-  ];
-
-  /* =========================
-     3. Fetch missing workspaces
-  ========================= */
-  const missingWorkspaceIds = extraWorkspaceIds.filter(
-    (id) => !workspaceIds.map(normalize).includes(id)
-  );
-
-  const extraWorkspaces = await Workspace.find({
-    _id: { $in: missingWorkspaceIds },
-  }).lean();
-
-  /* =========================
-     4. Fetch folders
-  ========================= */
-  const allWorkspaceIds = [
-    ...workspaceIds,
-    ...missingWorkspaceIds,
-  ];
-
-  const folders = await Folder.find({
-    workspace: { $in: allWorkspaceIds },
-  }).lean();
-
-  /* =========================
-     5. Fetch lists (all for members + workspace lists)
-  ========================= */
-  const lists = await List.find({
-    workspace: { $in: allWorkspaceIds },
-  }).lean();
-
-  /* =========================
-     6. Build folder map
-  ========================= */
-  const folderMap = {};
-
-  folders.forEach((f) => {
-    const wsId = normalize(f.workspace);
-    const fId = normalize(f._id);
-
-    if (!folderMap[wsId]) folderMap[wsId] = {};
-
-    folderMap[wsId][fId] = {
-      ...f,
-      lists: [],
-    };
-  });
-
-  /* =========================
-     7. Distribute lists
-  ========================= */
-  lists.forEach((list) => {
-    const wsId = normalize(list.workspace);
-    const fId = normalize(list.folder);
-
-    const folder = folderMap?.[wsId]?.[fId];
-    if (!folder) return;
-
-    const wsRole = workspaceRoleMap[wsId];
-
-    const listMembers = Array.isArray(list.members) ? list.members : [];
-
-    const listMember = listMembers.find(
-      (m) => m.user?.toString() === userId.toString()
-    );
-
-    const isWorkspaceMember = !!wsRole;
-    const isListMember = !!listMember;
-
-    let canAccess = false;
-
-    if (isWorkspaceMember) {
-      // normal behavior
-      if (list.visibility === "public") canAccess = true;
-      else if (isListMember) canAccess = true;
-      else if (["owner", "manager"].includes(wsRole)) canAccess = true;
-    } else {
-      // 🔥 new rule
-      if (isListMember) {
-        canAccess = true;
-
-        // ❗ important: restrict folder to this list only
-        folder.lists = [];
-      }
-    }
-
-    if (!canAccess) return;
-
-    folder.lists.push({
-      _id: list._id,
-      name: list.name,
-      visibility: list.visibility,
-      workspaceRole: wsRole || null,
-      listRole: listMember?.role || null,
-      order: list.order,
+    console.log("TREE DEBUG: workspace access", {
+      workspace: ws.name,
+      role: workspaceRoleMap[wsId],
     });
   });
 
-  /* =========================
-     8. Build final tree
-  ========================= */
-  const allWorkspaces = [...workspaces, ...extraWorkspaces];
+  /* ======================================================
+     4. FOLDER MEMBERS
+     -> FOLDER + PARENT WORKSPACE
+  ====================================================== */
 
-  const tree = allWorkspaces.map((ws) => {
+  folderMemberships.forEach((folder) => {
+    const folderId = normalize(folder._id);
+    const wsId = normalize(folder.workspace);
+
+    visibleFolderIds.add(folderId);
+    visibleWorkspaceIds.add(wsId);
+
+    const member = folder.members?.find(
+      (m) => normalize(m.user) === normalize(userObjectId),
+    );
+
+    folderRoleMap[folderId] = member?.role || "viewer";
+
+    console.log("TREE DEBUG: folder access", {
+      folder: folder.name,
+      role: folderRoleMap[folderId],
+      workspaceId: wsId,
+    });
+  });
+
+  /* ======================================================
+     5. LIST MEMBERS
+     -> LIST + FOLDER + WORKSPACE
+  ====================================================== */
+
+  listMemberships.forEach((list) => {
+    const listId = normalize(list._id);
+    const folderId = normalize(list.folder);
+    const wsId = normalize(list.workspace);
+
+    visibleListIds.add(listId);
+    visibleFolderIds.add(folderId);
+    visibleWorkspaceIds.add(wsId);
+
+    const member = list.members?.find(
+      (m) => normalize(m.user) === normalize(userObjectId),
+    );
+
+    listRoleMap[listId] = member?.role || "viewer";
+
+    console.log("TREE DEBUG: list access", {
+      list: list.name,
+      role: listRoleMap[listId],
+      folderId,
+      workspaceId: wsId,
+    });
+  });
+
+  /* ======================================================
+     6. PUBLIC LISTS
+     -> LIST + PATH
+  ====================================================== */
+
+  publicLists.forEach((list) => {
+    const listId = normalize(list._id);
+    const folderId = normalize(list.folder);
+    const wsId = normalize(list.workspace);
+
+    visibleListIds.add(listId);
+    visibleFolderIds.add(folderId);
+    visibleWorkspaceIds.add(wsId);
+  });
+
+  console.log("TREE DEBUG: visibility sets", {
+    workspaces: visibleWorkspaceIds.size,
+    folders: visibleFolderIds.size,
+    lists: visibleListIds.size,
+  });
+
+  /* ======================================================
+     7. FETCH VISIBLE WORKSPACES
+  ====================================================== */
+
+  const visibleWorkspaces = await Workspace.find({
+    _id: {
+      $in: [...visibleWorkspaceIds].map(
+        (id) => new mongoose.Types.ObjectId(id),
+      ),
+    },
+  }).lean();
+
+  console.log(
+    "TREE DEBUG: visibleWorkspaces fetched",
+    visibleWorkspaces.length,
+  );
+
+  /* ======================================================
+     8. FETCH VISIBLE FOLDERS
+  ====================================================== */
+
+  let visibleFolders = [];
+
+  // workspace members see ALL folders
+  if (workspaceMemberships.length > 0) {
+    const workspaceIds = workspaceMemberships.map((w) => w._id);
+
+    const workspaceFolders = await Folder.find({
+      companyId,
+      workspace: {
+        $in: workspaceIds,
+      },
+    }).lean();
+
+    visibleFolders.push(...workspaceFolders);
+
+    workspaceFolders.forEach((f) => {
+      visibleFolderIds.add(normalize(f._id));
+    });
+
+    console.log(
+      "TREE DEBUG: workspace folders fetched",
+      workspaceFolders.length,
+    );
+  }
+
+  // directly visible folders
+  const directFolders = await Folder.find({
+    _id: {
+      $in: [...visibleFolderIds].map((id) => new mongoose.Types.ObjectId(id)),
+    },
+  }).lean();
+
+  visibleFolders.push(...directFolders);
+
+  // remove duplicates
+  visibleFolders = Array.from(
+    new Map(visibleFolders.map((f) => [normalize(f._id), f])).values(),
+  );
+
+  console.log("TREE DEBUG: final visible folders", visibleFolders.length);
+
+  /* ======================================================
+     9. FETCH VISIBLE LISTS
+  ====================================================== */
+
+  let visibleLists = [];
+
+  // workspace members see ALL lists
+  if (workspaceMemberships.length > 0) {
+    const workspaceIds = workspaceMemberships.map((w) => w._id);
+
+    const workspaceLists = await List.find({
+      companyId,
+      workspace: {
+        $in: workspaceIds,
+      },
+    }).lean();
+
+    visibleLists.push(...workspaceLists);
+
+    workspaceLists.forEach((l) => {
+      visibleListIds.add(normalize(l._id));
+    });
+
+    console.log("TREE DEBUG: workspace lists fetched", workspaceLists.length);
+  }
+
+  // folder members see all lists inside folders
+  if (folderMemberships.length > 0) {
+    const folderIds = folderMemberships.map((f) => f._id);
+
+    const folderLists = await List.find({
+      companyId,
+      folder: {
+        $in: folderIds,
+      },
+    }).lean();
+
+    visibleLists.push(...folderLists);
+
+    folderLists.forEach((l) => {
+      visibleListIds.add(normalize(l._id));
+    });
+
+    console.log("TREE DEBUG: folder lists fetched", folderLists.length);
+  }
+
+  // direct lists
+  const directLists = await List.find({
+    _id: {
+      $in: [...visibleListIds].map((id) => new mongoose.Types.ObjectId(id)),
+    },
+  }).lean();
+
+  visibleLists.push(...directLists);
+
+  // remove duplicates
+  visibleLists = Array.from(
+    new Map(visibleLists.map((l) => [normalize(l._id), l])).values(),
+  );
+
+  console.log("TREE DEBUG: final visible lists", visibleLists.length);
+
+  /* ======================================================
+     10. BUILD WORKSPACE MAP
+  ====================================================== */
+
+  const workspaceMap = {};
+  const folderMap = {};
+
+  visibleWorkspaces.forEach((ws) => {
     const wsId = normalize(ws._id);
-    const wsRole = workspaceRoleMap[wsId] || null;
 
-    let foldersObj = folderMap[wsId] || {};
-
-    // 🔥 critical: filter folders if not workspace member
-    if (!wsRole) {
-      foldersObj = Object.fromEntries(
-        Object.entries(foldersObj).filter(([_, folder]) => {
-          return folder.lists.length > 0;
-        })
-      );
-    }
-
-    return {
+    workspaceMap[wsId] = {
       _id: ws._id,
       name: ws.name,
-      role: wsRole,
-      folders: Object.values(foldersObj),
+      role: workspaceRoleMap[wsId] || null,
+      folders: [],
     };
   });
 
-  return tree;
-};
+  console.log("TREE DEBUG: workspaceMap built", Object.keys(workspaceMap));
 
+  /* ======================================================
+     11. ATTACH FOLDERS
+  ====================================================== */
+
+  visibleFolders.forEach((folder) => {
+    const folderId = normalize(folder._id);
+    const wsId = normalize(folder.workspace);
+
+    if (!workspaceMap[wsId]) {
+      console.log("TREE DEBUG: ORPHAN FOLDER", {
+        folderId,
+        wsId,
+      });
+
+      return;
+    }
+
+    const folderObj = {
+      _id: folder._id,
+      name: folder.name,
+      visibility: folder.visibility,
+      order: folder.order,
+      role: folderRoleMap[folderId] || null,
+      lists: [],
+    };
+
+    folderMap[folderId] = folderObj;
+
+    workspaceMap[wsId].folders.push(folderObj);
+  });
+
+  console.log("TREE DEBUG: folderMap size", Object.keys(folderMap).length);
+
+  /* ======================================================
+     12. ATTACH LISTS
+  ====================================================== */
+
+  visibleLists.forEach((list) => {
+    const folderId = normalize(list.folder);
+    const listId = normalize(list._id);
+
+    if (!folderMap[folderId]) {
+      console.log("TREE DEBUG: ORPHAN LIST", {
+        listId,
+        folderId,
+      });
+
+      return;
+    }
+
+    folderMap[folderId].lists.push({
+      _id: list._id,
+      name: list.name,
+      visibility: list.visibility,
+      order: list.order,
+      role: listRoleMap[listId] || null,
+    });
+  });
+
+  /* ======================================================
+     13. SORT
+  ====================================================== */
+
+  Object.values(workspaceMap).forEach((ws) => {
+    ws.folders.sort((a, b) => a.order - b.order);
+  });
+
+  Object.values(folderMap).forEach((folder) => {
+    folder.lists.sort((a, b) => a.order - b.order);
+  });
+
+  /* ======================================================
+     14. FINAL LOGS
+  ====================================================== */
+
+  const result = Object.values(workspaceMap);
+
+  console.log("\n================ TREE DEBUG FINAL ================\n");
+
+  console.log("TREE DEBUG: FINAL SUMMARY", {
+    workspaces: result.length,
+    folders: visibleFolders.length,
+    lists: visibleLists.length,
+  });
+
+  return result;
+};
 
 exports.getUserWorkspaces = async (userId) => {
   return await Workspace.find({
@@ -237,15 +470,20 @@ exports.getWorkspaceById = async (workspaceId) => {
 
   return workspace;
 };
-
 exports.updateWorkspace = async (workspaceId, data) => {
-  const workspace = await Workspace.findByIdAndUpdate(
-    workspaceId,
-    { name: data.name },
-    { new: true },
-  );
+  const workspace = await Workspace.findById(workspaceId);
 
   if (!workspace) throw new Error("Workspace not found");
+
+  if (data.name) {
+    workspace.name = data.name;
+  }
+
+  if (data.members) {
+    workspace.members = data.members;
+  }
+
+  await workspace.save();
 
   return workspace;
 };
