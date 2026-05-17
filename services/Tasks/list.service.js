@@ -8,15 +8,15 @@ exports.createList = async (data, userId, companyId) => {
   if (!data.workspace) throw new Error("Workspace is required");
   if (!data.folder) throw new Error("Folder is required");
 
-  const exists = await List.findOne({
-    name: data.name.trim(),
-    workspace: data.workspace,
-    companyId,
-  });
+  // const exists = await List.findOne({
+  //   name: data.name.trim(),
+  //   workspace: data.workspace,
+  //   companyId,
+  // });
 
-  if (exists) {
-    throw new Error("List with this name already exists");
-  }
+  // if (exists) {
+  //   throw new Error("List with this name already exists");
+  // }
 
   const members = data.members || [];
 
@@ -69,10 +69,7 @@ exports.updateList = async (listId, data) => {
 
   await list.save();
 
-  return await List.findById(listId).populate(
-    "members.user",
-    "fullName email"
-  );
+  return await List.findById(listId).populate("members.user", "fullName email");
 };
 // ===============================
 // DELETE LIST
@@ -96,7 +93,7 @@ exports.addMember = async (listId, targetUserId, role) => {
   if (!list) throw new Error("List not found");
 
   const exists = list.members?.some(
-    (m) => m.user.toString() === targetUserId.toString(),
+    (m) => m.user.toString() === targetUserId.toString()
   );
 
   if (exists) {
@@ -119,7 +116,7 @@ exports.addMember = async (listId, targetUserId, role) => {
 exports.getListById = async (listId) => {
   const list = await List.findById(listId).populate(
     "members.user",
-    "fullName email",
+    "fullName email"
   );
 
   if (!list) throw new Error("List not found");
@@ -136,7 +133,7 @@ exports.removeMember = async (listId, targetUserId) => {
   if (!list) throw new Error("List not found");
 
   const isMember = list.members.some(
-    (m) => m.user.toString() === targetUserId.toString(),
+    (m) => m.user.toString() === targetUserId.toString()
   );
 
   if (!isMember) {
@@ -145,7 +142,7 @@ exports.removeMember = async (listId, targetUserId) => {
 
   // 🚫 لا تسمح بحذف الـ owner
   const target = list.members.find(
-    (m) => m.user.toString() === targetUserId.toString(),
+    (m) => m.user.toString() === targetUserId.toString()
   );
 
   if (target.role === "owner") {
@@ -153,7 +150,7 @@ exports.removeMember = async (listId, targetUserId) => {
   }
 
   list.members = list.members.filter(
-    (m) => m.user.toString() !== targetUserId.toString(),
+    (m) => m.user.toString() !== targetUserId.toString()
   );
 
   await list.save();
