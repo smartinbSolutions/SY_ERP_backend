@@ -168,8 +168,7 @@ exports.addMember = async (
   // =========================
 
   const finalNotificationsEnabled =
-    notificationsEnabled ??
-    ["owner", "manager"].includes(role);
+    notificationsEnabled ?? ["owner", "manager"].includes(role);
 
   list.members.push({
     user: targetUserId,
@@ -244,11 +243,31 @@ exports.removeMember = async (listId, targetUserId) => {
     throw new Error("Cannot remove the owner");
   }
 
+  // =========================
+  // REMOVE MEMBER
+  // =========================
   list.members = list.members.filter(
     (m) => m.user.toString() !== targetUserId.toString(),
   );
 
   await list.save();
+
+  // =========================
+  // NOTIFICATION
+  // =========================
+  await NotificationModel.create({
+    recipient: targetUserId,
+    actor: list.createdBy,
+
+    type: "list.member_removed",
+    title: "Removed from List",
+    message: `You were removed from list "${list.name}"`,
+
+    entity: {
+      id: list._id,
+      model: "List",
+    },
+  });
 
   return list;
 };

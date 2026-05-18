@@ -3,8 +3,34 @@ const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/staffModel");
+const NotificationModel = require("../../models/Hr/NotificationModel");
 
-// ======================================
+
+const getTaskRecipients = async (task, actorId) => {
+  const map = new Map();
+
+  const addMembers = (members = []) => {
+    for (const m of members) {
+      map.set(String(m.user), m.notificationsEnabled);
+    }
+  };
+
+  const list = task?.list;
+  const folder = list?.folder;
+  const workspace = list?.workspace;
+
+  if (workspace?.members) addMembers(workspace.members);
+  if (folder?.members) addMembers(folder.members);
+  if (list?.members) addMembers(list.members);
+
+  map.delete(String(actorId));
+
+  return [...map.entries()]
+    .filter(([_, enabled]) => enabled === true)
+    .map(([userId]) => userId);
+};
+
+// ====================================== 
 // CREATE TASK (workspace aware)
 // ======================================
 exports.createTask = async (data, userId) => {
@@ -29,8 +55,12 @@ exports.createTask = async (data, userId) => {
 // ======================================
 exports.getTaskById = async (taskId) => {
   const task = await Task.findById(taskId)
-    .populate("assignedTo", "name email")
-    .populate("createdBy", "name email");
+    .populate({
+      path: "list",
+      populate: [{ path: "folder" }, { path: "workspace" }],
+    })
+    .populate("assignedTo", "fullName email")
+    .populate("createdBy", "fullName email");
 
   if (!task) throw new Error("Task not found");
 
@@ -126,8 +156,8 @@ exports.getAllTasks = async ({
   // TASKS
   // ===============================
   const tasks = await Task.find(filter)
-    .populate("assignedTo", "name email")
-    .populate("createdBy", "name email")
+    .populate("assignedTo", "fullName email")
+    .populate("createdBy", "fullName email")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -143,8 +173,8 @@ exports.getAllTasks = async ({
     .find({
       task: { $in: taskIds },
     })
-    .populate("assignedTo", "name email")
-    .populate("createdBy", "name email")
+    .populate("assignedTo", "fullName email")
+    .populate("createdBy", "fullName email")
     .lean();
 
   // ===============================
@@ -183,10 +213,37 @@ exports.getAllTasks = async ({
 // ======================================
 // UPDATE TASK
 // ======================================
-exports.updateTask = async (taskId, data) => {
-  const task = await Task.findByIdAndUpdate(taskId, data, { new: true });
+exports.updateTask = async (taskId, data, actorId) => {
+  const task = await Task.findByIdAndUpdate(taskId, data, {
+    new: true,
+  }).populate({
+    path: "list",
+    populate: [{ path: "folder" }, { path: "workspace" }],
+  });
 
   if (!task) throw new Error("Task not found");
+
+  // =========================
+  // NOTIFICATIONS LOGIC
+  // =========================
+
+  const recipients = await getTaskRecipients(task, actorId);
+
+  if (recipients.length > 0) {
+    const notifications = recipients.map((userId) => ({
+      recipient: userId,
+      actor: actorId,
+      type: "task.updated",
+      title: "Task Updated",
+      message: `Task "${task.title}" was updated`,
+      entity: {
+        id: task._id,
+        model: "Task",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+  }
 
   return task;
 };

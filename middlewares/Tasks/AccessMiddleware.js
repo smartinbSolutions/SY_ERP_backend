@@ -307,7 +307,7 @@ exports.taskAccess = async (req, res, next) => {
     // ======================================
 
     const task = await TaskModel.findById(taskId);
-
+    console.log(task);
     if (!task) {
       return res.status(404).json({
         success: false,

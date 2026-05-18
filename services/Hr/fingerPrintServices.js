@@ -22,7 +22,7 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
   const skip = (page - 1) * pageSize;
 
   let mongooseQuery = fingerPrintModel.find({ companyId });
-  mongooseQuery = mongooseQuery.populate("userID", "name email");
+  mongooseQuery = mongooseQuery.populate("userID", "fullName email");
 
   if (req.query.keyword) {
     const query = {
@@ -30,7 +30,7 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
         {
           $or: [
             {
-              name: {
+              fullName: {
                 $regex: req.query.keyword,
                 $options: "i",
               },
@@ -145,7 +145,7 @@ exports.getLoggedUserFingerPrintsByDays = asyncHandler(
                 records: {
                   $push: {
                     _id: "$_id",
-                    name: "$name",
+                    fullName: "$fullName",
                     userID: "$userID",
                     email: "$email",
                     Time: "$Time",
@@ -299,7 +299,7 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   req.body.Time = time;
   req.body.companyId = companyId;
   req.body.userID = req.user.id;
-  req.body.name = staffMember.name;
+  req.body.name = staffMember.fullName;
   req.body.email = staffMember.email;
 
   // ---------------- CREATE FINGERPRINT ----------------
@@ -638,7 +638,7 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       status: true,
       userId,
-      staffName: staffMember.name,
+      staffName: staffMember.fullName,
       baseSalary: salaryPerMonth,
       salaryPerHour: salaryPerHour.toFixed(4),
       totalHours: totalHours.toFixed(2),

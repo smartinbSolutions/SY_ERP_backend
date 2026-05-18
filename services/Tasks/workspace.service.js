@@ -641,6 +641,9 @@ exports.removeMember = async (workspaceId, userId) => {
     throw new Error("Cannot remove the last owner");
   }
 
+  // =========================
+  // REMOVE MEMBER
+  // =========================
   const updatedWorkspace = await Workspace.findByIdAndUpdate(
     workspaceId,
     {
@@ -650,6 +653,23 @@ exports.removeMember = async (workspaceId, userId) => {
     },
     { new: true },
   );
+
+  // =========================
+  // NOTIFICATION
+  // =========================
+
+  // send notification to removed user
+  await NotificationModel.create({
+    recipient: userId,
+    actor: workspace.createdBy,
+    type: "workspace.member_removed",
+    title: "Removed from Workspace",
+    message: `You were removed from workspace "${workspace.name}"`,
+    entity: {
+      id: workspace._id,
+      model: "Workspace",
+    },
+  });
 
   return updatedWorkspace;
 };

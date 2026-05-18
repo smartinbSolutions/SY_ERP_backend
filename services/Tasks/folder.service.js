@@ -233,7 +233,7 @@ exports.addMember = async (
 
 // ===============================
 // REMOVE MEMBER
-// ===============================
+// ===============================  
 exports.removeMember = async (folderId, userId) => {
   const folder = await Folder.findById(folderId);
 
@@ -249,7 +249,10 @@ exports.removeMember = async (folderId, userId) => {
     throw new Error("User is not a member of this folder");
   }
 
-  return await Folder.findByIdAndUpdate(
+  // =========================
+  // REMOVE MEMBER
+  // =========================
+  const updatedFolder = await Folder.findByIdAndUpdate(
     folderId,
     {
       $pull: {
@@ -258,4 +261,21 @@ exports.removeMember = async (folderId, userId) => {
     },
     { new: true },
   );
+  // =========================
+  // NOTIFICATION
+  // =========================
+  await NotificationModel.create({
+    recipient: userId,
+    actor: folder.createdBy,
+
+    type: "folder.member_removed",
+    title: "Removed from Folder",
+    message: `You were removed from folder "${folder.name}"`,
+    entity: {
+      id: folder._id,
+      model: "Folder",
+    },
+  });
+
+  return updatedFolder;
 };
