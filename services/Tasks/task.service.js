@@ -9,9 +9,27 @@ const NotificationModel = require("../../models/Hr/NotificationModel");
 const getTaskRecipients = async (task, actorId) => {
   const map = new Map();
 
-  const addMembers = (members = []) => {
+  console.log("🟡 TASK INPUT:", task);
+  console.log("🟡 ACTOR ID:", actorId);
+
+  const addMembers = (members = [], source = "unknown") => {
+    console.log(`\n🔵 ADDING MEMBERS FROM: ${source}`);
+    console.log("MEMBERS:", members);
+
     for (const m of members) {
-      map.set(String(m.user), m.notificationsEnabled);
+      console.log("➡️ MEMBER:", m);
+
+      if (!m?.user) {
+        console.log("⚠️ SKIPPED MEMBER (no user):", m);
+        continue;
+      }
+
+      const key = String(m.user);
+      const enabled = m.notificationsEnabled;
+
+      console.log(`   user=${key} | notificationsEnabled=${enabled}`);
+
+      map.set(key, enabled);
     }
   };
 
@@ -19,15 +37,32 @@ const getTaskRecipients = async (task, actorId) => {
   const folder = list?.folder;
   const workspace = list?.workspace;
 
-  if (workspace?.members) addMembers(workspace.members);
-  if (folder?.members) addMembers(folder.members);
-  if (list?.members) addMembers(list.members);
+  console.log("\n🟣 RESOLVED STRUCTURE:");
+  console.log("LIST:", list);
+  console.log("FOLDER:", folder);
+  console.log("WORKSPACE:", workspace);
 
+  if (workspace?.members) addMembers(workspace.members, "workspace");
+  if (folder?.members) addMembers(folder.members, "folder");
+  if (list?.members) addMembers(list.members, "list");
+
+  console.log("\n🟠 MAP BEFORE FILTER:");
+  console.log([...map.entries()]);
+
+  // remove actor
   map.delete(String(actorId));
 
-  return [...map.entries()]
+  console.log("\n🔴 MAP AFTER REMOVING ACTOR:");
+  console.log([...map.entries()]);
+
+  const result = [...map.entries()]
     .filter(([_, enabled]) => enabled === true)
     .map(([userId]) => userId);
+
+  console.log("\n🟢 FINAL RECIPIENTS:");
+  console.log(result);
+
+  return result;
 };
 
 // ====================================== 

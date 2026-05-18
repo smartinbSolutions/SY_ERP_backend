@@ -4,8 +4,6 @@ const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 
-
-
 // ======================================
 // CREATE TASK
 // ======================================
@@ -17,7 +15,6 @@ exports.createTask = async (req, res) => {
         list: req.params.listId,
       },
       req.user._id,
-      req.workspace,
     );
 
     return res.status(201).json({
@@ -91,7 +88,11 @@ exports.getAllTasks = async (req, res) => {
 // ======================================
 exports.updateTask = async (req, res) => {
   try {
-    const task = await taskService.updateTask(req.params.taskId, req.body);
+    const task = await taskService.updateTask(
+      req.params.taskId,
+      req.body,
+      req.user._id,
+    );
 
     return res.status(200).json({
       success: true,
