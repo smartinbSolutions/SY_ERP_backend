@@ -19,37 +19,71 @@ exports.createWorkspace = async (data, userId, companyId) => {
     throw new Error("Workspace with this name already exists");
   }
 
-  // 🔥 members من request
+  // =========================
+  // MEMBERS FROM REQUEST
+  // =========================
+
   const members = data.members || [];
 
-  // 🔥 تنظيف + منع التكرار
+  // =========================
+  // REMOVE DUPLICATES
+  // =========================
+
   const uniqueMembers = [];
   const seen = new Set();
 
   for (const m of members) {
     const id = String(m.user);
 
-    if (!seen.has(id) && id !== String(userId)) {
-      seen.add(id);
-
-      uniqueMembers.push({
-        user: m.user,
-        role: m.role || "member",
-      });
+    // skip creator
+    if (id === String(userId)) {
+      continue;
     }
+
+    // skip duplicates
+    if (seen.has(id)) {
+      continue;
+    }
+
+    seen.add(id);
+
+    // =========================
+    // NOTIFICATION DEFAULTS
+    // owner/manager => true
+    // member/viewer => false
+    // =========================
+
+    const notificationsEnabled =
+      m.notificationsEnabled ?? ["owner", "manager"].includes(m.role);
+
+    uniqueMembers.push({
+      user: m.user,
+      role: m.role,
+      notificationsEnabled,
+    });
   }
 
-  // 🔥 creator دائمًا owner
+  // =========================
+  // CREATOR ALWAYS OWNER
+  // =========================
+
   const finalMembers = [
     {
       user: userId,
       role: "owner",
+      notificationsEnabled: true,
     },
+
     ...uniqueMembers,
   ];
 
+  // =========================
+  // CREATE WORKSPACE
+  // =========================
+
   const workspace = await Workspace.create({
     name: data.name.trim(),
+
     companyId,
     createdBy: userId,
     members: finalMembers,
@@ -59,18 +93,17 @@ exports.createWorkspace = async (data, userId, companyId) => {
   // MEMBER NOTIFICATIONS
   // =========================
 
-  if (uniqueMembers.length > 0) {
-    const notifications = uniqueMembers.map((member) => ({
+  const notificationMembers = uniqueMembers.filter(
+    (member) => member.notificationsEnabled,
+  );
+
+  if (notificationMembers.length > 0) {
+    const notifications = notificationMembers.map((member) => ({
       recipient: member.user,
-
       actor: userId,
-
       type: "workspace.member_added",
-
       title: "Added to Workspace",
-
       message: `You were added to workspace "${workspace.name}"`,
-
       entity: {
         id: workspace._id,
         model: "Workspace",
@@ -522,7 +555,12 @@ exports.deleteWorkspace = async (workspaceId) => {
   return workspace;
 };
 
-exports.addMember = async (workspaceId, userId, role = "member") => {
+exports.addMember = async (
+  workspaceId,
+  userId,
+  role = "member",
+  notificationsEnabled,
+) => {
   const workspace = await Workspace.findById(workspaceId);
 
   if (!workspace) {
@@ -543,6 +581,9 @@ exports.addMember = async (workspaceId, userId, role = "member") => {
     throw new Error("User already exists in workspace");
   }
 
+  const finalNotificationsEnabled =
+    notificationsEnabled ?? ["owner", "manager"].includes(role);
+
   const updatedWorkspace = await Workspace.findByIdAndUpdate(
     workspaceId,
     {
@@ -550,6 +591,7 @@ exports.addMember = async (workspaceId, userId, role = "member") => {
         members: {
           user: userId,
           role,
+          notificationsEnabled: finalNotificationsEnabled,
         },
       },
     },
@@ -560,22 +602,20 @@ exports.addMember = async (workspaceId, userId, role = "member") => {
   // NOTIFICATION
   // =========================
 
-  await NotificationModel.create({
-    recipient: userId,
+  if (finalNotificationsEnabled) {
+    await NotificationModel.create({
+      recipient: userId,
+      actor: workspace.createdBy,
+      type: "workspace.member_added",
+      title: "Added to Workspace",
+      message: `You were added to workspace "${workspace.name}"`,
 
-    actor: workspace.createdBy,
-
-    type: "workspace.member_added",
-
-    title: "Added to Workspace",
-
-    message: `You were added to workspace "${workspace.name}"`,
-
-    entity: {
-      id: workspace._id,
-      model: "Workspace",
-    },
-  });
+      entity: {
+        id: workspace._id,
+        model: "Workspace",
+      },
+    });
+  }
 
   return updatedWorkspace;
 };

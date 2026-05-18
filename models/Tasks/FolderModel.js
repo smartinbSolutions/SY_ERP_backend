@@ -41,6 +41,10 @@ const folderSchema = new mongoose.Schema(
           ref: "staff",
           required: true,
         },
+        notificationsEnabled: {
+          type: Boolean,
+          default: false,
+        },
 
         role: {
           type: String,

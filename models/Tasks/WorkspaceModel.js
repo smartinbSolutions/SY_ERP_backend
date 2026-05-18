@@ -21,13 +21,16 @@ const workspaceSchema = new mongoose.Schema(
       index: true,
     },
 
-  
     members: [
       {
         user: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "staff",
           required: true,
+        },
+        notificationsEnabled: {
+          type: Boolean,
+          default: false,
         },
 
         role: {

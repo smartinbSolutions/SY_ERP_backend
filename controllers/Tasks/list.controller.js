@@ -146,6 +146,7 @@ exports.addMember = async (req, res) => {
       req.body.role,
       req.user._id,
       companyId,
+      req.body.notificationsEnabled,
     );
 
     res.status(200).json({

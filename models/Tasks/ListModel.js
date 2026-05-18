@@ -26,7 +26,6 @@ const listSchema = new mongoose.Schema(
       index: true,
     },
 
-    
     //  visibility system
     visibility: {
       type: String,
@@ -35,13 +34,16 @@ const listSchema = new mongoose.Schema(
       index: true,
     },
 
-    // members override (for private lists)
     members: [
       {
         user: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "staff",
           required: true,
+        },
+        notificationsEnabled: {
+          type: Boolean,
+          default: false,
         },
         role: {
           type: String,

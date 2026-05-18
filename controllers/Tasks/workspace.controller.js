@@ -134,9 +134,10 @@ exports.deleteWorkspace = async (req, res) => {
 exports.addMember = async (req, res) => {
   try {
     const data = await workspaceService.addMember(
-      req.params.workspaceId, // ✅ FIX
+      req.params.workspaceId,
       req.body.userId,
       req.body.role,
+      req.body.notificationsEnabled,
     );
 
     return res.status(200).json({

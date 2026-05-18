@@ -12,13 +12,17 @@ exports.createFolder = async (data, userId, workspace) => {
 
   const members = data.members || [];
 
-  const unique = [];
+  const uniqueMembers = [];
   const seen = new Set();
 
-  // creator always owner
-  unique.push({
+  // =========================
+  // CREATOR ALWAYS OWNER
+  // =========================
+
+  uniqueMembers.push({
     user: userId,
     role: "owner",
+    notificationsEnabled: true,
     joinedAt: new Date(),
   });
 
@@ -27,15 +31,23 @@ exports.createFolder = async (data, userId, workspace) => {
 
     if (id === String(userId)) continue;
 
-    if (!seen.has(id)) {
-      seen.add(id);
+    if (seen.has(id)) continue;
 
-      unique.push({
-        user: m.user,
-        role: m.role || "viewer",
-        joinedAt: new Date(),
-      });
-    }
+    seen.add(id);
+
+    // =========================
+    // NOTIFICATION DEFAULT LOGIC
+    // =========================
+
+    const notificationsEnabled =
+      m.notificationsEnabled ?? ["owner", "manager"].includes(m.role);
+
+    uniqueMembers.push({
+      user: m.user,
+      role: m.role || "viewer",
+      notificationsEnabled,
+      joinedAt: new Date(),
+    });
   }
 
   const folder = await Folder.create({
@@ -45,29 +57,24 @@ exports.createFolder = async (data, userId, workspace) => {
     createdBy: userId,
     visibility: data.visibility || "private",
     order: data.order || 0,
-    members: unique,
+    members: uniqueMembers,
   });
 
   // =========================
-  // MEMBER NOTIFICATIONS
+  // NOTIFICATIONS
   // =========================
 
-  const notificationMembers = unique.filter(
-    (m) => m.user.toString() !== userId.toString(),
+  const notificationMembers = uniqueMembers.filter(
+    (m) => m.user.toString() !== userId.toString() && m.notificationsEnabled,
   );
 
   if (notificationMembers.length > 0) {
     const notifications = notificationMembers.map((member) => ({
       recipient: member.user,
-
       actor: userId,
-
       type: "folder.member_added",
-
       title: "Added to Folder",
-
       message: `You were added to folder "${folder.name}"`,
-
       entity: {
         id: folder._id,
         model: "Folder",
@@ -156,7 +163,12 @@ exports.deleteFolder = async (folderId) => {
 // ===============================
 // ADD MEMBER
 // ===============================
-exports.addMember = async (folderId, userId, role = "member") => {
+exports.addMember = async (
+  folderId,
+  userId,
+  role = "member",
+  notificationsEnabled,
+) => {
   const folder = await Folder.findById(folderId);
 
   if (!folder) {
@@ -177,6 +189,13 @@ exports.addMember = async (folderId, userId, role = "member") => {
     throw new Error("User already exists in folder");
   }
 
+  // =========================
+  // DEFAULT NOTIFICATION LOGIC
+  // =========================
+
+  const finalNotificationsEnabled =
+    notificationsEnabled ?? ["owner", "manager"].includes(role);
+
   const updatedFolder = await Folder.findByIdAndUpdate(
     folderId,
     {
@@ -184,6 +203,7 @@ exports.addMember = async (folderId, userId, role = "member") => {
         members: {
           user: userId,
           role,
+          notificationsEnabled: finalNotificationsEnabled,
         },
       },
     },
@@ -194,22 +214,19 @@ exports.addMember = async (folderId, userId, role = "member") => {
   // NOTIFICATION
   // =========================
 
-  await NotificationModel.create({
-    recipient: userId,
-
-    actor: folder.createdBy,
-
-    type: "folder.member_added",
-
-    title: "Added to Folder",
-
-    message: `You were added to folder "${folder.name}"`,
-
-    entity: {
-      id: folder._id,
-      model: "Folder",
-    },
-  });
+  if (finalNotificationsEnabled) {
+    await NotificationModel.create({
+      recipient: userId,
+      actor: folder.createdBy,
+      type: "folder.member_added",
+      title: "Added to Folder",
+      message: `You were added to folder "${folder.name}"`,
+      entity: {
+        id: folder._id,
+        model: "Folder",
+      },
+    });
+  }
 
   return updatedFolder;
 };

@@ -9,25 +9,56 @@ exports.createList = async (data, userId, companyId) => {
   if (!data.workspace) throw new Error("Workspace is required");
   if (!data.folder) throw new Error("Folder is required");
 
-  // const exists = await List.findOne({
-  //   name: data.name.trim(),
-  //   workspace: data.workspace,
-  //   companyId,
-  // });
-
-  // if (exists) {
-  //   throw new Error("List with this name already exists");
-  // }
-
   const members = data.members || [];
+
+  // =========================
+  // CLEAN + UNIQUE MEMBERS
+  // =========================
+
+  const uniqueMembers = [];
+  const seen = new Set();
+
+  for (const m of members) {
+    const id = String(m.user);
+
+    // skip creator
+    if (id === String(userId)) continue;
+
+    // skip duplicates
+    if (seen.has(id)) continue;
+
+    seen.add(id);
+
+    // =========================
+    // NOTIFICATION DEFAULT LOGIC
+    // =========================
+
+    const notificationsEnabled =
+      m.notificationsEnabled ?? ["owner", "manager"].includes(m.role);
+
+    uniqueMembers.push({
+      user: m.user,
+      role: m.role,
+      notificationsEnabled,
+    });
+  }
+
+  // =========================
+  // CREATOR ALWAYS OWNER
+  // =========================
 
   const finalMembers = [
     {
       user: userId,
       role: "owner",
+      notificationsEnabled: true,
     },
-    ...members.filter((m) => String(m.user) !== String(userId)),
+    ...uniqueMembers,
   ];
+
+  // =========================
+  // CREATE LIST
+  // =========================
 
   const list = await List.create({
     name: data.name.trim(),
@@ -44,22 +75,17 @@ exports.createList = async (data, userId, companyId) => {
   // MEMBER NOTIFICATIONS
   // =========================
 
-  const notificationMembers = finalMembers.filter(
-    (m) => m.user.toString() !== userId.toString(),
+  const notificationMembers = uniqueMembers.filter(
+    (m) => m.notificationsEnabled,
   );
 
   if (notificationMembers.length > 0) {
     const notifications = notificationMembers.map((member) => ({
       recipient: member.user,
-
       actor: userId,
-
       type: "list.member_added",
-
       title: "Added to List",
-
       message: `You were added to list "${list.name}"`,
-
       entity: {
         id: list._id,
         model: "List",
@@ -117,7 +143,12 @@ exports.deleteList = async (listId) => {
 // ===============================
 // ADD MEMBER
 // ===============================
-exports.addMember = async (listId, targetUserId, role) => {
+exports.addMember = async (
+  listId,
+  targetUserId,
+  role = "member",
+  notificationsEnabled,
+) => {
   const list = await List.findById(listId);
 
   if (!list) throw new Error("List not found");
@@ -130,9 +161,20 @@ exports.addMember = async (listId, targetUserId, role) => {
     throw new Error("User already exists in list");
   }
 
+  // =========================
+  // DEFAULT NOTIFICATION LOGIC
+  // owner/manager => true
+  // member/viewer => false
+  // =========================
+
+  const finalNotificationsEnabled =
+    notificationsEnabled ??
+    ["owner", "manager"].includes(role);
+
   list.members.push({
     user: targetUserId,
-    role: role || "viewer",
+    role,
+    notificationsEnabled: finalNotificationsEnabled,
   });
 
   await list.save();
@@ -141,22 +183,24 @@ exports.addMember = async (listId, targetUserId, role) => {
   // NOTIFICATION
   // =========================
 
-  await Notification.create({
-    recipient: targetUserId,
+  if (finalNotificationsEnabled) {
+    await NotificationModel.create({
+      recipient: targetUserId,
 
-    actor: list.createdBy,
+      actor: list.createdBy,
 
-    type: "list.member_added",
+      type: "list.member_added",
 
-    title: "Added to List",
+      title: "Added to List",
 
-    message: `You were added to list "${list.name}"`,
+      message: `You were added to list "${list.name}"`,
 
-    entity: {
-      id: list._id,
-      model: "List",
-    },
-  });
+      entity: {
+        id: list._id,
+        model: "List",
+      },
+    });
+  }
 
   return list;
 };
