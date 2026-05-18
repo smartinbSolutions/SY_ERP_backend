@@ -1,3 +1,4 @@
+const NotificationModel = require("../../models/Hr/NotificationModel");
 const List = require("../../models/Tasks/ListModel");
 
 // ===============================
@@ -38,6 +39,35 @@ exports.createList = async (data, userId, companyId) => {
     order: data.order || 0,
     members: finalMembers,
   });
+
+  // =========================
+  // MEMBER NOTIFICATIONS
+  // =========================
+
+  const notificationMembers = finalMembers.filter(
+    (m) => m.user.toString() !== userId.toString(),
+  );
+
+  if (notificationMembers.length > 0) {
+    const notifications = notificationMembers.map((member) => ({
+      recipient: member.user,
+
+      actor: userId,
+
+      type: "list.member_added",
+
+      title: "Added to List",
+
+      message: `You were added to list "${list.name}"`,
+
+      entity: {
+        id: list._id,
+        model: "List",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+  }
 
   return list;
 };
@@ -93,7 +123,7 @@ exports.addMember = async (listId, targetUserId, role) => {
   if (!list) throw new Error("List not found");
 
   const exists = list.members?.some(
-    (m) => m.user.toString() === targetUserId.toString()
+    (m) => m.user.toString() === targetUserId.toString(),
   );
 
   if (exists) {
@@ -107,6 +137,27 @@ exports.addMember = async (listId, targetUserId, role) => {
 
   await list.save();
 
+  // =========================
+  // NOTIFICATION
+  // =========================
+
+  await Notification.create({
+    recipient: targetUserId,
+
+    actor: list.createdBy,
+
+    type: "list.member_added",
+
+    title: "Added to List",
+
+    message: `You were added to list "${list.name}"`,
+
+    entity: {
+      id: list._id,
+      model: "List",
+    },
+  });
+
   return list;
 };
 
@@ -116,7 +167,7 @@ exports.addMember = async (listId, targetUserId, role) => {
 exports.getListById = async (listId) => {
   const list = await List.findById(listId).populate(
     "members.user",
-    "fullName email"
+    "fullName email",
   );
 
   if (!list) throw new Error("List not found");
@@ -133,7 +184,7 @@ exports.removeMember = async (listId, targetUserId) => {
   if (!list) throw new Error("List not found");
 
   const isMember = list.members.some(
-    (m) => m.user.toString() === targetUserId.toString()
+    (m) => m.user.toString() === targetUserId.toString(),
   );
 
   if (!isMember) {
@@ -142,7 +193,7 @@ exports.removeMember = async (listId, targetUserId) => {
 
   // 🚫 لا تسمح بحذف الـ owner
   const target = list.members.find(
-    (m) => m.user.toString() === targetUserId.toString()
+    (m) => m.user.toString() === targetUserId.toString(),
   );
 
   if (target.role === "owner") {
@@ -150,7 +201,7 @@ exports.removeMember = async (listId, targetUserId) => {
   }
 
   list.members = list.members.filter(
-    (m) => m.user.toString() !== targetUserId.toString()
+    (m) => m.user.toString() !== targetUserId.toString(),
   );
 
   await list.save();

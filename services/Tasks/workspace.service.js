@@ -3,6 +3,7 @@ const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const { default: mongoose } = require("mongoose");
 const staffModel = require("../../models/Hr/staffModel");
+const NotificationModel = require("../../models/Hr/NotificationModel");
 
 exports.createWorkspace = async (data, userId, companyId) => {
   if (!companyId) {
@@ -53,6 +54,31 @@ exports.createWorkspace = async (data, userId, companyId) => {
     createdBy: userId,
     members: finalMembers,
   });
+
+  // =========================
+  // MEMBER NOTIFICATIONS
+  // =========================
+
+  if (uniqueMembers.length > 0) {
+    const notifications = uniqueMembers.map((member) => ({
+      recipient: member.user,
+
+      actor: userId,
+
+      type: "workspace.member_added",
+
+      title: "Added to Workspace",
+
+      message: `You were added to workspace "${workspace.name}"`,
+
+      entity: {
+        id: workspace._id,
+        model: "Workspace",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+  }
 
   return workspace;
 };
@@ -504,6 +530,7 @@ exports.addMember = async (workspaceId, userId, role = "member") => {
   }
 
   const staff = await staffModel.findById(userId);
+
   if (!staff) {
     throw new Error("User not found");
   }
@@ -528,6 +555,27 @@ exports.addMember = async (workspaceId, userId, role = "member") => {
     },
     { new: true },
   );
+
+  // =========================
+  // NOTIFICATION
+  // =========================
+
+  await NotificationModel.create({
+    recipient: userId,
+
+    actor: workspace.createdBy,
+
+    type: "workspace.member_added",
+
+    title: "Added to Workspace",
+
+    message: `You were added to workspace "${workspace.name}"`,
+
+    entity: {
+      id: workspace._id,
+      model: "Workspace",
+    },
+  });
 
   return updatedWorkspace;
 };

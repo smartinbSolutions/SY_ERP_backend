@@ -1,5 +1,6 @@
 const Folder = require("../../models/Tasks/FolderModel");
 const staffModel = require("../../models/Hr/staffModel");
+const NotificationModel = require("../../models/Hr/NotificationModel");
 
 // ===============================
 // CREATE FOLDER
@@ -46,6 +47,35 @@ exports.createFolder = async (data, userId, workspace) => {
     order: data.order || 0,
     members: unique,
   });
+
+  // =========================
+  // MEMBER NOTIFICATIONS
+  // =========================
+
+  const notificationMembers = unique.filter(
+    (m) => m.user.toString() !== userId.toString(),
+  );
+
+  if (notificationMembers.length > 0) {
+    const notifications = notificationMembers.map((member) => ({
+      recipient: member.user,
+
+      actor: userId,
+
+      type: "folder.member_added",
+
+      title: "Added to Folder",
+
+      message: `You were added to folder "${folder.name}"`,
+
+      entity: {
+        id: folder._id,
+        model: "Folder",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+  }
 
   return folder;
 };
@@ -147,7 +177,7 @@ exports.addMember = async (folderId, userId, role = "member") => {
     throw new Error("User already exists in folder");
   }
 
-  return await Folder.findByIdAndUpdate(
+  const updatedFolder = await Folder.findByIdAndUpdate(
     folderId,
     {
       $addToSet: {
@@ -159,6 +189,29 @@ exports.addMember = async (folderId, userId, role = "member") => {
     },
     { new: true },
   );
+
+  // =========================
+  // NOTIFICATION
+  // =========================
+
+  await NotificationModel.create({
+    recipient: userId,
+
+    actor: folder.createdBy,
+
+    type: "folder.member_added",
+
+    title: "Added to Folder",
+
+    message: `You were added to folder "${folder.name}"`,
+
+    entity: {
+      id: folder._id,
+      model: "Folder",
+    },
+  });
+
+  return updatedFolder;
 };
 
 // ===============================

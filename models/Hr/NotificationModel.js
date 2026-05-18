@@ -13,6 +13,10 @@ const notificationSchema = new mongoose.Schema(
       ref: "staff",
     },
 
+    type: {
+      type: String,
+    },
+
     title: String,
     message: String,
 
