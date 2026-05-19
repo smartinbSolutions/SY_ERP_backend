@@ -5,29 +5,17 @@ const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 
-
 const getTaskRecipients = async (task, actorId) => {
   const map = new Map();
 
-  console.log("🟡 TASK INPUT:", task);
-  console.log("🟡 ACTOR ID:", actorId);
-
   const addMembers = (members = [], source = "unknown") => {
-    console.log(`\n🔵 ADDING MEMBERS FROM: ${source}`);
-    console.log("MEMBERS:", members);
-
     for (const m of members) {
-      console.log("➡️ MEMBER:", m);
-
       if (!m?.user) {
-        console.log("⚠️ SKIPPED MEMBER (no user):", m);
         continue;
       }
 
       const key = String(m.user);
       const enabled = m.notificationsEnabled;
-
-      console.log(`   user=${key} | notificationsEnabled=${enabled}`);
 
       map.set(key, enabled);
     }
@@ -37,35 +25,21 @@ const getTaskRecipients = async (task, actorId) => {
   const folder = list?.folder;
   const workspace = list?.workspace;
 
-  console.log("\n🟣 RESOLVED STRUCTURE:");
-  console.log("LIST:", list);
-  console.log("FOLDER:", folder);
-  console.log("WORKSPACE:", workspace);
-
   if (workspace?.members) addMembers(workspace.members, "workspace");
   if (folder?.members) addMembers(folder.members, "folder");
   if (list?.members) addMembers(list.members, "list");
 
-  console.log("\n🟠 MAP BEFORE FILTER:");
-  console.log([...map.entries()]);
-
   // remove actor
   map.delete(String(actorId));
-
-  console.log("\n🔴 MAP AFTER REMOVING ACTOR:");
-  console.log([...map.entries()]);
 
   const result = [...map.entries()]
     .filter(([_, enabled]) => enabled === true)
     .map(([userId]) => userId);
 
-  console.log("\n🟢 FINAL RECIPIENTS:");
-  console.log(result);
-
   return result;
 };
 
-// ====================================== 
+// ======================================
 // CREATE TASK (workspace aware)
 // ======================================
 exports.createTask = async (data, userId) => {
@@ -248,7 +222,7 @@ exports.getAllTasks = async ({
 // ======================================
 // UPDATE TASK
 // ======================================
-exports.updateTask = async (taskId, data, actorId) => {
+exports.updateTask = async (taskId, data, actor) => {
   const task = await Task.findByIdAndUpdate(taskId, data, {
     new: true,
   }).populate({
@@ -258,19 +232,20 @@ exports.updateTask = async (taskId, data, actorId) => {
 
   if (!task) throw new Error("Task not found");
 
+
   // =========================
   // NOTIFICATIONS LOGIC
   // =========================
 
-  const recipients = await getTaskRecipients(task, actorId);
+  const recipients = await getTaskRecipients(task, actor._id);
 
   if (recipients.length > 0) {
     const notifications = recipients.map((userId) => ({
       recipient: userId,
-      actor: actorId,
+      actor: actor._id,
       type: "task.updated",
       title: "Task Updated",
-      message: `Task "${task.title}" was updated`,
+      message: `Task "${task.title}" was updated by ${actor.fullName} `,
       entity: {
         id: task._id,
         model: "Task",

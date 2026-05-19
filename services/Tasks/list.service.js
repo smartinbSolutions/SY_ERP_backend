@@ -146,7 +146,9 @@ exports.deleteList = async (listId) => {
 exports.addMember = async (
   listId,
   targetUserId,
-  role = "member",
+  role,
+  actorId,
+  companyId,
   notificationsEnabled,
 ) => {
   const list = await List.findById(listId);
@@ -160,12 +162,6 @@ exports.addMember = async (
   if (exists) {
     throw new Error("User already exists in list");
   }
-
-  // =========================
-  // DEFAULT NOTIFICATION LOGIC
-  // owner/manager => true
-  // member/viewer => false
-  // =========================
 
   const finalNotificationsEnabled =
     notificationsEnabled ?? ["owner", "manager"].includes(role);
@@ -185,13 +181,9 @@ exports.addMember = async (
   if (finalNotificationsEnabled) {
     await NotificationModel.create({
       recipient: targetUserId,
-
-      actor: list.createdBy,
-
+      actor: actorId,
       type: "list.member_added",
-
       title: "Added to List",
-
       message: `You were added to list "${list.name}"`,
 
       entity: {
