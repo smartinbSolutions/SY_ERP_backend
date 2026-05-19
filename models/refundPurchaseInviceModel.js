@@ -133,6 +133,18 @@ const returnPurchaseInvicesSchema = new mongoose.Schema(
         date: String,
         paymentID: String,
         paymentInInvoiceCurrency: Number,
+        fxDiff: {
+          type: Number,
+          default: 0,
+        },
+        invoiceRate: {
+          type: Number,
+          default: 1,
+        },
+        paymentRate: {
+          type: Number,
+          default: 1,
+        },
         _id: false,
       },
     ],

@@ -17,6 +17,7 @@ const {
   handleFundPaymentEntity,
   buildReversalJournal,
   reverseAllocation,
+  handlePurchaseRefundPayment,
 } = require("./Payment.handlers");
 
 const PAYMENT_ACCOUNT_TYPES = [
@@ -77,6 +78,7 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
       currencyId: data.payment?.currencyId || "",
       currencyCode: data.payment?.currencyCode || "",
       exchangeRate: Number(data.payment?.exchangeRate || 1),
+      fundToInvoiceRate: Number(data?.payment?.fundToInvoiceRate || 1),
       amountMainCurrency: Number(data.payment?.amountMainCurrency || 0),
       amountInvoiceCurrency: Number(data.payment?.amountInvoiceCurrency || 0),
     },
@@ -116,6 +118,10 @@ const paymentHandlers = {
     handler: handlePurchasePayment,
     message: "Purchase payment created successfully",
   },
+  refund_purchase: {
+    handler: handlePurchaseRefundPayment,
+    message: "Purchase payment created successfully",
+  },
   sales: {
     handler: handleSalesPayment,
     message: "Sales payment created successfully",
@@ -132,7 +138,7 @@ const paymentHandlers = {
 
 exports.processPaymentService = async ({ req, companyId, next }) => {
   const normalizedPayment = await normalizePaymentRequest({ req, companyId });
-  console.log(normalizedPayment);
+  console.log("normalizedPayment", normalizedPayment);
   const route = paymentHandlers[normalizedPayment.paymentContext];
 
   if (!route) {

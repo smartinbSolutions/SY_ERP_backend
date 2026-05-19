@@ -214,6 +214,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
             currencyCode: payment?.currencyCode || "",
             exchangeRate: Number(payment?.exchangeRate || 1),
             amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+            fundToInvoiceRate: Number(payment?.fundToInvoiceRate || 1),
             amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
           },
           invoiceId: newPurchaseInvoice._id,

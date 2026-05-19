@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const PARTY_TYPES = ["supplier", "customer", "employee"];
 const DOCUMENT_TYPES = [
   "purchase_invoice",
+  "purchase_refund_invoice",
   "sales_invoice",
   "expense",
   "opening_balance",
@@ -119,6 +120,19 @@ const PaymentSchema = new mongoose.Schema(
         documentTotal: {
           type: Number,
           default: 0,
+        },
+
+        fxDiff: {
+          type: Number,
+          default: 0,
+        },
+        invoiceRate: {
+          type: Number,
+          default: 1,
+        },
+        paymentRate: {
+          type: Number,
+          default: 1,
         },
 
         cancelled: {

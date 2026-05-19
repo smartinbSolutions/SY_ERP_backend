@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const purchaseinvoicesModel = require("../../../../models/purchaseinvoicesModel");
+const refundPurchaseinvoicesModel = require("../../../../models/refundPurchaseInviceModel");
 const salesinvoicesModel = require("../../../../models/orderModel");
 
 const suppliersModel = require("../../../../models/suppliersModel");
@@ -21,121 +22,11 @@ const {
 } = require("../../../Accounting/JournalEntries/journalEntries.Service");
 const currencyModel = require("../../../../models/currencyModel");
 const counterModel = require("../../../../models/Settings/counterModel");
+const { resolvePaymentAmounts, computeFxDiff } = require("./Payment.helpers");
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED HELPER — reused by both handlers
 // ─────────────────────────────────────────────────────────────────
-const TOLERANCE = 0.01; // 1 cent — handles floating point cross-currency gaps
-
-const resolvePaymentAmounts = ({
-  fund,
-  payment,
-  invoiceRemainderMain,
-  invoiceRemainderForeign,
-  invoiceRate,
-  invoiceCurrencyCode,
-}) => {
-  const DEBUG = true;
-  const log = (...args) => DEBUG && console.log(...args);
-
-  const isSameCurrency = fund?.currencyCode === invoiceCurrencyCode;
-  const paymentRate = Number(fund?.exchangeRate || 1);
-
-  log("STEP 1 - INPUT");
-  log({
-    fund,
-    payment,
-    invoiceRemainderMain,
-    invoiceRemainderForeign,
-    invoiceRate,
-    invoiceCurrencyCode,
-  });
-
-  log("STEP 2 - CURRENCY CHECK");
-  log("isSameCurrency:", isSameCurrency);
-  log("paymentRate:", paymentRate);
-
-  // ── Frontend amounts ──────────────────────────────────────────
-  let paymentAmountMain = Number(payment.amountMainCurrency || 0);
-  let paymentAmountFund = Number(payment.amount || 0);
-  let paymentAmountInvoice = Number(payment.amountInvoiceCurrency || 0);
-
-  log("STEP 3 - RAW FRONTEND AMOUNTS");
-  log({ paymentAmountMain, paymentAmountFund, paymentAmountInvoice });
-
-  // ── Cap logic ────────────────────────────────────────────────
-  if (isSameCurrency) {
-    const foreignFullyCovered = paymentAmountFund >= invoiceRemainderForeign;
-
-    log("STEP 4A - SAME CURRENCY CHECK");
-    log("foreignFullyCovered:", foreignFullyCovered);
-
-    if (foreignFullyCovered) {
-      log("STEP 4A - APPLY CAP (SAME CURRENCY)");
-      paymentAmountFund = invoiceRemainderForeign;
-      paymentAmountMain = invoiceRemainderMain;
-      paymentAmountInvoice = invoiceRemainderForeign;
-    }
-  } else {
-    const mainFullyCovered = paymentAmountMain >= invoiceRemainderMain;
-
-    log("STEP 4B - CROSS CURRENCY CHECK");
-    log("mainFullyCovered:", mainFullyCovered);
-
-    if (mainFullyCovered) {
-      log("STEP 4B - FULL COVER CAP");
-      paymentAmountMain = invoiceRemainderMain;
-      paymentAmountInvoice = invoiceRemainderForeign;
-    } else if (paymentAmountMain > invoiceRemainderMain) {
-      log("STEP 4B - OVERPAY CAP");
-      paymentAmountMain = invoiceRemainderMain;
-      paymentAmountInvoice = invoiceRemainderForeign;
-    }
-  }
-
-  log("STEP 5 - POST CAP VALUES");
-  log({ paymentAmountMain, paymentAmountFund, paymentAmountInvoice });
-
-  const willBePaid = paymentAmountMain >= invoiceRemainderMain;
-
-  log("STEP 6 - WILL BE PAID");
-  log("willBePaid:", willBePaid);
-
-  // ── Applied document currency ────────────────────────────────
-  const appliedDocumentCurrency = isSameCurrency
-    ? willBePaid
-      ? invoiceRemainderForeign
-      : paymentAmountFund * invoiceRate
-    : paymentAmountInvoice > 0
-    ? paymentAmountInvoice
-    : paymentAmountMain * invoiceRate;
-
-  log("STEP 7 - APPLIED DOCUMENT CURRENCY");
-  log("appliedDocumentCurrency:", appliedDocumentCurrency);
-
-  // ── FX CALC ──────────────────────────────────────────────────
-  const usdValueAtInvoiceRate = appliedDocumentCurrency / invoiceRate;
-  const usdValueAtPaymentRate = paymentAmountFund * paymentRate;
-
-  const fxDiff = usdValueAtInvoiceRate - usdValueAtPaymentRate;
-
-  log("STEP 8 - FX INPUTS");
-  log({ usdValueAtInvoiceRate, usdValueAtPaymentRate });
-
-  log("STEP 9 - FX RESULT");
-  log("fxDiff:", fxDiff);
-
-  return {
-    isSameCurrency,
-    paymentRate,
-    paymentAmountMain,
-    paymentAmountFund,
-    paymentAmountInvoice,
-    appliedDocumentCurrency,
-    fxDiff,
-    willBePaid,
-  };
-};
 
 const documentModelMap = {
   purchase_invoice: purchaseinvoicesModel,
@@ -244,7 +135,7 @@ const handleSupplierPaymentEntity = async ({
         sourceModule: "payment",
         actionType: "create",
         paymentId,
-        balanceEffectType: fxDiff > 0 ? "Deposit" : "Withdrawal",
+        balanceEffectType: fxDiff > 0 ? "Withdrawal" : "Deposit",
         // fxDiff > 0 = loss  → we are writing off the residual (Deposit clears it)
         // fxDiff < 0 = gain  → we over-paid in USD terms (Withdrawal adds back)
         description: `FX ${
@@ -266,7 +157,7 @@ const handleSupplierPaymentEntity = async ({
       transactionDate: date,
       amountTransactionCurrency,
       amountMainCurrency,
-      supplierId: updatedSupplier._id,
+      supplierId: supplier._id,
       referenceId: refId,
       sourceModule: "payment",
       actionType: "create",
@@ -276,6 +167,29 @@ const handleSupplierPaymentEntity = async ({
       transactionCurrency: currencyCode,
       session,
     });
+    if (absFxDiff > 0.001) {
+      await createPaymentHistoryV2({
+        companyId,
+        entryType: "fx_adjustment",
+        transactionDate: date,
+        amountTransactionCurrency: 0,
+        amountMainCurrency: absFxDiff,
+        supplierId: supplier._id,
+        referenceId: refId,
+        sourceModule: "payment",
+        actionType: "create",
+        paymentId,
+        // For refund (source): direction inverts vs destination
+        // fxDiff > 0 (loss — got fewer $ than booked) → Deposit (supplier still owes you the gap)
+        // fxDiff < 0 (gain — got more $ than booked) → Withdrawal (you "got" extra)
+        balanceEffectType: fxDiff > 0 ? "Deposit" : "Withdrawal",
+        description: `FX ${
+          fxDiff < 0 ? "Loss" : "Gain"
+        } adjustment — rate moved from invoice to refund date`,
+        transactionCurrency: currencyCode,
+        session,
+      });
+    }
 
     return;
   }
@@ -287,16 +201,16 @@ const settleSupplierOpenDocuments = async ({
   supplier,
   fund,
   payment,
-  paymentAmountMain,
+  paymentAmountMain, // already-converted USD pool (fundAmount / fundRate)
   date,
   companyId,
   session,
 }) => {
-  let remainingPaymentMain = Number(paymentAmountMain || 0);
+  let remainingPool = Number(paymentAmountMain || 0);
   const allocations = [];
   let totalFxDiff = 0;
 
-  // ── Fetch all currencies once to get TODAY's rates ──────────────────────
+  // ── Today's rates from the currency DB ──────────────────────────────────
   const allCurrencies = await currencyModel
     .find({ companyId })
     .session(session);
@@ -350,337 +264,161 @@ const settleSupplierOpenDocuments = async ({
   console.log("========================================");
   console.log("   SETTLEMENT START");
   console.log("========================================");
-  console.log(`   Payment Amount (Main/USD): ${remainingPaymentMain}`);
+  console.log(`   USD Pool:        ${remainingPool.toFixed(6)}`);
   console.log(
-    `   Fund:                      ${fund?.name} (${fund?.currencyCode}) @ ${fund?.exchangeRate}`
+    `   Fund:            ${fund?.name} (${fund?.currencyCode}) @ ${fund?.exchangeRate}`
   );
-  console.log(`   Total Open Docs:           ${openDocs.length}`);
+  console.log(`   Total Open Docs: ${openDocs.length}`);
   console.log("========================================\n");
 
+  const EPS = 0.000001;
+
   for (const item of openDocs) {
-    if (remainingPaymentMain <= 0) {
-      console.log("⛔ No remaining payment — stopping.\n");
+    if (remainingPool <= EPS) {
+      console.log("⛔ Pool exhausted — stopping.\n");
       break;
     }
 
-    // ─────────────────────────────────────────
-    // PURCHASE INVOICE
-    // ─────────────────────────────────────────
-    if (item.kind === "purchase_invoice") {
-      const purchase = item.doc;
+    const isPurchase = item.kind === "purchase_invoice";
+    const doc = item.doc;
 
-      const purchaseRemainderMain = Number(
-        purchase.totalRemainderMainCurrency || 0
-      );
-      const purchaseRemainderForeign = Number(purchase.totalRemainder || 0);
+    // ── Read the document's booked remainders ─────────────────────────────
+    const docRemainderMain = Number(doc.totalRemainderMainCurrency || 0); // USD
+    const docRemainderForeign = Number(doc.totalRemainder || 0); // foreign
 
-      if (purchaseRemainderMain <= 0) {
-        console.log(
-          `[SKIP] Purchase Invoice ${purchase.counter} — remainder is 0\n`
-        );
-        continue;
-      }
-
-      // Rate when invoice was created
-      const invoiceRate = Number(purchase.exchangeRate || 1);
-
-      // Payment rate:
-      // if fund currency matches invoice currency → use fund rate (user entered)
-      // if fund currency is different             → use today's rate from currencies DB
-      const isSameCurrency =
-        fund?.currencyCode === purchase?.currency?.currencyCode;
-      const paymentRate = isSameCurrency
-        ? Number(fund?.exchangeRate || 1)
-        : getTodayRate(purchase?.currency?.id);
-
-      // How much foreign currency is available in this payment
-      const availableForeignAmount = remainingPaymentMain * paymentRate;
-
-      // If same currency AND payment covers the full foreign amount → fully close
-      // This handles the case: invoice = 1008 TRY, payment = 1008 TRY at rate 45
-      // Even though 1008/45 = 22.4 USD < 24 USD remainder, the invoice IS fully paid
-      const foreignFullyCovered =
-        isSameCurrency &&
-        availableForeignAmount >= purchaseRemainderForeign - 0.000001;
-
-      const appliedMain = foreignFullyCovered
-        ? purchaseRemainderMain // fully close invoice at its booked USD value
-        : Math.min(purchaseRemainderMain, remainingPaymentMain); // partial — limit by USD
-
-      // Foreign currency amount being closed
-      const appliedDocumentCurrency = foreignFullyCovered
-        ? purchaseRemainderForeign // close exact foreign remainder
-        : appliedMain * invoiceRate;
-
-      // Fund currency amount (actual TRY/EUR leaving the fund)
-      const appliedFundCurrency = appliedDocumentCurrency; // same as foreign closed
-
-      // FX Calculation:
-      // appliedMain       = USD value at invoice rate (what was booked)
-      // usdValueAtPayment = USD value of same foreign amount at payment rate
-      // diff              = FX gain or loss
-      const usdValueAtPaymentRate = appliedDocumentCurrency / paymentRate;
-      const fxDiff = appliedMain - usdValueAtPaymentRate;
-      // fxDiff > 0 → FX Loss  (you booked more USD, paying less today)
-      // fxDiff < 0 → FX Gain  (you booked less USD, paying more today)
-
-      totalFxDiff += fxDiff;
-
-      const newRemainderMain = purchaseRemainderMain - appliedMain;
-      const newRemainderForeign =
-        purchaseRemainderForeign - appliedDocumentCurrency;
-      const willBePaid = foreignFullyCovered || newRemainderMain <= 0.000001;
-
-      console.log(
-        `[PURCHASE INVOICE] ${purchase.invoiceName} (${purchase.counter})`
-      );
-      console.log(
-        `   Currency:                  ${
-          purchase?.currency?.currencyCode || "USD"
-        }`
-      );
-      console.log(
-        `   Same Currency as Fund:     ${isSameCurrency ? "YES" : "NO"}`
-      );
-      console.log(`   Invoice Rate (at booking): ${invoiceRate}`);
-      console.log(`   Payment Rate:              ${paymentRate}`);
-      console.log(`   ── Amounts ──`);
-      console.log(
-        `   Remainder (USD):           ${purchaseRemainderMain.toFixed(6)}`
-      );
-      console.log(
-        `   Remainder (Foreign):       ${purchaseRemainderForeign.toFixed(6)}`
-      );
-      console.log(
-        `   Available Foreign:         ${availableForeignAmount.toFixed(6)}`
-      );
-      console.log(`   Applied (USD):             ${appliedMain.toFixed(6)}`);
-      console.log(
-        `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`
-      );
-      console.log(
-        `   Applied (Fund/Cash Out):   ${appliedFundCurrency.toFixed(6)}`
-      );
-      console.log(`   ── FX ──`);
-      console.log(`   USD at invoice rate:       ${appliedMain.toFixed(6)}`);
-      console.log(
-        `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`
-      );
-      console.log(
-        `   FX Diff:                   ${fxDiff.toFixed(6)} ${
-          fxDiff > 0 ? "⚠️  LOSS" : fxDiff < 0 ? "✅ GAIN" : "➖ NONE"
-        }`
-      );
-      console.log(`   ── After Settlement ──`);
-      console.log(
-        `   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`
-      );
-      console.log(
-        `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`
-      );
-      console.log(
-        `   Status:                    ${
-          willBePaid ? "✅ FULLY PAID" : "⏳ PARTIALLY PAID"
-        }`
-      );
-      console.log("");
-
-      purchase.totalRemainderMainCurrency = willBePaid ? 0 : newRemainderMain;
-      purchase.totalRemainder = willBePaid ? 0 : newRemainderForeign;
-      if (willBePaid) purchase.paid = "paid";
-
-      purchase.payments.push({
-        payment: appliedFundCurrency,
-        paymentMainCurrency: appliedMain,
-        financialFunds: fund.name,
-        financialFundsCurrencyCode: fund.currencyCode,
-        paymentID: payment._id,
-        date,
-        paymentInInvoiceCurrency: appliedDocumentCurrency,
-        financialFundsId: fund.id,
-        fxDiff,
-        invoiceRate,
-        paymentRate,
-      });
-      await purchase.save({ session });
-
-      allocations.push({
-        documentId: purchase._id.toString(),
-        documentType: "purchase_invoice",
-        documentName: purchase.invoiceName || "",
-        documentCounter: purchase.counter || "",
-        documentCurrencyCode: purchase?.currency?.currencyCode || "",
-        allocatedAmountMainCurrency: appliedMain,
-        allocatedAmountDocumentCurrency: appliedDocumentCurrency,
-        documentTotal: Number(purchase.invoiceGrandTotal || 0),
-        fxDiff,
-        invoiceRate,
-        paymentRate,
-        willBePaid,
-      });
-
-      // deduct actual USD equivalent paid from remaining
-      remainingPaymentMain -= usdValueAtPaymentRate;
+    if (docRemainderMain <= EPS) {
+      console.log(`[SKIP] ${item.kind} ${doc.counter} — remainder is 0\n`);
       continue;
     }
 
-    // ─────────────────────────────────────────
-    // EXPENSE (OTHER)
-    // ─────────────────────────────────────────
-    if (item.kind === "expense") {
-      const expense = item.doc;
+    // Rate the invoice was booked at (foreign per primary)
+    const invoiceRate = isPurchase
+      ? Number(doc.exchangeRate || doc?.currency?.exchangeRate || 1)
+      : Number(doc?.currency?.exchangeRate || 1);
 
-      const expenseRemainderMain = Number(
-        expense.totalRemainderMainCurrency || 0
-      );
-      const expenseRemainderForeign = Number(expense.totalRemainder || 0);
+    // Today's rate for THIS document's currency
+    const docCurrencyId = doc?.currency?.id || doc?.currency?._id || null;
+    const paymentRate = getTodayRate(docCurrencyId);
 
-      if (expenseRemainderMain <= 0) {
-        console.log(`[SKIP] Expense ${expense.counter} — remainder is 0\n`);
-        continue;
-      }
+    // ── How much foreign currency can the remaining pool buy? ─────────────
+    const poolCanBuyForeign = remainingPool * paymentRate;
 
-      const invoiceRate = Number(expense.currency?.exchangeRate || 1);
+    const fullyCovered = poolCanBuyForeign >= docRemainderForeign - EPS;
 
-      const isSameCurrency =
-        fund?.currencyCode === expense?.currency?.currencyCode;
-      const paymentRate = isSameCurrency
-        ? Number(fund?.exchangeRate || 1)
-        : getTodayRate(expense?.currency?.id);
+    // foreign slice we actually settle
+    const foreignApplied = fullyCovered
+      ? docRemainderForeign
+      : poolCanBuyForeign;
 
-      const availableForeignAmount = remainingPaymentMain * paymentRate;
+    // ── FX on the applied slice (shared helper — single sign convention) ──
+    const { usdAtInvoiceRate, usdAtPaymentRate, fxDiff } = computeFxDiff(
+      foreignApplied,
+      invoiceRate,
+      paymentRate
+    );
 
-      const foreignFullyCovered =
-        isSameCurrency &&
-        availableForeignAmount >= expenseRemainderForeign - 0.000001;
+    // booked USD retired = slice converted back at the INVOICE rate
+    const appliedMain = usdAtInvoiceRate;
+    // actual USD spent from the pool = slice at TODAY's rate
+    const usdConsumed = usdAtPaymentRate;
 
-      const appliedMain = foreignFullyCovered
-        ? expenseRemainderMain
-        : Math.min(expenseRemainderMain, remainingPaymentMain);
+    totalFxDiff += fxDiff;
 
-      const appliedDocumentCurrency = foreignFullyCovered
-        ? expenseRemainderForeign
-        : appliedMain * invoiceRate;
+    // ── New remainders ────────────────────────────────────────────────────
+    const newRemainderForeign = fullyCovered
+      ? 0
+      : docRemainderForeign - foreignApplied;
+    const newRemainderMain = fullyCovered ? 0 : docRemainderMain - appliedMain;
+    const willBePaid = fullyCovered;
 
-      const appliedFundCurrency = appliedDocumentCurrency;
+    console.log(
+      `[${item.kind.toUpperCase()}] ${
+        doc.invoiceName || doc.expenseName || ""
+      } (${doc.counter})`
+    );
+    console.log(
+      `   Currency:            ${doc?.currency?.currencyCode || "USD"}`
+    );
+    console.log(`   Invoice Rate:        ${invoiceRate}`);
+    console.log(`   Payment Rate (today):${paymentRate}`);
+    console.log(`   ── Amounts ──`);
+    console.log(`   Remainder (USD):     ${docRemainderMain.toFixed(6)}`);
+    console.log(`   Remainder (Foreign): ${docRemainderForeign.toFixed(6)}`);
+    console.log(`   Pool can buy:        ${poolCanBuyForeign.toFixed(6)}`);
+    console.log(`   Foreign Applied:     ${foreignApplied.toFixed(6)}`);
+    console.log(`   ── FX ──`);
+    console.log(`   USD at invoice rate: ${appliedMain.toFixed(6)}`);
+    console.log(`   USD at payment rate: ${usdConsumed.toFixed(6)}`);
+    console.log(
+      `   FX Diff:             ${fxDiff.toFixed(6)} ${
+        fxDiff > EPS ? "⚠️  LOSS" : fxDiff < -EPS ? "✅ GAIN" : "➖ NONE"
+      }`
+    );
+    console.log(`   ── After ──`);
+    console.log(`   New Remainder (USD): ${newRemainderMain.toFixed(6)}`);
+    console.log(`   New Rem. (Foreign):  ${newRemainderForeign.toFixed(6)}`);
+    console.log(
+      `   Status:              ${willBePaid ? "✅ FULLY PAID" : "⏳ PARTIAL"}`
+    );
+    console.log("");
 
-      const usdValueAtPaymentRate = appliedDocumentCurrency / paymentRate;
-      const fxDiff = appliedMain - usdValueAtPaymentRate;
-
-      totalFxDiff += fxDiff;
-
-      const newRemainderMain = expenseRemainderMain - appliedMain;
-      const newRemainderForeign =
-        expenseRemainderForeign - appliedDocumentCurrency;
-      const willBePaid = foreignFullyCovered || newRemainderMain <= 0.000001;
-
-      console.log(`[EXPENSE] ${expense.expenseName} (${expense.counter})`);
-      console.log(
-        `   Currency:                  ${
-          expense?.currency?.currencyCode || "USD"
-        }`
-      );
-      console.log(
-        `   Same Currency as Fund:     ${isSameCurrency ? "YES" : "NO"}`
-      );
-      console.log(`   Invoice Rate (at booking): ${invoiceRate}`);
-      console.log(`   Payment Rate:              ${paymentRate}`);
-      console.log(`   ── Amounts ──`);
-      console.log(
-        `   Remainder (USD):           ${expenseRemainderMain.toFixed(6)}`
-      );
-      console.log(
-        `   Remainder (Foreign):       ${expenseRemainderForeign.toFixed(6)}`
-      );
-      console.log(
-        `   Available Foreign:         ${availableForeignAmount.toFixed(6)}`
-      );
-      console.log(`   Applied (USD):             ${appliedMain.toFixed(6)}`);
-      console.log(
-        `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`
-      );
-      console.log(
-        `   Applied (Fund/Cash Out):   ${appliedFundCurrency.toFixed(6)}`
-      );
-      console.log(`   ── FX ──`);
-      console.log(`   USD at invoice rate:       ${appliedMain.toFixed(6)}`);
-      console.log(
-        `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`
-      );
-      console.log(
-        `   FX Diff:                   ${fxDiff.toFixed(6)} ${
-          fxDiff > 0 ? "⚠️  LOSS" : fxDiff < 0 ? "✅ GAIN" : "➖ NONE"
-        }`
-      );
-      console.log(`   ── After Settlement ──`);
-      console.log(
-        `   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`
-      );
-      console.log(
-        `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`
-      );
-      console.log(
-        `   Status:                    ${
-          willBePaid ? "✅ FULLY PAID" : "⏳ PARTIALLY PAID"
-        }`
-      );
-      console.log("");
-
-      expense.totalRemainderMainCurrency = willBePaid ? 0 : newRemainderMain;
-      expense.totalRemainder = willBePaid ? 0 : newRemainderForeign;
-      if (willBePaid) expense.paymentStatus = "paid";
-
-      expense.payments.push({
-        payment: appliedFundCurrency,
-        paymentMainCurrency: appliedMain,
-        financialFunds: fund.name,
-        financialFundsCurrencyCode: fund.currencyCode,
-        paymentID: payment._id,
-        date,
-        paymentInInvoiceCurrency: appliedDocumentCurrency,
-        financialFundsId: fund.id,
-        fxDiff,
-        invoiceRate,
-        paymentRate,
-      });
-      await expense.save({ session });
-
-      allocations.push({
-        documentId: expense._id.toString(),
-        documentType: "expense",
-        documentName: expense.expenseName || "",
-        documentCounter: expense.counter || "",
-        documentCurrencyCode: expense?.currency?.currencyCode || "",
-        allocatedAmountMainCurrency: appliedMain,
-        allocatedAmountDocumentCurrency: appliedDocumentCurrency,
-        documentTotal: Number(expense.expenceTotal || 0),
-        fxDiff,
-        invoiceRate,
-        paymentRate,
-        willBePaid,
-      });
-
-      remainingPaymentMain -= usdValueAtPaymentRate;
+    // ── Persist on the document ───────────────────────────────────────────
+    doc.totalRemainderMainCurrency = newRemainderMain;
+    doc.totalRemainder = newRemainderForeign;
+    if (willBePaid) {
+      if (isPurchase) doc.paid = "paid";
+      else doc.paymentStatus = "paid";
     }
+
+    doc.payments.push({
+      payment: foreignApplied, // foreign leaving against this doc
+      paymentMainCurrency: appliedMain, // booked USD retired
+      financialFunds: fund.name,
+      financialFundsCurrencyCode: fund.currencyCode,
+      paymentID: payment._id,
+      date,
+      paymentInInvoiceCurrency: foreignApplied,
+      financialFundsId: fund.id,
+      fxDiff,
+      invoiceRate,
+      paymentRate,
+    });
+    await doc.save({ session });
+
+    allocations.push({
+      documentId: doc._id.toString(),
+      documentType: item.kind,
+      documentName: doc.invoiceName || doc.expenseName || "",
+      documentCounter: doc.counter || "",
+      documentCurrencyCode: doc?.currency?.currencyCode || "",
+      allocatedAmountMainCurrency: appliedMain, // booked USD
+      allocatedAmountDocumentCurrency: foreignApplied, // foreign
+      usdConsumed, // actual USD out of pool
+      documentTotal: Number(doc.invoiceGrandTotal || doc.expenceTotal || 0),
+      fxDiff,
+      invoiceRate,
+      paymentRate,
+      willBePaid,
+    });
+
+    // ── Drain the pool by ACTUAL usd spent ────────────────────────────────
+    remainingPool -= usdConsumed;
   }
 
   console.log("========================================");
   console.log("   SETTLEMENT SUMMARY");
   console.log("========================================");
-  console.log(`   Docs Processed:            ${allocations.length}`);
+  console.log(`   Docs Processed:     ${allocations.length}`);
+  console.log(`   Remaining Pool USD: ${remainingPool.toFixed(6)}`);
   console.log(
-    `   Remaining Payment (USD):   ${remainingPaymentMain.toFixed(6)}`
-  );
-  console.log(
-    `   Total FX Diff:             ${totalFxDiff.toFixed(6)} ${
-      totalFxDiff > 0
+    `   Total FX Diff:      ${totalFxDiff.toFixed(6)} ${
+      totalFxDiff > EPS
         ? "⚠️  NET LOSS"
-        : totalFxDiff < 0
+        : totalFxDiff < -EPS
         ? "✅ NET GAIN"
         : "➖ NO FX IMPACT"
     }`
   );
-  console.log("   Allocations:");
   allocations.forEach((a, i) => {
     console.log(
       `   [${i + 1}] ${a.documentType} | ${a.documentName} (${
@@ -688,29 +426,29 @@ const settleSupplierOpenDocuments = async ({
       })`
     );
     console.log(
-      `       Applied USD:     ${a.allocatedAmountMainCurrency.toFixed(4)}`
+      `       Applied USD (booked): ${a.allocatedAmountMainCurrency.toFixed(4)}`
     );
+    console.log(`       USD Consumed (actual):${a.usdConsumed.toFixed(4)}`);
     console.log(
-      `       Applied Foreign: ${a.allocatedAmountDocumentCurrency.toFixed(
+      `       Applied Foreign:      ${a.allocatedAmountDocumentCurrency.toFixed(
         4
       )} ${a.documentCurrencyCode}`
     );
     console.log(
-      `       FX Diff:         ${a.fxDiff.toFixed(4)} ${
-        a.fxDiff > 0 ? "LOSS" : a.fxDiff < 0 ? "GAIN" : "NONE"
+      `       FX Diff:              ${a.fxDiff.toFixed(4)} ${
+        a.fxDiff > EPS ? "LOSS" : a.fxDiff < -EPS ? "GAIN" : "NONE"
       }`
     );
-    console.log(`       Will Be Paid:    ${a.willBePaid ? "YES ✅" : "NO ⏳"}`);
+    console.log(`       Will Be Paid:         ${a.willBePaid ? "YES" : "NO"}`);
   });
   console.log("========================================\n");
 
   return {
     allocations,
-    remainingPaymentMain,
+    remainingPaymentMain: remainingPool,
     totalFxDiff,
   };
 };
-
 const handleCustomerPaymentEntity = async ({
   customer,
   companyId,
@@ -1173,6 +911,12 @@ const handlePurchasePayment = async (
     // ── Resolve payment amounts ───────────────────────────────────
     // Caps amounts, calculates appliedDocumentCurrency + fxDiff
     // Trusts frontend amountInvoiceCurrency for cross-currency (real-time rate)
+    console.log("fund", fund);
+    console.log("payment", payment);
+    console.log("invoiceRemainderMain", invoiceRemainderMain);
+    console.log("invoiceRemainderForeign", invoiceRemainderForeign);
+    console.log("invoiceRate", invoiceRate);
+
     const {
       isSameCurrency,
       paymentRate,
@@ -1341,6 +1085,294 @@ const handlePurchasePayment = async (
       paymentInFundCurrency: paymentAmountFund,
       paymentId: newPayment._id,
       refId: purchase._id,
+      date,
+      description,
+      effectSide: paymentNature === "outgoing" ? "source" : "destination",
+      sourceExchangeRate: invoiceRate,
+      paymentNature,
+      session,
+    });
+
+    // ── Journal ──────────────────────────────────────────────────
+    if (journalAccounts && ownsSession) {
+      await savePaymentJournal({
+        journalAccounts,
+        paymentAmountMain,
+        totalFxDiff: fxDiff,
+        date,
+        description,
+        journalCounter,
+        companyId,
+        session,
+        payment: newPayment,
+        partyName: party.name,
+        paymentNature,
+      });
+    }
+
+    return { createdPayment, fxDiff };
+  };
+
+  try {
+    if (ownsSession) {
+      let result;
+      await session.withTransaction(async () => {
+        result = await run();
+      });
+      return result;
+    } else {
+      return await run();
+    }
+  } catch (err) {
+    throw err;
+  } finally {
+    if (ownsSession) await session.endSession();
+  }
+};
+
+const handlePurchaseRefundPayment = async (
+  req,
+  companyId,
+  next,
+  normalizedPayment,
+  externalSession = null
+) => {
+  const ownsSession = !externalSession;
+  const session = externalSession || (await mongoose.startSession());
+
+  const run = async () => {
+    const {
+      party,
+      fund,
+      paymentNature,
+      payment,
+      date,
+      description,
+      journalCounter,
+      counter,
+      companyId,
+      postedBy,
+      postedAt,
+      journalAccounts,
+      invoiceId,
+    } = normalizedPayment;
+
+    if (!fund?.id) throw new Error("Fund id is required");
+    if (!party?.id || !party?.type) throw new Error("Party is required");
+    if (!["supplier"].includes(party.type))
+      throw new Error("Fund payment context supports only supplier as party");
+    if (!["incoming", "outgoing"].includes(paymentNature))
+      throw new Error(
+        "Fund payment context supports only incoming or outgoing paymentNature"
+      );
+
+    // ── Fetch invoice ────────────────────────────────────────────
+    const purchaseRefund = await refundPurchaseinvoicesModel
+      .findOne({
+        _id: invoiceId,
+        status: { $nin: ["cancelled", "draft"] },
+        companyId,
+      })
+      .session(session);
+
+    if (!purchaseRefund) throw new Error(`Purchase invoice not found`);
+
+    // ── Fetch supplier ───────────────────────────────────────────
+    const supplier = await suppliersModel
+      .findOne({ _id: purchaseRefund.supplier.id, companyId })
+      .session(session);
+
+    if (!supplier) throw new Error("Supplier not found");
+
+    // ── Invoice amounts ──────────────────────────────────────────
+    console.log("sss", purchaseRefund.totalRemainderMainCurrency);
+    console.log("sss", purchaseRefund.totalRemainder);
+    console.log("sss", purchaseRefund.exchangeRate);
+    const invoiceRemainderMain = Number(
+      purchaseRefund.totalRemainderMainCurrency || 0
+    );
+    const invoiceRemainderForeign = Number(purchaseRefund.totalRemainder || 0);
+    const invoiceRate = Number(
+      purchaseRefund.exchangeRate || purchaseRefund?.currency?.exchangeRate || 1
+    );
+
+    // ── Resolve payment amounts ───────────────────────────────────
+    // Caps amounts, calculates appliedDocumentCurrency + fxDiff
+    // Trusts frontend amountInvoiceCurrency for cross-currency (real-time rate)
+    console.log("fund", fund);
+    console.log("payment", payment);
+    console.log("invoiceRemainderMain", invoiceRemainderMain);
+    console.log("invoiceRemainderForeign", invoiceRemainderForeign);
+    console.log("invoiceRate", invoiceRate);
+    console.log("invoiceCurrencyCode", purchaseRefund?.currency?.currencyCode);
+    const {
+      isSameCurrency,
+      paymentRate,
+      paymentAmountMain,
+      paymentAmountFund,
+      paymentAmountInvoice,
+      appliedDocumentCurrency,
+      fxDiff,
+      willBePaid,
+    } = resolvePaymentAmounts({
+      fund,
+      payment,
+      invoiceRemainderMain,
+      invoiceRemainderForeign,
+      invoiceRate,
+      invoiceCurrencyCode: purchaseRefund?.currency?.currencyCode,
+    });
+
+    console.log("========================================");
+    console.log(
+      `   ${
+        paymentNature === "outgoing"
+          ? "PURCHASE PAYMENT"
+          : "PURCHASE REFUND RECEIPT"
+      }`
+    );
+    console.log("========================================");
+    console.log(
+      `   Invoice:       ${purchaseRefund.invoiceName} (${purchaseRefund.counter})`
+    );
+    console.log(`   Currency:      ${purchaseRefund?.currency?.currencyCode}`);
+    console.log(`   Invoice Rate:  ${invoiceRate}`);
+    console.log(
+      `   Fund:          ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`
+    );
+    console.log(`   Same Currency: ${isSameCurrency ? "YES" : "NO"}`);
+    console.log(
+      `   Fund Amt:      ${paymentAmountFund.toFixed(4)} ${fund.currencyCode}`
+    );
+    console.log(`   Main Amt:      ${paymentAmountMain.toFixed(4)}`);
+    console.log(
+      `   Invoice Amt:   ${appliedDocumentCurrency.toFixed(4)} ${
+        purchaseRefund?.currency?.currencyCode
+      }`
+    );
+    console.log(
+      `   FX Diff:       ${fxDiff.toFixed(6)} ${
+        fxDiff > 0.001 ? "⚠️ LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
+      }`
+    );
+    console.log(`   Will Be Paid:  ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
+    console.log("========================================\n");
+
+    // ── Create payment doc ───────────────────────────────────────
+    const paymentSeq = await getNextCounterValue({
+      companyId,
+      name: "Payment",
+      session,
+    });
+
+    const paymentPayload = {
+      companyId,
+      counter: Number(counter || 0) + Number(paymentSeq),
+      party: { id: party.id, name: party.name, type: party.type },
+      fund: {
+        id: fund.id,
+        name: fund.name,
+        currencyId: fund.currencyId || "",
+        currencyCode: fund.currencyCode || "",
+        exchangeRate: Number(fund.exchangeRate || 1),
+      },
+      paymentNature,
+      payment: {
+        amount: paymentAmountFund,
+        currencyId: payment?.currencyId || "",
+        currencyCode: payment?.currencyCode || "",
+        exchangeRate: Number(payment?.exchangeRate || 1),
+        amountMainCurrency: paymentAmountMain,
+      },
+      date,
+      description,
+      journalCounter,
+      file: normalizedPayment.file || "",
+      allocations: [
+        {
+          documentId: purchaseRefund._id,
+          documentName: purchaseRefund.invoiceName,
+          documentCounter: purchaseRefund.counter || "",
+          documentCurrencyCode: purchaseRefund.currency?.currencyCode || "",
+          allocatedAmountMainCurrency: paymentAmountMain,
+          allocatedAmountDocumentCurrency: appliedDocumentCurrency,
+          documentTotal: purchaseRefund.invoiceGrandTotal,
+          documentType: "purchase_refund_invoice",
+          fxDiff,
+          invoiceRate,
+          paymentRate,
+        },
+      ],
+      postedBy: postedBy || null,
+      postedAt: postedAt || new Date(),
+    };
+
+    const paymentDocs = await paymentModel.create([paymentPayload], {
+      session,
+    });
+    const newPayment = paymentDocs[0];
+    let createdPayment = paymentDocs;
+
+    // ── Update invoice ───────────────────────────────────────────
+    purchaseRefund.totalRemainderMainCurrency = willBePaid
+      ? 0
+      : invoiceRemainderMain - paymentAmountMain;
+    purchaseRefund.totalRemainder = willBePaid
+      ? 0
+      : invoiceRemainderForeign - appliedDocumentCurrency;
+    if (willBePaid) purchaseRefund.paid = "paid";
+
+    purchaseRefund.payments.push({
+      payment: paymentAmountFund,
+      paymentMainCurrency: paymentAmountMain,
+      financialFunds: fund.name,
+      financialFundsCurrencyCode: fund.currencyCode,
+      paymentID: newPayment._id,
+      exchangeRate: fund.exchangeRate,
+      date,
+      paymentInInvoiceCurrency: appliedDocumentCurrency,
+      financialFundsId: fund.id,
+      fxDiff,
+      invoiceRate,
+      paymentRate,
+    });
+
+    await purchaseRefund.save({ session });
+
+    await createInvoiceHistory(
+      companyId,
+      purchaseRefund._id,
+      "payment",
+      normalizedPayment.userId || req?.user?._id,
+      date,
+      `${paymentAmountFund} ${fund.currencyCode}`,
+      "invoice",
+      session
+    );
+
+    // ── Supplier entity effect ───────────────────────────────────
+    await handleSupplierPaymentEntity({
+      supplier,
+      companyId,
+      totalMainCurrency: paymentAmountMain,
+      paymentInFundCurrency: paymentAmountFund,
+      paymentId: newPayment._id,
+      refId: purchaseRefund._id,
+      date,
+      description,
+      currencyCode: fund.currencyCode,
+      effectSide: "source",
+      session,
+      fxDiff,
+    });
+
+    // ── Fund entity effect ───────────────────────────────────────
+    await handleFundPaymentEntity({
+      fund,
+      companyId,
+      paymentInFundCurrency: paymentAmountFund,
+      paymentId: newPayment._id,
+      refId: purchaseRefund._id,
       date,
       description,
       effectSide: paymentNature === "outgoing" ? "source" : "destination",
@@ -1711,6 +1743,7 @@ const handleSalesPayment = async (
         currencyId: payment?.currencyId || "",
         currencyCode: payment?.currencyCode || "",
         exchangeRate: Number(payment?.exchangeRate || 1),
+        fundToInvoiceRate: Number(payment?.fundToInvoiceRate),
         amountMainCurrency: paymentAmountMain,
       },
       date,
@@ -1936,6 +1969,11 @@ const handleExpensePayment = async (
       invoiceCurrencyCode: expense?.currency?.currencyCode,
     });
 
+    // Cash expense: created + paid at the same instant/rate — FX is
+    // structurally impossible. Never let a rate mismatch leak a phantom
+    // gain/loss. effectiveFxDiff is what everything downstream uses.
+    const effectiveFxDiff = isCash ? 0 : fxDiff;
+
     console.log("========================================");
     console.log("   EXPENSE PAYMENT");
     console.log("========================================");
@@ -1951,8 +1989,15 @@ const handleExpensePayment = async (
     console.log(`   Same Currency:    ${isSameCurrency ? "YES" : "NO"}`);
     console.log(`   Payment (USD):    ${paymentAmountMain.toFixed(6)}`);
     console.log(
-      `   FX Diff:          ${fxDiff.toFixed(6)} ${
+      `   FX Diff (raw):    ${fxDiff.toFixed(6)} ${
         fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
+      }`
+    );
+    console.log(
+      `   FX Diff (used):   ${effectiveFxDiff.toFixed(6)}${
+        isCash && Math.abs(fxDiff) > 0.001
+          ? "  ⚠️  raw FX zeroed (cash expense)"
+          : ""
       }`
     );
     console.log(`   Will Be Paid:     ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
@@ -1997,7 +2042,7 @@ const handleExpensePayment = async (
           allocatedAmountDocumentCurrency: appliedDocumentCurrency,
           documentTotal: expense.expenceTotal,
           documentType: "expense",
-          fxDiff,
+          fxDiff: effectiveFxDiff,
           invoiceRate,
           paymentRate,
         },
@@ -2031,7 +2076,7 @@ const handleExpensePayment = async (
       date,
       paymentInInvoiceCurrency: appliedDocumentCurrency,
       financialFundsId: fund.id,
-      fxDiff,
+      fxDiff: effectiveFxDiff,
       invoiceRate,
       paymentRate,
     });
@@ -2064,7 +2109,7 @@ const handleExpensePayment = async (
         currencyCode: fund.currencyCode,
         effectSide: "destination",
         session,
-        fxDiff,
+        fxDiff: effectiveFxDiff,
       });
     }
 
@@ -2088,7 +2133,7 @@ const handleExpensePayment = async (
       await savePaymentJournal({
         journalAccounts,
         paymentAmountMain,
-        totalFxDiff: fxDiff,
+        totalFxDiff: effectiveFxDiff,
         date,
         description,
         journalCounter,
@@ -2100,7 +2145,7 @@ const handleExpensePayment = async (
       });
     }
 
-    return createdPayment;
+    return { createdPayment, fxDiff: effectiveFxDiff };
   };
 
   try {
@@ -2484,24 +2529,23 @@ const savePaymentJournal = async ({
     if (!fxLossAccount)
       throw new Error("Foreign Exchange Loss account not linked");
   }
-
-  // ── 4. Build journal entries ─────────────────────────────────────────────
-  // outgoing = paying supplier/customer:
-  //   DR  Party           full invoice amount   accountType: Supplier_Payment / Customer_Payment
-  //   CR  Cash (fund)     payment amount        accountType: Cash
-  //   DR  FX Loss         if loss               accountType: FX_Loss
-  //   CR  Party offset    FX diff               accountType: Supplier_Payment / Customer_Payment
-  //
-  // incoming = receiving from party:
-  //   DR  Cash (fund)     payment amount        accountType: Cash
-  //   CR  Party           full invoice amount   accountType: Supplier_Payment / Customer_Payment
-  //   CR  FX Gain         if gain               accountType: FX_Gain
-  //   DR  Party offset    FX diff               accountType: Supplier_Payment / Customer_Payment
-
   const isOutgoing = paymentNature === "outgoing";
-  const absFxDiff = Math.abs(totalFxDiff);
-  const isLoss = totalFxDiff > 0.000001;
-  const isGain = totalFxDiff < -0.000001;
+
+  // ── FX sign normalization ──────────────────────────────────────────────
+  // totalFxDiff convention: + = loss, - = gain (for the party's NATURAL
+  // direction: supplier=outgoing, customer=incoming).
+  // A refund runs counter to that natural direction, which inverts the
+  // FX meaning — same as the inverted operator in the refund controller.
+  const partyType = payment.party?.type; // "supplier" | "customer"
+  const invertFx =
+    (partyType === "supplier" && !isOutgoing) ||
+    (partyType === "customer" && isOutgoing);
+
+  const effectiveFxDiff = invertFx ? -totalFxDiff : totalFxDiff;
+
+  const absFxDiff = Math.abs(effectiveFxDiff);
+  const isLoss = effectiveFxDiff > 0.000001;
+  const isGain = effectiveFxDiff < -0.000001;
 
   const journalEntries = [];
   let entryCounter = 1;
@@ -2879,6 +2923,7 @@ const buildReversalJournal = async ({
 
 module.exports = {
   handlePurchasePayment,
+  handlePurchaseRefundPayment,
   handleSupplierPayment,
   handleSalesPayment,
   handleExpensePayment,

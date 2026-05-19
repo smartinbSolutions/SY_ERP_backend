@@ -167,12 +167,34 @@ exports.findOnePurchaseInvoiceService = async ({ req, companyId }) => {
       path: "employee",
       select: "name profileImg email phone",
     })
-    .populate("invoicesItems.tax");
+    .populate("invoicesItems.tax")
+    .lean();
 
   if (!purchaseInvoice) {
     throw new ApiError(`No purchase invoice for this id ${id}`, 404);
   }
 
+  // ── PAYMENT COUNTERS ─────────────────────────────
+  const paymentIds = purchaseInvoice?.payments?.map((p) => p.paymentID) || [];
+
+  const paymentTransactions = await PaymentModel.find({
+    _id: { $in: paymentIds },
+  })
+    .select("counter")
+    .lean();
+
+  const paymentCounterMap = {};
+
+  paymentTransactions.forEach((p) => {
+    paymentCounterMap[p._id.toString()] = p.counter;
+  });
+
+  purchaseInvoice.payments = purchaseInvoice.payments.map((payment) => ({
+    ...payment,
+    paymentCounter: paymentCounterMap[payment.paymentID?.toString()] || null,
+  }));
+
+  // ── HISTORY ─────────────────────────────
   const pageSize = Number(req.query.limit) || 20;
   const page = Number(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
@@ -182,6 +204,7 @@ exports.findOnePurchaseInvoiceService = async ({ req, companyId }) => {
   });
 
   const totalPages = Math.ceil(totalItems / pageSize);
+
   const invoiceHistory = await invoiceHistoryModel
     .find({
       invoiceId: id,

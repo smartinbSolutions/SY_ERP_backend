@@ -27,6 +27,7 @@ const {
 const {
   createJournalEntryService,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
+const linkPanelModel = require("../../../models/linkPanelModel");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -134,7 +135,15 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
         });
       }
 
+      // ── Parse journalPreview FIRST ─────────────────────────────
+      // Parsed before payment so the FX-append block can mutate it.
+      const journalPreview = req.body.journalPreview
+        ? JSON.parse(req.body.journalPreview)
+        : null;
+
       // ── Payment — runs for BOTH cash and non-cash ──────────────
+      let fxDiff = 0; // ← declare outside so it's accessible below
+
       if (req.body.havepayments === "paid") {
         const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
         const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
@@ -159,6 +168,8 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
             currencyCode: payment?.currencyCode || "",
             exchangeRate: Number(payment?.exchangeRate || 1),
             amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+            fundToInvoiceRate: Number(payment?.fundToInvoiceRate || 1),
+            amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
           },
           invoiceId: newExpenseInvoice._id,
           date: req.body.paymentDate || req.body.date,
@@ -173,22 +184,86 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           userId: req.user?._id || null,
         };
 
-        await handleExpensePayment(
+        const result = await handleExpensePayment(
           req,
           companyId,
           next,
           normalizedPayment,
           session
         );
+
+        fxDiff = result?.fxDiff || 0; // ← capture fxDiff
+      }
+
+      // ── Append FX lines to journalPreview if needed ───────────
+      // Skipped for cash expenses — no Supplier_Payment line to offset,
+      // and a cash expense has no FX (settled at creation rate).
+      if (
+        req.body.havepayments === "paid" &&
+        !isCash &&
+        journalPreview &&
+        Math.abs(fxDiff) > 0.001
+      ) {
+        const linkings = await linkPanelModel
+          .find({ companyId })
+          .populate("accountData")
+          .session(session);
+
+        const fxGainLink = linkings.find(
+          (l) => l.name === "Foreign Exchange Gain"
+        );
+        const fxLossLink = linkings.find(
+          (l) => l.name === "Foreign Exchange Loss"
+        );
+
+        const isLoss = fxDiff > 0;
+        const fxAccount = isLoss
+          ? fxLossLink?.accountData
+          : fxGainLink?.accountData;
+        const partyJournalAccount = journalPreview.journalAccounts.find(
+          (a) => a.accountType === "Supplier_Payment"
+        );
+
+        if (fxAccount && partyJournalAccount) {
+          const absFx = Math.abs(fxDiff);
+
+          journalPreview.journalAccounts.push({
+            counter: journalPreview.journalAccounts.length + 1,
+            id: fxAccount._id,
+            name: fxAccount.name,
+            code: fxAccount.code,
+            MainDebit: isLoss ? absFx : 0,
+            MainCredit: isLoss ? 0 : absFx,
+            accountDebit: isLoss ? absFx : 0,
+            accountCredit: isLoss ? 0 : absFx,
+            accountCurrency: fxAccount.currency?.currencyCode || "",
+            accountExRate: Number(fxAccount.currency?.exchangeRate) || 1,
+            isPrimary: fxAccount.currency?.is_primary === "true",
+            Desc: `FX ${isLoss ? "Loss" : "Gain"} on payment`,
+            accountType: isLoss ? "FX_Loss" : "FX_Gain",
+          });
+
+          journalPreview.journalAccounts.push({
+            counter: journalPreview.journalAccounts.length + 1,
+            id: partyJournalAccount.id,
+            name: partyJournalAccount.name,
+            code: partyJournalAccount.code,
+            MainDebit: isLoss ? 0 : absFx,
+            MainCredit: isLoss ? absFx : 0,
+            accountDebit: isLoss ? 0 : absFx,
+            accountCredit: isLoss ? absFx : 0,
+            accountCurrency: partyJournalAccount.accountCurrency || "",
+            accountExRate: partyJournalAccount.accountExRate || 1,
+            isPrimary: partyJournalAccount.isPrimary || false,
+            Desc: `FX ${isLoss ? "Loss" : "Gain"} offset`,
+            accountType: "Supplier_Payment",
+          });
+        }
       }
 
       // ── Journal — same session, atomic with invoice + payment ──
       // Frontend builds preview and sends it as journalPreview
-      // Backend just saves it — no logic duplication
-      const journalPreview = req.body.journalPreview
-        ? JSON.parse(req.body.journalPreview)
-        : null;
-
+      // Backend just saves it (with FX lines appended above if any)
       if (journalPreview && nextCounterJournal) {
         await createJournalEntryService({
           data: {
@@ -217,7 +292,6 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
     session.endSession();
   }
 });
-
 exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceId = req.params.id;

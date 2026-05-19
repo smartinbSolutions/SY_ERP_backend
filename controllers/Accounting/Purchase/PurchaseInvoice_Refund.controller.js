@@ -15,8 +15,12 @@ const {
 
 const counterModel = require("../../../models/Settings/counterModel");
 const {
-  handlePurchasePayment,
+  handlePurchaseRefundPayment,
 } = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
+const linkPanelModel = require("../../../models/linkPanelModel");
+const {
+  createJournalEntryService,
+} = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 
 exports.findAllPurchaseRefunds = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -104,6 +108,11 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         { $inc: { seq: 1 } },
         { new: true, upsert: true, session }
       );
+    nextCounterJournal = await counterModel.findOneAndUpdate(
+      { companyId, name: "Journal" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session }
+    );
 
     const prepared = await prepareRefundPurchaseInvoiceDataService({
       req,
@@ -123,56 +132,6 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         nextCounterRefundPurchaseInvoice,
       });
 
-    // ── Payment — replaced applyRefundPurchaseFinancialEffectsService ──
-    if (req.body.paid === "paid") {
-      const fund = req.body.financailFund
-        ? typeof req.body.financailFund === "string"
-          ? JSON.parse(req.body.financailFund)
-          : req.body.financailFund
-        : null;
-
-      const normalizedPayment = {
-        party: {
-          id: prepared.supplier?._id?.toString() || "",
-          name:
-            prepared.supplier?.supplierName || prepared.supplier?.name || "",
-          type: "supplier",
-        },
-        fund: {
-          id: fund?.id || fund?._id || "",
-          name: fund?.name || "",
-          currencyId: fund?.currencyId || "",
-          currencyCode: fund?.code || fund?.currencyCode || "",
-          exchangeRate: Number(fund?.exchangeRate || 1),
-        },
-        paymentNature: "incoming", // ← refund = money coming IN from supplier
-        payment: {
-          amount: Number(req.body.paymentInFundCurrency || 0),
-          currencyId: fund?.currencyId || "",
-          currencyCode: fund?.code || fund?.currencyCode || "",
-          exchangeRate: Number(fund?.exchangeRate || 1),
-          amountMainCurrency: Number(req.body.paymentInMainCurrency || 0),
-        },
-        invoiceId: newRefundPurchaseInvoice._id,
-        date: req.body.paymentDate || prepared.formattedDate,
-        description: req.body.paymentDescription || "",
-        journalCounter: req.body.journalCounter || "",
-        counter: req.body.counter || "0",
-        companyId,
-        postedBy: req.user?._id || null,
-        postedAt: new Date(),
-        journalAccounts: req.body.journalAccounts || null,
-      };
-
-      await handlePurchasePayment(
-        req,
-        companyId,
-        next,
-        normalizedPayment,
-        session // ← pass existing session, no nested transaction
-      );
-    }
-
     // ── Inventory effects ──────────────────────────────────────
     await applyRefundPurchaseInventoryEffectsService({
       companyId,
@@ -190,6 +149,141 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       currency: req.body.currency,
       session,
     });
+    console.log(req.body);
+    // ── Parse journalPreview FIRST ─────────────────────────────
+    const journalPreview = req.body.journalPreview;
+
+    // ── Payment ────────────────────────────────────────────────
+    let fxDiff = 0; // ← declare outside so it's accessible below
+    // ── Payment — replaced applyRefundPurchaseFinancialEffectsService ──
+    if (req.body.paid === "paid") {
+      const fund = req.body.fund;
+      const payment = req.body.payment;
+
+      const normalizedPayment = {
+        party: {
+          id: prepared.supplier?._id?.toString() || "",
+          name:
+            prepared.supplier?.supplierName || prepared.supplier?.name || "",
+          type: "supplier",
+        },
+        fund: {
+          id: fund?.id || fund?._id || "",
+          name: fund?.name || "",
+          currencyId: fund?.currencyId || "",
+          currencyCode: fund?.code || fund?.currencyCode || "",
+          exchangeRate: Number(fund?.exchangeRate || 1),
+        },
+        paymentNature: "incoming", // ← refund = money coming IN from supplier
+        payment: {
+          amount: Number(payment?.amount || 0),
+          currencyId: payment?.currencyId || "",
+          currencyCode: payment?.currencyCode || "",
+          exchangeRate: Number(payment?.exchangeRate || 1),
+          amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+          fundToInvoiceRate: Number(payment?.fundToInvoiceRate || 1),
+          amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
+        },
+        invoiceId: newRefundPurchaseInvoice._id,
+        date: req.body.paymentDate || prepared.formattedDate,
+        description: req.body.paymentDescription || "",
+        journalCounter: req.body.journalCounter || "",
+        counter: req.body.counter || "0",
+        companyId,
+        postedBy: req.user?._id || null,
+        postedAt: new Date(),
+        journalAccounts: req.body.journalAccounts || null,
+      };
+      console.log("normalizedPayment", normalizedPayment);
+      const result = await handlePurchaseRefundPayment(
+        req,
+        companyId,
+        next,
+        normalizedPayment,
+        session
+      );
+
+      fxDiff = result.fxDiff || 0;
+    }
+
+    // ── Append FX lines to journalPreview if needed ───────────
+    if (
+      req.body.paid === "paid" &&
+      journalPreview &&
+      Math.abs(fxDiff) > 0.001
+    ) {
+      const linkings = await linkPanelModel
+        .find({ companyId })
+        .populate("accountData")
+        .session(session);
+
+      const fxGainLink = linkings.find(
+        (l) => l.name === "Foreign Exchange Gain"
+      );
+      const fxLossLink = linkings.find(
+        (l) => l.name === "Foreign Exchange Loss"
+      );
+
+      const isLoss = fxDiff < 0.0;
+      const fxAccount = isLoss
+        ? fxLossLink?.accountData
+        : fxGainLink?.accountData;
+      const partyJournalAccount = journalPreview.journalAccounts.find(
+        (a) => a.accountType === "Supplier_Payment"
+      );
+
+      if (fxAccount && partyJournalAccount) {
+        const absFx = Math.abs(fxDiff);
+
+        journalPreview.journalAccounts.push({
+          counter: journalPreview.journalAccounts.length + 1,
+          id: fxAccount._id,
+          name: fxAccount.name,
+          code: fxAccount.code,
+          MainDebit: isLoss ? absFx : 0,
+          MainCredit: isLoss ? 0 : absFx,
+          accountDebit: isLoss ? absFx : 0,
+          accountCredit: isLoss ? 0 : absFx,
+          accountCurrency: fxAccount.currency?.currencyCode || "",
+          accountExRate: Number(fxAccount.currency?.exchangeRate) || 1,
+          isPrimary: fxAccount.currency?.is_primary === "true",
+          Desc: `FX ${isLoss ? "Loss" : "Gain"} on payment`,
+          accountType: isLoss ? "FX_Loss" : "FX_Gain",
+        });
+
+        journalPreview.journalAccounts.push({
+          counter: journalPreview.journalAccounts.length + 1,
+          id: partyJournalAccount.id,
+          name: partyJournalAccount.name,
+          code: partyJournalAccount.code,
+          MainDebit: isLoss ? 0 : absFx,
+          MainCredit: isLoss ? absFx : 0,
+          accountDebit: isLoss ? 0 : absFx,
+          accountCredit: isLoss ? absFx : 0,
+          accountCurrency: partyJournalAccount.accountCurrency || "",
+          accountExRate: partyJournalAccount.accountExRate || 1,
+          isPrimary: partyJournalAccount.isPrimary || false,
+          Desc: `FX ${isLoss ? "Loss" : "Gain"} offset`,
+          accountType: "Supplier_Payment",
+        });
+      }
+    }
+
+    // ── Journal ────────────────────────────────────────────────
+    if (journalPreview && nextCounterJournal) {
+      await createJournalEntryService({
+        data: {
+          ...journalPreview.journalMeta,
+          journalAccounts: journalPreview.journalAccounts,
+          counter: req.body.counter || 0,
+          refId: newRefundPurchaseInvoice._id,
+          refCounter: newRefundPurchaseInvoice.counter,
+        },
+        companyId,
+        nextCounterJournal,
+        session,
+      });
+    }
 
     await session.commitTransaction();
 

@@ -12,6 +12,7 @@ const suppliersModel = require("../../../models/suppliersModel");
 const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
+const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 
 function padZero(value) {
   return value < 10 ? `0${value}` : value;
@@ -129,8 +130,45 @@ exports.findAllPurchaseRefundsService = async ({ req, companyId }) => {
 exports.findOnePurchaseRefundService = async ({ req, companyId }) => {
   const { id } = req.params;
 
+  const purchaseRefund = await refundPurchaseInviceModel
+    .findOne({
+      _id: id,
+      companyId,
+    })
+    .populate({
+      path: "employee",
+      select: "name profileImg email phone",
+    })
+    .lean();
+
+  if (!purchaseRefund) {
+    throw new ApiError(`No purchase refund for this id ${id}`, 404);
+  }
+
+  // ── PAYMENT COUNTERS ─────────────────────────────
+  const paymentIds = purchaseRefund?.payments?.map((p) => p.paymentID) || [];
+
+  const paymentTransactions = await paymentsModel
+    .find({
+      _id: { $in: paymentIds },
+    })
+    .select("counter")
+    .lean();
+
+  const paymentCounterMap = {};
+
+  paymentTransactions.forEach((p) => {
+    paymentCounterMap[p._id.toString()] = p.counter;
+  });
+
+  purchaseRefund.payments = (purchaseRefund.payments || []).map((payment) => ({
+    ...payment,
+    paymentCounter: paymentCounterMap[payment.paymentID?.toString()] || null,
+  }));
+
+  // ── HISTORY ─────────────────────────────
   const pageSize = Number(req.query.limit) || 20;
-  const page = parseInt(req.query.page, 10) || 1;
+  const page = Number(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
   const totalItems = await invoiceHistoryModel.countDocuments({
@@ -149,15 +187,6 @@ exports.findOnePurchaseRefundService = async ({ req, companyId }) => {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageSize);
-
-  const purchaseRefund = await refundPurchaseInviceModel.findOne({
-    _id: id,
-    companyId,
-  });
-
-  if (!purchaseRefund) {
-    throw new ApiError(`No purchase refund for this id ${id}`, 404);
-  }
 
   return {
     totalItems,
@@ -496,6 +525,16 @@ exports.createRefundPurchaseInvoiceRecordService = async ({
     counter,
   } = req.body;
 
+  // ─────────────────────────────────────────────
+  // FORCE SAME BEHAVIOR AS PURCHASE INVOICE
+  // DO NOT TRUST FRONTEND FOR REMAINDER
+  // ─────────────────────────────────────────────
+
+  const resolvedPaidStatus = paid === "paid" ? "paid" : "unpaid";
+
+  const resolvedRemainderMain = Number(totalPurchasePriceMainCurrency || 0);
+  const resolvedRemainder = Number(invoiceGrandTotal || 0);
+
   const createdInvoices = await refundPurchaseInviceModel.create(
     [
       {
@@ -529,14 +568,16 @@ exports.createRefundPurchaseInvoiceRecordService = async ({
         date: req.body.date || formattedDate,
         description: req.body.description || "",
         invoiceType: req.body.invoiceType || "",
-        totalRemainderMainCurrency: Number(
-          req.body.totalRemainderMainCurrency ?? totalPurchasePriceMainCurrency
-        ),
-        totalRemainder: Number(req.body.totalRemainder ?? invoiceGrandTotal),
+
+        // ─────────────────────────────────────────────
+        // IMPORTANT FIX (same as purchase invoice)
+        // ─────────────────────────────────────────────
+        totalRemainderMainCurrency: resolvedRemainderMain,
+        totalRemainder: resolvedRemainder,
 
         tag: req.body.tag || [],
         InvoiceDiscountType: InvoiceDiscountType || "value",
-        paid: paid === "paid" ? "paid" : "unpaid",
+        paid: resolvedPaidStatus,
 
         journalCounter: req.body.journalCounter,
         counter: Number(counter) + nextCounterRefundPurchaseInvoice.seq,
