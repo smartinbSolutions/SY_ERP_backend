@@ -555,12 +555,7 @@ exports.deleteWorkspace = async (workspaceId) => {
   return workspace;
 };
 
-exports.addMember = async (
-  workspaceId,
-  userId,
-  role = "member",
-  notificationsEnabled,
-) => {
+exports.addMember = async (workspaceId, userId, role = "member") => {
   const workspace = await Workspace.findById(workspaceId);
 
   if (!workspace) {
@@ -581,8 +576,7 @@ exports.addMember = async (
     throw new Error("User already exists in workspace");
   }
 
-  const finalNotificationsEnabled =
-    notificationsEnabled ?? ["owner", "manager"].includes(role);
+  const notificationsEnabled = ["owner", "manager"].includes(role);
 
   const updatedWorkspace = await Workspace.findByIdAndUpdate(
     workspaceId,
@@ -591,7 +585,7 @@ exports.addMember = async (
         members: {
           user: userId,
           role,
-          notificationsEnabled: finalNotificationsEnabled,
+          notificationsEnabled,
         },
       },
     },
@@ -602,20 +596,17 @@ exports.addMember = async (
   // NOTIFICATION
   // =========================
 
-  if (finalNotificationsEnabled) {
-    await NotificationModel.create({
-      recipient: userId,
-      actor: workspace.createdBy,
-      type: "workspace.member_added",
-      title: "Added to Workspace",
-      message: `You were added to workspace "${workspace.name}"`,
-
-      entity: {
-        id: workspace._id,
-        model: "Workspace",
-      },
-    });
-  }
+  await NotificationModel.create({
+    recipient: userId,
+    actor: workspace.createdBy,
+    type: "workspace.member_added",
+    title: "Added to Workspace",
+    message: `You were added to workspace "${workspace.name}"`,
+    entity: {
+      id: workspace._id,
+      model: "Workspace",
+    },
+  });
 
   return updatedWorkspace;
 };

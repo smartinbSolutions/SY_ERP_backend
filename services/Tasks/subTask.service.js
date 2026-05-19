@@ -99,7 +99,8 @@ exports.updateSubTask = async (subTaskId, data, actorId) => {
     title: "SubTask Updated",
     message: `Subtask "${subTask.title || subTask._id}" was updated`,
     entity: {
-      id: subTask._id,
+      subTaskId: subTask._id,
+      taskId: subTask.task,
       model: "SubTask",
     },
   }));

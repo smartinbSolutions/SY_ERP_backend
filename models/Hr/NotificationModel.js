@@ -21,8 +21,8 @@ const notificationSchema = new mongoose.Schema(
     message: String,
 
     entity: {
-      id: mongoose.Schema.Types.ObjectId,
-      model: String,
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     isRead: {

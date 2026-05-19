@@ -76,7 +76,8 @@ exports.createFolder = async (data, userId, workspace) => {
       title: "Added to Folder",
       message: `You were added to folder "${folder.name}"`,
       entity: {
-        id: folder._id,
+        folderId: folder._id,
+        workspaceId: folder.workspace,
         model: "Folder",
       },
     }));
@@ -163,13 +164,9 @@ exports.deleteFolder = async (folderId) => {
 // ===============================
 // ADD MEMBER
 // ===============================
-exports.addMember = async (
-  folderId,
-  userId,
-  role = "member",
-  notificationsEnabled,
-) => {
+exports.addMember = async (folderId, userId, role = "member") => {
   const folder = await Folder.findById(folderId);
+  console.log("Folder:", folder);
 
   if (!folder) {
     throw new Error("Folder not found");
@@ -189,12 +186,7 @@ exports.addMember = async (
     throw new Error("User already exists in folder");
   }
 
-  // =========================
-  // DEFAULT NOTIFICATION LOGIC
-  // =========================
-
-  const finalNotificationsEnabled =
-    notificationsEnabled ?? ["owner", "manager"].includes(role);
+  const notificationsEnabled = ["owner", "manager"].includes(role);
 
   const updatedFolder = await Folder.findByIdAndUpdate(
     folderId,
@@ -203,7 +195,7 @@ exports.addMember = async (
         members: {
           user: userId,
           role,
-          notificationsEnabled: finalNotificationsEnabled,
+          notificationsEnabled,
         },
       },
     },
@@ -214,26 +206,25 @@ exports.addMember = async (
   // NOTIFICATION
   // =========================
 
-  if (finalNotificationsEnabled) {
-    await NotificationModel.create({
-      recipient: userId,
-      actor: folder.createdBy,
-      type: "folder.member_added",
-      title: "Added to Folder",
-      message: `You were added to folder "${folder.name}"`,
-      entity: {
-        id: folder._id,
-        model: "Folder",
-      },
-    });
-  }
+  await NotificationModel.create({
+    recipient: userId,
+    actor: folder.createdBy,
+    type: "folder.member_added",
+    title: "Added to Folder",
+    message: `You were added to folder "${folder.name}"`,
+    entity: {
+      folderId: folder._id,
+      workspaceId: folder.workspace,
+      model: "Folder",
+    },
+  });
 
   return updatedFolder;
 };
 
 // ===============================
 // REMOVE MEMBER
-// ===============================  
+// ===============================
 exports.removeMember = async (folderId, userId) => {
   const folder = await Folder.findById(folderId);
 
@@ -272,7 +263,8 @@ exports.removeMember = async (folderId, userId) => {
     title: "Removed from Folder",
     message: `You were removed from folder "${folder.name}"`,
     entity: {
-      id: folder._id,
+      folderId: folder._id,
+      workspaceId: folder.workspace,
       model: "Folder",
     },
   });

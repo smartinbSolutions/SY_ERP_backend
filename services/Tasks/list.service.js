@@ -75,9 +75,7 @@ exports.createList = async (data, userId, companyId) => {
   // MEMBER NOTIFICATIONS
   // =========================
 
-  const notificationMembers = uniqueMembers.filter(
-    (m) => m.notificationsEnabled,
-  );
+  const notificationMembers = uniqueMembers;
 
   if (notificationMembers.length > 0) {
     const notifications = notificationMembers.map((member) => ({
@@ -143,14 +141,7 @@ exports.deleteList = async (listId) => {
 // ===============================
 // ADD MEMBER
 // ===============================
-exports.addMember = async (
-  listId,
-  targetUserId,
-  role,
-  actorId,
-  companyId,
-  notificationsEnabled,
-) => {
+exports.addMember = async (listId, targetUserId, role, actorId, companyId) => {
   const list = await List.findById(listId);
 
   if (!list) throw new Error("List not found");
@@ -163,35 +154,31 @@ exports.addMember = async (
     throw new Error("User already exists in list");
   }
 
-  const finalNotificationsEnabled =
-    notificationsEnabled ?? ["owner", "manager"].includes(role);
+  const notificationsEnabled = ["owner", "manager"].includes(role);
 
   list.members.push({
     user: targetUserId,
     role,
-    notificationsEnabled: finalNotificationsEnabled,
+    notificationsEnabled,
   });
 
   await list.save();
-
   // =========================
   // NOTIFICATION
   // =========================
-
-  if (finalNotificationsEnabled) {
-    await NotificationModel.create({
-      recipient: targetUserId,
-      actor: actorId,
-      type: "list.member_added",
-      title: "Added to List",
-      message: `You were added to list "${list.name}"`,
-
-      entity: {
-        id: list._id,
-        model: "List",
-      },
-    });
-  }
+  await NotificationModel.create({
+    recipient: targetUserId,
+    actor: actorId,
+    type: "list.member_added",
+    title: "Added to List",
+    message: `You were added to list "${list.name}"`,
+    entity: {
+      listId: list._id,
+      folderId: list.folder,
+      workspaceId: list.workspace,
+      model: "List",
+    },
+  });
 
   return list;
 };

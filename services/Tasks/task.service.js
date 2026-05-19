@@ -232,12 +232,11 @@ exports.updateTask = async (taskId, data, actor) => {
 
   if (!task) throw new Error("Task not found");
 
-
   // =========================
   // NOTIFICATIONS LOGIC
   // =========================
 
-  const recipients = await getTaskRecipients(task, actor._id);
+  const recipients = await exports.getTaskRecipients(task, actor._id);
 
   if (recipients.length > 0) {
     const notifications = recipients.map((userId) => ({
@@ -247,7 +246,8 @@ exports.updateTask = async (taskId, data, actor) => {
       title: "Task Updated",
       message: `Task "${task.title}" was updated by ${actor.fullName} `,
       entity: {
-        id: task._id,
+        taskId: task._id,
+        listId: task.list,
         model: "Task",
       },
     }));

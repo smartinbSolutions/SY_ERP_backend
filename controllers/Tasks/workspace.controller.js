@@ -137,7 +137,6 @@ exports.addMember = async (req, res) => {
       req.params.workspaceId,
       req.body.userId,
       req.body.role,
-      req.body.notificationsEnabled,
     );
 
     return res.status(200).json({

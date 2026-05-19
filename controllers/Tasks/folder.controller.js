@@ -124,7 +124,6 @@ exports.addMember = async (req, res) => {
       req.params.folderId,
       req.body.userId,
       req.body.role,
-      req.body.notificationsEnabled,
     );
 
     return res.status(200).json({

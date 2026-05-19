@@ -59,9 +59,6 @@ exports.createComment = async (data, companyId, userId) => {
     return comment;
   }
 
-  // =========================
-  // FILTER + DEDUPLICATE
-  // =========================
   const uniqueRecipients = [
     ...new Set(recipients.map((id) => String(id))),
   ].filter((id) => id !== String(userId));
@@ -69,7 +66,6 @@ exports.createComment = async (data, companyId, userId) => {
   if (uniqueRecipients.length === 0) {
     return comment;
   }
-
   // =========================
   // CREATE NOTIFICATIONS
   // =========================
