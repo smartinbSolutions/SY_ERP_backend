@@ -1,5 +1,7 @@
+const NotificationModel = require("../../models/Hr/NotificationModel");
 const SubTask = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
+const { getTaskRecipients } = require("./task.service");
 
 // ======================================
 // CREATE SUBTASK (context-aware)
@@ -57,7 +59,10 @@ exports.getSubTaskById = async (subTaskId) => {
 // ======================================
 // UPDATE SUBTASK
 // ======================================
-exports.updateSubTask = async (subTaskId, data) => {
+exports.updateSubTask = async (subTaskId, data, actorId) => {
+  // =========================
+  // UPDATE SUBTASK
+  // =========================
   const subTask = await SubTask.findByIdAndUpdate(subTaskId, data, {
     new: true,
   });
@@ -65,6 +70,41 @@ exports.updateSubTask = async (subTaskId, data) => {
   if (!subTask) {
     throw new Error("SubTask not found");
   }
+
+  const task = await Task.findById(subTask.task).populate({
+    path: "list",
+    populate: [{ path: "folder" }, { path: "workspace" }],
+  });
+
+  if (!task) {
+    return subTask;
+  }
+
+  const recipients = await getTaskRecipients(task, actorId);
+
+  const uniqueRecipients = [
+    ...new Set(recipients.map((id) => String(id))),
+  ].filter((id) => id !== String(actorId));
+
+  if (uniqueRecipients.length === 0) {
+    return subTask;
+  }
+  // =========================
+  // NOTIFICATIONS
+  // =========================
+  const notifications = uniqueRecipients.map((recipient) => ({
+    recipient,
+    actor: actorId,
+    type: "subtask.updated",
+    title: "SubTask Updated",
+    message: `Subtask "${subTask.title || subTask._id}" was updated`,
+    entity: {
+      id: subTask._id,
+      model: "SubTask",
+    },
+  }));
+
+  await NotificationModel.create(notifications);
 
   return subTask;
 };
@@ -186,4 +226,3 @@ exports.toggleChecklistItem = async (subTaskId, itemId) => {
 
   return subTask;
 };
-

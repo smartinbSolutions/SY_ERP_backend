@@ -72,16 +72,18 @@ exports.getSubTaskById = async (req, res) => {
 exports.updateSubTask = async (req, res) => {
   try {
     const subTask = await subTaskService.updateSubTask(
-      req.subTask._id,
+      req.params.subTaskId,
       req.body,
+      req.user._id,
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+      message: "SubTask updated successfully",
       data: subTask,
     });
   } catch (error) {
-    res.status(404).json({
+    return res.status(400).json({
       success: false,
       message: error.message,
     });
