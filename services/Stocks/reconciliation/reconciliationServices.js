@@ -652,7 +652,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
               sourceId: id,
               costBuyingPrice:
                 product?.costBuyingPrice || product?.buyingprice || 0,
-              referenceType: "Stock Reconciliation",
+              sourceType: "Stock Reconciliation",
             },
             { session }, // <-- pass session
           );

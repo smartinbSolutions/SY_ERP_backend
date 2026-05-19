@@ -31,7 +31,7 @@ exports.createBOM = asyncHandler(async (req, res) => {
   // deactivate old BOM
   await billOfMaterialsModel.updateMany(
     { productId, companyId, isActive: true },
-    { isActive: false }
+    { isActive: false },
   );
 
   const normalizedIngredients = ingredients.map((ing) => ({
@@ -53,7 +53,7 @@ exports.createBOM = asyncHandler(async (req, res) => {
         quantity: Number(item.quantity) || 0,
       })),
       preparationTimeMinutes: Number(step.preparationTimeMinutes) || 0,
-    })
+    }),
   );
 
   const bom = await billOfMaterialsModel.create({
@@ -142,7 +142,7 @@ exports.updateBOM = asyncHandler(async (req, res) => {
         quantity: Number(item.quantity) || 0,
       })),
       preparationTimeMinutes: Number(step.preparationTimeMinutes) || 0,
-    })
+    }),
   );
 
   const newBOM = await billOfMaterialsModel.findOneAndUpdate(
@@ -157,7 +157,7 @@ exports.updateBOM = asyncHandler(async (req, res) => {
       ingredients: normalizedIngredients,
       preparationSteps: normalizedPreparationSteps,
     },
-    { new: true }
+    { new: true },
   );
 
   res.status(200).json({
@@ -173,7 +173,7 @@ exports.deleteBOM = asyncHandler(async (req, res) => {
   const bom = await billOfMaterialsModel.findOneAndUpdate(
     { productId, isActive: true },
     { isActive: false },
-    { new: true }
+    { new: true },
   );
 
   if (!bom) {
@@ -313,7 +313,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
 
       const totalAvailable = rawProduct.stocks.reduce(
         (sum, s) => sum + (Number(s.productQuantity) || 0),
-        0
+        0,
       );
 
       const requiredQty = Number(item?.quantity?.value || 0);
@@ -327,7 +327,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
     const productionLogCounter = await counterModel.findOneAndUpdate(
       { companyId, name: "productionLog" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     //CREATE PRODUCTION LOG
@@ -344,7 +344,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
           counter: counter + productionLogCounter.seq,
         },
       ],
-      { session }
+      { session },
     );
 
     const logId = productionLog._id;
@@ -375,7 +375,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
       let totalDeducted = 0;
       let stockBalance =
         rawProduct.stocks.find(
-          (s) => s.stockId.toString() === stockId.toString()
+          (s) => s.stockId.toString() === stockId.toString(),
         )?.productQuantity || 0;
 
       for (const batch of batches) {
@@ -389,7 +389,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
         stockBalance -= deduct;
 
         const unitCost = Number(
-          batch.costBuyingPrice || batch.buyingprice || 0
+          batch.costBuyingPrice || batch.buyingprice || 0,
         );
         totalManufacturingCost += deduct * unitCost;
 
@@ -425,7 +425,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
             quantity: -totalDeducted,
           },
         },
-        { session }
+        { session },
       );
     }
 
@@ -454,7 +454,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
         new: true,
         session,
         arrayFilters: [{ "u.unitId": unitId }, { "p.title": "buyingprice" }],
-      }
+      },
     );
 
     if (!product) {
@@ -463,7 +463,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
 
     const totalStockQuantity = product.stocks.reduce(
       (total, stock) => total + stock.productQuantity || 0,
-      0
+      0,
     );
 
     await createProductMovement({
@@ -486,7 +486,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
       quantity: producedQty,
       buyingprice: unitManufacturingCost,
       costBuyingPrice: unitManufacturingCost,
-      referenceType: "manufacturing",
+      sourceType: "manufacturing",
       sourceId: logId,
     });
 

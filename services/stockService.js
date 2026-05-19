@@ -502,7 +502,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           costBuyingPrice: avgCostBuyingPrice,
           exchangeRate: avgExchangeRate,
           sourceId: transferId,
-          referenceType: "stock_transfer",
+          sourceType: "stock_transfer",
           meta: {
             fromStockId,
             toStockId,
