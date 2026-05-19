@@ -5,7 +5,7 @@ const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 
-const getTaskRecipients = async (task, actorId) => {
+exports.getTaskRecipients = async (task, actorId) => {
   const map = new Map();
 
   const addMembers = (members = [], source = "unknown") => {
