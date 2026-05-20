@@ -1,6 +1,7 @@
 const Folder = require("../../models/Tasks/FolderModel");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
+const notificationHelper = require("./notificationHelper");
 
 // ===============================
 // CREATE FOLDER
@@ -30,14 +31,9 @@ exports.createFolder = async (data, userId, workspace) => {
     const id = String(m.user);
 
     if (id === String(userId)) continue;
-
     if (seen.has(id)) continue;
 
     seen.add(id);
-
-    // =========================
-    // NOTIFICATION DEFAULT LOGIC
-    // =========================
 
     const notificationsEnabled =
       m.notificationsEnabled ?? ["owner", "manager"].includes(m.role);
@@ -50,6 +46,10 @@ exports.createFolder = async (data, userId, workspace) => {
     });
   }
 
+  // =========================
+  // CREATE FOLDER
+  // =========================
+
   const folder = await Folder.create({
     name: data.name.trim(),
     workspace: workspace._id,
@@ -60,29 +60,60 @@ exports.createFolder = async (data, userId, workspace) => {
     members: uniqueMembers,
   });
 
-  // =========================
-  // NOTIFICATIONS
-  // =========================
+  // ======================================================
+  // STEP 1: DIRECT NOTIFICATIONS (folder members only)
+  // ======================================================
 
-  const notificationMembers = uniqueMembers.filter(
-    (m) => m.user.toString() !== userId.toString() && m.notificationsEnabled,
-  );
+  const directRecipients = uniqueMembers
+    .filter(
+      (m) => m.user.toString() !== userId.toString() && m.notificationsEnabled,
+    )
+    .map((m) => String(m.user));
 
-  if (notificationMembers.length > 0) {
-    const notifications = notificationMembers.map((member) => ({
-      recipient: member.user,
+  if (directRecipients.length > 0) {
+    const directNotifications = directRecipients.map((recipient) => ({
+      recipient,
       actor: userId,
       type: "folder.member_added",
       title: "Added to Folder",
-      message: `You were added to folder "${folder.name}"`,
+      message: `You have been added to folder "${folder.name}"`,
       entity: {
         folderId: folder._id,
-        workspaceId: folder.workspace,
+        workspaceId: workspace._id,
         model: "Folder",
       },
     }));
 
-    await NotificationModel.create(notifications);
+    await NotificationModel.create(directNotifications);
+  }
+
+  // ======================================================
+  // STEP 2: TREE NOTIFICATIONS (workspace via helper)
+  // ======================================================
+
+  const treeRecipients = notificationHelper.getRecipients(
+    {
+      workspace: workspace,
+    },
+    userId,
+    "folder",
+  );
+
+  if (treeRecipients.length > 0) {
+    const treeNotifications = treeRecipients.map((recipient) => ({
+      recipient,
+      actor: userId,
+      type: "folder.created",
+      title: "Folder Created",
+      message: `Folder "${folder.name}" was created in workspace "${workspace.name}"`,
+      entity: {
+        folderId: folder._id,
+        workspaceId: workspace._id,
+        model: "Folder",
+      },
+    }));
+
+    await NotificationModel.create(treeNotifications);
   }
 
   return folder;
@@ -127,21 +158,74 @@ exports.getFolderById = async (folderId) => {
 // ===============================
 // UPDATE FOLDER
 // ===============================
-exports.updateFolder = async (folderId, data) => {
-  const folder = await Folder.findById(folderId);
+exports.updateFolder = async (folderId, data, actorId) => {
+  console.log("=== UPDATE FOLDER START ===", {
+    folderId,
+    actorId,
+    data,
+  });
+
+  const folder = await Folder.findById(folderId).populate({
+    path: "workspace",
+    select: "members name",
+  });
 
   if (!folder) throw new Error("Folder not found");
+
+  // =========================
+  // UPDATE FIELDS
+  // =========================
 
   if (data.name) folder.name = data.name.trim();
   if (data.order !== undefined) folder.order = data.order;
   if (data.visibility) folder.visibility = data.visibility;
 
-  // ✅ FIX HERE
   if (data.members) {
     folder.members = data.members;
   }
 
   await folder.save();
+
+  console.log("FOLDER UPDATED", { folderId: folder._id });
+
+  // =========================
+  // TREE NOTIFICATIONS ONLY
+  // =========================
+
+  console.log("STEP 1: TREE NOTIFICATIONS");
+
+  const recipients = notificationHelper.getRecipients(
+    {
+      workspace: folder.workspace,
+    },
+    actorId,
+    "folder",
+  );
+
+  console.log("STEP 1: RECIPIENTS", recipients);
+
+  if (recipients.length > 0) {
+    const notifications = recipients.map((recipient) => ({
+      recipient,
+      actor: actorId,
+      type: "folder.updated",
+      title: "Folder Updated",
+      message: `Folder "${folder.name}" was updated`,
+      entity: {
+        folderId: folder._id,
+        workspaceId: folder.workspace?._id,
+        model: "Folder",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+
+    console.log("STEP 1: NOTIFICATIONS SENT", notifications.length);
+  } else {
+    console.log("STEP 1: NO RECIPIENTS");
+  }
+
+  console.log("=== UPDATE FOLDER END ===");
 
   return folder;
 };
@@ -165,8 +249,7 @@ exports.deleteFolder = async (folderId) => {
 // ADD MEMBER
 // ===============================
 exports.addMember = async (folderId, userId, role = "member") => {
-  const folder = await Folder.findById(folderId);
-  console.log("Folder:", folder);
+  const folder = await Folder.findById(folderId).populate("workspace");
 
   if (!folder) {
     throw new Error("Folder not found");
@@ -202,22 +285,51 @@ exports.addMember = async (folderId, userId, role = "member") => {
     { new: true },
   );
 
-  // =========================
-  // NOTIFICATION
-  // =========================
+  // ======================================================
+  // STEP 1: DIRECT NOTIFICATION (only the added member)
+  // ======================================================
 
   await NotificationModel.create({
     recipient: userId,
     actor: folder.createdBy,
     type: "folder.member_added",
     title: "Added to Folder",
-    message: `You were added to folder "${folder.name}"`,
+    message: `You have been added to folder "${folder.name}"`,
     entity: {
       folderId: folder._id,
       workspaceId: folder.workspace,
       model: "Folder",
     },
   });
+
+  // ======================================================
+  // STEP 2: TREE NOTIFICATION (workspace propagation)
+  // ======================================================
+
+  const treeRecipients = notificationHelper.getRecipients(
+    {
+      workspace: folder.workspace,
+    },
+    userId,
+    "folder",
+  );
+
+  if (treeRecipients.length > 0) {
+    const treeNotifications = treeRecipients.map((recipient) => ({
+      recipient,
+      actor: userId,
+      type: "folder.member_added_tree",
+      title: "Folder Updated",
+      message: `A new member was added to folder "${folder.name}"`,
+      entity: {
+        folderId: folder._id,
+        workspaceId: folder.workspace,
+        model: "Folder",
+      },
+    }));
+
+    await NotificationModel.create(treeNotifications);
+  }
 
   return updatedFolder;
 };

@@ -4,24 +4,7 @@ const Task = require("../../models/Tasks/TaskModel");
 const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
-
-exports.getTaskRecipients = (task, actorId) => {
-  const toIds = (members = []) =>
-    members
-      .filter((m) => m?.user && m.notificationsEnabled)
-      .map((m) => String(m.user))
-      .filter((id) => id !== String(actorId));
-
-  const workspace = toIds(task?.list?.workspace?.members);
-  const folder = toIds(task?.list?.folder?.members);
-  const list = toIds(task?.list?.members);
-
-  console.log(workspace, folder, list);
-
-  const merged = [...workspace, ...folder, ...list];
-
-  return [...new Set(merged)];
-};
+const notificationHelper = require("./notificationHelper");
 
 // ======================================
 // CREATE TASK (workspace aware)
@@ -29,14 +12,14 @@ exports.getTaskRecipients = (task, actorId) => {
 exports.createTask = async (data, userId) => {
   if (!data.list) throw new Error("List is required");
 
+  console.log("=== CREATE TASK START ===", { data, userId });
+
   const list = await ListModel.findById(data.list).populate([
     { path: "folder" },
     { path: "workspace" },
   ]);
 
-  if (!list) {
-    throw new Error("Invalid list");
-  }
+  if (!list) throw new Error("Invalid list");
 
   const task = await Task.create({
     ...data,
@@ -45,17 +28,72 @@ exports.createTask = async (data, userId) => {
     createdBy: userId,
   });
 
-  // populate task for notifications
+  console.log("TASK CREATED", { taskId: task._id });
+
+  // =========================
+  // POPULATE FOR TREE
+  // =========================
+
   const populatedTask = await Task.findById(task._id).populate({
     path: "list",
     populate: [{ path: "folder" }, { path: "workspace" }],
   });
 
-  // =========================
-  // NOTIFICATIONS LOGIC
-  // =========================
+  // ======================================================
+  // STEP 1: DIRECT NOTIFICATIONS (ASSIGNED USERS)
+  // ======================================================
 
-  const recipients = await exports.getTaskRecipients(populatedTask, userId);
+  console.log("STEP 1: ASSIGNED USERS NOTIFICATIONS");
+
+  const assignedRecipients = [
+    ...new Set(
+      (task.assignedTo || [])
+        .map((id) => String(id))
+        .filter((id) => id !== String(userId)),
+    ),
+  ];
+
+  console.log("STEP 1: ASSIGNED RECIPIENTS", assignedRecipients);
+
+  if (assignedRecipients.length > 0) {
+    const assignedNotifications = assignedRecipients.map((recipient) => ({
+      recipient,
+      actor: userId,
+      type: "task.assigned",
+      title: "Task Assigned",
+      message: `You were assigned to task "${task.title}"`,
+      entity: {
+        taskId: task._id,
+        listId: task.list,
+        folderId: populatedTask.list?.folder,
+        workspaceId: populatedTask.list?.workspace,
+        model: "Task",
+      },
+    }));
+
+    await NotificationModel.create(assignedNotifications);
+
+    console.log(
+      "STEP 1: ASSIGNED NOTIFICATIONS SENT",
+      assignedNotifications.length,
+    );
+  } else {
+    console.log("STEP 1: NO ASSIGNED RECIPIENTS");
+  }
+
+  // ======================================================
+  // STEP 2: TREE NOTIFICATIONS
+  // ======================================================
+
+  console.log("STEP 2: TREE ONLY NOTIFICATIONS");
+
+  const recipients = notificationHelper.getRecipients(
+    populatedTask,
+    userId,
+    "task",
+  );
+
+  console.log("STEP 2: TREE RECIPIENTS", recipients);
 
   if (recipients.length > 0) {
     const notifications = recipients.map((recipientId) => ({
@@ -74,7 +112,13 @@ exports.createTask = async (data, userId) => {
     }));
 
     await NotificationModel.create(notifications);
+
+    console.log("STEP 2: TREE NOTIFICATIONS SENT", notifications.length);
+  } else {
+    console.log("STEP 2: NO TREE RECIPIENTS");
   }
+
+  console.log("=== CREATE TASK END ===");
 
   return populatedTask;
 };
@@ -243,6 +287,12 @@ exports.getAllTasks = async ({
 // UPDATE TASK
 // ======================================
 exports.updateTask = async (taskId, data, actor) => {
+  console.log("=== UPDATE TASK START ===", {
+    taskId,
+    actorId: actor._id,
+    data,
+  });
+
   const task = await Task.findByIdAndUpdate(taskId, data, {
     new: true,
   }).populate({
@@ -252,28 +302,44 @@ exports.updateTask = async (taskId, data, actor) => {
 
   if (!task) throw new Error("Task not found");
 
-  // =========================
-  // NOTIFICATIONS LOGIC
-  // =========================
+  console.log("TASK UPDATED", {
+    taskId: task._id,
+  });
 
-  const recipients = await exports.getTaskRecipients(task, actor._id);
+  // ======================================================
+  // STEP 1: TREE NOTIFICATIONS
+  // ======================================================
+
+  console.log("STEP 1: TREE NOTIFICATIONS");
+
+  const recipients = notificationHelper.getRecipients(task, actor._id, "task");
+
+  console.log("STEP 1: RECIPIENTS", recipients);
 
   if (recipients.length > 0) {
-    const notifications = recipients.map((userId) => ({
-      recipient: userId,
+    const notifications = recipients.map((recipient) => ({
+      recipient,
       actor: actor._id,
       type: "task.updated",
       title: "Task Updated",
-      message: `Task "${task.title}" was updated by ${actor.fullName} `,
+      message: `Task "${task.title}" was updated by ${actor.fullName}`,
       entity: {
         taskId: task._id,
         listId: task.list,
+        folderId: task.list?.folder,
+        workspaceId: task.list?.workspace,
         model: "Task",
       },
     }));
 
     await NotificationModel.create(notifications);
+
+    console.log("STEP 1: TREE NOTIFICATIONS SENT", notifications.length);
+  } else {
+    console.log("STEP 1: NO RECIPIENTS");
   }
+
+  console.log("=== UPDATE TASK END ===");
 
   return task;
 };

@@ -4,6 +4,7 @@ const List = require("../../models/Tasks/ListModel");
 const { default: mongoose } = require("mongoose");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
+const notificationHelper = require("./notificationHelper");
 
 exports.createWorkspace = async (data, userId, companyId) => {
   if (!companyId) {
@@ -445,10 +446,23 @@ exports.getWorkspaceById = async (workspaceId) => {
 
   return workspace;
 };
-exports.updateWorkspace = async (workspaceId, data) => {
+
+exports.updateWorkspace = async (workspaceId, data, actorId) => {
+  console.log("=== UPDATE WORKSPACE START ===", {
+    workspaceId,
+    actorId,
+    data,
+  });
+
   const workspace = await Workspace.findById(workspaceId);
 
-  if (!workspace) throw new Error("Workspace not found");
+  if (!workspace) {
+    throw new Error("Workspace not found");
+  }
+
+  // =========================
+  // UPDATE FIELDS
+  // =========================
 
   if (data.name) {
     workspace.name = data.name;
@@ -459,6 +473,46 @@ exports.updateWorkspace = async (workspaceId, data) => {
   }
 
   await workspace.save();
+
+  console.log("WORKSPACE UPDATED", {
+    workspaceId: workspace._id,
+  });
+
+  // ======================================================
+  // STEP 1: WORKSPACE NOTIFICATIONS
+  // ======================================================
+
+  console.log("STEP 1: WORKSPACE NOTIFICATIONS");
+
+  const recipients = notificationHelper.getRecipients(
+    workspace,
+    actorId,
+    "workspace",
+  );
+
+  console.log("STEP 1: RECIPIENTS", recipients);
+
+  if (recipients.length > 0) {
+    const notifications = recipients.map((recipient) => ({
+      recipient,
+      actor: actorId,
+      type: "workspace.updated",
+      title: "Workspace Updated",
+      message: `Workspace "${workspace.name}" was updated`,
+      entity: {
+        workspaceId: workspace._id,
+        model: "Workspace",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+
+    console.log("STEP 1: NOTIFICATIONS SENT", notifications.length);
+  } else {
+    console.log("STEP 1: NO RECIPIENTS");
+  }
+
+  console.log("=== UPDATE WORKSPACE END ===");
 
   return workspace;
 };

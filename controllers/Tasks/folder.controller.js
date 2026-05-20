@@ -81,6 +81,7 @@ exports.updateFolder = async (req, res) => {
     const data = await folderService.updateFolder(
       req.params.folderId,
       req.body,
+      req.user._id
     );
 
     return res.status(200).json({

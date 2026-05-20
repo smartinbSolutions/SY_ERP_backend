@@ -95,6 +95,7 @@ exports.updateWorkspace = async (req, res) => {
     const data = await workspaceService.updateWorkspace(
       req.params.workspaceId, // ✅ FIX
       req.body,
+      req.user._id,
     );
 
     return res.status(200).json({
