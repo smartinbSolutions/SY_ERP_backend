@@ -5,38 +5,23 @@ const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 
-exports.getTaskRecipients = async (task, actorId) => {
-  const map = new Map();
+exports.getTaskRecipients = (task, actorId) => {
+  const toIds = (members = []) =>
+    members
+      .filter((m) => m?.user && m.notificationsEnabled)
+      .map((m) => String(m.user))
+      .filter((id) => id !== String(actorId));
 
-  const addMembers = (members = [], source = "unknown") => {
-    for (const m of members) {
-      if (!m?.user) {
-        continue;
-      }
+  const workspace = toIds(task?.list?.workspace?.members);
+  const folder = toIds(task?.list?.folder?.members);
+  const list = toIds(task?.list?.members);
 
-      const key = String(m.user);
-      const enabled = m.notificationsEnabled;
+  console.log(workspace, folder, list);
+  
 
-      map.set(key, enabled);
-    }
-  };
+  const merged = [...workspace, ...folder, ...list];
 
-  const list = task?.list;
-  const folder = list?.folder;
-  const workspace = list?.workspace;
-
-  if (workspace?.members) addMembers(workspace.members, "workspace");
-  if (folder?.members) addMembers(folder.members, "folder");
-  if (list?.members) addMembers(list.members, "list");
-
-  // remove actor
-  map.delete(String(actorId));
-
-  const result = [...map.entries()]
-    .filter(([_, enabled]) => enabled === true)
-    .map(([userId]) => userId);
-
-  return result;
+  return [...new Set(merged)];
 };
 
 // ======================================

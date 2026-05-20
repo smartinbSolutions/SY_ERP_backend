@@ -122,13 +122,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
   const normalize = (id) => id?.toString();
   const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  console.log("\n================ TREE DEBUG START ================\n");
-
-  console.log("TREE DEBUG: INPUT", {
-    userId: normalize(userObjectId),
-    companyId,
-  });
-
   /* ======================================================
      1. MEMBERSHIPS
   ====================================================== */
@@ -165,13 +158,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     visibility: "public",
   }).lean();
 
-  console.log("TREE DEBUG: memberships", {
-    workspaceMemberships: workspaceMemberships.length,
-    folderMemberships: folderMemberships.length,
-    listMemberships: listMemberships.length,
-    publicLists: publicLists.length,
-  });
-
   /* ======================================================
      2. VISIBILITY SETS
   ====================================================== */
@@ -199,11 +185,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     );
 
     workspaceRoleMap[wsId] = member?.role || "viewer";
-
-    console.log("TREE DEBUG: workspace access", {
-      workspace: ws.name,
-      role: workspaceRoleMap[wsId],
-    });
   });
 
   /* ======================================================
@@ -223,12 +204,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     );
 
     folderRoleMap[folderId] = member?.role || "viewer";
-
-    console.log("TREE DEBUG: folder access", {
-      folder: folder.name,
-      role: folderRoleMap[folderId],
-      workspaceId: wsId,
-    });
   });
 
   /* ======================================================
@@ -250,13 +225,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     );
 
     listRoleMap[listId] = member?.role || "viewer";
-
-    console.log("TREE DEBUG: list access", {
-      list: list.name,
-      role: listRoleMap[listId],
-      folderId,
-      workspaceId: wsId,
-    });
   });
 
   /* ======================================================
@@ -274,12 +242,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     visibleWorkspaceIds.add(wsId);
   });
 
-  console.log("TREE DEBUG: visibility sets", {
-    workspaces: visibleWorkspaceIds.size,
-    folders: visibleFolderIds.size,
-    lists: visibleListIds.size,
-  });
-
   /* ======================================================
      7. FETCH VISIBLE WORKSPACES
   ====================================================== */
@@ -291,11 +253,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
       ),
     },
   }).lean();
-
-  console.log(
-    "TREE DEBUG: visibleWorkspaces fetched",
-    visibleWorkspaces.length,
-  );
 
   /* ======================================================
      8. FETCH VISIBLE FOLDERS
@@ -319,11 +276,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     workspaceFolders.forEach((f) => {
       visibleFolderIds.add(normalize(f._id));
     });
-
-    console.log(
-      "TREE DEBUG: workspace folders fetched",
-      workspaceFolders.length,
-    );
   }
 
   // directly visible folders
@@ -339,8 +291,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
   visibleFolders = Array.from(
     new Map(visibleFolders.map((f) => [normalize(f._id), f])).values(),
   );
-
-  console.log("TREE DEBUG: final visible folders", visibleFolders.length);
 
   /* ======================================================
      9. FETCH VISIBLE LISTS
@@ -364,8 +314,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     workspaceLists.forEach((l) => {
       visibleListIds.add(normalize(l._id));
     });
-
-    console.log("TREE DEBUG: workspace lists fetched", workspaceLists.length);
   }
 
   // folder members see all lists inside folders
@@ -384,8 +332,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     folderLists.forEach((l) => {
       visibleListIds.add(normalize(l._id));
     });
-
-    console.log("TREE DEBUG: folder lists fetched", folderLists.length);
   }
 
   // direct lists
@@ -401,8 +347,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
   visibleLists = Array.from(
     new Map(visibleLists.map((l) => [normalize(l._id), l])).values(),
   );
-
-  console.log("TREE DEBUG: final visible lists", visibleLists.length);
 
   /* ======================================================
      10. BUILD WORKSPACE MAP
@@ -422,8 +366,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     };
   });
 
-  console.log("TREE DEBUG: workspaceMap built", Object.keys(workspaceMap));
-
   /* ======================================================
      11. ATTACH FOLDERS
   ====================================================== */
@@ -433,11 +375,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     const wsId = normalize(folder.workspace);
 
     if (!workspaceMap[wsId]) {
-      console.log("TREE DEBUG: ORPHAN FOLDER", {
-        folderId,
-        wsId,
-      });
-
       return;
     }
 
@@ -455,8 +392,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     workspaceMap[wsId].folders.push(folderObj);
   });
 
-  console.log("TREE DEBUG: folderMap size", Object.keys(folderMap).length);
-
   /* ======================================================
      12. ATTACH LISTS
   ====================================================== */
@@ -466,11 +401,6 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     const listId = normalize(list._id);
 
     if (!folderMap[folderId]) {
-      console.log("TREE DEBUG: ORPHAN LIST", {
-        listId,
-        folderId,
-      });
-
       return;
     }
 
@@ -495,21 +425,7 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     folder.lists.sort((a, b) => a.order - b.order);
   });
 
-  /* ======================================================
-     14. FINAL LOGS
-  ====================================================== */
-
-  const result = Object.values(workspaceMap);
-
-  console.log("\n================ TREE DEBUG FINAL ================\n");
-
-  console.log("TREE DEBUG: FINAL SUMMARY", {
-    workspaces: result.length,
-    folders: visibleFolders.length,
-    lists: visibleLists.length,
-  });
-
-  return result;
+  return Object.values(workspaceMap);
 };
 
 exports.getUserWorkspaces = async (userId) => {
