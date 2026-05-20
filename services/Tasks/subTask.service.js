@@ -18,10 +18,50 @@ exports.createSubTask = async (data, userId, task) => {
     companyId: task.companyId,
   });
 
-  // ربط subtask بالـ task
   await Task.findByIdAndUpdate(task._id, {
     $push: { subTasks: subTask._id },
   });
+
+
+  const populatedTask = await Task.findById(task._id).populate({
+    path: "list",
+    populate: [{ path: "folder" }, { path: "workspace" }],
+  });
+
+  if (!populatedTask) {
+    return subTask;
+  }
+
+  // =========================
+  // RECIPIENTS
+  // =========================
+  const recipients = await getTaskRecipients(populatedTask, userId);
+
+  const uniqueRecipients = [
+    ...new Set(recipients.map((id) => String(id))),
+  ].filter((id) => id !== String(userId));
+
+  if (uniqueRecipients.length === 0) {
+    return subTask;
+  }
+
+  // =========================
+  // NOTIFICATIONS
+  // =========================
+  const notifications = uniqueRecipients.map((recipient) => ({
+    recipient,
+    actor: userId,
+    type: "subtask.created",
+    title: "SubTask Created",
+    message: `Subtask "${subTask.title || subTask._id}" was created`,
+    entity: {
+      subTaskId: subTask._id,
+      taskId: task._id,
+      model: "SubTask",
+    },
+  }));
+
+  await NotificationModel.create(notifications);
 
   return subTask;
 };

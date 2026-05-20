@@ -85,7 +85,9 @@ exports.createList = async (data, userId, companyId) => {
       title: "Added to List",
       message: `You were added to list "${list.name}"`,
       entity: {
-        id: list._id,
+        listId: list._id,
+        folderId: list.folder,
+        workspaceId: list.workspace,
         model: "List",
       },
     }));

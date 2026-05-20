@@ -17,7 +17,6 @@ exports.getTaskRecipients = (task, actorId) => {
   const list = toIds(task?.list?.members);
 
   console.log(workspace, folder, list);
-  
 
   const merged = [...workspace, ...folder, ...list];
 
@@ -30,18 +29,54 @@ exports.getTaskRecipients = (task, actorId) => {
 exports.createTask = async (data, userId) => {
   if (!data.list) throw new Error("List is required");
 
-  const list = await ListModel.findById(data.list);
+  const list = await ListModel.findById(data.list).populate([
+    { path: "folder" },
+    { path: "workspace" },
+  ]);
 
   if (!list) {
     throw new Error("Invalid list");
   }
 
-  return await Task.create({
+  const task = await Task.create({
     ...data,
     workspace: list.workspace,
     companyId: list.companyId,
     createdBy: userId,
   });
+
+  // populate task for notifications
+  const populatedTask = await Task.findById(task._id).populate({
+    path: "list",
+    populate: [{ path: "folder" }, { path: "workspace" }],
+  });
+
+  // =========================
+  // NOTIFICATIONS LOGIC
+  // =========================
+
+  const recipients = await exports.getTaskRecipients(populatedTask, userId);
+
+  if (recipients.length > 0) {
+    const notifications = recipients.map((recipientId) => ({
+      recipient: recipientId,
+      actor: userId,
+      type: "task.created",
+      title: "Task Created",
+      message: `Task "${populatedTask.title}" was created`,
+      entity: {
+        taskId: populatedTask._id,
+        listId: populatedTask.list,
+        folderId: populatedTask.list?.folder,
+        workspaceId: populatedTask.list?.workspace,
+        model: "Task",
+      },
+    }));
+
+    await NotificationModel.create(notifications);
+  }
+
+  return populatedTask;
 };
 
 // ======================================

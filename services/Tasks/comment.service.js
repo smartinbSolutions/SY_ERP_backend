@@ -17,6 +17,9 @@ exports.createComment = async (data, companyId, userId) => {
     throw new Error("Company ID is required");
   }
 
+
+  // console.log("data" ,data);
+  
   // =========================
   // CREATE COMMENT
   // =========================
@@ -46,6 +49,10 @@ exports.createComment = async (data, companyId, userId) => {
     populate: [{ path: "folder" }, { path: "workspace" }],
   });
 
+
+  // console.log("task", task);
+  
+
   if (!task) {
     return comment;
   }
@@ -54,6 +61,8 @@ exports.createComment = async (data, companyId, userId) => {
   // GET RECIPIENTS
   // =========================
   const recipients = await getTaskRecipients(task, userId);
+
+  console.log("aaa", recipients);
 
   if (!recipients || recipients.length === 0) {
     return comment;
@@ -69,6 +78,7 @@ exports.createComment = async (data, companyId, userId) => {
   // =========================
   // CREATE NOTIFICATIONS
   // =========================
+
   const notifications = uniqueRecipients.map((recipient) => ({
     recipient,
     actor: userId,
