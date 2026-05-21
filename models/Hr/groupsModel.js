@@ -85,7 +85,7 @@ const groupsSchema = new mongoose.Schema(
     deductionPolicy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "DeductionPolicy",
-      required: true,
+      // required: true,
     },
 
     offDays: [{ type: String }],
