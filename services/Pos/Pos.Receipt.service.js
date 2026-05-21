@@ -1,7 +1,6 @@
 const financialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const receiptModel = require("../../models/Pos/pos.receipt.model");
 const ApiError = require("../../utils/apiError");
-const reportsFinancialFunds = require("../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const productModel = require("../../models/productModel");
 const productBatchModel = require("../../models/Stocks/products/prodcutBatchModel");
 const { createProductMovement } = require("../../utils/productMovement");
@@ -687,4 +686,37 @@ exports.findReceiptForDateService = async ({ req, companyId }) => {
   const receipt = await receiptModel.find(query).sort(sort);
 
   return receipt;
+};
+
+exports.findAllReceiptForSalesPointService = async ({ req, companyId }) => {
+  const pageSize = 10;
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * pageSize;
+  const posPointId = req.params.id;
+
+  let query = { salesPoint: posPointId, companyId };
+
+  if (req.query.keyword) {
+    query = {
+      $and: [
+        query,
+        {
+          $or: [{ counter: req.query.keyword }],
+        },
+      ],
+    };
+  }
+  let mongooseQuery = receiptModel.find(query);
+  mongooseQuery = mongooseQuery.sort({ createdAt: -1 });
+  const totalItems = await receiptModel.countDocuments(query);
+  const totalPages = Math.ceil(totalItems / pageSize);
+  mongooseQuery = mongooseQuery
+    .skip(skip)
+    .limit(pageSize)
+    .populate({ path: "employee" })
+    .populate({ path: "salesPoint" });
+
+  const receipt = await mongooseQuery;
+
+  return { totalItems, totalPages, receipt };
 };

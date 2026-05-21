@@ -6,13 +6,9 @@ const {
   findOneReceipt,
   cancelReceipt,
   findReceiptForDate,
+  findAllReceiptForSalesPoint,
 } = require("../../controllers/Pos/Pos.Receipt.controller");
 const authService = require("../../services/authService");
-const {
-  createPosReceiptRefund,
-  findAllPosReceiptRefund,
-  findOnePosReceiptRefund,
-} = require("../../controllers/Pos/Pos.Receipt_Refund.controller");
 
 const PosReceiptRoute = express.Router();
 
@@ -27,5 +23,8 @@ PosReceiptRoute.route("/cancel_receipt/:id").put(
   authService.checkCompanyEditable,
   cancelReceipt,
 );
+
+PosReceiptRoute.route("/salespoint/:id").get(findAllReceiptForSalesPoint);
+
 PosReceiptRoute.route("/:id").get(findOneReceipt);
 module.exports = PosReceiptRoute;

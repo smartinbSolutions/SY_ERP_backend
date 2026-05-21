@@ -126,7 +126,7 @@ const ListRoute = require("./Tasks/list.routes");
 const timeTrackingRoute = require("./Tasks/timeTracking.route");
 const subTaskRoute = require("./Tasks/subTask.route");
 const PosReceiptRoute = require("./Pos/pos.receipt.route");
-const PosReceiptRefundRoute = require("./Pos/PosReceiptRefundRoute");
+const PosReceiptRefundRoute = require("./Pos/pos.receipt_refund.route");
 
 const mountRoutes = (app) => {
   app.use("/api/v1/receipt-pos", PosReceiptRoute);

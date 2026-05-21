@@ -185,3 +185,24 @@ exports.findReceiptForDate = asyncHandler(async (req, res, next) => {
     data: receipt,
   });
 });
+
+exports.findAllReceiptForSalesPoint = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { totalItems, totalPages, receipt } =
+    await receiptService.findAllReceiptForSalesPointService({
+      req,
+      companyId,
+    });
+
+  res.status(200).json({
+    status: "true",
+    Pages: totalPages,
+    results: totalItems,
+    data: receipt,
+  });
+});
