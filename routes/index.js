@@ -35,7 +35,6 @@ const paytrRouter = require("./ecommerce/paytrRoute");
 const devicesRout = require("./maintenance/devicesRout");
 const quotationRouter = require("./quotationRoute");
 const E_userRoute = require("./ecommerce/E_usersRoutes");
-const SalesPosRout = require("./salesPosRoute");
 const thirdPartyRoute = require("./ecommerce/thirdPartyAuthRoute");
 const accountingTreeRout = require("./accountingTreeRoute");
 const manitUserRout = require("./maintenance/maintenanceUserRoute");
@@ -126,8 +125,12 @@ const FolderRoute = require("./Tasks/folder.routes");
 const ListRoute = require("./Tasks/list.routes");
 const timeTrackingRoute = require("./Tasks/timeTracking.route");
 const subTaskRoute = require("./Tasks/subTask.route");
+const PosReceiptRoute = require("./Pos/pos.receipt.route");
+const PosReceiptRefundRoute = require("./Pos/PosReceiptRefundRoute");
 
 const mountRoutes = (app) => {
+  app.use("/api/v1/receipt-pos", PosReceiptRoute);
+  app.use("/api/v1/pos-receipt-Refund", PosReceiptRefundRoute);
   app.use("/api/product", productRout);
   app.use("/api/brand", brandRout);
   app.use("/api/category", categoryRout);
@@ -165,7 +168,6 @@ const mountRoutes = (app) => {
   app.use("/api/stock", stockRout);
   app.use("/api/offers", offersRouter);
   app.use("/api/quotation", quotationRouter);
-  app.use("/api/sales-pos", SalesPosRout);
   app.use("/api/accounting-tree", accountingTreeRout);
   app.use("/api/journal", journalEntryRoute);
   app.use("/api/reconciliation", reconciliationRoute);

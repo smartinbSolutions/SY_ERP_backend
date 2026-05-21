@@ -46,6 +46,7 @@ const ProductMovementSchema = new mongoose.Schema(
         "Purchase Invoice Reverse Update",
         "Sales Invoice Cancellation",
         "Sales Invoice Reverse Update",
+        "POS Receipt Cancellation",
       ],
       required: true,
     },
@@ -63,7 +64,7 @@ const ProductMovementSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 ProductMovementSchema.index({ productId: 1, companyId: 1, createdAt: -1 });

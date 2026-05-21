@@ -53,21 +53,24 @@ const createProductMovement = async ({
                     ? "StockTransfer"
                     : source === "POS Receipt"
                       ? "posReceipts"
-                      : source === "Resturant Order"
-                        ? "MenuOrder"
-                        : source === "Refund POS Receipt"
-                          ? "RefundPosSales"
-                          : source === "Manufacturing"
-                            ? "productionLog"
-                            : source === "Refund Purchase Invoice"
-                              ? "refundpurchaseinvoices"
-                              : source === "Refund Sales Invoice"
-                                ? "returnOrder"
-                                : source === "Purchase Invoice Cancellation"
-                                  ? "PurchaseInvoices"
-                                  : source === "Purchase Invoice Reverse Update"
+                      : source === "POS Receipt Cancellation"
+                        ? "posReceipts"
+                        : source === "Resturant Order"
+                          ? "MenuOrder"
+                          : source === "Refund POS Receipt"
+                            ? "RefundPosSales"
+                            : source === "Manufacturing"
+                              ? "productionLog"
+                              : source === "Refund Purchase Invoice"
+                                ? "refundpurchaseinvoices"
+                                : source === "Refund Sales Invoice"
+                                  ? "returnOrder"
+                                  : source === "Purchase Invoice Cancellation"
                                     ? "PurchaseInvoices"
-                                    : null,
+                                    : source ===
+                                        "Purchase Invoice Reverse Update"
+                                      ? "PurchaseInvoices"
+                                      : null,
       stockId,
       sellingPrice,
       buyingPrice,

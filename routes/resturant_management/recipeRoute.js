@@ -6,7 +6,6 @@ const {
   getAllRecipes,
   getOneRecipe,
   deleteRecipe,
-  
 } = require("../../services/resturant_management/recipeService");
 
 const router = express.Router();
