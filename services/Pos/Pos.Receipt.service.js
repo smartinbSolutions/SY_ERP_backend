@@ -120,10 +120,10 @@ exports.applyFundEffectService = async ({
       paymentInFundCurrency: fund.allocatedAmount,
       paymentId: null,
       refId: newReceipt.recipt._id,
-      refType: "resipt",
-      source: "pos_resipt",
+      refType: "receipt",
+      source: "pos_receipt",
       date: dateTurkey,
-      description: "POS",
+      description: "Receipt",
       effectSide: "destination",
       session,
       createdBy: req.user.id,
@@ -614,6 +614,7 @@ exports.reverseReceiptFundEffectsService = async ({
   companyId,
   session,
   dateTurkey,
+  createdBy,
 }) => {
   if (receipt.type !== "cancel" && receipt.isRefund !== true) {
     if (receipt.financialFund && receipt.financialFund.length > 0) {
@@ -628,35 +629,62 @@ exports.reverseReceiptFundEffectsService = async ({
         if (!financialFund) {
           throw new ApiError(`Financial fund ${fund.fundId} not found`, 404);
         }
-
-        financialFund.fundBalance -=
-          fund.allocatedAmount - Number(fund.change || 0);
-        await financialFund.save({ session });
-
         const amountToReverse =
           Number(fund.allocatedAmount || 0) - Number(fund.change || 0);
-        await reportsFinancialFunds.create(
-          [
-            {
-              date: dateTurkey,
-              amount: amountToReverse,
-              ref: receipt._id,
-              type: "Withdrawal",
-              financialFundId: financialFund._id,
-              financialFundRest: financialFund.fundBalance,
-              exchangeRate: receipt.currency.exchangeRate,
-              paymentType: "Withdrawal",
-              payment: null,
-              description: "",
-              companyId,
-            },
-          ],
-          { session },
-        );
+        await handleFundPaymentEntity({
+          fund: {
+            ...fund,
+            id: fund.fundId || fund.id,
+          },
+          companyId,
+          paymentInFundCurrency: amountToReverse,
+          paymentId: null,
+          refId: receipt._id,
+          refType: "receipt",
+          source: "pos_receipt",
+          date: dateTurkey,
+          description: "Receipt Canceled",
+          effectSide: "source",
+          session,
+          createdBy,
+        });
       }
       return;
     }
   } else {
     return "The type is cancel or Have Refund";
   }
+};
+
+exports.findReceiptForDateService = async ({ req, companyId }) => {
+  const { keyword, sortBy, sortOrder } = req.query;
+  const { id } = req.params;
+
+  const specificDate = new Date().toISOString().slice(0, 10);
+
+  // Build query object
+  const query = {
+    createdAt: { $gte: specificDate },
+    type: "pos",
+    salesPoint: id,
+    companyId,
+  };
+
+  // Filtering
+  if (keyword) {
+    query.counter = { $regex: keyword, $options: "i" };
+  }
+
+  // Sorting
+  let sort = { createdAt: -1 };
+  if (sortBy) {
+    const validSortFields = ["createdAt", "invoiceGrandTotal"];
+    if (validSortFields.includes(sortBy)) {
+      sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
+    }
+  }
+
+  const receipt = await receiptModel.find(query).sort(sort);
+
+  return receipt;
 };

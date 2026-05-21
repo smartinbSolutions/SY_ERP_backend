@@ -149,6 +149,7 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
       companyId,
       session,
       dateTurkey,
+      createdBy: req.user.id,
     });
 
     receipt.type = "cancel";
@@ -165,4 +166,22 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
   } finally {
     session.endSession();
   }
+});
+
+exports.findReceiptForDate = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const receipt = await receiptService.findReceiptForDateService({
+    req,
+    companyId,
+  });
+
+  res.status(200).json({
+    status: "true",
+    data: receipt,
+  });
 });

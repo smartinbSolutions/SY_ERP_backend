@@ -10,10 +10,10 @@ const xlsx = require("xlsx");
 const { default: mongoose, Types } = require("mongoose");
 const brandModel = require("../models/brandModel");
 const categoryModel = require("../models/CategoryModel");
-const UnitsModel = require("../models/UnitsModel");
+const UnitsModel = require("../models/Settings/Definition/unit.model");
 const stockModel = require("../models/stockModel");
-const taxModel = require("../models/taxModel");
-const currencyModel = require("../models/currencyModel");
+const taxModel = require("../models/Settings/Definition/tax.model");
+const currencyModel = require("../models/Settings/currency.model");
 const { createProductMovement } = require("../utils/productMovement");
 
 const getAllChildCategories = require("../utils/CategoriesChild");
@@ -318,6 +318,7 @@ exports.getProductPos = asyncHandler(async (req, res, next) => {
   let query = {
     companyId,
     $or: [{ type: "Service" }, { "stocks.stockId": stockId }],
+    type: { $nin: ["rawmaterial", "manufactured"] },
   };
   if (req.query.keyword) {
     query.$or = [

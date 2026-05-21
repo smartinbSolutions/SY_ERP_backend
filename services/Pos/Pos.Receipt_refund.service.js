@@ -97,7 +97,10 @@ exports.createPosReceiptRefundService = async ({
     );
 
     if (!matchingItem) {
-      throw new ApiError(`${incomingItem.name || "Item"} is not returnable`, 400);
+      throw new ApiError(
+        `${incomingItem.name || "Item"} is not returnable`,
+        400,
+      );
     }
 
     const remainingQty = Number(matchingItem.soldQuantity || 0);
@@ -186,10 +189,10 @@ exports.applyReciptRefundFundEffectService = async ({
     paymentInFundCurrency: paymentInFundCurrency,
     paymentId: null,
     refId: newReceipt.recipt._id,
-    refType: "resipt",
-    source: "pos_resipt",
+    refType: "receipt",
+    source: "pos_receipt",
     date: dateTurkey,
-    description: "POS",
+    description: "Receipt Refund",
     effectSide: "source",
     session,
     createdBy: req.user.id,
@@ -454,4 +457,21 @@ exports.applyReciptRefundInventoryEffectService = async ({
   await newReceipt.recipt.save({ session });
 
   return true;
+};
+
+exports.findRefundReceiptForDateService = async ({ req, companyId }) => {
+  const specificDate = new Date().toISOString().slice(0, 10);
+  const specificDateString = specificDate;
+
+  const { id } = req.params;
+
+  const receipt = await receipt_refundModel
+    .find({
+      createdAt: { $gte: specificDateString },
+      companyId,
+      salesPoint: id,
+    })
+    .sort({ createdAt: -1 });
+
+  return receipt;
 };

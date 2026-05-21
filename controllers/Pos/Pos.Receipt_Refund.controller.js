@@ -8,6 +8,7 @@ const {
   createPosReceiptRefundService,
   applyReciptRefundFundEffectService,
   applyReciptRefundInventoryEffectService,
+  findRefundReceiptForDateService,
 } = require("../../services/Pos/Pos.Receipt_refund.service");
 const { buildTurkeyDate } = require("../../services/Pos/Pos.Receipt.service");
 const posReceiptModel = require("../../models/Pos/pos.receipt.model");
@@ -135,4 +136,22 @@ exports.createPosReceiptRefund = asyncHandler(async (req, res, next) => {
   } finally {
     session.endSession();
   }
+});
+
+exports.findRefundReceiptForDate = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const receipt = await findRefundReceiptForDateService({
+    req,
+    companyId,
+  });
+
+  res.status(200).json({
+    status: "true",
+    data: receipt,
+  });
 });

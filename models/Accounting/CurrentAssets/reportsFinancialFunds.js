@@ -41,6 +41,7 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
         "cancel_salary",
         "manual_adjustment",
         "payment",
+        "pos_receipt",
         // add as new flows are built
       ],
     },
@@ -57,6 +58,7 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
         "transfer",
         "payment",
         "manual",
+        "receipt",
       ],
     },
     refId: {
@@ -105,7 +107,7 @@ const reportsFinancialFundsSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 reportsFinancialFundsSchema.index({
@@ -118,5 +120,5 @@ reportsFinancialFundsSchema.index({ refType: 1, refId: 1 });
 
 module.exports = mongoose.model(
   "ReportsFinancialFunds",
-  reportsFinancialFundsSchema
+  reportsFinancialFundsSchema,
 );
