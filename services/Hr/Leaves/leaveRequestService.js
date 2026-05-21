@@ -158,7 +158,7 @@ exports.createLeaveRequest = asyncHandler(async (req, res, next) => {
     const firstPending = approvalSteps.find((s) => s.status === "pending");
     const currentApprover = firstPending?.approverId || null;
     const currentStep = firstPending?.stepNumber || null;
-
+console.log("days",days)
     const newRequest = await LeaveRequest.create({
       userId: requester._id,
       companyId: requester.companyId,

@@ -139,3 +139,35 @@ exports.markAllAsRead = async (req, res) => {
     });
   }
 };
+/**
+ * @desc    Mark all notifications as read
+ * @route   PATCH /api/notifications/read-all
+ * @access  Private
+ */
+exports.markAllAsRead = async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      {
+        recipient: req.user.id,
+        isRead: false,
+      },
+      {
+        $set: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("markAllAsRead error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark all notifications as read",
+    });
+  }
+};

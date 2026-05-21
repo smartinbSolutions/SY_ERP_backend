@@ -19,5 +19,10 @@ router.patch(
   staffAuthService.protectStaff,
   notificationController.markAsRead,
 );
+router.patch(
+  "/read-all",
+  staffAuthService.protectStaff,
+  notificationController.markAllAsRead
+);
 
 module.exports = router;
