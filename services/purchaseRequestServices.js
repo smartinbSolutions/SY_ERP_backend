@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const purchaseRequestModel = require("../models/purchaseRequestModel");
+const purchaseRequestModel = require("../models/Accounting/Purchase/purchaseRequestModel");
 const ApiError = require("../utils/apiError");
 const { createInvoiceHistory } = require("./invoiceHistoryService");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");

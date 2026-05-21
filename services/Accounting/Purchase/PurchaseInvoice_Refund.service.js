@@ -1,5 +1,5 @@
-const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
-const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceModel");
+const purchaseinvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
+const refundPurchaseInviceModel = require("../../../models/Accounting/Purchase/refundPurchaseInviceModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const ProductBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const ApiError = require("../../../utils/apiError");
@@ -8,7 +8,7 @@ const productModel = require("../../../models/productModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const paymentModel = require("../../../models/paymentModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const suppliersModel = require("../../../models/suppliersModel");
+const suppliersModel = require("../../../models/Accounting/Purchase/suppliersModel");
 const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");

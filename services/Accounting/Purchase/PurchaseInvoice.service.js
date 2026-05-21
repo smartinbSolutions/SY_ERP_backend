@@ -13,13 +13,13 @@ const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const { createProductBatch } = require("../../productBatchServices");
 
 // ===== Models =====
-const PurchaseInvoicesModel = require("../../../models/purchaseinvoicesModel");
-const suppliersModel = require("../../../models/suppliersModel");
+const PurchaseInvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
+const suppliersModel = require("../../../models/Accounting/Purchase/suppliersModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const productModel = require("../../../models/productModel");
 const PaymentModel = require("../../../models/paymentModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const refundPurchaseInviceModel = require("../../../models/refundPurchaseInviceModel");
+const refundPurchaseInviceModel = require("../../../models/Accounting/Purchase/refundPurchaseInviceModel");
 const paymentHistoryModel = require("../../../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");

@@ -21,11 +21,11 @@ const {
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice.service");
 
 const counterModel = require("../../../models/Settings/counterModel");
-const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
+const purchaseinvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const {
   createInvoiceHistory,
 } = require("../../../services/invoiceHistoryService");
-const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
+
 const {
   handlePurchasePayment,
 } = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
@@ -247,7 +247,10 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       ) {
         const linkings = await linkPanelModel
           .find({ companyId })
-          .populate("accountData")
+          .populate({
+            path: "accountData",
+            populate: { path: "currency" },
+          })
           .session(session);
 
         const fxGainLink = linkings.find(
@@ -264,7 +267,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         const partyJournalAccount = journalPreview.journalAccounts.find(
           (a) => a.accountType === "Supplier_Payment"
         );
-
+        console.log("fxAccount", fxAccount);
         if (fxAccount && partyJournalAccount) {
           const absFx = Math.abs(fxDiff);
 
@@ -341,7 +344,6 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   const invoiceId = req.params.id;
-
   const session = await mongoose.startSession();
 
   try {
@@ -443,22 +445,6 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     /*
     |--------------------------------------------------------------------------
-    | PAYMENT COUNTER — only if new version will create payment
-    |--------------------------------------------------------------------------
-    */
-    let nextCounterPayment = null;
-
-    if (req.body.paid === "paid") {
-      const paymentSeq = await getNextCounterValue({
-        companyId,
-        name: "Payment",
-        session,
-      });
-      nextCounterPayment = { seq: paymentSeq };
-    }
-
-    /*
-    |--------------------------------------------------------------------------
     | UPDATE SAME INVOICE RECORD
     |--------------------------------------------------------------------------
     */
@@ -528,57 +514,6 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       session,
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | PAYMENT — replaced paymentService with handlePurchasePayment
-    |--------------------------------------------------------------------------
-    */
-    if (req.body.havepayments === "paid") {
-      const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
-      const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
-
-      const normalizedPayment = {
-        party: {
-          id: newPrepared.supplier?._id?.toString() || "",
-          name: newPrepared.supplier?.name || "",
-          type: "supplier",
-        },
-        fund: {
-          id: fund?.id || fund?._id || "",
-          name: fund?.name || "",
-          currencyId: fund?.currencyId || "",
-          currencyCode: fund?.currencyCode || "",
-          exchangeRate: Number(fund?.exchangeRate || 1),
-        },
-        paymentNature: "outgoing",
-        payment: {
-          amount: Number(payment?.amount || 0),
-          currencyId: payment?.currencyId || "",
-          currencyCode: payment?.currencyCode || "",
-          exchangeRate: Number(payment?.exchangeRate || 1),
-          amountMainCurrency: Number(payment?.amountMainCurrency || 0),
-          amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
-        },
-        invoiceId: updatedPurchaseInvoice._id, // ← updated invoice
-        date: req.body.paymentDate || updateDate,
-        description: req.body.description || "",
-        journalCounter: req.body.journalCounter || "",
-        counter: req.body.counter || "0",
-        companyId,
-        postedBy: req.user?._id || null,
-        postedAt: new Date(),
-        journalAccounts: req.body.journalAccounts || null,
-      };
-
-      await handlePurchasePayment(
-        req,
-        companyId,
-        next,
-        normalizedPayment,
-        session // ← pass existing session
-      );
-    }
-
     updatedPurchaseInvoice.journalCounter = journalLinkCounter;
     await updatedPurchaseInvoice.save({ session });
 
@@ -597,19 +532,6 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       "purchase",
       session
     );
-
-    if (updatedPurchaseInvoice.paid === "paid") {
-      await createInvoiceHistory(
-        companyId,
-        updatedPurchaseInvoice._id,
-        "payment",
-        req.user._id,
-        req.body.paymentDate || updateDate,
-        "Invoice payment recorded from update",
-        "purchase",
-        session
-      );
-    }
 
     await session.commitTransaction();
 

@@ -16,7 +16,7 @@ const {
   reverseExpenseNoSupplierEffectsService,
   getExpenseAndPurchaseForSupplierService,
 } = require("../../../services/Accounting/Expenses/Expenses.service");
-const expensesModel = require("../../../models/expensesModel");
+const expensesModel = require("../../../models/Accounting/Expenses/expensesModel");
 const {
   createInvoiceHistory,
 } = require("../../../services/invoiceHistoryService");
@@ -206,7 +206,10 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       ) {
         const linkings = await linkPanelModel
           .find({ companyId })
-          .populate("accountData")
+          .populate({
+            path: "accountData",
+            populate: { path: "currency" },
+          })
           .session(session);
 
         const fxGainLink = linkings.find(
@@ -634,6 +637,7 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
       companyId,
       expense,
       cancellationDate,
+      session,
       req,
     });
     await reverseExpenseJournalEffectsService({

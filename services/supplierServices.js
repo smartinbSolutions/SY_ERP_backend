@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
-const supplierModel = require("../models/suppliersModel");
+const supplierModel = require("../models/Accounting/Purchase/suppliersModel");
 
 const { createPaymentHistoryV2 } = require("./paymentHistoryService");
 

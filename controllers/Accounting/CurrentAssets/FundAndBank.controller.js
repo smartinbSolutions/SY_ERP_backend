@@ -7,6 +7,8 @@ const {
   deleteFundAndBankService,
   updateFundAndBankService,
   getFundAndBankForSalesPointService,
+  findSpecificFundReportsService,
+  createFundAdjustmentService,
 } = require("../../../services/Accounting/CurrentAssets/Funds/FundAndBanck.service");
 
 exports.findAllFundAndBank = asyncHandler(async (req, res, next) => {
@@ -30,22 +32,55 @@ exports.findAllFundAndBank = asyncHandler(async (req, res, next) => {
 
 exports.createFundAndBank = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-    req.body.companyId = companyId;
-    const newFundAndBank = await createFundAndBankService({ req, companyId });
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
 
-    await session.commitTransaction();
+  const session = await mongoose.startSession();
+
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      req.body.companyId = companyId;
+      result = await createFundAndBankService({ req, companyId, session });
+    });
+
     res.status(201).json({
       status: "success",
-      data: newFundAndBank,
+      data: result.fundAndBank,
     });
   } catch (error) {
-    await session.abortTransaction();
     next(error);
   } finally {
-    session.endSession();
+    await session.endSession();
+  }
+});
+
+exports.createFundAdjustment = asyncHandler(async (req, res, next) => {
+  const companyId = req.query.companyId;
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      // Take fundId from URL, not body — single source of truth
+      req.body.fundId = req.params.id;
+      result = await createFundAdjustmentService({ req, companyId, session });
+    });
+
+    res.status(201).json({
+      status: "success",
+      message: "Adjustment recorded",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  } finally {
+    await session.endSession();
   }
 });
 
@@ -145,4 +180,33 @@ exports.getFundAndBankForSalesPoint = asyncHandler(async (req, res, next) => {
   } finally {
     session.endSession();
   }
+});
+
+exports.findSpecificFundReports = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const companyId = req.query.companyId;
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const { startDate, endDate, page, limit } = req.query;
+
+  const { reports, totalPages, totalItems, fundBalance } =
+    await findSpecificFundReportsService({
+      fundId: id,
+      companyId,
+      startDate,
+      endDate,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 0,
+    });
+
+  res.status(200).json({
+    status: "true",
+    totalPages,
+    results: reports.length,
+    totalItems,
+    fundBalance,
+    data: reports,
+  });
 });

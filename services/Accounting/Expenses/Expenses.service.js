@@ -1,11 +1,11 @@
-const expensesModel = require("../../../models/expensesModel");
+const expensesModel = require("../../../models/Accounting/Expenses/expensesModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const journalEntryModel = require("../../../models/journalEntryModel");
 const paymentModel = require("../../../models/Accounting/CurrentAssets/payments.model");
-const purchaseinvoicesModel = require("../../../models/purchaseinvoicesModel");
+const purchaseinvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const suppliersModel = require("../../../models/suppliersModel");
+const suppliersModel = require("../../../models/Accounting/Purchase/suppliersModel");
 const ApiError = require("../../../utils/apiError");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 
@@ -969,25 +969,27 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   session,
   req,
 }) => {
+  // ── 1. Find the payment that allocated to this expense ─────────────
   const findExpensePayment = await paymentModel
     .findOne({
-      "payid.id": expense._id,
+      "allocations.documentId": expense._id,
       companyId,
+      status: "active", // skip already-cancelled payments
     })
     .session(session);
 
   if (!findExpensePayment) {
-    throw new Error("Payment not found");
+    throw new Error("Payment not found for this expense");
   }
 
-  const fundId =
-    findExpensePayment.source?.id || findExpensePayment.destination?.id;
+  // ── 2. Resolve the fund from the new payment shape ─────────────────
+  const fundId = findExpensePayment.fund?.id;
+  if (!fundId) {
+    throw new Error("Fund id missing on payment");
+  }
 
   const findFinancialFund = await financialFundsModel
-    .findOne({
-      _id: fundId,
-      companyId,
-    })
+    .findOne({ _id: fundId, companyId })
     .populate("fundCurrency")
     .session(session);
 
@@ -995,58 +997,97 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
     throw new Error("Financial fund not found");
   }
 
-  const amount = Number(findExpensePayment.paymentInDestinationCurrency);
+  // ── 3. Resolve the allocation for THIS expense specifically ────────
+  // A payment can have multiple allocations; reverse only the one
+  // that targets this expense, not the whole payment.
+  const allocation = findExpensePayment.allocations.find(
+    (a) => String(a.documentId) === String(expense._id) && !a.cancelled
+  );
 
-  // 🔁 reverse logic
-  findFinancialFund.fundBalance += amount;
+  if (!allocation) {
+    throw new Error("Allocation not found for this expense");
+  }
+
+  // Amount that left the fund (in fund currency).
+  // For outgoing payments, this is what we restore.
+  // We use the document slice's converted-back-to-fund value:
+  //   allocatedAmountMainCurrency * fund.exchangeRate
+  // For a primary fund (rate 1) this equals the USD allocation.
+  // For a non-primary fund it converts the primary slice back to fund.
+  const fundExchangeRate = Number(
+    findFinancialFund.fundCurrency?.exchangeRate || 1
+  );
+  const amountInFundCurrency =
+    Number(allocation.allocatedAmountMainCurrency) * fundExchangeRate;
+
+  // ── 4. Reverse the fund balance ────────────────────────────────────
+  // outgoing payment took money OUT, so cancellation puts it BACK.
+  // incoming payment brought money IN, so cancellation takes it OUT.
+  const isOutgoing = findExpensePayment.paymentNature === "outgoing";
+  findFinancialFund.fundBalance += isOutgoing
+    ? amountInFundCurrency
+    : -amountInFundCurrency;
 
   await findFinancialFund.save({ session });
 
+  // ── 5. Record the fund movement in reports ─────────────────────────
   await reportsFinancialFunds.create(
     [
       {
         date: cancellationDate,
-        amount: expense.paymentInFundCurrency,
+        amount: amountInFundCurrency,
         ref: expense._id,
         type: "cancel expense",
         financialFundId: findFinancialFund._id,
         financialFundRest: findFinancialFund.fundBalance,
-        exchangeRate: expense.currencyExchangeRate,
-        paymentType: "Deposit",
+        exchangeRate: fundExchangeRate,
+        paymentType: isOutgoing ? "Deposit" : "Withdraw",
         payment: findExpensePayment._id,
-        description: expense.paymentDisc,
+        description: `Cancellation of payment ${findExpensePayment.counter} for expense ${expense.expenseName}`,
         companyId,
       },
     ],
     { session }
   );
 
-  expense.payments = expense.payments.filter(
-    (p) => String(p.paymentId) !== String(findExpensePayment._id)
+  // ── 6. Mark the allocation as cancelled (don't delete) ─────────────
+  // Keeps audit trail. If this was the only active allocation,
+  // mark the whole payment cancelled too.
+  allocation.cancelled = true;
+  allocation.cancelledAt = cancellationDate;
+
+  const hasActiveAllocations = findExpensePayment.allocations.some(
+    (a) => !a.cancelled
   );
 
-  expense.type = "Expense cancelled";
-  expense.paymentStatus = "unpaid";
-  expense.payments = [];
-  expense.status = "cancelled";
-  expense.cancelledAt = cancellationDate;
-  expense.cancelledBy = req.user._id;
-  expense.cancellationReason = req.body.reason || "";
-  await expense.save({ session });
-
-  findExpensePayment.description = `Cancelled payment for expense ${expense.expenseName}`;
-
-  findExpensePayment.payid = findExpensePayment.payid.filter(
-    (p) => String(p.id) !== String(expense._id)
-  );
-
-  findExpensePayment.type = "cancelled payment";
+  if (!hasActiveAllocations) {
+    findExpensePayment.status = "cancelled";
+    findExpensePayment.cancelledBy = req.user._id;
+    findExpensePayment.cancelledAt = cancellationDate;
+    findExpensePayment.cancellationReason = `All allocations cancelled (last: expense ${expense.expenseName})`;
+  }
 
   await findExpensePayment.save({ session });
 
-  return {
-    expense,
-  };
+  // ── 7. Update the expense ──────────────────────────────────────────
+  expense.payments = (expense.payments || []).filter(
+    (p) => String(p.paymentID) !== String(findExpensePayment._id)
+  );
+  expense.paymentStatus = "unpaid";
+  expense.status = "cancelled";
+  expense.type = "Expense cancelled";
+  expense.cancelledAt = cancellationDate;
+  expense.cancelledBy = req.user._id;
+  expense.cancellationReason = req.body.reason || "";
+
+  // Restore the remainder so reporting shows the expense as fully open
+  // again. This matches how a fresh unpaid expense looks.
+  expense.totalRemainderMainCurrency = Number(expense.totalInMainCurrency || 0);
+  expense.totalRemainder = Number(expense.invoiceGrandTotal || 0);
+
+  await expense.save({ session });
+
+  return { expense, payment: findExpensePayment };
 };
 
 exports.getExpenseAndPurchaseForSupplierService = async ({

@@ -7,6 +7,8 @@ const {
   deleteFundAndBank,
   updateFundAndBank,
   getFundAndBankForSalesPoint,
+  findSpecificFundReports,
+  createFundAdjustment,
 } = require("../../../controllers/Accounting/CurrentAssets/FundAndBank.controller");
 
 const FundAndBank = express.Router();
@@ -26,5 +28,9 @@ FundAndBank.route("/:id")
   .get(findOneFundAndBank)
   .put(authService.checkCompanyEditable, updateFundAndBank)
   .delete(authService.checkCompanyEditable, deleteFundAndBank);
+
+FundAndBank.route("/reports/:id").get(findSpecificFundReports);
+
+FundAndBank.route("/:id/adjust").post(createFundAdjustment);
 
 module.exports = FundAndBank;
