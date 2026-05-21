@@ -191,7 +191,7 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
     { $inc: { seq: 1 } },
     { new: true, upsert: true, session }
   );
-
+  console.log("nextCounterJournal", nextCounterJournal);
   await createJournalEntryService({
     data: {
       ...adjustmentJournal.journalMeta,
