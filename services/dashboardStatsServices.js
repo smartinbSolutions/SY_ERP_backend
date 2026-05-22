@@ -286,50 +286,70 @@ const buildGroup1SnapshotPayload = async (companyId) => {
 };
 
 const buildGroup2SnapshotPayload = async (companyId) => {
-  const [stats] = await FinancialFund.aggregate([
+  const [result] = await FinancialFund.aggregate([
     { $match: { companyId } },
     {
-      $group: {
-        _id: null,
-        totalAccounts: { $sum: 1 },
-        cashAccounts: {
-          $sum: { $cond: [{ $eq: ["$type", "Fund"] }, 1, 0] },
-        },
-        bankAccounts: {
-          $sum: { $cond: [{ $eq: ["$type", "Bank"] }, 1, 0] },
-        },
-        totalBalance: { $sum: { $ifNull: ["$fundBalance", 0] } },
-        cashBalance: {
-          $sum: {
-            $cond: [
-              { $eq: ["$type", "Fund"] },
-              { $ifNull: ["$fundBalance", 0] },
-              0,
-            ],
+      $facet: {
+        totals: [
+          {
+            $group: {
+              _id: null,
+              totalAccounts: { $sum: 1 },
+              cashAccounts: {
+                $sum: { $cond: [{ $eq: ["$type", "Fund"] }, 1, 0] },
+              },
+              bankAccounts: {
+                $sum: { $cond: [{ $eq: ["$type", "Bank"] }, 1, 0] },
+              },
+              totalBalance: { $sum: { $ifNull: ["$fundBalance", 0] } },
+              cashBalance: {
+                $sum: {
+                  $cond: [
+                    { $eq: ["$type", "Fund"] },
+                    { $ifNull: ["$fundBalance", 0] },
+                    0,
+                  ],
+                },
+              },
+              bankBalance: {
+                $sum: {
+                  $cond: [
+                    { $eq: ["$type", "Bank"] },
+                    { $ifNull: ["$fundBalance", 0] },
+                    0,
+                  ],
+                },
+              },
+              positiveAccounts: {
+                $sum: {
+                  $cond: [{ $gt: [{ $ifNull: ["$fundBalance", 0] }, 0] }, 1, 0],
+                },
+              },
+              overdrawnAccounts: {
+                $sum: {
+                  $cond: [{ $lt: [{ $ifNull: ["$fundBalance", 0] }, 0] }, 1, 0],
+                },
+              },
+            },
           },
-        },
-        bankBalance: {
-          $sum: {
-            $cond: [
-              { $eq: ["$type", "Bank"] },
-              { $ifNull: ["$fundBalance", 0] },
-              0,
-            ],
+        ],
+        topAccounts: [
+          {
+            $project: {
+              _id: 1,
+              name: "$fundName",
+              type: 1,
+              balance: { $ifNull: ["$fundBalance", 0] },
+            },
           },
-        },
-        positiveAccounts: {
-          $sum: {
-            $cond: [{ $gt: [{ $ifNull: ["$fundBalance", 0] }, 0] }, 1, 0],
-          },
-        },
-        overdrawnAccounts: {
-          $sum: {
-            $cond: [{ $lt: [{ $ifNull: ["$fundBalance", 0] }, 0] }, 1, 0],
-          },
-        },
+          { $sort: { balance: -1 } },
+          { $limit: 3 },
+        ],
       },
     },
   ]);
+  const stats = result?.totals?.[0] || {};
+  const topAccounts = result?.topAccounts || [];
 
   return {
     cash: {
@@ -341,6 +361,12 @@ const buildGroup2SnapshotPayload = async (companyId) => {
       bankBalance: stats?.bankBalance || 0,
       positiveAccounts: stats?.positiveAccounts || 0,
       overdrawnAccounts: stats?.overdrawnAccounts || 0,
+      topAccounts: topAccounts.map((item) => ({
+        id: String(item._id),
+        name: item.name || "",
+        type: item.type || "",
+        balance: item.balance || 0,
+      })),
     },
     generatedAt: new Date(),
   };
