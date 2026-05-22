@@ -15,17 +15,12 @@ const { createProductBatch } = require("../../productBatchServices");
 // ===== Models =====
 const PurchaseInvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const suppliersModel = require("../../../models/Accounting/Purchase/suppliersModel");
-const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const productModel = require("../../../models/productModel");
 const PaymentModel = require("../../../models/paymentModel");
-const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const refundPurchaseInviceModel = require("../../../models/Accounting/Purchase/refundPurchaseInviceModel");
-const paymentHistoryModel = require("../../../models/paymentHistoryModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
 const ShortageModel = require("../../../models/ShortageModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
-const { createJournalService } = require("../../journalEntryServices");
 const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const journalEntryModel = require("../../../models/journalEntryModel");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");

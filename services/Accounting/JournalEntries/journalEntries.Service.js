@@ -106,7 +106,7 @@ exports.createJournalEntryService = async ({
   // data takes priority — internal calls pass clean plain objects
   // req.body is used for manual journal route
   const body = data || req?.body;
-  console.log("body", body);
+
   if (!body) throw new Error("Journal data is required");
 
   const padZero = (value) => (value < 10 ? `0${value}` : String(value));

@@ -1449,15 +1449,43 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
 exports.findOneSalesInvoiceService = async ({ req, companyId }) => {
   const { id } = req.params;
 
-  const salesInvoice = await orderModel.findOne({
-    _id: id,
-    companyId,
-  });
+  const salesInvoice = await orderModel
+    .findOne({
+      _id: id,
+      companyId,
+    })
+    .populate({
+      path: "employee",
+      select: "name profileImg email phone",
+    })
+    .lean();
 
   if (!salesInvoice) {
     throw new ApiError(`No sales invoice for this id ${id}`, 404);
   }
 
+  // ── PAYMENT COUNTERS ─────────────────────────────
+  const paymentIds = salesInvoice?.payments?.map((p) => p.paymentID) || [];
+
+  const paymentTransactions = await paymentModel
+    .find({
+      _id: { $in: paymentIds },
+    })
+    .select("counter")
+    .lean();
+
+  const paymentCounterMap = {};
+
+  paymentTransactions.forEach((p) => {
+    paymentCounterMap[p._id.toString()] = p.counter;
+  });
+
+  salesInvoice.payments = (salesInvoice.payments || []).map((payment) => ({
+    ...payment,
+    paymentCounter: paymentCounterMap[payment.paymentID?.toString()] || null,
+  }));
+
+  // ── HISTORY ─────────────────────────────
   const pageSize = Number(req.query.limit) || 20;
   const page = Number(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
@@ -1467,6 +1495,7 @@ exports.findOneSalesInvoiceService = async ({ req, companyId }) => {
   });
 
   const totalPages = Math.ceil(totalItems / pageSize);
+
   const invoiceHistory = await invoiceHistoryModel
     .find({
       invoiceId: id,
@@ -1518,181 +1547,4 @@ exports.findCustomerSalesInvoicesService = async ({ req, companyId }) => {
     totalPages,
     salesInvoices,
   };
-};
-
-exports.paymentService = async ({
-  req,
-  companyId,
-  session,
-  newSalesInvoice,
-  customer,
-}) => {
-  const {
-    party,
-    fund,
-    paymentNature,
-    payment,
-    paymentDate,
-    description,
-    journalCounter,
-    counter,
-    postedBy,
-    postedAt,
-    paymentInFundCurrency,
-  } = req.body;
-
-  if (!fund?.id) {
-    throw new Error("Fund id is required");
-  }
-
-  if (!customer?._id) {
-    throw new Error("Party is required");
-  }
-  const financialFund = await financialFundsModel.findOneAndUpdate(
-    { _id: fund.id || fund._id, companyId },
-    { $inc: { fundBalance: +paymentInFundCurrency } },
-    { new: true, session }
-  );
-
-  if (!financialFund) {
-    throw new Error("Financial fund not found");
-  }
-  let paymentAmountMain = Number(payment.amountMainCurrency || 0);
-  let paymentAmountInvoice = Number(payment.amount || 0);
-
-  const paymentSeq = await getNextCounterValue({
-    companyId,
-    name: "Payment",
-    session,
-  });
-  const paymentPayload = {
-    companyId,
-    counter: Number(counter || 0) + Number(paymentSeq),
-    party: {
-      id: customer._id,
-      name: customer.name,
-      type: "customer",
-    },
-    fund: {
-      id: fund.id,
-      name: fund.name,
-      currencyId: fund.currencyId || "",
-      currencyCode: fund.currencyCode || "",
-      exchangeRate: Number(fund.exchangeRate || 1),
-    },
-    totalMainCurrency: paymentAmountMain,
-    paymentNature: "incoming",
-    payment: {
-      amount: Number(payment?.amount || 0),
-      currencyId: payment?.currencyId || "",
-      currencyCode: payment?.currencyCode || "",
-      exchangeRate: Number(payment?.exchangeRate || 1),
-      amountMainCurrency: Number(payment?.amountMainCurrency || 0),
-    },
-    date: paymentDate,
-    description,
-    journalCounter,
-    file: req.body.file || "",
-    allocations: [
-      {
-        documentId: newSalesInvoice._id,
-        documentName: newSalesInvoice.invoiceName,
-        documentCounter: newSalesInvoice.counter,
-        documentCurrencyCode: newSalesInvoice.currency?.currencyCode || "",
-        allocatedAmountMainCurrency: paymentAmountMain,
-        allocatedAmountDocumentCurrency: paymentAmountInvoice,
-        documentTotal: newSalesInvoice.invoiceGrandTotal,
-        documentType: "sales_invoice",
-      },
-    ],
-    postedBy: postedBy || null,
-    postedAt: postedAt || new Date(),
-  };
-
-  const paymentDocs = await paymentsModel.create([paymentPayload], {
-    session,
-  });
-  const newPayment = paymentDocs[0];
-  createdPayment = newPayment;
-
-  // newSalesInvoice.totalRemainderMainCurrency =
-  //   Number(newSalesInvoice.totalRemainderMainCurrency || 0) - paymentAmountMain;
-
-  // newSalesInvoice.totalRemainder =
-  //   Number(newSalesInvoice.totalRemainder || 0) -
-  //   paymentAmountMain * newSalesInvoice.currency.exchangeRate;
-
-  if (newSalesInvoice.totalRemainderMainCurrency <= 0.9) {
-    newSalesInvoice.paymentsStatus = "paid";
-    newSalesInvoice.totalRemainderMainCurrency = 0;
-    newSalesInvoice.totalRemainder = 0;
-  }
-
-  newSalesInvoice.payments.push({
-    payment: Number(payment.amount || paymentAmountInvoice),
-    paymentMainCurrency: payment.amountMainCurrency || paymentAmountMain,
-    financialFunds: fund.name,
-    paymentID: newPayment._id,
-    financialFundsCurrencyCode: fund.currencyCode,
-    exchangeRate: fund.exchangeRate,
-    date: paymentDate,
-    paymentInInvoiceCurrency:
-      payment.amountMainCurrency * newSalesInvoice.currency.exchangeRate ||
-      paymentAmountInvoice,
-    financialFundsId: fund._id,
-  });
-
-  await newSalesInvoice.save({ session });
-
-  await createInvoiceHistory(
-    companyId,
-    newSalesInvoice._id,
-    "payment",
-    req.user._id,
-    paymentDate,
-    `${payment.amount} ${fund.currencyCode}`,
-    "invoice",
-    session
-  );
-
-  customer.TotalUnpaid = Number(customer.TotalUnpaid || 0) - paymentAmountMain;
-  if (customer.TotalUnpaid < 0) customer.TotalUnpaid = 0;
-  await customer.save({ session });
-
-  await createPaymentHistoryV2({
-    companyId,
-    entryType: "payment",
-    transactionDate: paymentDate,
-    amountTransactionCurrency: paymentInFundCurrency,
-    amountMainCurrency: payment.amountMainCurrency,
-    customerId: customer._id,
-    referenceId: newSalesInvoice._id,
-    sourceModule: "payment",
-    actionType: "create",
-    paymentId: newPayment._id,
-    balanceEffectType: "Withdrawal",
-    description,
-    transactionCurrency: fund.currencyCode,
-    session,
-  });
-
-  await reportsFinancialFunds.create(
-    [
-      {
-        date: paymentDate,
-        amount: Number(paymentInFundCurrency || 0),
-        ref: newSalesInvoice._id,
-        type: "Deposit",
-        financialFundId: financialFund._id,
-        financialFundRest: financialFund.fundBalance,
-        exchangeRate: newSalesInvoice.currency?.exchangeRate || 1,
-        paymentType: "Deposit",
-        payment: newPayment._id,
-        description,
-        companyId,
-      },
-    ],
-    { session }
-  );
-  return true;
 };

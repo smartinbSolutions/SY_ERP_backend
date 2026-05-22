@@ -154,7 +154,6 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
           postedAt: new Date(),
           journalAccounts: null,
         };
-        console.log("normalizedPayment", normalizedPayment);
 
         const result = await handleSalesPayment(
           req,
@@ -201,15 +200,6 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
           (a) => a.accountType === "Customer_Payment"
         );
 
-        console.log("FX append debug:", {
-          fxDiff,
-          isLoss,
-          fxGainLink: fxGainLink?.name,
-          fxLossLink: fxLossLink?.name,
-          fxAccountFound: !!fxAccount,
-          fxAccountId: fxAccount?._id,
-          partyJournalAccountFound: !!partyJournalAccount,
-        });
         if (fxAccount && partyJournalAccount) {
           const absFx = Math.abs(fxDiff);
 
