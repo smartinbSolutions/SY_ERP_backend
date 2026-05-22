@@ -18,7 +18,29 @@ const AccountingTreeSchema = new mongoose.Schema(
     },
 
     depreciationAccount: String,
-    accountType: { type: String },
+    accountType: {
+      type: String,
+      enum: [
+        "fixedAsset",
+        "currentAsset",
+        "nonCurrentLiabilities",
+        "currentLiabilities",
+        "contraRevenue",
+        "revenue",
+        "operatingExpenses",
+        "financialAssets",
+        "otherCurrentLiability",
+        "equity",
+        "income",
+        "costOfGoodsSold",
+        "expense",
+        "otherExpense",
+        "nonOperatingExpenses/income",
+        "liabilities",
+        "nonOperatingExpenses",
+        "nonOperatingIncome",
+      ],
+    },
     detailType: String,
     description: String,
 
@@ -54,10 +76,13 @@ const AccountingTreeSchema = new mongoose.Schema(
       required: true,
     },
 
-    finalAccount: String,
+    finalAccount: {
+      type: String,
+      enum: ["Profit and Loss Account", "Balance Sheet", "Trading Account"],
+    },
     originalAccountId: String,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 /* =============================================

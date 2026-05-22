@@ -3,7 +3,7 @@ const asyncHandler = require("express-async-handler");
 const AccountingTree = require("../models/accountingTreeModel");
 const ApiError = require("../utils/apiError");
 const xlsx = require("xlsx");
-const currencySchema = require("../models/currencyModel");
+const currencySchema = require("../models/Settings/currency.model");
 const journalEntryModel = require("../models/journalEntryModel");
 
 exports.getAccountingTree = asyncHandler(async (req, res, next) => {
@@ -222,7 +222,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     if (duplicateCodes.length) {
       console.error(
         "Duplicate account codes found in AccountingTree:",
-        duplicateCodes
+        duplicateCodes,
       );
     }
 
@@ -266,7 +266,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
             $sum: { $ifNull: ["$journalAccounts.MainCredit", 0] },
           },
         },
-      }
+      },
     );
 
     const journalSums = await journalEntryModel.aggregate(pipeline);
@@ -355,7 +355,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
 
       if (parentNode) {
         const alreadyInParent = parentNode.children.some(
-          (child) => String(child._id) === idStr
+          (child) => String(child._id) === idStr,
         );
 
         if (!alreadyInParent) {
@@ -565,7 +565,7 @@ exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   res.status(200).json({ status: "success", data: updateTree });
@@ -654,18 +654,47 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
   } else {
     return res.status(400).json({ error: "Unsupported file type" });
   }
-  for (const item of csvData) {
-    // Find IDs for currency, category, unit, and brand
-    const currency = await currencySchema.findOne({
+  const currencyNames = [
+    ...new Set(
+      csvData
+        .map((item) => item.currency)
+        .filter(Boolean)
+        .map((currencyName) => String(currencyName).trim()),
+    ),
+  ];
+
+  const currencies = currencyNames.length
+    ? await currencySchema
+        .find({
+          companyId,
+          $or: [
+            { currencyName: { $in: currencyNames } },
+            { currencyCode: { $in: currencyNames } },
+          ],
+        })
+        .select("_id currencyName currencyCode")
+        .lean()
+    : [];
+
+  const currencyMap = new Map();
+  currencies.forEach((currency) => {
+    currencyMap.set(currency.currencyName, currency._id);
+    currencyMap.set(currency.currencyCode, currency._id);
+  });
+
+  const treeRows = csvData.map((item) => {
+    const currencyName = item.currency ? String(item.currency).trim() : "";
+
+    return {
+      ...item,
+      currency: currencyMap.get(currencyName),
       companyId,
-      currencyName: item.currency,
-    });
-    item.currency = currency?._id;
-    item.companyId = companyId;
-  }
+    };
+  });
+
   try {
     // Insert Tree into the database
-    const insertedTree = await AccountingTree.insertMany(csvData, {
+    const insertedTree = await AccountingTree.insertMany(treeRows, {
       ordered: false,
     });
 
@@ -696,7 +725,7 @@ exports.changeBalance = asyncHandler(async (req, res, next) => {
     {
       $inc: { debtor: req.body.debtor || 0, creditor: req.body.creditor || 0 },
     },
-    { new: true }
+    { new: true },
   );
 
   res
@@ -787,14 +816,14 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
   const round4 = (n) => Math.round((Number(n) || 0) * 10000) / 10000;
 
   const totalDebit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0)
+    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0),
   );
 
   const totalCredit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0)
+    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0),
   );
   const totalBalance = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0)
+    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0),
   );
   const diff = round4(totalDebit - totalCredit);
 
