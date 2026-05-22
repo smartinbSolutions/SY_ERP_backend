@@ -14,6 +14,8 @@ const GROUP_2 = "group-2";
 const GROUP_3 = "group-3";
 const GROUP_4 = "group-4";
 
+const PRODUCT_TYPES = ["Normal", "Service", "rawmaterial", "manufactured"];
+
 const getCompanyId = (req, res) => {
   const companyId = req.query.companyId;
 
@@ -25,22 +27,226 @@ const getCompanyId = (req, res) => {
   return companyId;
 };
 
-const buildPartyHistoryBalanceStats = async ({
-  companyId,
-  role,
-  PartyModel,
-  partyMatch,
-  nameField,
-}) => {
-  const idField = role === "supplier" ? "supplierId" : "customerId";
-  const activeParties = await PartyModel.find(partyMatch).select(`_id ${nameField}`).lean();
-  const activePartyIds = new Set(activeParties.map((party) => String(party._id)));
+const getAmountConvertExpression = (fieldPath) => ({
+  $convert: {
+    input: fieldPath,
+    to: "double",
+    onError: 0,
+    onNull: 0,
+  },
+});
+
+const createDefaultProductTypeMetrics = () =>
+  PRODUCT_TYPES.reduce((acc, type) => {
+    acc[type] = {
+      count: 0,
+      quantity: 0,
+      stockValue: 0,
+      salesValue: 0,
+      lowStockItems: 0,
+      outOfStockItems: 0,
+    };
+    return acc;
+  }, {});
+
+const getSupplierBalanceBranches = () => [
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "payment"] },
+        { $eq: ["$balanceEffectType", "Deposit"] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "payment"] },
+        { $eq: ["$balanceEffectType", "Withdrawal"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "invoice"] },
+        { $eq: ["$sourceModule", "purchase"] },
+        { $eq: ["$actionType", "create"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "invoice"] },
+        { $eq: ["$sourceModule", "purchase"] },
+        { $in: ["$actionType", ["refund", "cancel", "update"]] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "fx_adjustment"] },
+        { $eq: ["$balanceEffectType", "Withdrawal"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "fx_adjustment"] },
+        { $eq: ["$balanceEffectType", "Deposit"] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "expense"] },
+        { $eq: ["$sourceModule", "expense"] },
+        { $eq: ["$actionType", "create"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "expense"] },
+        { $eq: ["$sourceModule", "expense"] },
+        { $in: ["$actionType", ["cancel", "update"]] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "opening_balance"] },
+        { $eq: ["$balanceEffectType", "Deposit"] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "opening_balance"] },
+        { $eq: ["$balanceEffectType", "Withdrawal"] },
+      ],
+    },
+    then: "$_amount",
+  },
+];
+
+const getCustomerBalanceBranches = () => [
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "payment"] },
+        { $eq: ["$balanceEffectType", "Deposit"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "payment"] },
+        { $eq: ["$balanceEffectType", "Withdrawal"] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "invoice"] },
+        { $eq: ["$sourceModule", "sales"] },
+        { $eq: ["$actionType", "create"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "invoice"] },
+        { $eq: ["$sourceModule", "sales"] },
+        { $in: ["$actionType", ["refund", "cancel", "update"]] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "fx_adjustment"] },
+        { $eq: ["$balanceEffectType", "Withdrawal"] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "fx_adjustment"] },
+        { $eq: ["$balanceEffectType", "Deposit"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "opening_balance"] },
+        { $eq: ["$balanceEffectType", "Deposit"] },
+      ],
+    },
+    then: "$_amount",
+  },
+  {
+    case: {
+      $and: [
+        { $eq: ["$entryType", "opening_balance"] },
+        { $eq: ["$balanceEffectType", "Withdrawal"] },
+      ],
+    },
+    then: { $multiply: ["$_amount", -1] },
+  },
+];
+
+const getBalanceBranches = (role) =>
+  role === "supplier" ? getSupplierBalanceBranches() : getCustomerBalanceBranches();
+
+const getActiveParties = async ({ PartyModel, partyMatch, nameField }) => {
+  const activeParties = await PartyModel.find(partyMatch)
+    .select(`_id ${nameField}`)
+    .lean();
+
+  const activePartyIds = new Set(
+    activeParties.map((party) => String(party._id)),
+  );
+
   const partyNamesById = activeParties.reduce((acc, party) => {
     acc[String(party._id)] = party[nameField] || "";
     return acc;
   }, {});
 
-  const partyBalances = await PaymentHistory.aggregate([
+  return { activeParties, activePartyIds, partyNamesById };
+};
+
+const getPartyHistoryBalances = async ({ companyId, role }) => {
+  const idField = role === "supplier" ? "supplierId" : "customerId";
+
+  return PaymentHistory.aggregate([
     {
       $match: {
         companyId,
@@ -56,180 +262,7 @@ const buildPartyHistoryBalanceStats = async ({
       $addFields: {
         _balanceEffect: {
           $switch: {
-            branches:
-              role === "supplier"
-                ? [
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "payment"] },
-                          { $eq: ["$balanceEffectType", "Deposit"] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "payment"] },
-                          { $eq: ["$balanceEffectType", "Withdrawal"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "invoice"] },
-                          { $eq: ["$sourceModule", "purchase"] },
-                          { $eq: ["$actionType", "create"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "invoice"] },
-                          { $eq: ["$sourceModule", "purchase"] },
-                          { $in: ["$actionType", ["refund", "cancel", "update"]] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "fx_adjustment"] },
-                          { $eq: ["$balanceEffectType", "Withdrawal"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "fx_adjustment"] },
-                          { $eq: ["$balanceEffectType", "Deposit"] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "expense"] },
-                          { $eq: ["$sourceModule", "expense"] },
-                          { $eq: ["$actionType", "create"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "expense"] },
-                          { $eq: ["$sourceModule", "expense"] },
-                          { $in: ["$actionType", ["cancel", "update"]] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "opening_balance"] },
-                          { $eq: ["$balanceEffectType", "Deposit"] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "opening_balance"] },
-                          { $eq: ["$balanceEffectType", "Withdrawal"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                  ]
-                : [
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "payment"] },
-                          { $eq: ["$balanceEffectType", "Deposit"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "payment"] },
-                          { $eq: ["$balanceEffectType", "Withdrawal"] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "invoice"] },
-                          { $eq: ["$sourceModule", "sales"] },
-                          { $eq: ["$actionType", "create"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "invoice"] },
-                          { $eq: ["$sourceModule", "sales"] },
-                          { $in: ["$actionType", ["refund", "cancel", "update"]] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "fx_adjustment"] },
-                          { $eq: ["$balanceEffectType", "Withdrawal"] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "fx_adjustment"] },
-                          { $eq: ["$balanceEffectType", "Deposit"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "opening_balance"] },
-                          { $eq: ["$balanceEffectType", "Deposit"] },
-                        ],
-                      },
-                      then: "$_amount",
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ["$entryType", "opening_balance"] },
-                          { $eq: ["$balanceEffectType", "Withdrawal"] },
-                        ],
-                      },
-                      then: { $multiply: ["$_amount", -1] },
-                    },
-                  ],
+            branches: getBalanceBranches(role),
             default: 0,
           },
         },
@@ -242,6 +275,23 @@ const buildPartyHistoryBalanceStats = async ({
       },
     },
   ]);
+};
+
+const buildPartyHistoryBalanceStats = async ({
+  companyId,
+  role,
+  PartyModel,
+  partyMatch,
+  nameField,
+}) => {
+  const { activeParties, activePartyIds, partyNamesById } =
+    await getActiveParties({
+      PartyModel,
+      partyMatch,
+      nameField,
+    });
+
+  const partyBalances = await getPartyHistoryBalances({ companyId, role });
 
   const positiveBalances = partyBalances
     .filter((item) => activePartyIds.has(String(item._id)) && item.balance > 0)
@@ -285,7 +335,7 @@ const buildGroup1SnapshotPayload = async (companyId) => {
   };
 };
 
-const buildGroup2SnapshotPayload = async (companyId) => {
+const getCashStats = async (companyId) => {
   const [result] = await FinancialFund.aggregate([
     { $match: { companyId } },
     {
@@ -335,21 +385,59 @@ const buildGroup2SnapshotPayload = async (companyId) => {
         ],
         topAccounts: [
           {
+            $lookup: {
+              from: "currencies",
+              localField: "fundCurrency",
+              foreignField: "_id",
+              as: "_currency",
+            },
+          },
+          {
+            $addFields: {
+              _currency: { $arrayElemAt: ["$_currency", 0] },
+            },
+          },
+          {
             $project: {
               _id: 1,
               name: "$fundName",
               type: 1,
               balance: { $ifNull: ["$fundBalance", 0] },
+              currency: {
+                id: "$_currency._id",
+                currencyCode: "$_currency.currencyCode",
+                currencyName: "$_currency.currencyName",
+                decimals: "$_currency.decimals",
+              },
             },
           },
           { $sort: { balance: -1 } },
-          { $limit: 3 },
+          { $limit: 5 },
         ],
       },
     },
   ]);
+
+  return result || {};
+};
+
+const formatTopCashAccounts = (topAccounts = []) =>
+  topAccounts.map((item) => ({
+    id: String(item._id),
+    name: item.name || "",
+    type: item.type || "",
+    balance: item.balance || 0,
+    currency: {
+      id: item.currency?.id ? String(item.currency.id) : "",
+      currencyCode: item.currency?.currencyCode || "",
+      currencyName: item.currency?.currencyName || "",
+      decimals: item.currency?.decimals,
+    },
+  }));
+
+const buildGroup2SnapshotPayload = async (companyId) => {
+  const result = await getCashStats(companyId);
   const stats = result?.totals?.[0] || {};
-  const topAccounts = result?.topAccounts || [];
 
   return {
     cash: {
@@ -361,12 +449,7 @@ const buildGroup2SnapshotPayload = async (companyId) => {
       bankBalance: stats?.bankBalance || 0,
       positiveAccounts: stats?.positiveAccounts || 0,
       overdrawnAccounts: stats?.overdrawnAccounts || 0,
-      topAccounts: topAccounts.map((item) => ({
-        id: String(item._id),
-        name: item.name || "",
-        type: item.type || "",
-        balance: item.balance || 0,
-      })),
+      topAccounts: formatTopCashAccounts(result?.topAccounts),
     },
     generatedAt: new Date(),
   };
@@ -429,6 +512,29 @@ const buildDocumentPaymentStats = async ({
         },
         totalAmount: { $sum: "$_dashboardTotal" },
         outstandingAmount: { $sum: "$_dashboardRemainder" },
+        paidAmount: {
+          $sum: {
+            $cond: [
+              "$_isPaid",
+              "$_dashboardTotal",
+              { $subtract: ["$_dashboardTotal", "$_dashboardRemainder"] },
+            ],
+          },
+        },
+        unpaidAmount: {
+          $sum: {
+            $cond: [
+              { $and: [{ $not: ["$_isPaid"] }, { $not: ["$_isPartial"] }] },
+              "$_dashboardRemainder",
+              0,
+            ],
+          },
+        },
+        partiallyPaidRemainingAmount: {
+          $sum: {
+            $cond: ["$_isPartial", "$_dashboardRemainder", 0],
+          },
+        },
       },
     },
   ]);
@@ -440,29 +546,31 @@ const buildDocumentPaymentStats = async ({
     partiallyPaidCount: stats?.partiallyPaidCount || 0,
     totalAmount: stats?.totalAmount || 0,
     outstandingAmount: stats?.outstandingAmount || 0,
+    paidAmount: stats?.paidAmount || 0,
+    unpaidAmount: stats?.unpaidAmount || 0,
+    partiallyPaidRemainingAmount: stats?.partiallyPaidRemainingAmount || 0,
   };
 };
+
+const getActiveDocumentMatch = (companyId, extraMatch = {}) => ({
+  companyId,
+  archives: { $ne: true },
+  status: { $ne: "cancelled" },
+  ...extraMatch,
+});
 
 const buildGroup3SnapshotPayload = async (companyId) => {
   const [salesInvoices, purchaseInvoices, expenses] = await Promise.all([
     buildDocumentPaymentStats({
       Model: SalesInvoice,
-      match: {
-        companyId,
-        archives: { $ne: true },
-        status: { $ne: "cancelled" },
-      },
+      match: getActiveDocumentMatch(companyId),
       paymentStatusField: "paymentsStatus",
       totalField: "totalInMainCurrency",
       remainderField: "totalRemainderMainCurrency",
     }),
     buildDocumentPaymentStats({
       Model: PurchaseInvoice,
-      match: {
-        companyId,
-        archives: { $ne: true },
-        status: { $ne: "cancelled" },
-      },
+      match: getActiveDocumentMatch(companyId),
       paymentStatusField: "paid",
       totalField: "totalPurchasePriceMainCurrency",
       remainderField: "totalRemainderMainCurrency",
@@ -484,10 +592,8 @@ const buildGroup3SnapshotPayload = async (companyId) => {
   };
 };
 
-const PRODUCT_TYPES = ["Normal", "Service", "rawmaterial", "manufactured"];
-
-const buildGroup4SnapshotPayload = async (companyId) => {
-  const [stats] = await Product.aggregate([
+const getProductStatsAggregation = (companyId) =>
+  Product.aggregate([
     {
       $match: {
         companyId,
@@ -501,30 +607,9 @@ const buildGroup4SnapshotPayload = async (companyId) => {
             input: { $ifNull: ["$stocks", []] },
             as: "stock",
             in: {
-              quantity: {
-                $convert: {
-                  input: "$$stock.productQuantity",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0,
-                },
-              },
-              minimum: {
-                $convert: {
-                  input: "$$stock.minimum",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0,
-                },
-              },
-              maximum: {
-                $convert: {
-                  input: "$$stock.maximum",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0,
-                },
-              },
+              quantity: getAmountConvertExpression("$$stock.productQuantity"),
+              minimum: getAmountConvertExpression("$$stock.minimum"),
+              maximum: getAmountConvertExpression("$$stock.maximum"),
             },
           },
         },
@@ -533,35 +618,14 @@ const buildGroup4SnapshotPayload = async (companyId) => {
             $map: {
               input: { $ifNull: ["$stocks", []] },
               as: "stock",
-              in: {
-                $convert: {
-                  input: "$$stock.productQuantity",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0,
-                },
-              },
+              in: getAmountConvertExpression("$$stock.productQuantity"),
             },
           },
         },
-        _cost: {
-          $convert: {
-            input: {
-              $ifNull: ["$costBuyingPrice", { $ifNull: ["$buyingprice", 0] }],
-            },
-            to: "double",
-            onError: 0,
-            onNull: 0,
-          },
-        },
-        _sellingPrice: {
-          $convert: {
-            input: "$price",
-            to: "double",
-            onError: 0,
-            onNull: 0,
-          },
-        },
+        _cost: getAmountConvertExpression({
+          $ifNull: ["$costBuyingPrice", { $ifNull: ["$buyingprice", 0] }],
+        }),
+        _sellingPrice: getAmountConvertExpression("$price"),
         _variantsCount: { $size: { $ifNull: ["$variants", []] } },
       },
     },
@@ -598,9 +662,7 @@ const buildGroup4SnapshotPayload = async (companyId) => {
               _id: null,
               totalProducts: { $sum: 1 },
               totalQuantity: { $sum: "$_quantity" },
-              stockValue: {
-                $sum: { $multiply: ["$_quantity", "$_cost"] },
-              },
+              stockValue: { $sum: { $multiply: ["$_quantity", "$_cost"] } },
               salesValue: {
                 $sum: { $multiply: ["$_quantity", "$_sellingPrice"] },
               },
@@ -613,9 +675,7 @@ const buildGroup4SnapshotPayload = async (companyId) => {
                 },
               },
               minimumQuantity: { $sum: "$_minimumQuantity" },
-              lowStockItems: {
-                $sum: { $cond: ["$_isLowStock", 1, 0] },
-              },
+              lowStockItems: { $sum: { $cond: ["$_isLowStock", 1, 0] } },
               outOfStockItems: {
                 $sum: { $cond: [{ $lte: ["$_quantity", 0] }, 1, 0] },
               },
@@ -623,22 +683,17 @@ const buildGroup4SnapshotPayload = async (companyId) => {
             },
           },
         ],
-
         types: [
           {
             $group: {
               _id: "$type",
               count: { $sum: 1 },
               quantity: { $sum: "$_quantity" },
-              stockValue: {
-                $sum: { $multiply: ["$_quantity", "$_cost"] },
-              },
+              stockValue: { $sum: { $multiply: ["$_quantity", "$_cost"] } },
               salesValue: {
                 $sum: { $multiply: ["$_quantity", "$_sellingPrice"] },
               },
-              lowStockItems: {
-                $sum: { $cond: ["$_isLowStock", 1, 0] },
-              },
+              lowStockItems: { $sum: { $cond: ["$_isLowStock", 1, 0] } },
               outOfStockItems: {
                 $sum: { $cond: [{ $lte: ["$_quantity", 0] }, 1, 0] },
               },
@@ -655,22 +710,58 @@ const buildGroup4SnapshotPayload = async (companyId) => {
     },
   ]);
 
-  const totals = stats?.totals || {};
+const buildTopInvoiceProducts = async ({
+  Model,
+  companyId,
+  itemsField,
+  quantityField,
+  amountField,
+  match = {},
+}) => {
+  return Model.aggregate([
+    { $match: getActiveDocumentMatch(companyId, match) },
+    { $unwind: `$${itemsField}` },
+    {
+      $addFields: {
+        _item: `$${itemsField}`,
+      },
+    },
+    {
+      $group: {
+        _id: "$_item.id",
+        name: { $first: "$_item.name" },
+        quantity: {
+          $sum: getAmountConvertExpression(`$_item.${quantityField}`),
+        },
+        amount: {
+          $sum: getAmountConvertExpression(`$_item.${amountField}`),
+        },
+      },
+    },
+    {
+      $match: {
+        _id: { $nin: [null, ""] },
+      },
+    },
+    { $sort: { quantity: -1, amount: -1 } },
+    { $limit: 3 },
+    {
+      $project: {
+        _id: 0,
+        id: "$_id",
+        name: { $ifNull: ["$name", ""] },
+        quantity: 1,
+        amount: 1,
+      },
+    },
+  ]);
+};
 
-  const typeMetrics = PRODUCT_TYPES.reduce((acc, type) => {
-    acc[type] = {
-      count: 0,
-      quantity: 0,
-      stockValue: 0,
-      salesValue: 0,
-      lowStockItems: 0,
-      outOfStockItems: 0,
-    };
-    return acc;
-  }, {});
+const buildTypeMetrics = (types = []) => {
+  const typeMetrics = createDefaultProductTypeMetrics();
 
-  for (const item of stats?.types || []) {
-    if (!typeMetrics[item._id]) continue;
+  types.forEach((item) => {
+    if (!typeMetrics[item._id]) return;
 
     typeMetrics[item._id] = {
       count: item.count || 0,
@@ -680,7 +771,34 @@ const buildGroup4SnapshotPayload = async (companyId) => {
       lowStockItems: item.lowStockItems || 0,
       outOfStockItems: item.outOfStockItems || 0,
     };
-  }
+  });
+
+  return typeMetrics;
+};
+
+const buildGroup4SnapshotPayload = async (companyId) => {
+  const [productStats, topSellingProducts, topPurchasingProducts] =
+    await Promise.all([
+      getProductStatsAggregation(companyId),
+      buildTopInvoiceProducts({
+        Model: SalesInvoice,
+        companyId,
+        itemsField: "invoicesItems",
+        quantityField: "soldQuantity",
+        amountField: "total",
+      }),
+      buildTopInvoiceProducts({
+        Model: PurchaseInvoice,
+        companyId,
+        itemsField: "invoicesItems",
+        quantityField: "quantity",
+        amountField: "total",
+      }),
+    ]);
+
+  const [stats] = productStats;
+  const totals = stats?.totals || {};
+  const typeMetrics = buildTypeMetrics(stats?.types);
 
   return {
     products: {
@@ -700,6 +818,8 @@ const buildGroup4SnapshotPayload = async (companyId) => {
       manufacturedItems: typeMetrics.manufactured.count,
 
       typeMetrics,
+      topSellingProducts,
+      topPurchasingProducts,
     },
     generatedAt: new Date(),
   };
@@ -725,19 +845,13 @@ const refreshSnapshot = async ({ companyId, group, payload }) => {
   ).lean();
 };
 
-const ensureGroup1Snapshot = async (companyId) => {
-  return ensureSnapshot(companyId, GROUP_1);
-};
-
 const ensureSnapshot = async (companyId, group) => {
   const existing = await DashboardStatsSnapshot.findOne({
     companyId,
     group,
   }).lean();
 
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
   const payload = await groupBuilders[group](companyId);
   return refreshSnapshot({ companyId, group, payload });
@@ -787,7 +901,7 @@ exports.getDashboardAllStats = asyncHandler(async (req, res) => {
   if (!companyId) return;
 
   const [group1, group2, group3, group4] = await Promise.all([
-    ensureGroup1Snapshot(companyId),
+    ensureSnapshot(companyId, GROUP_1),
     ensureSnapshot(companyId, GROUP_2),
     ensureSnapshot(companyId, GROUP_3),
     ensureSnapshot(companyId, GROUP_4),
