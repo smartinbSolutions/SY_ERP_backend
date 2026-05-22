@@ -34,7 +34,7 @@ exports.getAllProdcuts = asyncHandler(async (req, res, next) => {
   }
 
   const product = await productModel
-    .find({ companyId })
+    .find({ companyId, type: req.query.type })
     .populate({
       path: "currency",
       select: "currencyCode currencyName exchangeRate is_primary  _id",
@@ -834,7 +834,6 @@ exports.importProduct = asyncHandler(async (req, res) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-
   try {
     const { buffer } = req.file;
     let csvData = [];
@@ -856,22 +855,21 @@ exports.importProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ error: "Unsupported file type" });
     }
 
-    const [currencies, categories, units, brands, taxes, stocks] =
-      await Promise.all([
-        currencyModel.find({ companyId }),
-        categoryModel.find({ companyId }),
-        UnitsModel.find({ companyId }),
-        brandModel.find({ companyId }),
-        taxModel.find({ companyId }),
-        stockModel.find({ companyId }),
-      ]);
+    const [currencies, categories, units, brands, taxes] = await Promise.all([
+      currencyModel.find({ companyId }),
+      CategoryModel.find({ companyId }),
+      UnitsModel.find({ companyId }),
+      brandModel.find({ companyId }),
+      taxModel.find({ companyId }),
+      // stockModel.find({ companyId }),
+    ]);
 
-    const currencyMap = new Map(currencies.map((c) => [c.currencyName, c._id]));
+    const currencyMap = new Map(currencies.map((c) => [c.currencyCode, c._id]));
     const categoryMap = new Map(categories.map((c) => [c.name, c._id]));
     const unitMap = new Map(units.map((u) => [u.name, u._id]));
     const brandMap = new Map(brands.map((b) => [b.name, b._id]));
     const taxMap = new Map(taxes.map((t) => [String(t.tax), t._id]));
-    const stockMap = new Map(stocks.map((s) => [s.name, s]));
+    // const stockMap = new Map(stocks.map((s) => [s.name, s]));
 
     const preparedProducts = [];
 
@@ -879,7 +877,7 @@ exports.importProduct = asyncHandler(async (req, res) => {
       const qrArray =
         row.qr !== undefined && row.qr !== null
           ? String(row.qr)
-              .split(",")
+              .split(/[,\s]+/)
               .map((q) => q.trim())
               .filter(Boolean)
           : [];
@@ -899,51 +897,57 @@ exports.importProduct = asyncHandler(async (req, res) => {
       }
 
       const stocksArr = [];
-      let totalQuantity = 0;
+      // let totalQuantity = 0;
 
-      const excludedKeys = [
-        "name",
-        "qr",
-        "tax",
-        "buyingprice",
-        "currency",
-        "price",
-        "category",
-        "unit",
-        "brand",
-        "alarm",
-        "description",
-        "supplier",
-        "origin",
-        "active",
-      ];
+      // const excludedKeys = [
+      //   "name",
+      //   "qr",
+      //   "tax",
+      //   "buyingprice",
+      //   "currency",
+      //   "price",
+      //   "category",
+      //   "unit",
+      //   "brand",
+      //   "alarm",
+      //   "description",
+      //   "supplier",
+      //   "origin",
+      //   "active",
+      // ];
 
-      for (const key of Object.keys(row)) {
-        if (!excludedKeys.includes(key) && !key.startsWith("unitPrice_")) {
-          const stock = stockMap.get(key);
-          const qty = Number(row[key]) || 0;
+      // for (const key of Object.keys(row)) {
+      //   if (!excludedKeys.includes(key) && !key.startsWith("unitPrice_")) {
+      //     const stock = stockMap.get(key);
+      //     const qty = Number(row[key]) || 0;
 
-          if (stock && qty > 0) {
-            stocksArr.push({
-              stockId: String(stock._id),
-              stockName: stock.name,
-              productQuantity: qty,
-            });
-            totalQuantity += qty;
-          }
-        }
-      }
+      //     if (stock && qty > 0) {
+      //       stocksArr.push({
+      //         stockId: String(stock._id),
+      //         stockName: stock.name,
+      //         productQuantity: qty,
+      //       });
+      //       totalQuantity += qty;
+      //     }
+      //   }
+      // }
 
       const unitsPrices = [];
+      const price = Number(row.price) || 0;
+      const buyingprice = Number(row.buyingprice) || 0;
+      const profitRatio = price > 0 ? ((price - buyingprice) / price) * 100 : 0;
 
-      for (let i = 1; i <= 4; i++) {
-        const unitName = row[`unitPrice_${i}_name`];
+      for (let i = 1; i <= 1; i++) {
+        const unitName = row[`unitPrice_${i}_name`] || row.unit;
+
         const equal = Number(row[`unitPrice_${i}_equal`]) || 0;
+
         const unitId2 = unitMap.get(unitName);
 
         if (!unitName || equal <= 0 || !unitId2) continue;
 
         const prices = [];
+
         [
           "buyingprice",
           "price",
@@ -953,8 +957,23 @@ exports.importProduct = asyncHandler(async (req, res) => {
           "importPrice",
           "exportPrice",
         ].forEach((p) => {
-          const v = Number(row[`unitPrice_${i}_${p}`]) || 0;
-          if (v > 0) prices.push({ title: p, price: v });
+          let v = Number(row[`unitPrice_${i}_${p}`]);
+
+          // fallback to main product prices
+          if (!v || v <= 0) {
+            if (p === "buyingprice") {
+              v = Number(buyingprice) || 0;
+            } else if (p === "price") {
+              v = Number(price) || 0;
+            }
+          }
+
+          if (v > 0) {
+            prices.push({
+              title: p,
+              price: v,
+            });
+          }
         });
 
         if (prices.length) {
@@ -966,11 +985,6 @@ exports.importProduct = asyncHandler(async (req, res) => {
           });
         }
       }
-
-      const price = Number(row.price) || 0;
-      const buyingprice = Number(row.buyingprice) || 0;
-      const profitRatio = price > 0 ? ((price - buyingprice) / price) * 100 : 0;
-
       preparedProducts.push({
         name: row.name,
         description: row.description || "Product description",
@@ -978,13 +992,12 @@ exports.importProduct = asyncHandler(async (req, res) => {
         price,
         buyingprice,
         profitRatio,
-        quantity: totalQuantity,
         alarm: Number(row.alarm) || 0,
 
         qr: qrArray,
         customAttributes,
 
-        stocks: stocksArr,
+        // stocks: stocksArr,
         unitsPrices,
 
         currency: currencyMap.get(row.currency),
@@ -992,7 +1005,7 @@ exports.importProduct = asyncHandler(async (req, res) => {
         unit: unitMap.get(row.unit),
         brand: brandMap.get(row.brand),
         tax: taxMap.get(String(row.tax || 0)),
-
+        type: req.body.type,
         companyId,
       });
     }
