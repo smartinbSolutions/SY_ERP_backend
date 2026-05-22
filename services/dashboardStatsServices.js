@@ -234,7 +234,7 @@ const getActiveParties = async ({ PartyModel, partyMatch, nameField }) => {
     .lean();
 
   const activePartyIds = new Set(
-    activeParties.map((party) => String(party._id))
+    activeParties.map((party) => String(party._id)),
   );
 
   const partyNamesById = activeParties.reduce((acc, party) => {
@@ -804,6 +804,7 @@ const buildGroup4SnapshotPayload = async (companyId) => {
 
   return {
     products: {
+      totalItems: totals.totalProducts || 0,
       totalProducts: totals.totalProducts || 0,
       totalQuantity: totals.totalQuantity || 0,
       stockValue: totals.stockValue || 0,
@@ -843,7 +844,7 @@ const refreshSnapshot = async ({ companyId, group, payload }) => {
       payload,
       generatedAt: payload.generatedAt,
     },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { new: true, upsert: true, setDefaultsOnInsert: true },
   ).lean();
 };
 
