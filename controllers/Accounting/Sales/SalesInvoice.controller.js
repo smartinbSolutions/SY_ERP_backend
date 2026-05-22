@@ -20,15 +20,23 @@ const {
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
 const mongoose = require("mongoose");
 const ApiError = require("../../../utils/apiError");
-const orderModel = require("../../../models/orderModel");
+const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const {
   createInvoiceHistory,
 } = require("../../../services/invoiceHistoryService");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
+const {
+  createJournalEntryService,
+} = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
+const linkPanelModel = require("../../../models/linkPanelModel");
+const {
+  handleSalesPayment,
+} = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
-  const invoiceDraft = req.body.invoiceDraft;
+  const invoiceDraft =
+    req.body.invoiceDraft === true || req.body.invoiceDraft === "true";
 
   const session = await mongoose.startSession();
 
@@ -37,19 +45,27 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
 
     let nextCounterPayment = null;
     let nextCounterSalesInvoices = null;
+    let nextCounterJournal = null;
 
     if (!invoiceDraft) {
       if (req.body.havepayments !== "unpaid") {
         nextCounterPayment = await counterModel.findOneAndUpdate(
           { companyId, name: "Payment" },
           { $inc: { seq: 1 } },
-          { new: true, upsert: true, session },
+          { new: true, upsert: true, session }
         );
       }
+
       nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Sales Invoice" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
+        { new: true, upsert: true, session }
+      );
+
+      nextCounterJournal = await counterModel.findOneAndUpdate(
+        { companyId, name: "Journal" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true, session }
       );
     }
 
@@ -70,6 +86,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
     });
 
     if (!invoiceDraft) {
+      // ── Inventory effects ──────────────────────────────────────
       await applySalesInventoryEffectsService({
         ...prepared,
         newSalesInvoice,
@@ -79,6 +96,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         actionType: "create",
       });
 
+      // ── Customer effects ───────────────────────────────────────
       await applySalesCustomerEffectsService({
         ...prepared,
         newSalesInvoice,
@@ -89,13 +107,159 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         paymentsStatus: req.body.paymentsStatus,
         session,
       });
-      if (req.body.havepayments !== "unpaid") {
-        await paymentService({
-          ...prepared,
+
+      // ── Parse journalPreview FIRST ─────────────────────────────
+      const journalPreview = req.body.journalPreview
+        ? JSON.parse(req.body.journalPreview)
+        : null;
+
+      // ── Payment ────────────────────────────────────────────────
+      let fxDiff = 0;
+
+      if (req.body.havepayments === "paid") {
+        const fund = req.body.fund ? JSON.parse(req.body.fund) : null;
+        const payment = req.body.payment ? JSON.parse(req.body.payment) : null;
+
+        const normalizedPayment = {
+          party: {
+            id: prepared.customer?._id?.toString() || "",
+            name: prepared.customer?.name || "",
+            type: "customer",
+          },
+          fund: {
+            id: fund?.id || fund?._id || "",
+            name: fund?.name || "",
+            currencyId: fund?.currencyId || "",
+            currencyCode: fund?.currencyCode || "",
+            exchangeRate: Number(fund?.exchangeRate || 1),
+          },
+          paymentNature: "incoming",
+          payment: {
+            amount: Number(payment?.amount || 0),
+            currencyId: payment?.currencyId || "",
+            currencyCode: payment?.currencyCode || "",
+            exchangeRate: Number(payment?.exchangeRate || 1),
+            amountMainCurrency: Number(payment?.amountMainCurrency || 0),
+            fundToInvoiceRate: Number(payment?.fundToInvoiceRate || 1),
+            amountInvoiceCurrency: Number(payment?.amountInvoiceCurrency || 0),
+          },
+          invoiceId: newSalesInvoice._id,
+          date: req.body.paymentDate || req.body.date,
+          description:
+            req.body.paymentDescription || req.body.description || "",
+          journalCounter: req.body.journalCounter || "",
+          counter: req.body.counter || "0",
+          companyId,
+          postedBy: req.user?._id || null,
+          postedAt: new Date(),
+          journalAccounts: null,
+        };
+        console.log("normalizedPayment", normalizedPayment);
+
+        const result = await handleSalesPayment(
           req,
           companyId,
+          next,
+          normalizedPayment,
+          session
+        );
+
+        fxDiff = result?.fxDiff || 0;
+      }
+
+      // ── Append FX lines to journalPreview if needed ───────────
+      if (
+        req.body.havepayments === "paid" &&
+        journalPreview &&
+        Math.abs(fxDiff) > 0.001
+      ) {
+        const linkings = await linkPanelModel
+          .find({ companyId })
+          .populate({
+            path: "accountData",
+            populate: { path: "currency" },
+          })
+          .session(session);
+
+        const fxGainLink = linkings.find(
+          (l) => l.name === "Foreign Exchange Gain"
+        );
+        const fxLossLink = linkings.find(
+          (l) => l.name === "Foreign Exchange Loss"
+        );
+
+        // ── Sales FX direction (opposite of purchase) ─────────────
+        // For incoming payment: if cash received in main < invoice main → LOSS
+        //                       if cash received in main > invoice main → GAIN
+        // (purchase is the opposite because it's outgoing)
+        const isLoss = fxDiff < 0;
+        const fxAccount = isLoss
+          ? fxLossLink?.accountData
+          : fxGainLink?.accountData;
+
+        const partyJournalAccount = journalPreview.journalAccounts.find(
+          (a) => a.accountType === "Customer_Payment"
+        );
+
+        console.log("FX append debug:", {
+          fxDiff,
+          isLoss,
+          fxGainLink: fxGainLink?.name,
+          fxLossLink: fxLossLink?.name,
+          fxAccountFound: !!fxAccount,
+          fxAccountId: fxAccount?._id,
+          partyJournalAccountFound: !!partyJournalAccount,
+        });
+        if (fxAccount && partyJournalAccount) {
+          const absFx = Math.abs(fxDiff);
+
+          journalPreview.journalAccounts.push({
+            counter: journalPreview.journalAccounts.length + 1,
+            id: fxAccount._id,
+            name: fxAccount.name,
+            code: fxAccount.code,
+            MainDebit: isLoss ? absFx : 0,
+            MainCredit: isLoss ? 0 : absFx,
+            accountDebit: isLoss ? absFx : 0,
+            accountCredit: isLoss ? 0 : absFx,
+            accountCurrency: fxAccount.currency?.currencyCode || "",
+            accountExRate: Number(fxAccount.currency?.exchangeRate) || 1,
+            isPrimary: fxAccount.currency?.is_primary === "true",
+            Desc: `FX ${isLoss ? "Loss" : "Gain"} on payment`,
+            accountType: isLoss ? "FX_Loss" : "FX_Gain",
+          });
+
+          journalPreview.journalAccounts.push({
+            counter: journalPreview.journalAccounts.length + 1,
+            id: partyJournalAccount.id,
+            name: partyJournalAccount.name,
+            code: partyJournalAccount.code,
+            MainDebit: isLoss ? 0 : absFx,
+            MainCredit: isLoss ? absFx : 0,
+            accountDebit: isLoss ? 0 : absFx,
+            accountCredit: isLoss ? absFx : 0,
+            accountCurrency: partyJournalAccount.accountCurrency || "",
+            accountExRate: partyJournalAccount.accountExRate || 1,
+            isPrimary: partyJournalAccount.isPrimary || false,
+            Desc: `FX ${isLoss ? "Loss" : "Gain"} offset`,
+            accountType: "Customer_Payment",
+          });
+        }
+      }
+
+      // ── Journal ────────────────────────────────────────────────
+      if (journalPreview && nextCounterJournal) {
+        await createJournalEntryService({
+          data: {
+            ...journalPreview.journalMeta,
+            journalAccounts: journalPreview.journalAccounts,
+            counter: req.body.counter || 0,
+            refId: newSalesInvoice._id,
+            refCounter: newSalesInvoice.counter,
+          },
+          companyId,
+          nextCounterJournal,
           session,
-          newSalesInvoice,
         });
       }
     }
@@ -133,13 +297,13 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
 
     if (salesInvoice.isDraft === true || salesInvoice.status === "draft") {
       return next(
-        new ApiError("Draft order invoice should use draft update flow", 400),
+        new ApiError("Draft order invoice should use draft update flow", 400)
       );
     }
 
     if (salesInvoice.status === "cancelled") {
       return next(
-        new ApiError("Cancelled order invoice cannot be updated", 400),
+        new ApiError("Cancelled order invoice cannot be updated", 400)
       );
     }
 
@@ -152,7 +316,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       (salesInvoice.payments || []).length > 0
     ) {
       return next(
-        new ApiError("Paid order invoice cannot be updated in this step", 400),
+        new ApiError("Paid order invoice cannot be updated in this step", 400)
       );
     }
 
@@ -161,9 +325,9 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const oldPrepared = await prepareSalesInvoiceDataFromDraftService({
@@ -294,7 +458,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       updateDate,
       "Sales invoice updated",
       "sales",
-      session,
+      session
     );
 
     if (req.body.havepayments === "paid") {
@@ -313,7 +477,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
         req.body.paymentDate || updateDate,
         "Invoice payment recorded from update",
         "sales",
-        session,
+        session
       );
     }
 
@@ -367,7 +531,7 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
     const nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Sales Invoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     const baseCounter = Number(req.body.counter || 0);
@@ -535,7 +699,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
 
     if (salesInvoice.auditing === true) {
       return next(
-        new ApiError("Audited sales invoice cannot be cancelled", 400),
+        new ApiError("Audited sales invoice cannot be cancelled", 400)
       );
     }
 
@@ -544,10 +708,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
       (salesInvoice.payments || []).length > 0
     ) {
       return next(
-        new ApiError(
-          "Paid sales invoice cannot be cancelled in this step",
-          400,
-        ),
+        new ApiError("Paid sales invoice cannot be cancelled in this step", 400)
       );
     }
     const baseCounter = Number(req.body.counter || 0);
@@ -556,9 +717,9 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const prepared = await prepareSalesInvoiceDataFromDraftService({
@@ -609,7 +770,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Sales invoice cancelled",
       "sales",
-      session,
+      session
     );
 
     await session.commitTransaction();

@@ -1,9 +1,9 @@
 const asyncHandler = require("express-async-handler");
 const DashboardStatsSnapshot = require("../models/dashboardStatsSnapshotModel");
-const Customer = require("../models/customarModel");
+const Customer = require("../models/Accounting/Sales/customarModel");
 const Supplier = require("../models/Accounting/Purchase/suppliersModel");
 const FinancialFund = require("../models/Accounting/CurrentAssets/financialFundsModel");
-const SalesInvoice = require("../models/orderModel");
+const SalesInvoice = require("../models/Accounting/Sales/orderModel");
 const PurchaseInvoice = require("../models/Accounting/Purchase/purchaseinvoicesModel");
 const Expense = require("../models/Accounting/Expenses/expensesModel");
 const Product = require("../models/productModel");
@@ -224,7 +224,9 @@ const getCustomerBalanceBranches = () => [
 ];
 
 const getBalanceBranches = (role) =>
-  role === "supplier" ? getSupplierBalanceBranches() : getCustomerBalanceBranches();
+  role === "supplier"
+    ? getSupplierBalanceBranches()
+    : getCustomerBalanceBranches();
 
 const getActiveParties = async ({ PartyModel, partyMatch, nameField }) => {
   const activeParties = await PartyModel.find(partyMatch)
@@ -232,7 +234,7 @@ const getActiveParties = async ({ PartyModel, partyMatch, nameField }) => {
     .lean();
 
   const activePartyIds = new Set(
-    activeParties.map((party) => String(party._id)),
+    activeParties.map((party) => String(party._id))
   );
 
   const partyNamesById = activeParties.reduce((acc, party) => {
@@ -841,7 +843,7 @@ const refreshSnapshot = async ({ companyId, group, payload }) => {
       payload,
       generatedAt: payload.generatedAt,
     },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
   ).lean();
 };
 

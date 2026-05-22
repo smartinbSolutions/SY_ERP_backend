@@ -2,11 +2,11 @@ const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments
 const journalEntriesModel = require("../../../models/journalEntryModel");
 const accountingTreeModel = require("../../../models/accountingTreeModel");
 const expensesModel = require("../../../models/Accounting/Expenses/expensesModel");
-const orderModel = require("../../../models/orderModel");
+const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const purchaseinvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const refundPurchaseInviceModel = require("../../../models/Accounting/Purchase/refundPurchaseInviceModel");
 const periodicJournalEntriesModel = require("../../../models/reports/periodicJournalEntriesModel");
-const returnOrderModel = require("../../../models/returnOrderModel");
+const returnOrderModel = require("../../../models/Accounting/Sales/returnOrderModel");
 const counterModel = require("../../../models/Settings/counterModel");
 const reconciliationModel = require("../../../models/reconciliationModel");
 
@@ -106,7 +106,7 @@ exports.createJournalEntryService = async ({
   // data takes priority — internal calls pass clean plain objects
   // req.body is used for manual journal route
   const body = data || req?.body;
-
+  console.log("body", body);
   if (!body) throw new Error("Journal data is required");
 
   const padZero = (value) => (value < 10 ? `0${value}` : String(value));
@@ -131,7 +131,7 @@ exports.createJournalEntryService = async ({
 
   // ── Counter ────────────────────────────────────────────────────
   const counter = Number(body.counter || 0) + nextCounterJournal.seq;
-  console.log("body", body);
+
   // ── Validate ───────────────────────────────────────────────────
   validateJournalData({
     journalDate: body.journalDate,

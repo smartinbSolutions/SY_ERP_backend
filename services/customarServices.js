@@ -1,12 +1,11 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
-const customersModel = require("../models/customarModel");
+const customersModel = require("../models/Accounting/Sales/customarModel");
 const { Search } = require("../utils/search");
 const bcrypt = require("bcrypt");
 const createToken = require("../utils/createToken");
 const { createPaymentHistoryV2 } = require("./paymentHistoryService");
-const orderSchema = require("../models/orderModel");
 const xlsx = require("xlsx");
 const AccountingTreeSchema = require("../models/accountingTreeModel");
 const currencySchema = require("../models/currencyModel");

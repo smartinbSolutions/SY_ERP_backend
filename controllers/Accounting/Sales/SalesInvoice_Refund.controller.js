@@ -13,7 +13,7 @@ const {
 const {
   createSalesInvoiceRecordService,
 } = require("../../../services/Accounting/Sales/SalesInvoice.service");
-const orderModel = require("../../../models/orderModel");
+const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const ApiError = require("../../../utils/apiError");
 
 exports.findAllSalesRefunds = asyncHandler(async (req, res, next) => {
@@ -75,7 +75,7 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
     }
     if (salesInvoice.status === "cancelled") {
       return next(
-        new ApiError("Cancelled order invoice cannot be updated", 400),
+        new ApiError("Cancelled order invoice cannot be updated", 400)
       );
     }
     const padZero = (value) => String(value).padStart(2, "0");
@@ -83,9 +83,9 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1,
+      now.getMonth() + 1
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes(),
+      now.getMinutes()
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     let nextCounterPayment = null;
@@ -94,13 +94,13 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
     nextCounterPayment = await counterModel.findOneAndUpdate(
       { companyId, name: "Payment" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     nextCounterRefundSalesInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Refund Sales Invoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     const prepared = await prepareRefundSalesInvoiceDataService({

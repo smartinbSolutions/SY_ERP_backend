@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
 const purchaseinvoicesModel = require("../../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const refundPurchaseinvoicesModel = require("../../../../models/Accounting/Purchase/refundPurchaseInviceModel");
-const salesinvoicesModel = require("../../../../models/orderModel");
+const salesinvoicesModel = require("../../../../models/Accounting/Sales/orderModel");
 
 const suppliersModel = require("../../../../models/Accounting/Purchase/suppliersModel");
-const customarModel = require("../../../../models/customarModel");
+const customarModel = require("../../../../models/Accounting/Sales/customarModel");
 const paymentModel = require("../../../../models/Accounting/CurrentAssets/payments.model");
 const financialFundsModel = require("../../../../models/Accounting/CurrentAssets/financialFundsModel");
 const ReportsFinancialFundsModel = require("../../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
@@ -121,14 +121,14 @@ const handleSupplierPaymentEntity = async ({
       transactionCurrency: currencyCode,
       session,
     });
-    console.log("absFxDiff", absFxDiff);
+
     // ── FX adjustment row — only if there is a diff ────────────────────
     if (absFxDiff > 0.001) {
       await createPaymentHistoryV2({
         companyId,
         entryType: "fx_adjustment",
         transactionDate: date,
-        amountTransactionCurrency: 0, // no foreign amount, pure USD adjustment
+        amountTransactionCurrency: absFxDiff, // no foreign amount, pure USD adjustment
         amountMainCurrency: absFxDiff,
         supplierId: supplier._id,
         referenceId: refId,
@@ -172,7 +172,7 @@ const handleSupplierPaymentEntity = async ({
         companyId,
         entryType: "fx_adjustment",
         transactionDate: date,
-        amountTransactionCurrency: 0,
+        amountTransactionCurrency: absFxDiff,
         amountMainCurrency: absFxDiff,
         supplierId: supplier._id,
         referenceId: refId,
@@ -464,65 +464,72 @@ const handleCustomerPaymentEntity = async ({
   currencyCode,
   effectSide,
   session,
-  fxDiff = 0,
+  fxDiff = 0, // ← from settlement
 }) => {
   const amountMainCurrency = Number(totalMainCurrency || 0);
   const amountTransactionCurrency = Number(paymentInFundCurrency || 0);
   const absFxDiff = Math.abs(fxDiff);
-
   const balanceEffectType =
     effectSide === "destination" ? "Deposit" : "Withdrawal";
 
   // ─────────────────────────────────────────────
-  // DESTINATION (Customer receives / payment settlement)
+  // SOURCE (Customer pays us / sales receipt settles receivable)
+  //   Mirror of supplier "destination" — same logic, customer side.
+  //   Money flows FROM customer → reduces their receivable.
   // ─────────────────────────────────────────────
-  if (effectSide === "destination") {
-    // FX adjustment (same logic as supplier but mirrored effect already in fxDiff sign)
+  if (effectSide === "source") {
+    // ── Normal payment history row ─────────────────────────────────
+    await createPaymentHistoryV2({
+      companyId,
+      entryType: "payment",
+      transactionDate: date,
+      amountTransactionCurrency,
+      amountMainCurrency,
+      customerId: customer._id,
+      referenceId: refId,
+      sourceModule: "payment",
+      actionType: "create",
+      paymentId,
+      balanceEffectType, // "Withdrawal" — reduces receivable
+      description,
+      transactionCurrency: currencyCode,
+      session,
+    });
+
+    // ── FX adjustment row — only if there is a diff ────────────────
     if (absFxDiff > 0.001) {
       await createPaymentHistoryV2({
         companyId,
         entryType: "fx_adjustment",
         transactionDate: date,
-        amountTransactionCurrency: 0,
+        amountTransactionCurrency: absFxDiff, // pure main-currency adjustment
         amountMainCurrency: absFxDiff,
         customerId: customer._id,
         referenceId: refId,
         sourceModule: "payment",
         actionType: "create",
         paymentId,
-        balanceEffectType: fxDiff > 0 ? "Deposit" : "Withdrawal",
+        // fxDiff > 0 = loss  → we received fewer $ than booked → Withdrawal clears the residual receivable
+        // fxDiff < 0 = gain  → we received more $ than booked  → Deposit adds back the over-collection
+        balanceEffectType: fxDiff < 0 ? "Withdrawal" : "Deposit",
         description: `FX ${
-          fxDiff > 0 ? "Loss" : "Gain"
-        } adjustment — rate movement impact`,
+          fxDiff < 0 ? "Loss" : "Gain"
+        } adjustment — rate moved from invoice to payment date`,
         transactionCurrency: currencyCode,
         session,
       });
     }
 
-    await createPaymentHistoryV2({
-      companyId,
-      entryType: "payment",
-      transactionDate: date,
-      amountTransactionCurrency,
-      amountMainCurrency,
-      customerId: customer._id,
-      referenceId: refId,
-      sourceModule: "payment",
-      actionType: "create",
-      paymentId,
-      balanceEffectType: "Deposit",
-      description,
-      transactionCurrency: currencyCode,
-      session,
-    });
-
     return;
   }
 
   // ─────────────────────────────────────────────
-  // SOURCE (Customer pays you / receivable created)
+  // DESTINATION (Refund to customer / we owe them money back)
+  //   Mirror of supplier "source" — same logic, customer side.
+  //   Money flows TO customer → creates/clears payable balance.
   // ─────────────────────────────────────────────
-  if (effectSide === "source") {
+  if (effectSide === "destination") {
+    // ── Normal payment history row ─────────────────────────────────
     await createPaymentHistoryV2({
       companyId,
       entryType: "payment",
@@ -534,11 +541,36 @@ const handleCustomerPaymentEntity = async ({
       sourceModule: "payment",
       actionType: "create",
       paymentId,
-      balanceEffectType: "Withdrawal",
+      balanceEffectType, // "Deposit" — adds to customer balance
       description,
       transactionCurrency: currencyCode,
       session,
     });
+
+    // ── FX adjustment row — only if there is a diff ────────────────
+    if (absFxDiff > 0.001) {
+      await createPaymentHistoryV2({
+        companyId,
+        entryType: "fx_adjustment",
+        transactionDate: date,
+        amountTransactionCurrency: absFxDiff,
+        amountMainCurrency: absFxDiff,
+        customerId: customer._id,
+        referenceId: refId,
+        sourceModule: "payment",
+        actionType: "create",
+        paymentId,
+        // For refund (destination): direction inverts vs source
+        // fxDiff > 0 (loss — paid fewer $ than booked) → Deposit (customer still has gap owed)
+        // fxDiff < 0 (gain — paid more $ than booked)  → Withdrawal (we over-refunded)
+        balanceEffectType: fxDiff > 0 ? "Deposit" : "Withdrawal",
+        description: `FX ${
+          fxDiff > 0 ? "Loss" : "Gain"
+        } adjustment — rate moved from invoice to refund date`,
+        transactionCurrency: currencyCode,
+        session,
+      });
+    }
 
     return;
   }
@@ -1930,7 +1962,7 @@ const handleSalesPayment = async (
   companyId,
   next,
   normalizedPayment,
-  externalSession = null // ← optional external session
+  externalSession = null
 ) => {
   const ownsSession = !externalSession;
   const session = externalSession || (await mongoose.startSession());
@@ -1987,23 +2019,32 @@ const handleSalesPayment = async (
       sales.exchangeRate || sales?.currency?.exchangeRate || 1
     );
 
-    // in both handleSalesPayment and handleExpensePayment
+    console.log("BEFORE resolvePaymentAmounts:");
+    console.log("  invoice._id:", sales._id);
+    console.log(
+      "  sales.totalRemainderMainCurrency:",
+      sales.totalRemainderMainCurrency
+    );
+    console.log("  sales.totalRemainder:", sales.totalRemainder);
+    console.log("  sales.invoiceGrandTotal:", sales.invoiceGrandTotal);
+    console.log("  sales.totalInMainCurrency:", sales.totalInMainCurrency);
+
     const {
       isSameCurrency,
       paymentRate,
       paymentAmountMain,
       paymentAmountFund,
-      paymentAmountInvoice, // ← add this
+      paymentAmountInvoice,
       appliedDocumentCurrency,
       fxDiff,
       willBePaid,
     } = resolvePaymentAmounts({
       fund,
-      payment, // ← payment already has amountInvoiceCurrency from frontend
+      payment,
       invoiceRemainderMain,
       invoiceRemainderForeign,
       invoiceRate,
-      invoiceCurrencyCode: sales?.currency?.currencyCode, // or expense?.currency?.currencyCode
+      invoiceCurrencyCode: sales?.currency?.currencyCode,
     });
 
     console.log("========================================");
@@ -2023,23 +2064,15 @@ const handleSalesPayment = async (
       }`
     );
     console.log(`   Same Currency:    ${isSameCurrency ? "YES" : "NO"}`);
-    console.log(`   Remainder (USD):     ${invoiceRemainderMain.toFixed(6)}`);
+    console.log(`   Applied (Main):   ${paymentAmountMain.toFixed(6)}`);
+    console.log(`   Applied (Fund):   ${paymentAmountFund.toFixed(6)}`);
+    console.log(`   Applied (Invoice):${appliedDocumentCurrency.toFixed(6)}`);
     console.log(
-      `   Remainder (Foreign): ${invoiceRemainderForeign.toFixed(6)}`
-    );
-    console.log(`   Applied (USD):       ${paymentAmountMain.toFixed(6)}`);
-    console.log(`   Applied (Fund):      ${paymentAmountFund.toFixed(6)}`);
-    console.log(
-      `   Applied (Foreign):   ${appliedDocumentCurrency.toFixed(6)}`
-    );
-    console.log(
-      `   FX Diff:             ${fxDiff.toFixed(6)} ${
+      `   FX Diff:          ${fxDiff.toFixed(6)} ${
         fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
       }`
     );
-    console.log(
-      `   Will Be Paid:        ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`
-    );
+    console.log(`   Will Be Paid:     ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
     console.log("========================================\n");
 
     // ── Create payment doc ─────────────────────────────────────
@@ -2066,13 +2099,13 @@ const handleSalesPayment = async (
         currencyId: payment?.currencyId || "",
         currencyCode: payment?.currencyCode || "",
         exchangeRate: Number(payment?.exchangeRate || 1),
-        fundToInvoiceRate: Number(payment?.fundToInvoiceRate),
+        fundToInvoiceRate: Number(payment?.fundToInvoiceRate || 1),
         amountMainCurrency: paymentAmountMain,
       },
       date,
       description,
       journalCounter,
-      file: req.body?.file || "",
+      file: normalizedPayment.file || req.body?.file || "",
       allocations: [
         {
           documentId: sales._id,
@@ -2096,7 +2129,7 @@ const handleSalesPayment = async (
       session,
     });
     const newPayment = paymentDocs[0];
-    let createdPayment = newPayment;
+    const createdPayment = paymentDocs;
 
     // ── Update invoice ─────────────────────────────────────────
     sales.totalRemainderMainCurrency = willBePaid
@@ -2132,7 +2165,7 @@ const handleSalesPayment = async (
       companyId,
       sales._id,
       "payment",
-      req.user._id,
+      normalizedPayment.userId || req?.user?._id, // ✅ safe access (matches purchase)
       date,
       `${paymentAmountFund} ${fund.currencyCode}`,
       "invoice",
@@ -2140,6 +2173,8 @@ const handleSalesPayment = async (
     );
 
     // ── Customer entity effect ─────────────────────────────────
+    // incoming = customer pays us → reduces receivable → customer is source
+    // outgoing = we pay customer  → adds to payable → customer is destination
     await handleCustomerPaymentEntity({
       customer,
       companyId,
@@ -2156,22 +2191,23 @@ const handleSalesPayment = async (
     });
 
     // ── Fund entity effect ─────────────────────────────────────
-    // incoming = customer pays us  → money ENTERS fund → destination
-    // outgoing = we pay customer   → money LEAVES fund → source
+    // incoming = customer pays us → money ENTERS fund → destination
+    // outgoing = we pay customer  → money LEAVES fund → source
     await handleFundPaymentEntity({
       fund,
       companyId,
-      paymentInFundCurrency: paymentAmountInvoice,
+      paymentInFundCurrency: paymentAmountFund,
       paymentId: newPayment._id,
-      refId: salary._id,
-      refType: "salary",
-      source: "salary",
+      refId: sales._id,
+      refType: "invoice",
+      source: "sale",
       date,
       description,
-      effectSide: "source",
+      effectSide: paymentNature === "outgoing" ? "source" : "destination",
       session,
       createdBy: postedBy || req?.user?._id || null,
     });
+
     // ── Journal ────────────────────────────────────────────────
     // only for standalone payments — not when called from invoice creation
     if (journalAccounts && ownsSession) {
@@ -2190,7 +2226,8 @@ const handleSalesPayment = async (
       });
     }
 
-    return createdPayment;
+    // ✅ FIX: return both createdPayment AND fxDiff (matches purchase)
+    return { createdPayment, fxDiff };
   };
 
   try {

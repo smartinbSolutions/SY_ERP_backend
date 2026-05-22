@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const { default: axios } = require("axios");
 const { createInvoiceHistory } = require("../invoiceHistoryService");
-const orderModel = require("../../models/orderModel");
+const orderModel = require("../../models/Accounting/Sales/orderModel");
 
 const url = "https://efaturaservice.turkcellesirket.com/v1/";
 const urlV2 = "https://efaturaservice.turkcellesirket.com/v2/";

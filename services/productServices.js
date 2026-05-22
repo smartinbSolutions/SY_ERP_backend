@@ -9,19 +9,13 @@ const csvtojson = require("csvtojson");
 const xlsx = require("xlsx");
 const { default: mongoose, Types } = require("mongoose");
 const brandModel = require("../models/brandModel");
-const categoryModel = require("../models/CategoryModel");
 const UnitsModel = require("../models/UnitsModel");
-const stockModel = require("../models/stockModel");
 const taxModel = require("../models/taxModel");
 const currencyModel = require("../models/currencyModel");
 
 const { createProductMovement } = require("../utils/productMovement");
 
-const getAllChildCategories = require("../utils/CategoriesChild");
-
-const { getParasutOneProduct } = require("./parasut/parasutServices");
-const productMovementModel = require("../models/productMovementModel");
-const orderModel = require("../models/orderModel");
+const orderModel = require("../models/Accounting/Sales/orderModel");
 
 // @desc Get list product
 // @route Get /api/product
@@ -71,7 +65,7 @@ exports.updateNumber = asyncHandler(async (req, res, next) => {
   for (let i = 0; i < products.length; i++) {
     products[i].productNo = i + 1; // Start numbering from 1
     console.log(
-      `Updating product ${products[i]._id} with productNo ${products[i].productNo}`,
+      `Updating product ${products[i]._id} with productNo ${products[i].productNo}`
     );
     await products[i].save(); // Save the updated product
   }
@@ -367,7 +361,7 @@ exports.getProductPos = asyncHandler(async (req, res, next) => {
   const productsWithQuantity = products.map((product) => {
     const productObject = product.toObject();
     const stockEntry = product.stocks.find(
-      (stock) => stock?.stockId?.toString() === stockId,
+      (stock) => stock?.stockId?.toString() === stockId
     );
     productObject.activeCount = stockEntry ? stockEntry.productQuantity : 0;
     return productObject;
@@ -458,7 +452,7 @@ exports.resizerImage = asyncHandler(async (req, res, next) => {
             isCover: false,
           });
         }
-      }),
+      })
     );
 
     // If there's a cover image, add it to the imagesArray
@@ -481,7 +475,7 @@ const updateStocks = async (productId, stocks, quantity, productName) => {
       // Skip updating or adding the product if productQuantity is 0
       if (productQuantity === 0) {
         console.log(
-          `Skipping product ${productId} in stock ${stockId} due to quantity 0`,
+          `Skipping product ${productId} in stock ${stockId} due to quantity 0`
         );
         continue;
       }
@@ -682,7 +676,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
     const totalQuantity = existingProduct?.stocks.reduce(
       (sum, stock) => sum + stock.productQuantity,
 
-      0,
+      0
     );
 
     // Update product in the database
@@ -691,7 +685,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      },
+      }
     );
 
     if (!product) {
@@ -751,7 +745,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
         id,
         productData.stocks,
         productData.quantity,
-        productData.name,
+        productData.name
       );
     }
 
@@ -792,7 +786,7 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
     const updatedProduct = await productModel.findOneAndUpdate(
       { _id: id },
       { $set: { archives: product.archives } },
-      { new: true },
+      { new: true }
     );
 
     const movementType = product.archives === "true" ? "out" : "in";
@@ -812,7 +806,7 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
       "",
       "",
       product.buyingprice,
-      product.taxPrice,
+      product.taxPrice
     );
 
     res.status(200).json({
@@ -1101,7 +1095,7 @@ exports.updateProductFromExcel = asyncHandler(async (req, res) => {
         },
         {
           new: true,
-        },
+        }
       );
     }
     res.json({ success: "Success" });
@@ -1204,13 +1198,13 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
 
     for (const updatedUnit of newUnits) {
       const origUnit = originalUnits.find(
-        (u) => u.unitId?.toString() === updatedUnit.unitId?.toString(),
+        (u) => u.unitId?.toString() === updatedUnit.unitId?.toString()
       );
       if (!origUnit) continue;
 
       for (const updatedPrice of updatedUnit.prices || []) {
         const origPriceObj = origUnit.prices.find(
-          (p) => p.title === updatedPrice.title,
+          (p) => p.title === updatedPrice.title
         );
         if (!origPriceObj) continue;
 
@@ -1244,7 +1238,7 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
             product.currency,
             product.currency,
             product.buyingprice,
-            product.price,
+            product.price
           );
 
           totalLogs++;
@@ -1351,8 +1345,8 @@ exports.generateBarCode = asyncHandler(async (req, res, next) => {
         return next(
           new ApiError(
             `QR ${generatedQr} already exists for product ${exists.name}`,
-            400,
-          ),
+            400
+          )
         );
       }
 

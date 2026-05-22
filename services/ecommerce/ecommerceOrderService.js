@@ -5,12 +5,12 @@ const crypto = require("crypto");
 const productModel = require("../../models/productModel");
 const asyncHandler = require("express-async-handler");
 const ecommerceOrderModel = require("../../models/ecommerce/ecommerceOrderModel");
-const customersModel = require("../../models/customarModel");
+const customersModel = require("../../models/Accounting/Sales/customarModel");
 const ApiError = require("../../utils/apiError");
 
 const { PaymentService } = require("./paymentService");
 const UserModel = require("../../models/ecommerce/E_user_Modal");
-const orderModel = require("../../models/orderModel");
+const orderModel = require("../../models/Accounting/Sales/orderModel");
 const financialFundsSchema = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const { createProductMovement } = require("../../utils/productMovement");
 const { default: axios } = require("axios");
