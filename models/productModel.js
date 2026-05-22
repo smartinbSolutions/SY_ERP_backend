@@ -28,7 +28,6 @@ const productSchema = new mongoose.Schema(
     /* =========================
        PRICING & QUANTITY
     ========================== */
-    quantity: { type: Number, default: 0 },
     price: { type: Number, default: 0 },
     buyingprice: { type: Number, default: 0 },
     costBuyingPrice: { type: Number, default: 0 },
