@@ -7,6 +7,6 @@ const productBatchRoute = express.Router();
 
 productBatchRoute.use(authService.protect);
 
-productBatchRoute.route("/:id").get(getAllProductBatch);
+productBatchRoute.route("/:id").get(authService.allowedTo("products.read"), getAllProductBatch);
 
 module.exports = productBatchRoute;

@@ -11,7 +11,12 @@ const authService = require("../services/authService");
 const AssetCardRoute = express.Router();
 AssetCardRoute.use(authService.protect);
 
-AssetCardRoute.route("/").post(createAsset).get(getAssets);
-AssetCardRoute.route("/:id").put(updateAsset).get(getAsset).delete(deleteAsset);
+AssetCardRoute.route("/")
+  .post(createAsset)
+  .get(authService.allowedTo("assets.read"), getAssets);
+AssetCardRoute.route("/:id")
+  .put(updateAsset)
+  .get(authService.allowedTo("assets.read"), getAsset)
+  .delete(deleteAsset);
 
 module.exports = AssetCardRoute;

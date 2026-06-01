@@ -16,11 +16,11 @@ discountRoute.use(authService.protect);
 discountRoute
   .route("/")
   .post(authService.checkCompanyEditable, createDiscount)
-  .get(getDiscounts);
+  .get(authService.allowedTo("ecommerce.discounts.read"), getDiscounts);
 
 discountRoute
   .route("/:id")
-  .get(getOneDiscount)
+  .get(authService.allowedTo("ecommerce.discounts.read"), getOneDiscount)
   .put(authService.checkCompanyEditable, updateDiscount)
   .delete(authService.checkCompanyEditable, deleteDiscount);
 

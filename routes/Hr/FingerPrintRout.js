@@ -45,12 +45,12 @@ FingerPrintRout.route("/salary").get(
  * 🏢 ERP Admin only
  */
 FingerPrintRout.route("/")
-  .get(authService.protect, getFingerPrint)
-  .post(authService.protect, createFingerPrint);
+  .get(authService.protect, authService.allowedTo("fingerprints.read"), getFingerPrint)
+  .post(authService.protect, authService.allowedTo("fingerprints.read"), createFingerPrint);
 
 FingerPrintRout.route("/:id")
-  .get(authService.protect, getOneFingerPrint)
-  .delete(authService.protect, deleteFingerprint)
-  .put(authService.protect, updateFingerPrint);
+  .get(authService.protect, authService.allowedTo("fingerprints.read"), getOneFingerPrint)
+  .delete(authService.protect, authService.allowedTo("fingerprints.read"), deleteFingerprint)
+  .put(authService.protect, authService.allowedTo("fingerprints.read"), updateFingerPrint);
 
 module.exports = FingerPrintRout;

@@ -10,12 +10,17 @@ const {
 
 const positionsRout = express.Router();
 
-positionsRout.route("/").get(getAllPositions).post(createPositions);
+positionsRout.use(authService.protect);
+
+positionsRout
+  .route("/")
+  .get(authService.allowedTo("positions.read"), getAllPositions)
+  .post(authService.checkCompanyEditable, createPositions);
 
 positionsRout
   .route("/:id")
-  .get(getOnePositions)
-  .put(updatePositions)
-  .delete(deletePositions);
+  .get(authService.allowedTo("positions.read"), getOnePositions)
+  .put(authService.checkCompanyEditable, updatePositions)
+  .delete(authService.checkCompanyEditable, deletePositions);
 
 module.exports = positionsRout;

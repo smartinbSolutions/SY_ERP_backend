@@ -19,9 +19,10 @@ const roleRout = express.Router();
 
 roleRout
   .route("/")
-  .get(authService.protect, getRoles)
+  .get(authService.protect, authService.allowedTo("roles.read"), getRoles)
   .post(
     authService.protect,
+    authService.allowedTo("roles.create"),
     authService.checkCompanyEditable,
     createRoleVlaidator,
     createRole,
@@ -29,15 +30,17 @@ roleRout
 
 roleRout
   .route("/:id")
-  .get(authService.protect, getRolVlaidator, getRole)
+  .get(authService.protect, authService.allowedTo("roles.read"), getRolVlaidator, getRole)
   .put(
     authService.protect,
+    authService.allowedTo("roles.update"),
     authService.checkCompanyEditable,
     updateRoleVlaidator,
     updataRole,
   )
   .delete(
     authService.protect,
+    authService.allowedTo("roles.delete"),
     authService.checkCompanyEditable,
     deleteRoleVlaidator,
     deleteRole,

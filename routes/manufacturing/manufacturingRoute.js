@@ -17,17 +17,20 @@ const manufacturingRoute = express.Router();
 manufacturingRoute.use(authService.protect);
 
 // BOM
-manufacturingRoute.route("/bom").post(createBOM).get(getAllBOMs);
+manufacturingRoute
+  .route("/bom")
+  .post(authService.allowedTo("bom.create"), createBOM)
+  .get(authService.allowedTo("bom.read"), getAllBOMs);
 
 // Production
-manufacturingRoute.post("/produce", produceProduct);
-manufacturingRoute.get("/logs", getAllProductionLogs);
-manufacturingRoute.get("/logs/:productId", getProductionLogs);
+manufacturingRoute.post("/produce", authService.allowedTo("products.manufacture"), produceProduct);
+manufacturingRoute.get("/logs", authService.allowedTo("products.manufacture"), getAllProductionLogs);
+manufacturingRoute.get("/logs/:productId", authService.allowedTo("products.manufacture"), getProductionLogs);
 
 manufacturingRoute
   .route("/bom/:productId")
-  .get(getActiveBOM)
-  .put(updateBOM)
-  .delete(deleteBOM);
+  .get(authService.allowedTo("bom.read"), getActiveBOM)
+  .put(authService.allowedTo("bom.update"), updateBOM)
+  .delete(authService.allowedTo("bom.delete"), deleteBOM);
 
 module.exports = manufacturingRoute;

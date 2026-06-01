@@ -10,8 +10,15 @@ const {
 
 const filesRoute = express.Router();
 
-filesRoute.route("/").get(getAllFiles).post(createFile);
+filesRoute
+  .route("/")
+  .get(authService.protect, authService.allowedTo("hr.settings.read"), getAllFiles)
+  .post(authService.protect, authService.allowedTo("hr.settings.create"), createFile);
 
-filesRoute.route("/:id").get(getOneFile).put(updateFile).delete(deleteFile);
+filesRoute
+  .route("/:id")
+  .get(authService.protect, authService.allowedTo("hr.settings.read"), getOneFile)
+  .put(authService.protect, authService.allowedTo("hr.settings.update"), updateFile)
+  .delete(authService.protect, authService.allowedTo("hr.settings.delete"), deleteFile);
 
 module.exports = filesRoute;

@@ -14,9 +14,10 @@ const brandRout = express.Router();
 
 brandRout
   .route("/")
-  .get(getBrands)
+  .get(authService.protect, authService.allowedTo("definition.read"), getBrands)
   .post(
     authService.protect,
+    authService.allowedTo("definition.create"),
     authService.checkCompanyEditable,
     uploadBrandImage,
     resizerBrandImage,
@@ -24,14 +25,20 @@ brandRout
   );
 brandRout
   .route("/:id")
-  .get(getBrand)
+  .get(authService.protect, authService.allowedTo("definition.read"), getBrand)
   .put(
     authService.protect,
+    authService.allowedTo("definition.update"),
     authService.checkCompanyEditable,
     uploadBrandImage,
     resizerBrandImage,
     updateBrand,
   )
-  .delete(authService.protect, authService.checkCompanyEditable, deleteBrand);
+  .delete(
+    authService.protect,
+    authService.allowedTo("definition.delete"),
+    authService.checkCompanyEditable,
+    deleteBrand,
+  );
 
 module.exports = brandRout;

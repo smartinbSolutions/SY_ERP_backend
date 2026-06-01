@@ -14,13 +14,25 @@ tagRout.use(authService.protect);
 
 tagRout
   .route("/")
-  .get(getTags)
-  .post(authService.checkCompanyEditable, createTag);
+  .get(authService.allowedTo("definition.read"), getTags)
+  .post(
+    authService.allowedTo("definition.create"),
+    authService.checkCompanyEditable,
+    createTag,
+  );
 
 tagRout
   .route("/:id")
-  .get(getTag)
-  .put(authService.checkCompanyEditable, updateTag)
-  .delete(authService.checkCompanyEditable, deleteTag);
+  .get(authService.allowedTo("definition.read"), getTag)
+  .put(
+    authService.allowedTo("definition.update"),
+    authService.checkCompanyEditable,
+    updateTag,
+  )
+  .delete(
+    authService.allowedTo("definition.delete"),
+    authService.checkCompanyEditable,
+    deleteTag,
+  );
 
 module.exports = tagRout;

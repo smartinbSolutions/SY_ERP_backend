@@ -10,12 +10,15 @@ const {
 
 const groupsRoute = express.Router();
 
-groupsRoute.route("/").get(getAllGroups).post(createGroups);
+groupsRoute
+  .route("/")
+  .get(authService.protect, authService.allowedTo("group.read"), getAllGroups)
+  .post(authService.protect, authService.allowedTo("group.create"), createGroups);
 
 groupsRoute
   .route("/:id")
-  .get(getOneGroups)
-  .put(updateGroups)
-  .delete(deleteGroups);
+  .get(authService.protect, authService.allowedTo("group.read"), getOneGroups)
+  .put(authService.protect, authService.allowedTo("group.update"), updateGroups)
+  .delete(authService.protect, authService.allowedTo("group.delete"), deleteGroups);
 
 module.exports = groupsRoute;

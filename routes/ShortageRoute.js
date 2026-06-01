@@ -11,7 +11,11 @@ const ShortageRoute = express.Router();
 ShortageRoute.use(authService.protect);
 
 ShortageRoute.route("/")
-  .get(getAllShortage)
-  .post(authService.checkCompanyEditable, createShortage);
+  .get(authService.allowedTo("stock.read"), getAllShortage)
+  .post(
+    authService.allowedTo("shortage.create"),
+    authService.checkCompanyEditable,
+    createShortage,
+  );
 
 module.exports = ShortageRoute;

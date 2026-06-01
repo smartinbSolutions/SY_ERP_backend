@@ -11,7 +11,14 @@ const {
 const router = express.Router();
 router.use(authService.protect);
 
-router.route("/").get(getAllRecipes).post(createRecipe);
-router.route("/:id").get(getOneRecipe).put(updateRecipe).delete(deleteRecipe);
+router
+  .route("/")
+  .get(authService.allowedTo("recipes.read"), getAllRecipes)
+  .post(authService.allowedTo("recipes.create"), createRecipe);
+router
+  .route("/:id")
+  .get(authService.allowedTo("recipes.read"), getOneRecipe)
+  .put(authService.allowedTo("recipes.update"), updateRecipe)
+  .delete(authService.allowedTo("recipes.delete"), deleteRecipe);
 
 module.exports = router;

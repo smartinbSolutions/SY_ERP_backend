@@ -45,13 +45,21 @@ const {
 
 const productRout = express.Router();
 
-productRout.post("/add", uploads.single("file"), importProduct);
+productRout.post(
+  "/add",
+  authService.protect,
+  authService.allowedTo("products.create"),
+  authService.checkCompanyEditable,
+  uploads.single("file"),
+  importProduct,
+);
 
 productRout
   .route("/")
-  .get(getProduct)
+  .get(authService.protect, authService.allowedTo("products.read"), getProduct)
   .post(
     authService.protect,
+    authService.allowedTo("products.create"),
     authService.checkCompanyEditable,
     uploadProductImage,
     resizerImage,
@@ -60,23 +68,31 @@ productRout
 
 productRout
   .route("/nanqr")
-  .get(authService.protect, getNullQrProduct)
-  .put(authService.protect, authService.checkCompanyEditable, generateBarCode);
-productRout.route("/prductsByType").get(authService.protect, getProductsByType);
+  .get(authService.protect, authService.allowedTo("products.read"), getNullQrProduct)
+  .put(
+    authService.protect,
+    authService.allowedTo("products.update"),
+    authService.checkCompanyEditable,
+    generateBarCode,
+  );
+productRout
+  .route("/prductsByType")
+  .get(authService.protect, authService.allowedTo("products.read"), getProductsByType);
 
 productRout.route("/productLazy").get(getLezyProduct);
 productRout
   .route("/importEcommerceProduct")
-  .get(authService.protect, getEcommerceImportProduct);
+  .get(authService.protect, authService.allowedTo("products.read"), getEcommerceImportProduct);
 
 productRout.route("/importEcommerceProduct");
 // .post(authService.protect, uploads.single("file"), updateAllForNahed);
-productRout.route("/productpos").get(getProductPos);
+productRout.route("/productpos").get(authService.protect, authService.allowedTo("products.read"), getProductPos);
 
 productRout
   .route("/ecommerceproductdeactive")
   .put(
     authService.protect,
+    authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
     updateEcommerceProductDeActive,
   );
@@ -85,17 +101,19 @@ productRout
   .route("/ecommersproduct")
   .put(
     authService.protect,
+    authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
     updateEcommerceProducts,
   );
 
-productRout.route("/ecommerce-active-product").get(ecommerceActiveProudct);
-productRout.route("/ecommerce-dashboard-stats").get(ecommerceDashboardStats);
+productRout.route("/ecommerce-active-product").get(authService.protect, authService.allowedTo("products.read"), ecommerceActiveProudct);
+productRout.route("/ecommerce-dashboard-stats").get(authService.protect, authService.allowedTo("products.read"), ecommerceDashboardStats);
 
 productRout
   .route("/publish")
   .put(
     authService.protect,
+    authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
     setEcommerceProductPublish,
   );
@@ -104,28 +122,45 @@ productRout
   .route("/featureProduct")
   .put(
     authService.protect,
+    authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
     setEcommerceProductFeatured,
   )
-  .get(getEcommerceProductFeatured);
+  .get(authService.protect, authService.allowedTo("products.read"), getEcommerceProductFeatured);
 
 productRout
   .route("/sponsorProduct")
   .put(
     authService.protect,
+    authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
     setEcommerceProductSponsored,
   )
-  .get(getEcommerceProductSponsored);
-productRout.route("/getallproduct").get(getAllProdcuts);
-productRout.route("/bulk-update").put(bulkUpdate);
-productRout.route("/bulk-update-product-info").put(bulkUpdateProductInfo);
+  .get(authService.protect, authService.allowedTo("products.read"), getEcommerceProductSponsored);
+productRout.route("/getallproduct").get(authService.protect, authService.allowedTo("products.read"), getAllProdcuts);
+productRout
+  .route("/bulk-update")
+  .put(
+    authService.protect,
+    authService.allowedTo("products.update"),
+    authService.checkCompanyEditable,
+    bulkUpdate,
+  );
+productRout
+  .route("/bulk-update-product-info")
+  .put(
+    authService.protect,
+    authService.allowedTo("products.update"),
+    authService.checkCompanyEditable,
+    bulkUpdateProductInfo,
+  );
 
 productRout
   .route("/:id")
-  .get(getOneProduct)
+  .get(authService.protect, authService.allowedTo("products.read"), getOneProduct)
   .put(
     authService.protect,
+    authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
     uploadProductImage,
     resizerImage,
@@ -133,9 +168,10 @@ productRout
   )
   .delete(
     authService.protect,
+    authService.allowedTo("products.archive"),
     authService.checkCompanyEditable,
     archiveProduct,
   );
-productRout.route("/suppliers/:id").get(getProductBySuppliers);
+productRout.route("/suppliers/:id").get(authService.protect, authService.allowedTo("products.read"), getProductBySuppliers);
 
 module.exports = productRout;

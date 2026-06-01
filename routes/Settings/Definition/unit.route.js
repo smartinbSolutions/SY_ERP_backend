@@ -12,11 +12,26 @@ const unitRout = express.Router();
 
 unitRout
   .route("/")
-  .get(getUnits)
-  .post(authService.protect, authService.checkCompanyEditable, createUnit);
+  .get(authService.protect, authService.allowedTo("definition.read"), getUnits)
+  .post(
+    authService.protect,
+    authService.allowedTo("definition.create"),
+    authService.checkCompanyEditable,
+    createUnit,
+  );
 unitRout
   .route("/:id")
-  .get(getUnit)
-  .put(authService.protect, authService.checkCompanyEditable, updateUnit)
-  .delete(authService.protect, authService.checkCompanyEditable, deleteUnit);
+  .get(authService.protect, authService.allowedTo("definition.read"), getUnit)
+  .put(
+    authService.protect,
+    authService.allowedTo("definition.update"),
+    authService.checkCompanyEditable,
+    updateUnit,
+  )
+  .delete(
+    authService.protect,
+    authService.allowedTo("definition.delete"),
+    authService.checkCompanyEditable,
+    deleteUnit,
+  );
 module.exports = unitRout;

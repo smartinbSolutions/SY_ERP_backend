@@ -13,13 +13,25 @@ taxRout.use(authService.protect);
 
 taxRout
   .route("/")
-  .get(getTaxs)
-  .post(authService.checkCompanyEditable, createTax);
+  .get(authService.allowedTo("definition.read"), getTaxs)
+  .post(
+    authService.allowedTo("definition.create"),
+    authService.checkCompanyEditable,
+    createTax,
+  );
 
 taxRout
   .route("/:id")
-  .get(getTax)
-  .put(authService.checkCompanyEditable, updateTax)
-  .delete(authService.checkCompanyEditable, deleteTax);
+  .get(authService.allowedTo("definition.read"), getTax)
+  .put(
+    authService.allowedTo("definition.update"),
+    authService.checkCompanyEditable,
+    updateTax,
+  )
+  .delete(
+    authService.allowedTo("definition.delete"),
+    authService.checkCompanyEditable,
+    deleteTax,
+  );
 
 module.exports = taxRout;

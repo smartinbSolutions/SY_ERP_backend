@@ -11,7 +11,14 @@ const {
 const router = express.Router();
 router.use(authService.protect);
 
-router.route("/").get(getAllTables).post(createTable);
-router.route("/:id").get(getOneTable).put(updateTable).delete(deleteTable);
+router
+  .route("/")
+  .get(authService.allowedTo("table.read"), getAllTables)
+  .post(authService.allowedTo("table.create"), createTable);
+router
+  .route("/:id")
+  .get(authService.allowedTo("table.read"), getOneTable)
+  .put(authService.allowedTo("table.update"), updateTable)
+  .delete(authService.allowedTo("table.delete"), deleteTable);
 
 module.exports = router;

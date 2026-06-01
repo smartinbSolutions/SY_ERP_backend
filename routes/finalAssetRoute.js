@@ -14,10 +14,10 @@ finalAsset.use(authService.protect);
 finalAsset
   .route("/")
   .post(authService.checkCompanyEditable, createFinalAsset)
-  .get(getFinalAssets);
+  .get(authService.allowedTo("assets.read"), getFinalAssets);
 finalAsset
   .route("/:id")
-  .get(getFinalAsset)
+  .get(authService.allowedTo("assets.read"), getFinalAsset)
   .put(authService.checkCompanyEditable, updateFinalAsset)
   .delete(authService.checkCompanyEditable, deleteFinalAsset);
 

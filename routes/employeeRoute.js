@@ -23,31 +23,48 @@ const authService = require("../services/authService");
 
 const employeeRoute = express.Router();
 
+employeeRoute.use(authService.protect);
+
 employeeRoute
   .route("/")
-  .get(getEmployees)
-  .post(uploadEmployeeImage, resizerEmployeeImage, createEmployee);
+  .get(authService.allowedTo("employee.read"), getEmployees)
+  .post(
+    authService.allowedTo("employee.create"),
+    authService.checkCompanyEditable,
+    uploadEmployeeImage,
+    resizerEmployeeImage,
+    createEmployee,
+  );
 employeeRoute
   .route("/resendpassword/:email")
-  .put(authService.protect, authService.checkCompanyEditable, reSendPassword);
-employeeRoute.route("/create-employee").post(createEmployee);
+  .put(
+    authService.allowedTo("users.reset_password"),
+    authService.checkCompanyEditable,
+    reSendPassword,
+  );
+employeeRoute
+  .route("/create-employee")
+  .post(
+    authService.allowedTo("employee.create"),
+    authService.checkCompanyEditable,
+    createEmployee,
+  );
 
 employeeRoute
   .route("/:id")
   .delete(
-    authService.protect,
+    authService.allowedTo("employee.delete"),
     authService.checkCompanyEditable,
     deleteEmployeeVlaidator,
     deleteEmployee,
   )
   .get(
-    authService.protect,
-    authService.checkCompanyEditable,
+    authService.allowedTo("employee.read"),
     getEmployeeVlaidator,
     getEmployee,
   )
   .put(
-    authService.protect,
+    authService.allowedTo("employee.update"),
     authService.checkCompanyEditable,
     uploadEmployeeImage,
     resizerEmployeeImage,
@@ -56,14 +73,14 @@ employeeRoute
 employeeRoute
   .route("/updateName/:id")
   .put(
-    authService.protect,
+    authService.allowedTo("employee.update"),
     authService.checkCompanyEditable,
     /*updateNameValidator, */ updateEmployee,
   );
 employeeRoute
   .route("/updatePassword/:id")
   .put(
-    authService.protect,
+    authService.allowedTo("users.reset_password"),
     authService.checkCompanyEditable,
     updatePasswordValidator,
     updateEmployeePassword,

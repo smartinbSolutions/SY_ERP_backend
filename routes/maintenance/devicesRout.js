@@ -14,13 +14,32 @@ const upload = multer();
 
 const devicesRout = express.Router();
 
-devicesRout.route("/").get(getDevices).post(authService.protect, createDevice);
-devicesRout.route("/test").post(upload.single("file"), importDevice);
+devicesRout
+  .route("/")
+  .get(authService.protect, authService.allowedTo("maintenance.devices.read"), getDevices)
+  .post(
+    authService.protect,
+    authService.allowedTo("maintenance.devices.create"),
+    authService.checkCompanyEditable,
+    createDevice,
+  );
+devicesRout.route("/test").post(
+  authService.protect,
+  authService.allowedTo("maintenance.devices.create"),
+  authService.checkCompanyEditable,
+  upload.single("file"),
+  importDevice,
+);
 
 devicesRout
   .route("/:id")
-  .get(getOneDevice)
-  .put(authService.protect, updateDevices)
-  .delete(authService.protect, deleteDevice);
+  .get(authService.protect, authService.allowedTo("maintenance.devices.read"), getOneDevice)
+  .put(
+    authService.protect,
+    authService.allowedTo("maintenance.devices.update"),
+    authService.checkCompanyEditable,
+    updateDevices,
+  )
+  .delete(authService.protect, authService.allowedTo("maintenance.devices.update"), deleteDevice);
 
 module.exports = devicesRout;

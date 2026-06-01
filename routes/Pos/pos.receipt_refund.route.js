@@ -16,12 +16,20 @@ const PosReceiptRefundRoute = express.Router();
 PosReceiptRefundRoute.use(authService.protect);
 
 PosReceiptRefundRoute.route("/")
-  .get(findAllPosReceiptRefund)
-  .post(authService.checkCompanyEditable, createPosReceiptRefund);
+  .get(authService.allowedTo("pos.receipts.refund.read"), findAllPosReceiptRefund)
+  .post(
+    authService.allowedTo("sales.refund.create"),
+    authService.checkCompanyEditable,
+    createPosReceiptRefund,
+  );
 PosReceiptRefundRoute.route("/daily_refund_receipt/:id").get(
+  authService.allowedTo("pos.receipts.refund.read"),
   findRefundReceiptForDate,
 );
 
-PosReceiptRefundRoute.route("/:id").get(findOnePosReceiptRefund);
+PosReceiptRefundRoute.route("/:id").get(
+  authService.allowedTo("pos.receipts.refund.read"),
+  findOnePosReceiptRefund,
+);
 
 module.exports = PosReceiptRefundRoute;

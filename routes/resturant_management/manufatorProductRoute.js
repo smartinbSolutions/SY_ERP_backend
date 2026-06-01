@@ -12,24 +12,32 @@ const {
 
 const router = express.Router();
 
+router.use(authService.protect);
+
 router
   .route("/")
-  .get(getAllmanufactorProducts)
+  .get(authService.allowedTo("menu_items.read"), getAllmanufactorProducts)
   .post(
-    authService.protect,
+    authService.allowedTo("menu_items.create"),
+    authService.checkCompanyEditable,
     uploadmanufactorProductImage,
     resizermanufactorProductImage,
     createmanufactorProduct
   );
 router
   .route("/:id")
-  .get(getOnemanufactorProduct)
+  .get(authService.allowedTo("menu_items.read"), getOnemanufactorProduct)
   .put(
-    authService.protect,
+    authService.allowedTo("menu_items.update"),
+    authService.checkCompanyEditable,
     uploadmanufactorProductImage,
     resizermanufactorProductImage,
     updatemanufactorProduct
   )
-  .delete(authService.protect, deletemanufactorProduct);
+  .delete(
+    authService.allowedTo("menu_items.delete"),
+    authService.checkCompanyEditable,
+    deletemanufactorProduct
+  );
 
 module.exports = router;

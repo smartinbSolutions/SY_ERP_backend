@@ -15,11 +15,13 @@ const {
 const staffRout = express.Router();
 
 /* ===================== GET STAFF ===================== */
-staffRout.route("/").get(getStaff);
+staffRout.route("/").get(authService.protect, authService.allowedTo("employee.read"), getStaff);
 
 /* ===================== CREATE STAFF ===================== */
 staffRout.post(
   "/",
+  authService.protect,
+  authService.allowedTo("employee.create"),
   uploadStaffAssets,
   processProfileImage,
   processStaffFiles,
@@ -28,8 +30,15 @@ staffRout.post(
 
 staffRout
   .route("/:id")
-  .get(getOneStaff)
-  .put(uploadStaffAssets, processProfileImage, processStaffFiles, updateStaff)
-  .delete(deleteStaff);
+  .get(authService.protect, authService.allowedTo("employee.read"), getOneStaff)
+  .put(
+    authService.protect,
+    authService.allowedTo("employee.update"),
+    uploadStaffAssets,
+    processProfileImage,
+    processStaffFiles,
+    updateStaff,
+  )
+  .delete(authService.protect, authService.allowedTo("employee.delete"), deleteStaff);
 
 module.exports = staffRout;

@@ -6,6 +6,6 @@ const incomeStatementRoute = express.Router();
 const authService = require("../../services/authService");
 
 incomeStatementRoute.use(authService.protect);
-incomeStatementRoute.route("/").get(getIncomeStatement);
+incomeStatementRoute.route("/").get(authService.allowedTo("reports.read", "reports.profit_loss.read"), getIncomeStatement);
 
 module.exports = incomeStatementRoute;

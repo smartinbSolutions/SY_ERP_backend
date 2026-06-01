@@ -15,12 +15,28 @@ const menuCategoryRout = express.Router();
 
 menuCategoryRout
   .route("/")
-  .get(getMenuCategories)
-  .post(authService.protect, uploadMenuCategoryImage, resizerMenuCategoryImage, createMenuCategory);
+  .get(authService.protect, authService.allowedTo("menu_categories.read"), getMenuCategories)
+  .post(
+    authService.protect,
+    authService.allowedTo("menu_categories.create"),
+    uploadMenuCategoryImage,
+    resizerMenuCategoryImage,
+    createMenuCategory,
+  );
 menuCategoryRout
   .route("/:id")
-  .get(getMenuCategory)
-  .put(authService.protect,uploadMenuCategoryImage, resizerMenuCategoryImage, updataMenuCategory)
-  .delete(authService.protect,deleteMenuCategory);
+  .get(authService.protect, authService.allowedTo("menu_categories.read"), getMenuCategory)
+  .put(
+    authService.protect,
+    authService.allowedTo("menu_categories.update"),
+    uploadMenuCategoryImage,
+    resizerMenuCategoryImage,
+    updataMenuCategory,
+  )
+  .delete(
+    authService.protect,
+    authService.allowedTo("menu_categories.delete"),
+    deleteMenuCategory,
+  );
 
 module.exports = menuCategoryRout;

@@ -10,12 +10,15 @@ const {
 
 const departmentRoute = express.Router();
 
-departmentRoute.route("/").get(getAllDepartments).post(createDepartment);
+departmentRoute
+  .route("/")
+  .get(authService.protect, authService.allowedTo("hr.settings.read"), getAllDepartments)
+  .post(authService.protect, authService.allowedTo("hr.settings.create"), createDepartment);
 
 departmentRoute
   .route("/:id")
-  .get(getOneDepartment)
-  .put(updateDepartment)
-  .delete(deleteDepartment);
+  .get(authService.protect, authService.allowedTo("hr.settings.read"), getOneDepartment)
+  .put(authService.protect, authService.allowedTo("hr.settings.update"), updateDepartment)
+  .delete(authService.protect, authService.allowedTo("hr.settings.delete"), deleteDepartment);
 
 module.exports = departmentRoute;

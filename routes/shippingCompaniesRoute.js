@@ -15,7 +15,7 @@ const shippingCompaniesRoute = express.Router();
 
 shippingCompaniesRoute
   .route("/")
-  .get(getShippingCompanies)
+  .get(authService.protect, authService.allowedTo("ecommerce.shipping_companies.read"), getShippingCompanies)
   .post(
     authService.protect,
     authService.checkCompanyEditable,
@@ -26,7 +26,7 @@ shippingCompaniesRoute
 
 shippingCompaniesRoute
   .route("/:id")
-  .get(getShippingCompany)
+  .get(authService.protect, authService.allowedTo("ecommerce.shipping_companies.read"), getShippingCompany)
   .put(
     authService.protect,
     authService.checkCompanyEditable,

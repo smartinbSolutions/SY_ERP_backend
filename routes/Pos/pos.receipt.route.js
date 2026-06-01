@@ -15,16 +15,30 @@ const PosReceiptRoute = express.Router();
 PosReceiptRoute.use(authService.protect);
 
 PosReceiptRoute.route("/")
-  .get(findAllReceipt)
-  .post(authService.checkCompanyEditable, createPosReceipt);
-PosReceiptRoute.route("/dailyreceipt/:id").get(findReceiptForDate);
+  .get(authService.allowedTo("sales.invoice.read"), findAllReceipt)
+  .post(
+    authService.allowedTo("sales.invoice.create"),
+    authService.checkCompanyEditable,
+    createPosReceipt,
+  );
+PosReceiptRoute.route("/dailyreceipt/:id").get(
+  authService.allowedTo("sales.invoice.read"),
+  findReceiptForDate,
+);
 
 PosReceiptRoute.route("/cancel_receipt/:id").put(
+  authService.allowedTo("sales.invoice.cancel"),
   authService.checkCompanyEditable,
   cancelReceipt,
 );
 
-PosReceiptRoute.route("/salespoint/:id").get(findAllReceiptForSalesPoint);
+PosReceiptRoute.route("/salespoint/:id").get(
+  authService.allowedTo("sales.invoice.read"),
+  findAllReceiptForSalesPoint,
+);
 
-PosReceiptRoute.route("/:id").get(findOneReceipt);
+PosReceiptRoute.route("/:id").get(
+  authService.allowedTo("sales.invoice.read"),
+  findOneReceipt,
+);
 module.exports = PosReceiptRoute;

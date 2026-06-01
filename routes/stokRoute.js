@@ -17,23 +17,42 @@ const {
 
 const stockRout = express.Router();
 
-stockRout.route("/").get(getStocks).post(authService.protect, createStock);
+stockRout
+  .route("/")
+  .get(authService.protect, authService.allowedTo("stock.read"), getStocks)
+  .post(
+    authService.protect,
+    authService.allowedTo("stock.create"),
+    authService.checkCompanyEditable,
+    createStock,
+  );
 stockRout
   .route("/transfer")
-  .get(getTransferStock)
+  .get(authService.protect, authService.allowedTo("stock_transfers.read"), getTransferStock)
   .put(
     authService.protect,
+    authService.allowedTo("stock_transfers.create"),
     authService.checkCompanyEditable,
     transformQuantity,
   );
-stockRout.route("/stock-report").get(getStocksProducts);
-stockRout.route("/transfer/:id").get(getOneTransferStock);
-stockRout.route("/transferforstock/:id").get(getTransferForStock);
-stockRout.route("/transferallstatementstock").get(getAllStatementStock);
+stockRout.route("/stock-report").get(authService.protect, authService.allowedTo("stock.read"), getStocksProducts);
+stockRout.route("/transfer/:id").get(authService.protect, authService.allowedTo("stock_transfers.read"), getOneTransferStock);
+stockRout.route("/transferforstock/:id").get(authService.protect, authService.allowedTo("stock_transfers.read"), getTransferForStock);
+stockRout.route("/transferallstatementstock").get(authService.protect, authService.allowedTo("stock_transfers.read"), getAllStatementStock);
 stockRout
   .route("/:id")
-  .get(getOneStock)
-  .put(authService.protect, authService.checkCompanyEditable, updateStock)
-  .delete(authService.protect, authService.checkCompanyEditable, deleteStock);
+  .get(authService.protect, authService.allowedTo("stock.read"), getOneStock)
+  .put(
+    authService.protect,
+    authService.allowedTo("stock.update"),
+    authService.checkCompanyEditable,
+    updateStock,
+  )
+  .delete(
+    authService.protect,
+    authService.allowedTo("stock.delete"),
+    authService.checkCompanyEditable,
+    deleteStock,
+  );
 
 module.exports = stockRout;
