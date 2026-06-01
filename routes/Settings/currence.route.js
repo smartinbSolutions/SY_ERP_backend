@@ -13,13 +13,25 @@ currencyRoute.use(authService.protect);
 
 currencyRoute
   .route("/")
-  .get(getCurrencies)
-  .post(authService.checkCompanyEditable, createCurrency);
+  .get(authService.allowedTo("currencies.read"), getCurrencies)
+  .post(
+    authService.allowedTo("currencies.create"),
+    authService.checkCompanyEditable,
+    createCurrency
+  );
 
 currencyRoute
   .route("/:id")
-  .get(getCurrency)
-  .put(authService.checkCompanyEditable, updateCurrency)
-  .delete(authService.checkCompanyEditable, deleteCurrency);
+  .get(authService.allowedTo("currencies.read"), getCurrency)
+  .put(
+    authService.allowedTo("currencies.update"),
+    authService.checkCompanyEditable,
+    updateCurrency
+  )
+  .delete(
+    authService.allowedTo("currencies.delete"),
+    authService.checkCompanyEditable,
+    deleteCurrency
+  );
 
 module.exports = currencyRoute;

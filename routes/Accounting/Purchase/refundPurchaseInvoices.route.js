@@ -22,6 +22,7 @@ RefundPurchaseInvoices.use(authService.protect);
 */
 RefundPurchaseInvoices.post(
   "/items-by-invoices",
+  authService.allowedTo("purchase.refund.read"),
   findRefundablePurchaseItemsByInvoices
 );
 
@@ -48,17 +49,21 @@ RefundPurchaseInvoices.post(
 */
 RefundPurchaseInvoices.route("/")
   .post(
+    authService.allowedTo("purchase.refund.create"),
     authService.checkCompanyEditable,
     uploadFile,
     createRefundPurchaseInvoice
   )
-  .get(findAllPurchaseRefunds);
+  .get(authService.allowedTo("purchase.refund.read"), findAllPurchaseRefunds);
 
 /*
 |--------------------------------------------------------------------------
 | Single Invoice Routes
 |--------------------------------------------------------------------------
 */
-RefundPurchaseInvoices.route("/:id").get(findOnePurchaseRefund);
+RefundPurchaseInvoices.route("/:id").get(
+  authService.allowedTo("purchase.refund.read"),
+  findOnePurchaseRefund
+);
 
 module.exports = RefundPurchaseInvoices;

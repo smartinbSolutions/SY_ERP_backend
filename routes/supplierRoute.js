@@ -17,14 +17,23 @@ router.use(authService.protect);
 
 router
   .route("/")
-  .post(authService.checkCompanyEditable, createSupplier)
-  .get(getSuppliers);
+  .post(
+    authService.allowedTo("supplier.create"),
+    authService.checkCompanyEditable,
+    createSupplier
+  )
+  .get(authService.allowedTo("supplier.read"), getSuppliers);
 
 router
   .route("/:id")
-  .get(getSupplierVlaidator, getSupplier)
-  .put(authService.checkCompanyEditable, updataSupplier)
+  .get(authService.allowedTo("supplier.read"), getSupplierVlaidator, getSupplier)
+  .put(
+    authService.allowedTo("supplier.update"),
+    authService.checkCompanyEditable,
+    updataSupplier
+  )
   .delete(
+    authService.allowedTo("supplier.delete"),
     deleteSupplierVlaidator,
     authService.checkCompanyEditable,
     deleteSupplier,

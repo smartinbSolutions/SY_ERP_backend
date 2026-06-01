@@ -27,6 +27,7 @@ PurchaseInvoices.use(authService.protect);
 |--------------------------------------------------------------------------
 */
 PurchaseInvoices.route("/supplier/:supplierId").get(
+  authService.allowedTo("purchase.invoice.read"),
   findSupplierPurchaseInvoicesForRefund
 );
 
@@ -36,10 +37,20 @@ PurchaseInvoices.route("/supplier/:supplierId").get(
 |--------------------------------------------------------------------------
 */
 PurchaseInvoices.route("/draft/:id")
-  .put(authService.checkCompanyEditable, uploadFile, updatePurchaseDraftInvoice)
-  .delete(authService.checkCompanyEditable, deletePurchaseInvoiceDraft);
+  .put(
+    authService.allowedTo("purchase.invoice.update.draft"),
+    authService.checkCompanyEditable,
+    uploadFile,
+    updatePurchaseDraftInvoice
+  )
+  .delete(
+    authService.allowedTo("purchase.invoice.delete.draft"),
+    authService.checkCompanyEditable,
+    deletePurchaseInvoiceDraft
+  );
 
 PurchaseInvoices.route("/post/:id").put(
+  authService.allowedTo("purchase.invoice.post"),
   authService.checkCompanyEditable,
   postPurchaseInvoiceDraft
 );
@@ -50,11 +61,13 @@ PurchaseInvoices.route("/post/:id").put(
 |--------------------------------------------------------------------------
 */
 PurchaseInvoices.route("/cancel/:id").put(
+  authService.allowedTo("purchase.invoice.cancel"),
   authService.checkCompanyEditable,
   cancelPurchaseInvoice
 );
 
 PurchaseInvoices.route("/update/:id").put(
+  authService.allowedTo("purchase.invoice.update.posted"),
   authService.checkCompanyEditable,
   uploadFile,
   updatePostedPurchaseInvoice
@@ -66,14 +79,22 @@ PurchaseInvoices.route("/update/:id").put(
 |--------------------------------------------------------------------------
 */
 PurchaseInvoices.route("/")
-  .post(authService.checkCompanyEditable, uploadFile, createPurchaseInvoice)
-  .get(findAllPurchaseInvoices);
+  .post(
+    authService.allowedTo("purchase.invoice.create"),
+    authService.checkCompanyEditable,
+    uploadFile,
+    createPurchaseInvoice
+  )
+  .get(authService.allowedTo("purchase.invoice.read"), findAllPurchaseInvoices);
 
 /*
 |--------------------------------------------------------------------------
 | Single Invoice Routes
 |--------------------------------------------------------------------------
 */
-PurchaseInvoices.route("/:id").get(findOnePurchaseInvoice);
+PurchaseInvoices.route("/:id").get(
+  authService.allowedTo("purchase.invoice.read"),
+  findOnePurchaseInvoice
+);
 
 module.exports = PurchaseInvoices;

@@ -19,27 +19,41 @@ const upload = multer();
 
 const accountingTreeRouter = express.Router();
 
-// accountingTreeRouter.use(authService.protect);
+accountingTreeRouter.use(authService.protect);
 
 // Routes
 accountingTreeRouter
   .route("/")
-  .get(getAccountingTree)
-  .post(authService.checkCompanyEditable, createAccountingTree);
+  .get(authService.allowedTo("chart_of_accounts.read"), getAccountingTree)
+  .post(
+    authService.allowedTo("chart_of_accounts.create"),
+    authService.checkCompanyEditable,
+    createAccountingTree
+  );
 accountingTreeRouter
   .route("/calculatebalance")
-  .get(calculateBalance)
-  .get(getAccountingTreeNoBalance);
-accountingTreeRouter.route("/tree").get(getAccountingTreeNoBalance);
-accountingTreeRouter.route("/chart-off-accounts").get(getChartOfAccounts);
+  .get(authService.allowedTo("chart_of_accounts.read"), calculateBalance)
+  .get(authService.allowedTo("chart_of_accounts.read"), getAccountingTreeNoBalance);
+accountingTreeRouter.route("/tree").get(
+  authService.allowedTo("chart_of_accounts.read"),
+  getAccountingTreeNoBalance
+);
+accountingTreeRouter.route("/chart-off-accounts").get(
+  authService.allowedTo("chart_of_accounts.read"),
+  getChartOfAccounts
+);
 accountingTreeRouter
   .route("/treefromjournals")
-  .get(getAccountingTreeFromJournals);
+  .get(
+    authService.allowedTo("chart_of_accounts.read"),
+    getAccountingTreeFromJournals
+  );
 
 accountingTreeRouter
   .route("/import")
-  .get(getAccountingTreeForExport)
+  .get(authService.allowedTo("chart_of_accounts.export"), getAccountingTreeForExport)
   .post(
+    authService.allowedTo("chart_of_accounts.create"),
     authService.checkCompanyEditable,
     upload.single("file"),
     importAccountingTree
@@ -47,13 +61,25 @@ accountingTreeRouter
 
 accountingTreeRouter
   .route("/change/:id")
-  .get(getOneAccountingTree)
-  .put(authService.checkCompanyEditable, changeBalance);
+  .get(authService.allowedTo("chart_of_accounts.read"), getOneAccountingTree)
+  .put(
+    authService.allowedTo("chart_of_accounts.update"),
+    authService.checkCompanyEditable,
+    changeBalance
+  );
 
 accountingTreeRouter
   .route("/:id")
-  .put(authService.checkCompanyEditable, updateAccountingTree)
-  .get(getAccountingTree)
-  .delete(authService.checkCompanyEditable, deleteAccountingTree);
+  .put(
+    authService.allowedTo("chart_of_accounts.update"),
+    authService.checkCompanyEditable,
+    updateAccountingTree
+  )
+  .get(authService.allowedTo("chart_of_accounts.read"), getAccountingTree)
+  .delete(
+    authService.allowedTo("chart_of_accounts.delete"),
+    authService.checkCompanyEditable,
+    deleteAccountingTree
+  );
 
 module.exports = accountingTreeRouter;

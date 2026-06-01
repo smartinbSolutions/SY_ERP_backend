@@ -12,12 +12,20 @@ const FundTransfer = express.Router();
 FundTransfer.use(authService.protect);
 
 FundTransfer.route("/")
-  .post(authService.checkCompanyEditable, createFundTransfer)
-  .get(getAllFundTransfers);
+  .post(
+    authService.allowedTo("funds.transfer"),
+    authService.checkCompanyEditable,
+    createFundTransfer
+  )
+  .get(authService.allowedTo("funds.read"), getAllFundTransfers);
 
-FundTransfer.route("/:id").get(getOneFundTransfer);
+FundTransfer.route("/:id").get(
+  authService.allowedTo("funds.read"),
+  getOneFundTransfer
+);
 
 FundTransfer.route("/:id/cancel").put(
+  authService.allowedTo("funds.transfer"),
   authService.checkCompanyEditable,
   cancelFundTransfer
 );

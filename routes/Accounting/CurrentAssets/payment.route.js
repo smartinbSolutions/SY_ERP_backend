@@ -13,11 +13,19 @@ paymentRoute.use(authService.protect);
 
 paymentRoute
   .route("/")
-  .get(getAllPayments)
-  .post(authService.checkCompanyEditable, createPayment);
-paymentRoute.route("/:id").get(getOnePayment);
+  .get(authService.allowedTo("payments.read"), getAllPayments)
+  .post(
+    authService.allowedTo("payments.create"),
+    authService.checkCompanyEditable,
+    createPayment
+  );
+paymentRoute.route("/:id").get(authService.allowedTo("payments.read"), getOnePayment);
 paymentRoute
   .route("/cancel/:id")
-  .post(authService.checkCompanyEditable, cancelPayment);
+  .post(
+    authService.allowedTo("payments.create"),
+    authService.checkCompanyEditable,
+    cancelPayment
+  );
 
 module.exports = paymentRoute;

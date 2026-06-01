@@ -11,8 +11,15 @@ const RefundSalesInvoices = express.Router();
 RefundSalesInvoices.use(authService.protect);
 
 RefundSalesInvoices.route("/")
-  .post(authService.checkCompanyEditable, createRefundSalesInvoice)
-  .get(findAllSalesRefunds);
-RefundSalesInvoices.route("/:id").get(findOneSalesRefund);
+  .post(
+    authService.allowedTo("sales.refund.create"),
+    authService.checkCompanyEditable,
+    createRefundSalesInvoice
+  )
+  .get(authService.allowedTo("sales.refund.read"), findAllSalesRefunds);
+RefundSalesInvoices.route("/:id").get(
+  authService.allowedTo("sales.refund.read"),
+  findOneSalesRefund
+);
 
 module.exports = RefundSalesInvoices;

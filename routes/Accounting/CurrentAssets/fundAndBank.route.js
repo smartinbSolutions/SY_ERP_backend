@@ -16,21 +16,41 @@ const FundAndBank = express.Router();
 FundAndBank.use(authService.protect);
 
 FundAndBank.route("/")
-  .post(authService.checkCompanyEditable, createFundAndBank)
-  .get(findAllFundAndBank);
+  .post(
+    authService.allowedTo("funds.create"),
+    authService.checkCompanyEditable,
+    createFundAndBank
+  )
+  .get(authService.allowedTo("funds.read"), findAllFundAndBank);
 
 FundAndBank.route("/sales-point/:id").get(
+  authService.allowedTo("funds.read"),
   authService.checkCompanyEditable,
   getFundAndBankForSalesPoint
 );
 
 FundAndBank.route("/:id")
-  .get(findOneFundAndBank)
-  .put(authService.checkCompanyEditable, updateFundAndBank)
-  .delete(authService.checkCompanyEditable, deleteFundAndBank);
+  .get(authService.allowedTo("funds.read"), findOneFundAndBank)
+  .put(
+    authService.allowedTo("funds.update"),
+    authService.checkCompanyEditable,
+    updateFundAndBank
+  )
+  .delete(
+    authService.allowedTo("funds.delete"),
+    authService.checkCompanyEditable,
+    deleteFundAndBank
+  );
 
-FundAndBank.route("/reports/:id").get(findSpecificFundReports);
+FundAndBank.route("/reports/:id").get(
+  authService.allowedTo("funds.read"),
+  findSpecificFundReports
+);
 
-FundAndBank.route("/:id/adjust").post(createFundAdjustment);
+FundAndBank.route("/:id/adjust").post(
+  authService.allowedTo("funds.adjust"),
+  authService.checkCompanyEditable,
+  createFundAdjustment
+);
 
 module.exports = FundAndBank;

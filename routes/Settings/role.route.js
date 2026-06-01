@@ -7,13 +7,13 @@ roleRouter.use(authService.protect);
 
 roleRouter
   .route("/")
-  .post(roleController.createRole)
-  .get(roleController.getRoles);
+  .post(authService.allowedTo("roles.create"), roleController.createRole)
+  .get(authService.allowedTo("roles.read"), roleController.getRoles);
 
 roleRouter
   .route("/:id")
-  .get(roleController.getRole)
-  .patch(roleController.updateRole)
-  .delete(roleController.deleteRole);
+  .get(authService.allowedTo("roles.read"), roleController.getRole)
+  .patch(authService.allowedTo("roles.update"), roleController.updateRole)
+  .delete(authService.allowedTo("roles.delete"), roleController.deleteRole);
 
 module.exports = roleRouter;

@@ -18,8 +18,9 @@ journalEntriesRoute.use(authService.protect);
 
 journalEntriesRoute
   .route("/")
-  .get(getJournals)
+  .get(authService.allowedTo("journal_entry.read"), getJournals)
   .post(
+    authService.allowedTo("journal_entry.create"),
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
@@ -28,14 +29,24 @@ journalEntriesRoute
 
 journalEntriesRoute
   .route("/audit/:id")
-  .put(authService.checkCompanyEditable, auditingJournal);
+  .put(
+    authService.allowedTo("journal_entry.create"),
+    authService.checkCompanyEditable,
+    auditingJournal
+  );
 
-journalEntriesRoute.route("/:id").get(getOneJournal);
+journalEntriesRoute.route("/:id").get(
+  authService.allowedTo("journal_entry.read"),
+  getOneJournal
+);
 
-journalEntriesRoute.route("/link/:linkNum").get(getOneJournalByLink);
+journalEntriesRoute.route("/link/:linkNum").get(
+  authService.allowedTo("journal_entry.read"),
+  getOneJournalByLink
+);
 
 journalEntriesRoute
   .route("/accountwithjournal/:id")
-  .get(getOneAccountAndJournal);
+  .get(authService.allowedTo("journal_entry.read"), getOneAccountAndJournal);
 
 module.exports = journalEntriesRoute;

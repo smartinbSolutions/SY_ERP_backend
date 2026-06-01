@@ -14,16 +14,28 @@ purchaseRequestRouter.use(authService.protect);
 // Create a new purchaseRequest / Get all purchaseRequests
 purchaseRequestRouter
   .route("/")
-  .post(authService.checkCompanyEditable, createCashPurchaseRequest)
-  .get(getAllPurchaseRequest);
+  .post(
+    authService.allowedTo("purchase.request.create"),
+    authService.checkCompanyEditable,
+    createCashPurchaseRequest
+  )
+  .get(authService.allowedTo("purchase.request.read"), getAllPurchaseRequest);
 
 purchaseRequestRouter
   .route("/archive/:id")
-  .put(authService.checkCompanyEditable, archivePurchaseRequest);
+  .put(
+    authService.allowedTo("purchase.request.update"),
+    authService.checkCompanyEditable,
+    archivePurchaseRequest
+  );
 // Get / update / delete a specific purchaseRequest by ID
 purchaseRequestRouter
   .route("/:id")
-  .get(getPurchaseRequestById)
-  .put(authService.checkCompanyEditable, updatePurchaseRequest);
+  .get(authService.allowedTo("purchase.request.read"), getPurchaseRequestById)
+  .put(
+    authService.allowedTo("purchase.request.update"),
+    authService.checkCompanyEditable,
+    updatePurchaseRequest
+  );
 
 module.exports = purchaseRequestRouter;

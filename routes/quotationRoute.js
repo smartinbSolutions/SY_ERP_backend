@@ -14,13 +14,25 @@ quotationRouter.use(authService.protect);
 // Create a new quotation / Get all quotations
 quotationRouter
   .route("/")
-  .post(authService.checkCompanyEditable, createCashQuotation)
-  .get(getAllQuotations);
-quotationRouter.route("/archive/:id").put(archiveQuotation);
+  .post(
+    authService.allowedTo("sales.quotation.create"),
+    authService.checkCompanyEditable,
+    createCashQuotation
+  )
+  .get(authService.allowedTo("sales.quotation.read"), getAllQuotations);
+quotationRouter.route("/archive/:id").put(
+  authService.allowedTo("sales.quotation.update.status"),
+  authService.checkCompanyEditable,
+  archiveQuotation
+);
 // Get / update / delete a specific quotation by ID
 quotationRouter
   .route("/:id")
-  .get(getQuotationById)
-  .put(authService.checkCompanyEditable, updateQuotation);
+  .get(authService.allowedTo("sales.quotation.read"), getQuotationById)
+  .put(
+    authService.allowedTo("sales.quotation.update.draft"),
+    authService.checkCompanyEditable,
+    updateQuotation
+  );
 
 module.exports = quotationRouter;

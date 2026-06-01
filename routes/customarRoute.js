@@ -18,14 +18,25 @@ router
   .put(authService.ecommerceProtect, updateCustomerPassword);
 router
   .route("/")
-  .post(authService.protect, authService.checkCompanyEditable, createCustomar)
-  .get(authService.protect, getCustomars);
+  .post(
+    authService.protect,
+    authService.allowedTo("customer.create"),
+    authService.checkCompanyEditable,
+    createCustomar
+  )
+  .get(authService.protect, authService.allowedTo("customer.read"), getCustomars);
 router
   .route("/:id")
-  .get(authService.protect, getCustomar)
-  .put(authService.protect, authService.checkCompanyEditable, updataCustomar)
+  .get(authService.protect, authService.allowedTo("customer.read"), getCustomar)
+  .put(
+    authService.protect,
+    authService.allowedTo("customer.update"),
+    authService.checkCompanyEditable,
+    updataCustomar
+  )
   .delete(
     authService.protect,
+    authService.allowedTo("customer.delete"),
     authService.checkCompanyEditable,
     deleteCustomar,
   );
