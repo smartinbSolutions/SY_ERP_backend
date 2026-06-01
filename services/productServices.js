@@ -8,10 +8,10 @@ const sharp = require("sharp");
 const csvtojson = require("csvtojson");
 const xlsx = require("xlsx");
 const { default: mongoose, Types } = require("mongoose");
-const brandModel = require("../models/brandModel");
-const UnitsModel = require("../models/UnitsModel");
-const taxModel = require("../models/taxModel");
-const currencyModel = require("../models/currencyModel");
+const brandModel = require("../models/Settings/Definition/brand.model");
+const UnitsModel = require("../models/Settings/Definition/unit.model");
+const taxModel = require("../models/Settings/Definition/tax.model");
+const currencyModel = require("../models/Settings/currency.model");
 const CategoryModel = require("../models/CategoryModel");
 
 const { createProductMovement } = require("../utils/productMovement");

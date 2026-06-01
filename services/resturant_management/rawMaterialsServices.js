@@ -3,9 +3,9 @@ const asyncHandler = require("express-async-handler");
 const rawMaterialModel = require("../../models/resturant_management/rawMaterialModel");
 
 const categorySchema = require("../../models/CategoryModel");
-const brandSchema = require("../../models/brandModel");
-const UnitSchema = require("../../models/UnitsModel");
-const currencySchema = require("../../models/currencyModel");
+const brandSchema = require("../../models/Settings/Definition/brand.model");
+const UnitSchema = require("../../models/Settings/Definition/unit.model");
+const currencySchema = require("../../models/Settings/currency.model");
 const TaxSchema = require("../../models/taxModel");
 
 // @desc Create raw material
@@ -131,7 +131,7 @@ exports.updateRawMaterial = asyncHandler(async (req, res, next) => {
     const updatedRawMaterial = await rawMaterialModel.findOneAndUpdate(
       { _id: rawMaterialId, companyId },
       updatedData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     // If the raw material is not found

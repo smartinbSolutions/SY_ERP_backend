@@ -1,11 +1,19 @@
 const jwt = require("jsonwebtoken");
 
-const createToken = (payload, sessionId, authSource, companyId) => {
+const createToken = ({
+  userId,
+  email,
+  roleId,
+  channels,
+  companyId,
+  authSource,
+}) => {
   return jwt.sign(
     {
-      userId: payload._id,
-      email: payload.email,
-      sessionId,
+      userId: userId,
+      email: email,
+      roleId,
+      channels,
       authSource,
       companyId,
     },

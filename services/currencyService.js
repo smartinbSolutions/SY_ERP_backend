@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const currencyModel = require("../models/currencyModel");
+const currencyModel = require("../models/Settings/currency.model");
 const ApiError = require("../utils/apiError");
 const FinancialFundsModel = require("../models/Accounting/CurrentAssets/financialFundsModel");
 const productModel = require("../models/productModel");
-const currencyLogModel = require("../models/currencyLogModel");
+const currencyLogModel = require("../models/Settings/currencyLog.model");
 
 // @desc Get list of Currency
 // @route GEt /api/currency
@@ -90,7 +90,7 @@ exports.updataCurrency = asyncHandler(async (req, res, next) => {
     const currency = await currencyModel.findOneAndUpdate(
       { _id: req.params.id, companyId },
       req.body,
-      { new: true }
+      { new: true },
     );
     await currencyLogModel.create({
       currencyId: req.params.id,
@@ -102,7 +102,7 @@ exports.updataCurrency = asyncHandler(async (req, res, next) => {
     });
     if (!currency) {
       return next(
-        new ApiError(`No currency for this id ${req.params.id}`, 404)
+        new ApiError(`No currency for this id ${req.params.id}`, 404),
       );
     }
     res
@@ -114,11 +114,11 @@ exports.updataCurrency = asyncHandler(async (req, res, next) => {
     const currency = await currencyModel.findOneAndUpdate(
       { _id: req.params.id, companyId },
       req.body,
-      { new: true }
+      { new: true },
     );
     if (!currency) {
       return next(
-        new ApiError(`No currency for this id ${req.params.id}`, 404)
+        new ApiError(`No currency for this id ${req.params.id}`, 404),
       );
     }
     res

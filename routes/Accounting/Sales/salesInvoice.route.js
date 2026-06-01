@@ -18,6 +18,7 @@ SalesInvoices.use(authService.protect);
 
 SalesInvoices.route("/post/:id").put(
   authService.checkCompanyEditable,
+
   postSalesInvoiceDraft,
 );
 SalesInvoices.route("/draft/:id")
@@ -38,8 +39,15 @@ SalesInvoices.route("/customerorder/:id").get(
   findCustomerSalesInvoices,
 );
 SalesInvoices.route("/")
-  .post(authService.checkCompanyEditable, createSalesInvoice)
-  .get(findAllSalesInvoices);
-SalesInvoices.route("/:id").get(findOneSalesInvoice);
+  .post(
+    authService.allowedTo("sales.invoice.create"),
+    authService.checkCompanyEditable,
+    createSalesInvoice,
+  )
+  .get(authService.allowedTo("sales.invoice.read"), findAllSalesInvoices);
+SalesInvoices.route("/:id").get(
+  authService.allowedTo("sales.invoice.read"),
+  findOneSalesInvoice,
+);
 
 module.exports = SalesInvoices;

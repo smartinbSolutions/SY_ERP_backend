@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const currencyLogModel = require("../models/currencyLogModel");
-const currencyModel = require("../models/currencyModel");
+const currencyLogModel = require("../models/Settings/currencyLog.model");
+const currencyModel = require("../models/Settings/currency.model");
 
 exports.getCurrencyLog = asyncHandler(async (req, res) => {
   const { companyId, id, page = 1, limit = 50 } = req.query;

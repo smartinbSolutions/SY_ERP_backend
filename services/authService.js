@@ -2,100 +2,84 @@ const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
 const createToken = require("../utils/createToken");
-const { getDashboardRoles } = require("./roleDashboardServices");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const employeeModel = require("../models/employeeModel");
-const rolesModel = require("../models/roleModel");
+const usersModel = require("../models/Settings/users.model");
+const rolesModel = require("../models/Settings/role.model");
 const customarSchema = require("../models/Accounting/Sales/customarModel");
 const sendEmail = require("../utils/sendEmail");
 const { OAuth2Client } = require("google-auth-library");
 const E_user_Schema = require("../models/ecommerce/E_user_Modal");
 const { default: axios } = require("axios");
 const thirdPartyAuthSchema = require("../models/ecommerce/thirdPartyAuthModel");
-const companyInfoModel = require("../models/companyInfoModel");
+const companyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.model");
 
 // @desc      Login
 // @route     POST /api/auth/login
 // @access    Public
 exports.login = asyncHandler(async (req, res, next) => {
-  try {
-    // Fetch the user and check email and password in parallel
+  const { email, password, companyId } = req.body;
 
-    const user = await employeeModel
-      .findOne({
-        email: req.body.email,
-        company: { $elemMatch: { companyId: req.body.companyId } },
-      })
-      .populate({
-        path: "company.selectedRoles",
-      })
-      .populate({
-        path: "salesPoint",
-        populate: {
-          path: "salesPointCurrency",
-          model: "Currency",
-        },
-      });
-
-    if (!user) {
-      return next(new ApiError("Incorrect email", 401));
-    }
-
-    // Check password
-    const passwordMatch = await bcrypt.compare(
-      req.body.password,
-      user.password
-    );
-    if (!passwordMatch) {
-      return next(new ApiError("Incorrect Password", 401));
-    }
-
-    // Check if the user is active
-    if (user.archives === "true") {
-      return next(new ApiError("The account is not active", 401));
-    }
-
-    // Remove the password and pin from the user object
-    user.password = undefined;
-    user.pin = undefined;
-
-    // Fetch roles in parallel
-    const selectedCompany = user.company.find(
-      (c) => c.companyId === req.body.companyId
-    );
-
-    const roles = await rolesModel.findOne({
-      _id: selectedCompany?.selectedRoles,
-      companyId: req.body.companyId,
+  const user = await usersModel
+    .findOne({
+      email,
+      "companies.companyId": companyId,
+    })
+    .select("+password")
+    .populate({
+      path: "companies.roleId",
+      populate: { path: "permissions" },
     });
-    const [dashRoleName] = await Promise.all([
-      getDashboardRoles(roles.rolesDashboard),
-    ]);
 
-    const token = createToken(user, null, "erp", req.body.companyId);
-    res.status(200).json({
-      status: "true",
-      data: user,
-      dashBoardRoles: dashRoleName,
-      token,
-      companyId: req.body.companyId,
-    });
-  } catch (error) {
-    console.error("Error during login:", error);
-    next(error);
+  if (!user) {
+    return next(new ApiError("Incorrect email or company", 401));
   }
+
+  const passwordMatch = await bcrypt.compare(password, user.password);
+  if (!passwordMatch) {
+    return next(new ApiError("Incorrect password", 401));
+  }
+
+  // if (!user.active) {
+  //   return next(new ApiError("Account is not active", 401));
+  // }
+
+  const selectedCompany = user.companies.find(
+    (c) => c.companyId.toString() === companyId,
+  );
+  if (!selectedCompany || !selectedCompany.roleId) {
+    return next(new ApiError("Role not assigned", 403));
+  }
+
+  const role = selectedCompany.roleId;
+
+  if (!role.channels.includes("dashboard")) {
+    return next(new ApiError("No dashboard access", 403));
+  }
+  user.password = undefined;
+
+  const token = createToken({
+    userId: user._id,
+    email: user.email,
+    roleId: role._id,
+    channels: role.channels,
+    companyId,
+    authSource: "erp",
+  });
+
+  res.status(200).json({
+    status: true,
+    data: user,
+    role,
+    token,
+    company: companyId,
+  });
 });
 
 // @desc   make sure the user is logged in sys
 exports.protect = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
   let token;
+
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
@@ -105,39 +89,36 @@ exports.protect = asyncHandler(async (req, res, next) => {
 
   if (!token) {
     return next(new ApiError("Not login", 401));
-  } else {
-    try {
-      //2- Verify token (no change happens, expired token)
-      const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  }
 
-      //3-Check if user exists
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-      const curentUser = await employeeModel.findOne({
-        _id: decoded.userId,
-        company: {
-          $elemMatch: { companyId: companyId },
-        },
-      });
+    const currentUser = await usersModel.findOne({
+      _id: decoded.userId,
+      companies: {
+        $elemMatch: { companyId: decoded.companyId },
+      },
+    });
 
-      if (!curentUser) {
-        return next(new ApiError("The user does not exit", 404));
-      }
-      req.user = curentUser;
-      req.companyId = decoded.companyId;
-      next();
-    } catch (error) {
-      // Token verification failed
-      console.error("JWT Error:", error.message);
-      if (error.name === "TokenExpiredError") {
-        return next(new ApiError("Token has expired", 401));
-      } else {
-        console.error("JWT Error:", error.message);
-        return next(new ApiError("Not login", 401));
-      }
+    if (!currentUser) {
+      return next(new ApiError("User does not exist", 404));
     }
+
+    req.user = currentUser;
+    req.companyId = decoded.companyId;
+    req.roleId = decoded.roleId;
+    req.channels = decoded.channels;
+
+    next();
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return next(new ApiError("Token has expired", 401));
+    }
+
+    return next(new ApiError("Not login", 401));
   }
 });
-
 exports.checkCompanyEditable = async (req, res, next) => {
   const companyId = req.query.companyId || req.body.companyId;
 
@@ -158,8 +139,8 @@ exports.checkCompanyEditable = async (req, res, next) => {
     return next(
       new ApiError(
         "The company has already been closed and cannot be modified",
-        403
-      )
+        403,
+      ),
     );
   }
 
@@ -178,10 +159,10 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
 
   // 1) Get user by email
   const { email } = req.body;
-  const user = await employeeModel.findOne({ email, companyId });
+  const user = await usersModel.findOne({ email, companyId });
   if (!user) {
     return next(
-      new ApiError(`There is no user with this email address ${email}`, 404)
+      new ApiError(`There is no user with this email address ${email}`, 404),
     );
   }
 
@@ -220,8 +201,8 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         "There was an error sending the email. Try again later!",
-        500
-      )
+        500,
+      ),
     );
   }
 });
@@ -238,7 +219,7 @@ exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
 
   const { resetCode } = req.body;
 
-  const user = await employeeModel.find({
+  const user = await usersModel.find({
     passwordResetExpires: { $gt: Date.now() },
     companyId,
   });
@@ -248,7 +229,7 @@ exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
   // 3) Compare the reset code with the hashed code stored in the database
   const isResetCodeValid = await bcrypt.compare(
     resetCode,
-    user.passwordResetCode
+    user.passwordResetCode,
   );
   if (!isResetCodeValid) {
     return next(new ApiError("Reset code is invalid or has expired", 400));
@@ -272,7 +253,7 @@ exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   // 1) Get user based on email
-  const user = await employeeModel.findOne({
+  const user = await usersModel.findOne({
     email: req.body.email,
     companyId,
   });
@@ -280,8 +261,8 @@ exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         `There is no user with this email address ${req.body.email}`,
-        404
-      )
+        404,
+      ),
     );
   }
   // Check if user verify the reset code
@@ -328,7 +309,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
 const client = new OAuth2Client(
   process.env.CLIENT_ID,
   process.env.CLIENT_SECRET,
-  "https://store.noontek.com"
+  "https://store.noontek.com",
 );
 
 // Function to verify Google ID token
@@ -438,7 +419,7 @@ exports.ecommerceProtect = asyncHandler(async (req, res, next) => {
       if (currentUser.passwordChangedAt) {
         const passChangedTimestamp = parseInt(
           currentUser.passwordChangedAt.getTime() / 1000,
-          10
+          10,
         );
         if (passChangedTimestamp > decoded.iat) {
           req.user = null;
@@ -466,7 +447,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const user = await UserModel.findOne({ email });
   if (!user) {
     return next(
-      new ApiError(`There is no user with this email address ${email}`, 404)
+      new ApiError(`There is no user with this email address ${email}`, 404),
     );
   }
 
@@ -512,8 +493,8 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
         return next(
           new ApiError(
             "There was an error sending the email. Try again later!",
-            500
-          )
+            500,
+          ),
         );
       }
     });
@@ -543,7 +524,7 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
   // 3) Compare the reset code with the hashed code stored in the database
   const isResetCodeValid = await bcrypt.compare(
     resetCode,
-    user.passwordResetCode
+    user.passwordResetCode,
   );
 
   if (!isResetCodeValid) {
@@ -621,7 +602,7 @@ exports.googleLogin = asyncHandler(async (req, res, next) => {
       }),
       {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      }
+      },
     );
 
     const { id_token, access_token } = data;
@@ -661,7 +642,7 @@ exports.facebookLogin = asyncHandler(async (req, res, next) => {
           access_token: accessToken,
           fields: "email, name",
         },
-      }
+      },
     );
 
     const { email, name } = response.data;
@@ -681,45 +662,71 @@ exports.facebookLogin = asyncHandler(async (req, res, next) => {
 });
 //Permissions
 //Verify user permissions
-// exports.allowedTo = (role) =>
-//     asyncHandler(async (req, res, next) => {
-//         const id = req.user._id;
-//         const dbName = req.query.databaseName;
-//         try {
-//             const db = mongoose.connection.useDb(dbName);
+exports.allowedTo = (...allowedPermissions) =>
+  asyncHandler(async (req, res, next) => {
+    const userId = req.user?._id;
+    const companyId =
+      req.query.companyId || req.body.companyId || req.companyId;
+    const requiredPermissions = allowedPermissions.flat().filter(Boolean);
 
-//             const employeeModel = db.model("Employee", emoloyeeShcema);
-//             const rolesModel = db.model("Roles", rolesShcema);
+    if (!userId) {
+      return next(new ApiError("Unauthorized", 401));
+    }
 
-//             //get all user's roles
-//             const employee = await employeeModel
-//                 .findById(id)
-//                 .populate({ path: "selectedRoles", select: "name _id" });
-//             if (!employee) {
-//                 return next(new ApiError(`No employee by this id ${id}`, 404));
-//             }
+    if (!companyId) {
+      return next(new ApiError("companyId is required", 400));
+    }
 
-//             //4-get all roles
-//             const roles = await rolesModel.findById(employee.selectedRoles[0]);
+    if (requiredPermissions.length === 0) {
+      return next();
+    }
 
-//             if (!roles) {
-//                 return next(new ApiError("Roles not found for the user", 404));
-//             }
+    const user = await usersModel.findById(userId).populate({
+      path: "companies.roleId",
+      populate: { path: "permissions" },
+    });
 
-//             const { rolesDashboard, rolesPos } = roles;
-//             const [dashRoleName, poseRoleName] = await Promise.all([
-//                 getDashboardRoles(rolesDashboard, db),
-//                 getPosRoles(rolesPos, db),
-//             ]);
+    if (!user) {
+      return next(new ApiError(`No user by this id ${userId}`, 404));
+    }
 
-//             let allUserRoles = [...dashRoleName, ...poseRoleName];
+    const companyData = user.companies.find(
+      (company) => String(company.companyId) === String(companyId),
+    );
 
-//             // Use the some method to check if any role in allUserRoles is included in the provided role array
-//             if (!allUserRoles.some(userRole => role.includes(userRole))) {
-//                 return next(new ApiError("Block access", 403));
-//             }
-//             next();
-//         } catch (error) {
-//             return next(error);
-//         }
-//     });
+    if (!companyData) {
+      return next(new ApiError("User not in this company", 403));
+    }
+
+    if (!companyData.active) {
+      return next(new ApiError("Company access disabled", 403));
+    }
+
+    const role = companyData.roleId;
+
+    if (!role) {
+      return next(new ApiError("Role not assigned", 403));
+    }
+
+    if (role.status === "inactive" || role.active === false) {
+      return next(new ApiError("Role is inactive", 403));
+    }
+
+    const permissionValues = new Set([
+      role.name,
+      ...(role.permissions || []).flatMap((permission) => [
+        permission.key,
+        permission.title,
+      ]),
+    ]);
+
+    const hasAccess = requiredPermissions.some((permission) =>
+      permissionValues.has(permission),
+    );
+
+    if (!hasAccess) {
+      return next(new ApiError("Access denied", 403));
+    }
+
+    next();
+  });

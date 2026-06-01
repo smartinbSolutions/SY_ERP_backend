@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const UnitModel = require("../models/UnitsModel");
+const UnitModel = require("../models/Settings/Definition/unit.model");
 const ApiError = require("../utils/apiError");
 const { default: slugify } = require("slugify");
 const mongoose = require("mongoose");
@@ -67,7 +67,7 @@ exports.updataUnit = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!unit) {
     return next(new ApiError(`No unit for this id ${req.params.id}`, 404));

@@ -4,7 +4,7 @@ const { default: slugify } = require("slugify");
 const TaxModel = require("../models/taxModel");
 const mongoose = require("mongoose");
 const AccountingTreeSchema = require("../models/accountingTreeModel");
-const currencySchema = require("../models/currencyModel");
+const currencySchema = require("../models/Settings/currency.model");
 
 //@desc Get list of tax
 // @rout Get /api/tax
@@ -80,7 +80,7 @@ exports.updataTax = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!tax) {
     return next(new ApiError(`No tax for this id ${req.params.id}`, 404));

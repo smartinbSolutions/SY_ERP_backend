@@ -14,7 +14,7 @@ const createToken = require("../utils/createToken");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
-const CompanyInfnoModel = require("../models/companyInfoModel");
+const CompanyInfnoModel = require("../models/Settings/CompanyInfo/companyInfo.model");
 
 const multerStorage = multer.memoryStorage();
 
@@ -109,7 +109,7 @@ exports.getEmployees = asyncHandler(async (req, res) => {
 // @access private
 exports.createEmployee = asyncHandler(async (req, res, next) => {
   const email = req.body.email;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -155,7 +155,7 @@ exports.createEmployee = asyncHandler(async (req, res, next) => {
             },
           },
         },
-        { new: true }
+        { new: true },
       );
     }
     //Create the employee
@@ -191,7 +191,7 @@ exports.createEmployee = asyncHandler(async (req, res, next) => {
 exports.createEmployeeInPos = asyncHandler(async (req, res, next) => {
   const email = req.body.email;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -225,7 +225,7 @@ exports.createEmployeeInPos = asyncHandler(async (req, res, next) => {
             email: email,
             subscribtion: [req.body.subscribtion],
             userType: req.body.userType,
-          }
+          },
         );
         //Continue here
       }
@@ -251,7 +251,7 @@ exports.createEmployeeInPos = asyncHandler(async (req, res, next) => {
 exports.reSendPassword = asyncHandler(async (req, res, next) => {
   const email = req.body.email;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -276,7 +276,7 @@ exports.reSendPassword = asyncHandler(async (req, res, next) => {
     const employee = await employeeModel.findOneAndUpdate(
       { email: email, companyId },
       { password: hashedPassword },
-      { new: true }
+      { new: true },
     );
 
     res.status(201).json({
@@ -294,7 +294,7 @@ exports.reSendPassword = asyncHandler(async (req, res, next) => {
 // @access private
 exports.getEmployee = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -310,7 +310,7 @@ exports.getEmployee = asyncHandler(async (req, res, next) => {
     .select("-password -pin -createdAt -updatedAt");
 
   const companyData = employee.company.find(
-    (c) => c.companyId.toString() === companyId.toString()
+    (c) => c.companyId.toString() === companyId.toString(),
   );
 
   if (!employee) {
@@ -338,7 +338,7 @@ exports.getEmployee = asyncHandler(async (req, res, next) => {
 // @rout     PUT /api/updatePassword
 // @access   Private
 exports.updateEmployeePassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -354,7 +354,7 @@ exports.updateEmployeePassword = asyncHandler(async (req, res, next) => {
     },
     {
       new: true,
-    }
+    },
   );
 
   if (!user) {
@@ -371,7 +371,7 @@ exports.updateEmployeePassword = asyncHandler(async (req, res, next) => {
 // @rout    Put /api/employee/updateName/
 // @access  Private
 exports.updateEmployee = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -404,7 +404,7 @@ exports.updateEmployee = asyncHandler(async (req, res, next) => {
   const employee = await employeeModel.findOneAndUpdate(
     { _id: id, "company.companyId": companyId },
     { $set: updateData },
-    { new: true }
+    { new: true },
   );
 
   if (!employee) {
@@ -424,7 +424,7 @@ exports.updateEmployee = asyncHandler(async (req, res, next) => {
 exports.deleteEmployee = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -434,7 +434,7 @@ exports.deleteEmployee = asyncHandler(async (req, res, next) => {
   const employee = await employeeModel.findOneAndUpdate(
     { _id: id },
     { active: !employeeID.active },
-    { new: true }
+    { new: true },
   );
   if (!employee) {
     return next(new ApiError(`No employee by this id ${id}`, 404));

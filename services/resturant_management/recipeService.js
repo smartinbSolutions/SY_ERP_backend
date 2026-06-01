@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const recipeModel = require("../../models/resturant_management/recipeModel");
-const UnitSchema = require("../../models/UnitsModel");
+const UnitSchema = require("../../models/Settings/Definition/unit.model");
 
 // overAllCost
 
@@ -144,7 +144,7 @@ exports.updateRecipe = asyncHandler(async (req, res, next) => {
     const updatedRecipe = await recipeModel.findOneAndUpdate(
       { _id: recipeId, companyId },
       updatedData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     // If the Recipe is not found

@@ -8,7 +8,7 @@ const createToken = require("../utils/createToken");
 const { createPaymentHistoryV2 } = require("./paymentHistoryService");
 const xlsx = require("xlsx");
 const AccountingTreeSchema = require("../models/accountingTreeModel");
-const currencySchema = require("../models/currencyModel");
+const currencySchema = require("../models/Settings/currency.model");
 const PaymentHistoryModel = require("../models/paymentHistoryModel");
 
 //Create New Customar
@@ -143,7 +143,7 @@ exports.updataCustomar = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
 
     res.status(200).json({
@@ -171,7 +171,7 @@ exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
     },
     {
       new: true,
-    }
+    },
   );
 
   if (!user) {
@@ -202,7 +202,7 @@ exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   if (paymentHistory.length > 0) {
     return next(
       new ApiError(`you have a payment for this customer ${id}`),
-      400
+      400,
     );
   }
 

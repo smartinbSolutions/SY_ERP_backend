@@ -1,4 +1,4 @@
-const companyInfoModel = require("../../models/companyInfoModel");
+const companyInfoModel = require("../../models/Settings/CompanyInfo/companyInfo.model");
 const staffModel = require("../../models/Hr/staffModel");
 const StaffsModel = require("../../models/Hr/staffModel");
 const ApiError = require("../../utils/apiError");

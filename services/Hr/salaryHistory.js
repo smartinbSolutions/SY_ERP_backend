@@ -5,7 +5,7 @@ const ApiError = require("../../utils/apiError");
 const { default: mongoose } = require("mongoose");
 const FinancialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const reportsFinancialFundsSchema = require("../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const currencySchema = require("../../models/currencyModel");
+const currencySchema = require("../../models/Settings/currency.model");
 
 exports.getSalaryHistories = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
@@ -137,7 +137,7 @@ exports.updateOneSalaryHistory = asyncHandler(async (req, res, next) => {
   const salaryHistory = await SalaryHistoryModel.findByIdAndUpdate(
     { _id: id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   if (!salaryHistory) {
@@ -186,7 +186,7 @@ exports.createSalaryHistories = asyncHandler(async (req, res, next) => {
       .filter(
         (date) =>
           date.dateSalaryDue?.slice(8, 10) <=
-          new Date().toISOString().slice(8, 10)
+          new Date().toISOString().slice(8, 10),
       )
       .map((item) => ({
         employeeId: item._id,
@@ -273,7 +273,7 @@ exports.paidSalaryOneStaff = asyncHandler(async (req, res, next) => {
       {
         $inc: { fundBalance: -paymentInFundCurrency },
       },
-      { new: true }
+      { new: true },
     );
     if (!fund) {
       return next(new ApiError(`No fund by this id ${fundID}`, 404));
@@ -316,7 +316,7 @@ exports.paidSalaryForAllStaff = asyncHandler(async (req, res, next) => {
     });
     const totalUnpaidSalary = unpaidSalaries.reduce(
       (sum, item) => sum + item.totalSalary,
-      0
+      0,
     );
 
     await SalaryHistoryModel.bulkWrite(
@@ -325,7 +325,7 @@ exports.paidSalaryForAllStaff = asyncHandler(async (req, res, next) => {
           filter: { _id: salary._id },
           update: { $set: { status: "Paid", paidAmount: salary.totalSalary } },
         },
-      }))
+      })),
     );
     if (unpaidSalaries.length === 0) {
       return next(new ApiError("No salary Unpaid", 404));
@@ -335,7 +335,7 @@ exports.paidSalaryForAllStaff = asyncHandler(async (req, res, next) => {
       {
         $inc: { fundBalance: -paymentInFundCurrency },
       },
-      { new: true }
+      { new: true },
     );
     if (!fund) {
       return next(new ApiError(`No fund by this id ${fundID}`, 404));

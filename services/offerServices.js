@@ -8,7 +8,7 @@ const multer = require("multer");
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
 const getAllChildCategories = require("../utils/CategoriesChild");
-const currencySchema = require("../models/currencyModel");
+const currencySchema = require("../models/Settings/currency.model");
 // @desc find the categors and what have a subCategor
 
 const multerStorage = multer.memoryStorage();
@@ -84,7 +84,7 @@ exports.createOffer = async (req, res) => {
       const allCategories = await getAllChildCategories(
         offerData.cat,
         companyId,
-        categorySchema
+        categorySchema,
       );
 
       const products = await ProductModel.find({
@@ -112,7 +112,7 @@ exports.createOffer = async (req, res) => {
         {
           haveGift: false,
           soldToWinGift: offerData.soldToWinGift,
-        }
+        },
       );
 
       offerData.applicableProducts = [offerData.oneProduct];
@@ -268,7 +268,6 @@ exports.createOffer = async (req, res) => {
 // cron.schedule("0 * * * *", async () => {
 //   console.log("Running offer status update task for all databases...");
 
-
 //   for (const dbName of subscriberDatabases) {
 //     await updateOfferStatusForDatabase(dbName);
 //   }
@@ -287,7 +286,7 @@ exports.updateOffer = async (req, res) => {
     const updatedOffer = await offerSchema.findOneAndUpdate(
       { _id: offerId, companyId },
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedOffer) {

@@ -9,38 +9,38 @@ const {
   verifyPasswordResetCode,
   resetPassword,
   EcommerceLogin,
-  forgotPasswordPos,
-  resetPasswordPos,
-  verifyPasswordResetCodePos,
+
   googleLogin,
   facebookLogin,
 } = require("../services/authService");
-const { checkUserSubsicreber } = require("../middlewares/checkUserSubsicreber");
+const {
+  getUserCompaniesByEmail,
+} = require("../middlewares/getUserCompaniesByEmail");
 
 const router = express.Router();
 
-router.post("/check", checkUserSubsicreber);
+router.post("/check", getUserCompaniesByEmail);
 router.post("/login", upload.none(), login);
 router.post(
-  "/forgotpasswordspos",
+  "/forgot-passwords",
   upload.none(),
-  checkUserSubsicreber,
-  forgotPasswordPos
+  getUserCompaniesByEmail,
+  forgotPassword,
 );
-router.post("/verifyresetcodepos", verifyPasswordResetCodePos);
+router.post("/verify-reset-code", verifyPasswordResetCode);
 router.put(
-  "/resetpasswordpos",
+  "/reset-password",
   upload.none(),
-  checkUserSubsicreber,
-  resetPasswordPos
+  getUserCompaniesByEmail,
+  resetPassword,
 );
 
 router.post("/ecommerce-login", EcommerceLogin);
 router.post("/google-signin", googleLogin);
 router.post("/facebook-signin", facebookLogin);
 router.post("/signup", signup);
-router.post("/forgotPasswords", forgotPassword);
-router.post("/verifyResetCode", verifyPasswordResetCode);
-router.put("/resetPassword", upload.none(), resetPassword);
+// router.post("/forgot-passwords", forgotPassword);
+// router.post("/verify-reset-code", verifyPasswordResetCode);
+// router.put("/reset-password", upload.none(), resetPassword);
 
 module.exports = router;

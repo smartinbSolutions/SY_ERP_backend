@@ -1,0 +1,112 @@
+const mongoose = require("mongoose");
+
+const companySubSchema = new mongoose.Schema(
+  {
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "companyinfo",
+      required: true,
+      index: true,
+    },
+
+    roleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      required: true,
+    },
+
+    // Optional POS restriction (empty = access to all POS in company)
+    allowedPOSPoints: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "POSPoint",
+      },
+    ],
+
+    authMethods: {
+      passwordEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      pinEnabled: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    pinHash: {
+      type: String,
+      select: false, // 🔒 never return PIN hash by default
+    },
+
+    active: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { _id: false },
+);
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Employee name is required"],
+      trim: true,
+    },
+
+    phone: Number,
+
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      lowercase: true,
+      unique: true,
+      index: true,
+    },
+
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: [4, "Password must be at least 4 characters long"],
+      select: false, // 🔒 never return password by default
+    },
+
+    passwordChangedAt: Date,
+    passwordResetCode: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
+    passwordResetVerified: { type: Boolean, select: false },
+
+    image: String,
+
+    companies: [companySubSchema],
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true, transform: transformUser },
+    toObject: { virtuals: true, transform: transformUser },
+  },
+);
+
+// 🔐 Prevent duplicate company per user
+userSchema.index({ email: 1, "companies.companyId": 1 }, { unique: true });
+
+function transformUser(doc, ret) {
+  delete ret.password;
+  delete ret.passwordResetCode;
+  delete ret.passwordResetExpires;
+  delete ret.passwordResetVerified;
+  return ret;
+}
+
+// 🌍 Attach image URL safely
+userSchema.post("init", attachImageURL);
+userSchema.post("save", attachImageURL);
+
+function attachImageURL(doc) {
+  if (doc.image && !doc.image.startsWith("http")) {
+    doc.image = `${process.env.BASE_URL}/Image/${doc.image}`;
+  }
+}
+
+module.exports = mongoose.model("user", userSchema);

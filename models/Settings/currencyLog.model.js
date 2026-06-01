@@ -2,19 +2,22 @@ const mongoose = require("mongoose");
 
 const currencyLogSchema = new mongoose.Schema(
   {
-    currencyId: {
+    sync: { type: Boolean, default: false },
+    companyId: {
       type: String,
       required: true,
       index: true,
     },
     oldRate: Number,
     newRate: Number,
-    changeType: { type: String },
     updatedBy: String,
-    companyId: String,
+    changeType: {
+      type: String,
+      enum: ["initial", "update", "manual"],
+      required: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-currencyLogSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("CurrencyLog", currencyLogSchema);

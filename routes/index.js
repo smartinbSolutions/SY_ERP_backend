@@ -1,9 +1,9 @@
 const fingerPrintRout = require("./Hr/FingerPrintRout");
 const paymentHistoryRout = require("./paymentHistoryRout");
-const brandRout = require("./brandRout");
+const brandRout = require("./Settings/Definition/brand.route");
 const categoryRout = require("./categoryRout");
-const companyInfoRoute = require("./companyInfoRoute");
-const currencyRoute = require("./currencyRoute");
+const companyInfoRoute = require("./Settings/Company/company.route");
+const currencyRoute = require("./Settings/currence.route");
 const discountRoute = require("./discountRoute");
 const addressRout = require("./ecommerce/addressRout");
 const cartRout = require("./ecommerce/cartRout");
@@ -22,8 +22,8 @@ const PurchaseInvoices = require("./Accounting/Purchase/purchaseInvoices.route")
 const RefundPurchaseInvoices = require("./Accounting/Purchase/refundPurchaseInvoices.route");
 const RoleDashboardRoute = require("./roleDashboardRoute");
 const StockReconciliationRoute = require("./stockReconciliationRoute");
-const taxRout = require("./taxRout");
-const unitRout = require("./unitRout");
+const taxRout = require("./Settings/Definition/tax.route");
+const unitRout = require("./Settings/Definition/unit.route");
 const authRoute = require("./authRoute");
 const customarRoute = require("./customarRoute");
 const supplierRoute = require("./supplierRoute");
@@ -44,7 +44,7 @@ const ecommercePaymentMethodRoute = require("./ecommerce/ecommercePaymentMethodR
 const purchaseRequestRouter = require("./purchaseRequestRoute");
 const journalEntryRoute = require("./Accounting/JournalEntries/JournalEntries.route");
 const unTracedproductLogRout = require("./unTracedproductLogRout");
-const TagRoute = require("./tagsRoute");
+const TagRoute = require("./Settings/Definition/tag.route");
 const SalesPointRout = require("./salesPointRoute");
 const linkPanelRoute = require("./LinkPanelRout");
 const staffRout = require("./Hr/staffRout");
@@ -125,33 +125,33 @@ const FolderRoute = require("./Tasks/folder.routes");
 const ListRoute = require("./Tasks/list.routes");
 const timeTrackingRoute = require("./Tasks/timeTracking.route");
 const subTaskRoute = require("./Tasks/subTask.route");
+const userRoute = require("./Settings/user.route");
 const PosReceiptRoute = require("./Pos/pos.receipt.route");
 const PosReceiptRefundRoute = require("./Pos/pos.receipt_refund.route");
+const roleRouter = require("./Settings/role.route");
 const DashboardStatsRoute = require("./dashboardStatsRoute");
-
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);
-  app.use("/api/v1/receipt-pos", PosReceiptRoute);
-  app.use("/api/v1/pos-receipt-Refund", PosReceiptRefundRoute);
   app.use("/api/product", productRout);
-  app.use("/api/brand", brandRout);
+  app.use("/api/v1/brand", brandRout);
   app.use("/api/category", categoryRout);
   app.use("/api/customars", customarRoute);
   app.use("/api/suppliers", supplierRoute);
   app.use("/api/roledashboard", RoleDashboardRoute);
-  app.use("/api/role", roleRoute);
+  app.use("/api/v1/roles", roleRouter);
   app.use("/api/employee", employeeRoute);
   app.use("/api/discount", discountRoute);
-  app.use("/api/unit", unitRout);
-  app.use("/api/tax", taxRout);
+  app.use("/api/v1/unit", unitRout);
+  app.use("/api/v1/tax", taxRout);
   app.use("/api/paymenttype", paymentTypes);
+  app.use("/api/v1/users", userRoute);
 
   app.use("/api/label", LabelRout);
-  app.use("/api/tag", TagRoute);
+  app.use("/api/v1/tag", TagRoute);
   app.use("/api/auth", authRoute);
   app.use("/api/v1/sales-invoices", SalesInvoices);
   app.use("/api/v1/refund-sales-invoices", RefundSalesInvoices);
-  app.use("/api/currency", currencyRoute);
+  app.use("/api/v1/currency", currencyRoute);
   app.use("/api/v1/currencylog", currencyLogRoute);
   app.use("/api/v1/fund-bank", FundAndBank);
   app.use("/api/v1/fund-transfer", FundTransfer);
@@ -159,9 +159,11 @@ const mountRoutes = (app) => {
   app.use("/api/purchaseInvoices", PurchaseInvoices);
   app.use("/api/refund-purchaseInvoices", RefundPurchaseInvoices);
   app.use("/api/expenseCategories", expenseCategoriesRoute);
-  app.use("/api/companyinfo", companyInfoRoute);
+  app.use("/api/v1/companyinfo", companyInfoRoute);
   app.use("/api/stockreconciliation", StockReconciliationRoute);
   app.use("/api/stockreconciliation-v1", ReconciliationRoute);
+  app.use("/api/v1/receipt-pos", PosReceiptRoute);
+  app.use("/api/v1/pos-receipt-Refund", PosReceiptRefundRoute);
 
   app.use("/api/productmovements", productMovementsRoute);
   app.use("/api/invoicehistory", invoiceHistoryRoute);
@@ -251,7 +253,6 @@ const mountRoutes = (app) => {
   app.use("/api/comments", commentRoute);
   app.use("/api/attachments", attachmentRoute);
   app.use("/api/time-tracking", timeTrackingRoute);
-
   //Payment
   app.use("/api", paytrRouter);
 

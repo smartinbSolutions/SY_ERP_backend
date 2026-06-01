@@ -6,7 +6,7 @@ const customersModel = require("../../models/customarModel");
 const { createInvoiceHistory } = require("../invoiceHistoryService");
 const { createPaymentHistory } = require("../paymentHistoryService");
 const { createProductMovement } = require("../../utils/productMovement");
-const companyInfoModel = require("../../models/companyInfoModel");
+const companyInfoModel = require("../../models/Settings/CompanyInfo/companyInfo.model");
 const { generateCounter } = require("../../utils/counterFormat");
 const axios = require("axios");
 const unTracedproductLogModel = require("../../models/unTracedproductLogModel");
@@ -31,7 +31,7 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   const isoOrderDate = `${req.body.orderDate || formattedDate}`;
@@ -159,7 +159,7 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
   // Handle product stock deduction
   const productQRCodes = cartItems
     .filter(
-      (item) => item.type !== "unTracedproduct" && item.type !== "expense"
+      (item) => item.type !== "unTracedproduct" && item.type !== "expense",
     )
     .map((item) => item.qr);
 
@@ -183,7 +183,7 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
       const product = productMap.get(qr);
       const totalStockQuantity = product.stocks.reduce(
         (total, stock) => total + stock.productQuantity,
-        0
+        0,
       );
 
       await createProductMovement(
@@ -196,9 +196,9 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
         "movement",
         "out",
         "E-commerce Invoice",
-        companyId
+        companyId,
       );
-    })
+    }),
   );
 
   const bulkOption = await Promise.all(
@@ -235,7 +235,7 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
       } else if (item.type === "expense") {
         return null;
       }
-    })
+    }),
   );
 
   const validBulkOptions = bulkOption.filter((option) => option !== null);
@@ -251,7 +251,7 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
     order._id,
     "create",
     req.user ? req.user._id : null,
-    req.body.orderDate || timeIsoString
+    req.body.orderDate || timeIsoString,
   );
 
   await createPaymentHistory(
@@ -267,7 +267,7 @@ exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
     "",
     "",
     "",
-    req.body.currency.currencyCode
+    req.body.currency.currencyCode,
   );
 
   res.status(201).json({
@@ -415,7 +415,7 @@ exports.EcommerceOrderIntegrationFull = asyncHandler(async (req, res, next) => {
     order._id,
     "create",
     req.user ? req.user._id : null,
-    req.body.orderDate || timeIsoString
+    req.body.orderDate || timeIsoString,
   );
 
   // === Build E-Fatura Payload ===
@@ -495,7 +495,7 @@ exports.EcommerceOrderIntegrationFull = asyncHandler(async (req, res, next) => {
           "Content-Type": "application/json",
           "x-api-key": company.turkcellApiKey,
         },
-      }
+      },
     );
 
     // Only create the order if E-Fatura succeeds
@@ -511,7 +511,7 @@ exports.EcommerceOrderIntegrationFull = asyncHandler(async (req, res, next) => {
       order._id,
       "create",
       req.user ? req.user._id : null,
-      req.body.orderDate || timeIsoString
+      req.body.orderDate || timeIsoString,
     );
 
     // Update order with E-Fatura info
