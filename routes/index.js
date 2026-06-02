@@ -145,6 +145,7 @@ const mountRoutes = (app) => {
   app.use("/api/v1/tax", taxRout);
   app.use("/api/paymenttype", paymentTypes);
   app.use("/api/v1/users", userRoute);
+  app.use("/api/v1/journal", journalEntryRoute);
 
   app.use("/api/label", LabelRout);
   app.use("/api/v1/tag", TagRoute);
@@ -174,7 +175,6 @@ const mountRoutes = (app) => {
   app.use("/api/offers", offersRouter);
   app.use("/api/quotation", quotationRouter);
   app.use("/api/accounting-tree", accountingTreeRout);
-  app.use("/api/journal", journalEntryRoute);
   app.use("/api/reconciliation", reconciliationRoute);
   app.use("/api/purchaserequest", purchaseRequestRouter);
   app.use("/api/shippingCompany", shippingCompaniesRoute);

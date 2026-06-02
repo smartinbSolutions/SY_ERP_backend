@@ -4,7 +4,20 @@ const ApiError = require("../../../utils/apiError");
 
 exports.getTaxs = async ({ companyId }) => {
   const query = { companyId };
-  const data = await taxModel.find(query).sort({ createdAt: -1 }).lean();
+  const data = await taxModel
+    .find(query)
+    .sort({ createdAt: -1 })
+    .populate("salesAccountTax")
+    .populate({
+      path: "salesAccountTax",
+      populate: { path: "currency" },
+    })
+    .populate("purchaseAccountTax")
+    .populate({
+      path: "purchaseAccountTax",
+      populate: { path: "currency" },
+    })
+    .lean();
 
   return {
     data,
@@ -13,7 +26,19 @@ exports.getTaxs = async ({ companyId }) => {
 };
 
 exports.getTax = async ({ companyId, id }) => {
-  const tax = await taxModel.findOne({ companyId, _id: id }).lean();
+  const tax = await taxModel
+    .findOne({ companyId, _id: id })
+    .populate("salesAccountTax")
+    .populate({
+      path: "salesAccountTax",
+      populate: { path: "currency" },
+    })
+    .populate("purchaseAccountTax")
+    .populate({
+      path: "purchaseAccountTax",
+      populate: { path: "currency" },
+    })
+    .lean();
   if (!tax) {
     throw new ApiError("tax not found", 404);
   }

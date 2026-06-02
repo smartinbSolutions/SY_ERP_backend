@@ -152,12 +152,12 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
 
     employee: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
     },
 
     postedBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
     postedAt: {
@@ -167,7 +167,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
 
     cancelledBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
     cancelledAt: {
@@ -210,7 +210,7 @@ const PurchaseInvoicesSchema = new mongoose.Schema(
 
     auditing: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("PurchaseInvoices", PurchaseInvoicesSchema);
