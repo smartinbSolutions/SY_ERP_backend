@@ -80,7 +80,24 @@ exports.getCompanyInfo = asyncHandler(async (req, res) => {
     status: "success",
     message: "Company Info retrieved successfully",
     data: result.companyInfo,
+    companySetting: result.companySetting,
     currency: result.currency,
+  });
+});
+
+exports.getCompanySetting = asyncHandler(async (req, res) => {
+  const companyId = req.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const result = await companyInfoService.getCompanySetting({ companyId });
+
+  res.status(200).json({
+    status: "success",
+    message: "Company Setting retrieved successfully",
+    data: result,
   });
 });
 
@@ -105,6 +122,38 @@ exports.updateCompanyInfo = asyncHandler(async (req, res) => {
     res.status(201).json({
       status: "success",
       message: "Company Info updated successfully",
+      data: result.companyInfo,
+      companySetting: result.companySetting,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+});
+
+exports.updateCompanySetting = asyncHandler(async (req, res) => {
+  const companyId = req.companyId;
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const result = await companyInfoService.updateCompanySetting({
+      companyId,
+      body: req.body,
+      session,
+    });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      status: "success",
+      message: "Company Setting updated successfully",
       data: result,
     });
   } catch (error) {

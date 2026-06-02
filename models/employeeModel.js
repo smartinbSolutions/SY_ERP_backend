@@ -82,7 +82,7 @@ const emoloyeeShcema = new mongoose.Schema(
         companyId: String,
         selectedRoles: {
           type: mongoose.Schema.ObjectId,
-          ref: "Roles",
+          ref: "Role",
         },
         companyName: String,
         _id: false,
@@ -90,7 +90,7 @@ const emoloyeeShcema = new mongoose.Schema(
     ],
     PosUser: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 const setImageURL = (doc) => {
   if (doc.image) {

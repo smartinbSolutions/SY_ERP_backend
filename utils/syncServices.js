@@ -24,6 +24,7 @@ const AccountingTreeSchema = require("../models/accountingTreeModel");
 const assetsSchema = require("../models/assetsModel");
 const brandSchema = require("../models/brandModel");
 const companyIfnoSchema = require("../models/Settings/CompanyInfo/companyInfo.model");
+const companySettingSchema = require("../models/Settings/CompanyInfo/companySetting.model");
 const currencySchema = require("../models/Settings/currency.model");
 const customarSchema = require("../models/customarModel");
 const emoloyeeShcema = require("../models/employeeModel");
@@ -98,6 +99,7 @@ const models = [
   { name: "brand", schema: brandSchema },
   { name: "Category", schema: categorySchema },
   { name: "CompanyInfo", schema: companyIfnoSchema },
+  { name: "companySetting", schema: companySettingSchema },
   { name: "Currency", schema: currencySchema },
   { name: "Customar", schema: customarSchema },
   { name: "Discount", schema: discountSchema },

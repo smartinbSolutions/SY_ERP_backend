@@ -160,6 +160,7 @@ const mountRoutes = (app) => {
   app.use("/api/refund-purchaseInvoices", RefundPurchaseInvoices);
   app.use("/api/expenseCategories", expenseCategoriesRoute);
   app.use("/api/v1/companyinfo", companyInfoRoute);
+  app.use("/api/companyinfo", companyInfoRoute);
   app.use("/api/stockreconciliation", StockReconciliationRoute);
   app.use("/api/stockreconciliation-v1", ReconciliationRoute);
   app.use("/api/v1/receipt-pos", PosReceiptRoute);

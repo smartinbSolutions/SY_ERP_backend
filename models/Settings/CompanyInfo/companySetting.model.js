@@ -53,7 +53,6 @@ const companySettingSchema = new mongoose.Schema(
     linkedinUrl: String,
     instagramUrl: String,
     facebookUrl: String,
-    color: [String],
   },
   { timestamps: true },
 );

@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const { default: axios } = require("axios");
 const companyInfoModel = require("../../../models/Settings/CompanyInfo/companyInfo.model");
+const companySettingModel = require("../../../models/Settings/CompanyInfo/companySetting.model");
 const mongoose = require("mongoose");
 const linkPanelModel = require("../../../models/linkPanelModel");
 const stockModel = require("../../../models/stockModel");
@@ -13,22 +14,110 @@ const generatePassword = require("../../../utils/tools/generatePassword");
 const permissionModel = require("../../../models/Settings/permission.model");
 const ecommercePaymentMethodModel = require("../../../models/ecommerce/ecommercePaymentMethodModel");
 const ApiError = require("../../../utils/apiError");
-const userCompanySettingsModel = require("../../../models/Settings/userCompanySettings.model");
+
+const companyInfoFields = [
+  "companyName",
+  "companyAddress",
+  "companyTax",
+  "companyEmail",
+  "companyTel",
+  "turkcellApiKey",
+  "companyLogo",
+  "rollOver",
+  "closedAt",
+  "parentId",
+  "jobsCompanyId",
+  "currentSubscription",
+];
+
+const companySettingFields = [
+  "prefix",
+  "emails",
+  "xtwitterUrl",
+  "linkedinUrl",
+  "instagramUrl",
+  "facebookUrl",
+];
+
+const pickDefined = (source, fields) =>
+  fields.reduce((result, field) => {
+    if (Object.prototype.hasOwnProperty.call(source, field)) {
+      result[field] = source[field];
+    }
+    return result;
+  }, {});
+
+const buildSettingUpdate = (body) => {
+  const update = {};
+
+  if (body.prefix && typeof body.prefix === "object") {
+    Object.entries(body.prefix).forEach(([key, value]) => {
+      update[`prefix.${key}`] = value;
+    });
+  }
+
+  if (body.emails && typeof body.emails === "object") {
+    Object.entries(body.emails).forEach(([key, value]) => {
+      update[`emails.${key}`] = value;
+    });
+  }
+
+  ["xtwitterUrl", "linkedinUrl", "instagramUrl", "facebookUrl"].forEach(
+    (field) => {
+      if (Object.prototype.hasOwnProperty.call(body, field)) {
+        update[field] = body[field];
+      }
+    },
+  );
+
+  return update;
+};
+
+const toPlainObject = (doc) => (doc?.toObject ? doc.toObject() : doc);
+
+const mergeCompanyInfoWithSettings = (companyInfo, companySetting) => ({
+  ...toPlainObject(companyInfo),
+  ...pickDefined(toPlainObject(companySetting) || {}, companySettingFields),
+});
+
+const ensureCompanySetting = async ({ companyId, session }) => {
+  const setting = await companySettingModel.findOneAndUpdate(
+    { companyId },
+    { $setOnInsert: { companyId } },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+      session,
+    },
+  );
+
+  return setting;
+};
 
 exports.getCompanyInfo = async ({ req, companyId }) => {
   const companyInfo = await companyInfoModel.findOne({ _id: companyId });
-  const companySetting = await userCompanySettingsModel.findOne({
-    companyId,
-    userId: req.user.id,
-  });
-
-  console.log(companySetting);
-  const currency = await currencyModel.findOne({ is_primary: true, companyId });
   if (!companyInfo) {
     throw new ApiError("Company not found", 404);
   }
 
-  return { companyInfo, companySetting, currency };
+  const companySetting = await ensureCompanySetting({ companyId });
+  const currency = await currencyModel.findOne({ is_primary: true, companyId });
+
+  return {
+    companyInfo: mergeCompanyInfoWithSettings(companyInfo, companySetting),
+    companySetting,
+    currency,
+  };
+};
+
+exports.getCompanySetting = async ({ companyId }) => {
+  const companyInfo = await companyInfoModel.findById(companyId).select("_id");
+  if (!companyInfo) {
+    throw new ApiError("Company not found", 404);
+  }
+
+  return ensureCompanySetting({ companyId });
 };
 
 exports.createCompanyInfo = async ({ body, session: externalSession }) => {
@@ -51,6 +140,15 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
     const [companyInfo] = await companyInfoModel.create([body], { session });
     const companyId = companyInfo._id;
     const userName = body.name || body.companyName;
+    const companySetting = await companySettingModel.create(
+      [
+        {
+          companyId,
+          ...pickDefined(body, companySettingFields),
+        },
+      ],
+      { session },
+    );
 
     const linkAccount = [
       {
@@ -438,7 +536,11 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
       session.endSession();
     }
 
-    return { companyInfo, insertMainRole };
+    return {
+      companyInfo: mergeCompanyInfoWithSettings(companyInfo, companySetting[0]),
+      companySetting: companySetting[0],
+      insertMainRole,
+    };
   } catch (err) {
     if (ownsSession) {
       await session.abortTransaction();
@@ -448,29 +550,73 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
   }
 };
 
+exports.updateCompanySetting = async ({ session, companyId, body }) => {
+  const companyInfo = await companyInfoModel.findById(companyId).select("_id");
+  if (!companyInfo) {
+    throw new ApiError("Company not found", 404);
+  }
+
+  const settingUpdate = buildSettingUpdate(body);
+  if (Object.keys(settingUpdate).length === 0) {
+    return ensureCompanySetting({ companyId, session });
+  }
+
+  const companySetting = await companySettingModel.findOneAndUpdate(
+    { companyId },
+    {
+      $set: settingUpdate,
+      $setOnInsert: { companyId },
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+      session,
+    },
+  );
+
+  return companySetting;
+};
+
 exports.updateCompanyInfo = async ({ session, companyId, body }) => {
   try {
-    const companyInfo = await companyInfoModel.findByIdAndUpdate(
-      { _id: companyId },
-      {
-        companyName: body.companyName,
-        companyAddress: body.companyAddress,
-        companyTax: body.companyTax,
-        companyTel: body.companyTel,
-        companyLogo: body.companyLogo,
-        turkcellApiKey: body.turkcellApiKey,
-        havePin: body.havePin,
-        companyEmail: body.companyEmail,
-      },
-      {
-        new: true,
-        session,
-      },
-    );
+    const infoUpdate = pickDefined(body, companyInfoFields);
+    const settingUpdate = buildSettingUpdate(body);
+
+    const companyInfo =
+      Object.keys(infoUpdate).length > 0
+        ? await companyInfoModel.findByIdAndUpdate(
+            companyId,
+            { $set: infoUpdate },
+            { new: true, session },
+          )
+        : await companyInfoModel.findById(companyId).session(session);
+
     if (!companyInfo) {
       throw new ApiError("Company not found", 404);
     }
-    return companyInfo;
+
+    let companySetting = await ensureCompanySetting({ companyId, session });
+    if (Object.keys(settingUpdate).length > 0) {
+      companySetting = await companySettingModel.findOneAndUpdate(
+        { companyId },
+        {
+          $set: settingUpdate,
+          $setOnInsert: { companyId },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+          session,
+        },
+      );
+    }
+
+    return {
+      companyInfo: mergeCompanyInfoWithSettings(companyInfo, companySetting),
+      companySetting,
+    };
   } catch (error) {
     throw error;
   }
