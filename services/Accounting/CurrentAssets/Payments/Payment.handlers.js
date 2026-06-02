@@ -2400,7 +2400,10 @@ const handleCustomerPayment = async (
         companyId,
         paymentInFundCurrency: paymentAmountInvoice,
         paymentId: newPayment._id,
-        refId: "",
+        refId: newPayment._id,
+        refType: "payment",
+        source: "payment",
+
         date,
         description,
         effectSide: paymentNature === "incoming" ? "destination" : "source",
