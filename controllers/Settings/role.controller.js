@@ -5,7 +5,8 @@ const roleService = require("../../services/Settings/role.service");
  * Create Role
  */
 exports.createRole = asyncHandler(async (req, res) => {
-  const { name, description, channels, permissions } = req.body;
+  const { name, description, channels } = req.body;
+  const permissions = req.body.permissions || req.body.rolesDashboard;
   const companyId = req.companyId; // assuming from auth middleware
 
   const role = await roleService.createRole({
@@ -60,11 +61,17 @@ exports.getRole = asyncHandler(async (req, res) => {
 exports.updateRole = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
   const { id } = req.params;
+  const updateData = {
+    name: req.body.name,
+    description: req.body.description,
+    channels: req.body.channels,
+    permissions: req.body.permissions || req.body.rolesDashboard,
+  };
 
   const role = await roleService.updateRole({
     roleId: id,
     companyId,
-    updateData: req.body,
+    updateData,
   });
 
   res.status(200).json({

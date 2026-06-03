@@ -3,8 +3,11 @@ const permissionService = require("../../services/Settings/permissions.service")
 
 exports.getPermissions = asyncHandler(async (req, res) => {
   const { channel } = req.query;
-  console.log("channel", channel);
-  const grouped = await permissionService.getGroupedPermissions({ channel });
+  let query = {};
+  if (channel) {
+    query.channel = channel;
+  }
+  const grouped = await permissionService.getGroupedPermissions(query);
 
   res.status(200).json({
     status: true,

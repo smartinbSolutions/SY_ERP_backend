@@ -1,6 +1,57 @@
 const Role = require("../../models/Settings/role.model");
 const Permission = require("../../models/Settings/permission.model");
+const ApiError = require("../../utils/apiError");
 const mongoose = require("mongoose");
+
+const normalizePermissions = (permissions = []) => [
+  ...new Set(permissions.map((permission) => String(permission))),
+];
+
+const validatePermissions = async (permissions) => {
+  const normalizedPermissions = normalizePermissions(permissions);
+
+  if (normalizedPermissions.length === 0) {
+    throw new ApiError("At least one permission is required", 400);
+  }
+
+  if (
+    normalizedPermissions.some(
+      (permission) => !mongoose.Types.ObjectId.isValid(permission),
+    )
+  ) {
+    throw new ApiError("One or more permissions are invalid", 400);
+  }
+
+  const validPermissions = await Permission.find({
+    _id: { $in: normalizedPermissions },
+  }).select("_id");
+
+  if (validPermissions.length !== normalizedPermissions.length) {
+    throw new ApiError("One or more permissions are invalid", 400);
+  }
+
+  return normalizedPermissions;
+};
+
+const buildRolePayload = async (data) => {
+  const payload = {
+    name: data.name,
+    description: data.description,
+    channels: data.channels,
+  };
+
+  if (data.permissions) {
+    payload.permissions = await validatePermissions(data.permissions);
+  }
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
+
+  return payload;
+};
 
 /**
  * Create Role
@@ -12,22 +63,19 @@ const createRole = async ({
   permissions,
   companyId,
 }) => {
-  // Validate permissions belong to same company scope if needed
-  if (permissions && permissions.length > 0) {
-    const validPermissions = await Permission.find({
-      _id: { $in: permissions },
-    });
-
-    if (validPermissions.length !== permissions.length) {
-      throw new Error("One or more permissions are invalid");
-    }
+  if (!permissions) {
+    throw new ApiError("At least one permission is required", 400);
   }
 
-  const role = await Role.create({
+  const rolePayload = await buildRolePayload({
     name,
     description,
     channels,
     permissions,
+  });
+
+  const role = await Role.create({
+    ...rolePayload,
     companyId,
   });
 
@@ -63,14 +111,16 @@ const getRoleById = async ({ roleId, companyId }) => {
  * Update Role
  */
 const updateRole = async ({ roleId, companyId, updateData }) => {
+  const rolePayload = await buildRolePayload(updateData);
+
   const role = await Role.findOneAndUpdate(
     { _id: roleId, companyId },
-    updateData,
+    rolePayload,
     { new: true }
   ).populate("permissions");
 
   if (!role) {
-    throw new Error("Role not found");
+    throw new ApiError("Role not found", 404);
   }
 
   return role;
@@ -87,7 +137,7 @@ const deleteRole = async ({ roleId, companyId }) => {
   );
 
   if (!role) {
-    throw new Error("Role not found");
+    throw new ApiError("Role not found", 404);
   }
 
   return role;

@@ -14,6 +14,7 @@ roleRouter
   .route("/:id")
   .get(authService.allowedTo("roles.read"), roleController.getRole)
   .patch(authService.allowedTo("roles.update"), roleController.updateRole)
+  .put(authService.allowedTo("roles.update"), roleController.updateRole)
   .delete(authService.allowedTo("roles.delete"), roleController.deleteRole);
 
 module.exports = roleRouter;
