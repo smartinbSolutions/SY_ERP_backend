@@ -5,7 +5,9 @@ const journalEntryModel = require("../../../../models/journalEntryModel");
 const counterModel = require("../../../../models/Settings/counterModel");
 
 const ApiError = require("../../../../utils/apiError");
-const { createJournalService } = require("../../../journalEntryServices");
+const {
+  createJournalService,
+} = require("../../../Accounting/JournalEntries/journalEntries.Service");
 
 function padZero(value) {
   return value < 10 ? `0${value}` : value;
@@ -14,10 +16,10 @@ function padZero(value) {
 function buildDateTime(dateValue) {
   const now = new Date();
   const formattedTime = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes()
+    now.getMinutes(),
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0"
+    "0",
   )}`;
 
   return `${dateValue}T${formattedTime}Z`;
@@ -52,7 +54,7 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
   if (String(fromFundId) === String(toFundId)) {
     throw new ApiError(
       "Source fund and destination fund cannot be the same",
-      400
+      400,
     );
   }
 
@@ -116,13 +118,13 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
   }
 
   const finalSourceMainAmount = Number(
-    sourceMainAmount ?? calculatedSourceMainAmount
+    sourceMainAmount ?? calculatedSourceMainAmount,
   );
   const finalDestinationMainAmount = Number(
-    destinationMainAmount ?? calculatedDestinationMainAmount
+    destinationMainAmount ?? calculatedDestinationMainAmount,
   );
   const finalDifferenceMainCurrency = Number(
-    differenceMainCurrency ?? calculatedDifferenceMainCurrency
+    differenceMainCurrency ?? calculatedDifferenceMainCurrency,
   );
   const finalDifferenceType = differenceType || calculatedDifferenceType;
 
@@ -137,7 +139,7 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
   const counter = await counterModel.findOneAndUpdate(
     { companyId, name: "FundTransfer" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
 
   const transferDocs = await FundTransferModel.create(
@@ -182,7 +184,7 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
         postedAt: new Date(),
       },
     ],
-    { session }
+    { session },
   );
 
   const transfer = transferDocs[0];
@@ -214,7 +216,7 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   return transfer;
@@ -245,7 +247,7 @@ exports.cancelFundTransferService = async ({
   }
 
   const cancellationDate = buildDateTime(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
 
   const fromFund = await financialFundsModel
@@ -311,7 +313,7 @@ exports.cancelFundTransferService = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   await reverseFundTransferJournal({
@@ -490,25 +492,25 @@ const reverseFundTransferJournal = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
   const journalCounterDoc = await counterModel.findOneAndUpdate(
     { companyId, name: "JournalEntry" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
 
   const reversalLinkCounter = Date.now();

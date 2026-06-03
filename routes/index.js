@@ -26,7 +26,6 @@ const unitRout = require("./Settings/Definition/unit.route");
 const authRoute = require("./authRoute");
 const customarRoute = require("./customarRoute");
 const supplierRoute = require("./supplierRoute");
-const roleRoute = require("./roleRoute");
 const stockRout = require("./stokRoute");
 const footerRout = require("./ecommerce/footerRout");
 const offersRouter = require("./offersRoute");
