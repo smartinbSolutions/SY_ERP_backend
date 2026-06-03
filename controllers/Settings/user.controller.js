@@ -35,7 +35,7 @@ exports.createUser = asyncHandler(async (req, res, next) => {
   const companyId = req.query.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
-  await checkUserLimit(companyId);
+  await userService.checkUserLimit(companyId);
 
   const user = await userService.createUser({
     companyId,
@@ -77,7 +77,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
     id: req.params.id,
   });
 
-  return res.status(201).json({
+  return res.status(200).json({
     status: "success",
     message: "User updated successfully",
     data: user,
@@ -95,8 +95,7 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 
   return res.status(200).json({
     status: "success",
-    data: result.data,
-    dashBoardRoles: result.dashBoardRoles,
+    data: result,
   });
 });
 
@@ -110,7 +109,7 @@ exports.updateUserPassword = asyncHandler(async (req, res, next) => {
     body: req.body,
   });
 
-  return res.status(201).json({
+  return res.status(200).json({
     status: "success",
     message: "User updated Password successfully",
     data: user,

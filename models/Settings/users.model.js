@@ -36,7 +36,7 @@ const companySubSchema = new mongoose.Schema(
 
     pinHash: {
       type: String,
-      select: false, // 🔒 never return PIN hash by default
+      select: false,
     },
 
     active: {
@@ -69,7 +69,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: [4, "Password must be at least 4 characters long"],
-      select: false, // 🔒 never return password by default
+      select: false,
     },
 
     passwordChangedAt: Date,
@@ -78,6 +78,7 @@ const userSchema = new mongoose.Schema(
     passwordResetVerified: { type: Boolean, select: false },
 
     image: String,
+    AdditionalInfo: String,
 
     companies: [companySubSchema],
   },
@@ -88,7 +89,7 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// 🔐 Prevent duplicate company per user
+// Prevent duplicate company per user
 userSchema.index({ email: 1, "companies.companyId": 1 }, { unique: true });
 
 function transformUser(doc, ret) {
@@ -99,7 +100,7 @@ function transformUser(doc, ret) {
   return ret;
 }
 
-// 🌍 Attach image URL safely
+// Attach image URL safely
 userSchema.post("init", attachImageURL);
 userSchema.post("save", attachImageURL);
 

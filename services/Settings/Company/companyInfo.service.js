@@ -14,6 +14,8 @@ const generatePassword = require("../../../utils/tools/generatePassword");
 const permissionModel = require("../../../models/Settings/permission.model");
 const ecommercePaymentMethodModel = require("../../../models/ecommerce/ecommercePaymentMethodModel");
 const ApiError = require("../../../utils/apiError");
+const companyPlanModel = require("../../../models/Settings/CompanyInfo/companyPlan.model");
+const subscriptionModel = require("../../../models/Settings/CompanyInfo/companySubscription.model");
 
 const companyInfoFields = [
   "companyName",
@@ -95,6 +97,157 @@ const ensureCompanySetting = async ({ companyId, session }) => {
   return setting;
 };
 
+const demoFeatureKeys = [
+  "accounting",
+  "inventory",
+  "sales",
+  "purchases",
+  "hr",
+  "crm",
+  "manufacturing",
+];
+
+const getDemoPricingConfig = () => ({
+  featurePrices: {
+    accounting: 15,
+    inventory: 15,
+    sales: 15,
+    purchases: 15,
+    hr: 15,
+    crm: 15,
+    manufacturing: 15,
+  },
+  presetPlans: {
+    starter: {
+      name: "Starter",
+      priceMonthly: 45,
+      modules: ["accounting", "inventory", "sales"],
+    },
+    business: {
+      name: "Business",
+      priceMonthly: 75,
+      modules: ["accounting", "inventory", "sales", "purchases", "hr"],
+    },
+    complete: {
+      name: "Complete",
+      priceMonthly: 95,
+      modules: demoFeatureKeys,
+    },
+  },
+});
+
+const parseSelectedModules = (value) => {
+  if (!value) {
+    return [];
+  }
+
+  let parsed;
+  try {
+    parsed = typeof value === "string" ? JSON.parse(value) : value;
+  } catch (error) {
+    return demoFeatureKeys;
+  }
+
+  const modules = Array.isArray(parsed) ? parsed : [];
+  const selected = modules.filter((module) => demoFeatureKeys.includes(module));
+
+  return selected;
+};
+
+const buildDemoFeatures = (selectedModules) =>
+  demoFeatureKeys.reduce((features, key) => {
+    features[key] = selectedModules.includes(key);
+    return features;
+  }, {});
+
+const resolveDemoPlan = (body) => {
+  const pricingConfig = getDemoPricingConfig();
+  const requestedPlan = body.selectedPlan || body.planKey || "starter";
+
+  if (requestedPlan !== "custom" && pricingConfig.presetPlans[requestedPlan]) {
+    const plan = pricingConfig.presetPlans[requestedPlan];
+    return {
+      key: requestedPlan,
+      name: plan.name,
+      priceMonthly: plan.priceMonthly,
+      selectedModules: plan.modules,
+    };
+  }
+
+  const selectedModules = parseSelectedModules(body.selectedModules);
+  const customModules =
+    selectedModules.length > 0 ? selectedModules : [demoFeatureKeys[0]];
+  const priceMonthly = customModules.reduce(
+    (total, module) => total + (pricingConfig.featurePrices[module] || 0),
+    0,
+  );
+
+  return {
+    key: "custom",
+    name: "Custom",
+    priceMonthly,
+    selectedModules: customModules,
+  };
+};
+
+const createDemoSubscription = async ({ body, companyId, session }) => {
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 14);
+  const planConfig = resolveDemoPlan(body);
+  const features = buildDemoFeatures(planConfig.selectedModules);
+  const planName =
+    planConfig.key === "custom"
+      ? `Demo Custom - ${planConfig.selectedModules.join(", ")}`
+      : `Demo ${planConfig.name}`;
+
+  const demoPlan = await companyPlanModel.findOneAndUpdate(
+    { name: planName },
+    {
+      $set: {
+        name: planName,
+        priceMonthly: planConfig.priceMonthly,
+        priceYearly: planConfig.priceMonthly * 12,
+        features,
+        maxUsers: 10,
+        maxBranches: 3,
+        maxProducts: 1000,
+        isActive: true,
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+      session,
+    },
+  );
+
+  const [subscription] = await subscriptionModel.create(
+    [
+      {
+        companyId,
+        planId: demoPlan._id,
+        priceAtPurchase: planConfig.priceMonthly,
+        billingCycle: "monthly",
+        startDate,
+        endDate,
+        isActive: true,
+        isTrial: true,
+      },
+    ],
+    { session },
+  );
+
+  await companyInfoModel.findByIdAndUpdate(
+    companyId,
+    { currentSubscription: subscription._id },
+    { session },
+  );
+
+  return subscription;
+};
+
 exports.getCompanyInfo = async ({ req, companyId }) => {
   const companyInfo = await companyInfoModel.findOne({ _id: companyId });
   if (!companyInfo) {
@@ -140,6 +293,12 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
     const [companyInfo] = await companyInfoModel.create([body], { session });
     const companyId = companyInfo._id;
     const userName = body.name || body.companyName;
+    const currentSubscription = await createDemoSubscription({
+      body,
+      companyId,
+      session,
+    });
+    companyInfo.currentSubscription = currentSubscription._id;
     const companySetting = await companySettingModel.create(
       [
         {
@@ -540,6 +699,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
       companyInfo: mergeCompanyInfoWithSettings(companyInfo, companySetting[0]),
       companySetting: companySetting[0],
       insertMainRole,
+      currentSubscription,
     };
   } catch (err) {
     if (ownsSession) {

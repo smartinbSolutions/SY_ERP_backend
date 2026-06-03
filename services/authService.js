@@ -14,11 +14,34 @@ const { default: axios } = require("axios");
 const thirdPartyAuthSchema = require("../models/ecommerce/thirdPartyAuthModel");
 const companyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.model");
 
+const normalizeCompanyId = (value) => {
+  if (!value) return value;
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value.companyId) {
+    return normalizeCompanyId(value.companyId);
+  }
+
+  if (value._id) {
+    return String(value._id);
+  }
+
+  return value;
+};
+
 // @desc      Login
 // @route     POST /api/auth/login
 // @access    Public
 exports.login = asyncHandler(async (req, res, next) => {
-  const { email, password, companyId } = req.body;
+  const { email, password } = req.body;
+  const companyId = normalizeCompanyId(req.body.companyId);
+
+  if (!mongoose.Types.ObjectId.isValid(companyId)) {
+    return next(new ApiError("Invalid companyId", 400));
+  }
 
   const user = await usersModel
     .findOne({
@@ -120,10 +143,14 @@ exports.protect = asyncHandler(async (req, res, next) => {
   }
 });
 exports.checkCompanyEditable = async (req, res, next) => {
-  const companyId = req.query.companyId || req.body.companyId;
+  const companyId = normalizeCompanyId(req.query.companyId || req.body.companyId);
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(companyId)) {
+    return next(new ApiError("Invalid companyId", 400));
   }
 
   const company = await companyInfoModel
@@ -665,8 +692,9 @@ exports.facebookLogin = asyncHandler(async (req, res, next) => {
 exports.allowedTo = (...allowedPermissions) =>
   asyncHandler(async (req, res, next) => {
     const userId = req.user?._id;
-    const companyId =
-      req.query.companyId || req.body.companyId || req.companyId;
+    const companyId = normalizeCompanyId(
+      req.query.companyId || req.body.companyId || req.companyId,
+    );
     const requiredPermissions = allowedPermissions.flat().filter(Boolean);
 
     if (!userId) {
