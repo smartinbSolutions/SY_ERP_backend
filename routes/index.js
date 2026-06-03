@@ -13,7 +13,6 @@ const wishlistRouter = require("./ecommerce/wishlistRout");
 const employeeRoute = require("./employeeRoute");
 const expenseCategoriesRoute = require("./Accounting/Expense/expensesCategoryRoute");
 const invoiceHistoryRoute = require("./invoiceHistoryRoute");
-const LabelRout = require("./labelsRout");
 const paymentTypes = require("./paymentTypesRoute");
 const productMovementsRoute = require("./productMovementRoute");
 const rawMaterialMovementRoute = require("./rawMatrialMovementRoute");
@@ -130,10 +129,13 @@ const PosReceiptRoute = require("./Pos/pos.receipt.route");
 const PosReceiptRefundRoute = require("./Pos/pos.receipt_refund.route");
 const roleRouter = require("./Settings/role.route");
 const DashboardStatsRoute = require("./dashboardStatsRoute");
+const permissionsRouter = require("./Settings/permissions.route");
+
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);
   app.use("/api/product", productRout);
   app.use("/api/v1/brand", brandRout);
+  app.use("/api/v1/permissions", permissionsRouter);
   app.use("/api/category", categoryRout);
   app.use("/api/customars", customarRoute);
   app.use("/api/suppliers", supplierRoute);
@@ -147,7 +149,6 @@ const mountRoutes = (app) => {
   app.use("/api/v1/users", userRoute);
   app.use("/api/v1/journal", journalEntryRoute);
 
-  app.use("/api/label", LabelRout);
   app.use("/api/v1/tag", TagRoute);
   app.use("/api/auth", authRoute);
   app.use("/api/v1/sales-invoices", SalesInvoices);
