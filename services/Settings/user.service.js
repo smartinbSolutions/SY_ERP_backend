@@ -37,7 +37,7 @@ exports.getUsers = async ({
   const currentPage = Math.max(1, Number(page));
   const skip = (currentPage - 1) * pageSize;
 
-  const query = { company: { $elemMatch: { companyId } } };
+  const query = { companies: { $elemMatch: { companyId } } };
 
   if (keyword) {
     query.$or = [
