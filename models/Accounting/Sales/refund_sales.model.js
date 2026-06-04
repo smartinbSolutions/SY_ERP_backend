@@ -135,7 +135,7 @@ const returnOrderSchema = new mongoose.Schema(
     auditing: { type: Boolean, default: false },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("returnOrder", returnOrderSchema);
+module.exports = mongoose.model("refundSales", returnOrderSchema);
