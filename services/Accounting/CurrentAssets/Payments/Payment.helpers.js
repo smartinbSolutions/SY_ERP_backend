@@ -43,8 +43,8 @@ const resolvePaymentAmounts = ({
       ? invoiceRemainderForeign
       : paymentAmountFund
     : paymentAmountInvoice > 0
-    ? paymentAmountInvoice
-    : paymentAmountFund * fundToInvoiceRate;
+      ? paymentAmountInvoice
+      : paymentAmountFund * fundToInvoiceRate;
 
   const effectivePaymentRate = isSameCurrency ? fundRate : fundToInvoiceRate;
 

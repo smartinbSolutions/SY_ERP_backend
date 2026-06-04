@@ -1,6 +1,8 @@
 const currencyModel = require("../../models/Settings/currency.model");
 const currencyLogModel = require("../../models/Settings/currencyLog.model");
 // const productModel = require("../../models/Stocks/Products/product.model");
+const productModel = require("../../models/productModel");
+
 const ApiError = require("../../utils/apiError");
 
 exports.getCurrenciesService = async ({ companyId }) => {

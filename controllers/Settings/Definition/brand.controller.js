@@ -128,16 +128,22 @@ exports.deleteBrand = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   const session = await mongoose.startSession();
-  session.startTransaction();
-  const result = await brandService.deleteBrand({
-    companyId,
-    id,
-    session,
-  });
-  await session.commitTransaction();
-  session.endSession();
-  return res.status(200).json({
-    status: "success",
-    data: result.data,
-  });
+  try {
+    session.startTransaction();
+    const result = await brandService.deleteBrand({
+      companyId,
+      id,
+      session,
+    });
+    await session.commitTransaction();
+    return res.status(200).json({
+      status: "success",
+      data: result.data,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
 });

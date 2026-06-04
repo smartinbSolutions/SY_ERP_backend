@@ -18,6 +18,7 @@ const {
   buildReversalJournal,
   reverseAllocation,
   handlePurchaseRefundPayment,
+  handleRefundSalesPayment,
 } = require("./Payment.handlers");
 
 const PAYMENT_ACCOUNT_TYPES = [
@@ -37,10 +38,10 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
 
   const now = new Date();
   const formattedTime = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes()
+    now.getMinutes(),
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0"
+    "0",
   )}`;
 
   const baseDate = data.date || new Date().toISOString().split("T")[0];
@@ -86,8 +87,8 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
     allocations: Array.isArray(data.allocations)
       ? data.allocations
       : data.allocations
-      ? JSON.parse(data.allocations)
-      : [],
+        ? JSON.parse(data.allocations)
+        : [],
 
     postedBy: req.user?._id || null,
     postedAt: new Date(),
@@ -125,6 +126,10 @@ const paymentHandlers = {
   sales: {
     handler: handleSalesPayment,
     message: "Sales payment created successfully",
+  },
+  refund_sales: {
+    handler: handleRefundSalesPayment,
+    message: "Refund sales payment created successfully",
   },
   expense: {
     handler: handleExpensePayment,
@@ -242,10 +247,10 @@ exports.cancelPaymentService = async ({
   const padZero = (v) => String(v).padStart(2, "0");
   const now = new Date();
   const formattedTime = `${padZero(now.getHours())}:${padZero(
-    now.getMinutes()
+    now.getMinutes(),
   )}:${padZero(now.getSeconds())}.${String(now.getMilliseconds()).padStart(
     3,
-    "0"
+    "0",
   )}`;
   const today = now.toISOString().split("T")[0];
   const cancelDate = `${today}T${formattedTime}Z`;
@@ -261,12 +266,12 @@ exports.cancelPaymentService = async ({
   console.log(`   Counter:     ${payment.counter}`);
   console.log(`   Nature:      ${payment.paymentNature}`);
   console.log(
-    `   Amount:      ${amountMain} USD (${amountFund} ${payment.fund?.currencyCode})`
+    `   Amount:      ${amountMain} USD (${amountFund} ${payment.fund?.currencyCode})`,
   );
   console.log(
     `   Party:       ${payment.party?.name || "Cash"} (${
       payment.party?.type || "none"
-    })`
+    })`,
   );
   console.log(`   Allocations: ${payment.allocations?.length || 0}`);
   console.log("========================================\n");
@@ -357,34 +362,34 @@ exports.cancelPaymentService = async ({
 
       if (paymentEntries.length === 0) {
         console.log(
-          "⚠️  Step 5 — No payment entries found in journal — skipping"
+          "⚠️  Step 5 — No payment entries found in journal — skipping",
         );
       } else {
         const totalDebit = paymentEntries.reduce(
           (s, e) => s + Number(e.MainDebit || 0),
-          0
+          0,
         );
         const totalCredit = paymentEntries.reduce(
           (s, e) => s + Number(e.MainCredit || 0),
-          0
+          0,
         );
 
         console.log(`   Reversal entries: ${paymentEntries.length}`);
         console.log(
-          `   DR: ${totalDebit.toFixed(4)}  CR: ${totalCredit.toFixed(4)}`
+          `   DR: ${totalDebit.toFixed(4)}  CR: ${totalCredit.toFixed(4)}`,
         );
 
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
           throw new ApiError(
             `Reversal journal not balanced — DR: ${totalDebit}, CR: ${totalCredit}`,
-            400
+            400,
           );
         }
 
         const nextCounterJournal = await counterModel.findOneAndUpdate(
           { companyId, name: "Journal" },
           { $inc: { seq: 1 } },
-          { new: true, upsert: true, session }
+          { new: true, upsert: true, session },
         );
 
         await createJournalEntryService({

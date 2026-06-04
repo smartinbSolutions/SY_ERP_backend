@@ -6,7 +6,7 @@ const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const purchaseinvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const refundPurchaseInviceModel = require("../../../models/Accounting/Purchase/refundPurchaseInviceModel");
 const periodicJournalEntriesModel = require("../../../models/reports/periodicJournalEntriesModel");
-const returnOrderModel = require("../../../models/Accounting/Sales/returnOrderModel");
+const returnOrderModel = require("../../../models/Accounting/Sales/refund_sales.model");
 const counterModel = require("../../../models/Settings/counterModel");
 const reconciliationModel = require("../../../models/reconciliationModel");
 
@@ -21,7 +21,7 @@ const validateJournalData = ({ journalAccounts, journalDate, journalMeta }) => {
 
   // no undefined account ids
   const hasUndefinedAccount = journalAccounts.some(
-    (acc) => !acc.id && !acc._id
+    (acc) => !acc.id && !acc._id,
   );
   if (hasUndefinedAccount) {
     throw new Error("All journal entries must have a valid account id");
@@ -30,19 +30,19 @@ const validateJournalData = ({ journalAccounts, journalDate, journalMeta }) => {
   // debit must equal credit
   const totalDebit = journalAccounts.reduce(
     (sum, acc) => sum + Number(acc.MainDebit || 0),
-    0
+    0,
   );
   const totalCredit = journalAccounts.reduce(
     (sum, acc) => sum + Number(acc.MainCredit || 0),
-    0
+    0,
   );
 
   const diff = Math.abs(totalDebit - totalCredit);
   if (diff > 0.01) {
     throw new Error(
       `Journal is not balanced — Debit: ${totalDebit.toFixed(
-        4
-      )}, Credit: ${totalCredit.toFixed(4)}, Diff: ${diff.toFixed(4)}`
+        4,
+      )}, Credit: ${totalCredit.toFixed(4)}, Diff: ${diff.toFixed(4)}`,
     );
   }
 
@@ -115,9 +115,9 @@ exports.createJournalEntryService = async ({
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedTime = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${String(
-    date_ob.getMilliseconds()
+    date_ob.getMilliseconds(),
   ).padStart(3, "0")}`;
   const isoDate = body.journalDate?.includes("T")
     ? body.journalDate
@@ -157,11 +157,11 @@ exports.createJournalEntryService = async ({
     journalAccounts,
     journalDebit: journalAccounts.reduce(
       (s, a) => s + Number(a.MainDebit || 0),
-      0
+      0,
     ),
     journalCredit: journalAccounts.reduce(
       (s, a) => s + Number(a.MainCredit || 0),
-      0
+      0,
     ),
   };
 
@@ -214,7 +214,7 @@ exports.createJournalServiceV2 = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
 
   const padZero = (value) => (value < 10 ? `0${value}` : value);
@@ -222,9 +222,9 @@ exports.createJournalServiceV2 = async ({
   const ts = Date.now();
   const dateOb = new Date(ts);
   const formattedTime = `${padZero(dateOb.getHours())}:${padZero(
-    dateOb.getMinutes()
+    dateOb.getMinutes(),
   )}:${padZero(dateOb.getSeconds())}.${String(
-    dateOb.getMilliseconds()
+    dateOb.getMilliseconds(),
   ).padStart(3, "0")}`;
 
   const isoJournalDate = `${journalInfo.journalDate}T${formattedTime}Z`;
@@ -278,7 +278,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
   const journal = await journalEntriesModel.findOneAndUpdate(
     { _id: id, companyId },
     { auditing: auditing },
-    { new: true, session }
+    { new: true, session },
   );
 
   if (journal.journalType === "Sales") {
@@ -288,7 +288,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session }
+      { new: true, session },
     );
   } else if (
     journal.journalType === "Payment In" ||
@@ -300,7 +300,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session }
+      { new: true, session },
     );
   } else if (journal.journalType === "Expense") {
     await expensesModel.findOneAndUpdate(
@@ -309,7 +309,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session }
+      { new: true, session },
     );
   } else if (journal.journalType === "Purchase") {
     await purchaseinvoicesModel.findOneAndUpdate(
@@ -318,7 +318,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session }
+      { new: true, session },
     );
   } else if (journal.journalType === "SalesRefund") {
     await returnOrderModel.findOneAndUpdate(
@@ -327,7 +327,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session }
+      { new: true, session },
     );
   } else if (journal.journalType === "PurchaseRefund") {
     await refundPurchaseInviceModel.findOneAndUpdate(
@@ -336,7 +336,7 @@ exports.auditingJournalService = async ({ companyId, session }) => {
         companyId,
       },
       { auditing: auditing },
-      { new: true, session }
+      { new: true, session },
     );
   }
 
@@ -392,12 +392,12 @@ exports.existingPeriodicService = async ({
         companyId,
       },
       null,
-      { session }
+      { session },
     );
 
     if (existingPeriodic) {
       const existingMonth = existingPeriodic.months.find(
-        (x) => x.month === monthName
+        (x) => x.month === monthName,
       );
 
       if (existingMonth) {
@@ -408,7 +408,7 @@ exports.existingPeriodicService = async ({
 
       existingPeriodic.yearTotal = existingPeriodic.months.reduce(
         (sum, mo) => sum + (mo.amount || 0),
-        0
+        0,
       );
 
       await existingPeriodic.save(session);
@@ -511,10 +511,10 @@ exports.getOneAccountAndJournalService = async ({
 
       if (lastJournal) {
         const sorted = [...allJournals].sort(
-          (a, b) => new Date(b.journalDate) - new Date(a.journalDate)
+          (a, b) => new Date(b.journalDate) - new Date(a.journalDate),
         );
         const index = sorted.findIndex(
-          (j) => j._id.toString() === lastJournal._id.toString()
+          (j) => j._id.toString() === lastJournal._id.toString(),
         );
         currentPage = index >= 0 ? Math.floor(index / pageSize) + 1 : 1;
       } else {

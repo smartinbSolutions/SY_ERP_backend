@@ -23,6 +23,7 @@ const {
 const currencyModel = require("../../../../models/Settings/currency.model");
 const counterModel = require("../../../../models/Settings/counterModel");
 const { resolvePaymentAmounts, computeFxDiff } = require("./Payment.helpers");
+const refund_salesModel = require("../../../../models/Accounting/Sales/refund_sales.model");
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED HELPER — reused by both handlers
@@ -2249,6 +2250,253 @@ const handleSalesPayment = async (
   }
 };
 
+const handleRefundSalesPayment = async (
+  req,
+  companyId,
+  next,
+  normalizedPayment,
+  externalSession = null,
+) => {
+  const ownsSession = !externalSession;
+  const session = externalSession || (await mongoose.startSession());
+
+  const run = async () => {
+    const {
+      party,
+      fund,
+      paymentNature,
+      payment,
+      date,
+      description,
+      journalCounter,
+      counter,
+      companyId,
+      postedBy,
+      postedAt,
+      journalAccounts,
+      invoiceId,
+    } = normalizedPayment;
+
+    if (!fund?.id) throw new Error("Payment fund is required");
+    if (!party?.id || !party?.type) throw new Error("Party is required");
+    if (party.type !== "customer")
+      throw new Error("Fund payment context supports only customer as party");
+    if (!["incoming", "outgoing"].includes(paymentNature))
+      throw new Error(
+        "Fund payment context supports only incoming or outgoing paymentNature",
+      );
+
+    // ── Fetch invoice ──────────────────────────────────────────
+    const sales = await refund_salesModel
+      .findOne({
+        _id:
+          invoiceId || req.body?.paymentData?.invoiceId || req.body?.invoiceId,
+        status: { $nin: ["cancelled", "draft"] },
+        companyId,
+      })
+      .session(session);
+
+    if (!sales) throw new Error(`Sales invoice not found for id ${invoiceId}`);
+
+    // ── Fetch customer ─────────────────────────────────────────
+    const customer = await customarModel
+      .findOne({ _id: sales.customer.id, companyId })
+      .session(session);
+
+    if (!customer) throw new Error("Customer not found");
+
+    // ── Resolve amounts with FX + tolerance ───────────────────
+    const invoiceRemainderMain = Number(sales.totalRemainderMainCurrency || 0);
+    const invoiceRemainderForeign = Number(sales.totalRemainder || 0);
+    const invoiceRate = Number(
+      sales.exchangeRate || sales?.currency?.exchangeRate || 1,
+    );
+
+    const {
+      isSameCurrency,
+      paymentRate,
+      paymentAmountMain,
+      paymentAmountFund,
+      paymentAmountInvoice,
+      appliedDocumentCurrency,
+      fxDiff,
+      willBePaid,
+    } = resolvePaymentAmounts({
+      fund,
+      payment,
+      invoiceRemainderMain,
+      invoiceRemainderForeign,
+      invoiceRate,
+      invoiceCurrencyCode: sales?.currency?.currencyCode,
+    });
+
+    const paymentSeq = await getNextCounterValue({
+      companyId,
+      name: "Payment",
+      session,
+    });
+
+    const paymentPayload = {
+      companyId,
+      counter: Number(counter || 0) + Number(paymentSeq),
+      party: { id: party.id, name: party.name, type: party.type },
+      fund: {
+        id: fund.id,
+        name: fund.name,
+        currencyId: fund.currencyId || "",
+        currencyCode: fund.currencyCode || "",
+        exchangeRate: Number(fund.exchangeRate || 1),
+      },
+      paymentNature,
+      payment: {
+        amount: paymentAmountFund,
+        currencyId: payment?.currencyId || "",
+        currencyCode: payment?.currencyCode || "",
+        exchangeRate: Number(payment?.exchangeRate || 1),
+        fundToInvoiceRate: Number(payment?.fundToInvoiceRate || 1),
+        amountMainCurrency: paymentAmountMain,
+      },
+      date,
+      description,
+      journalCounter,
+      file: normalizedPayment.file || req.body?.file || "",
+      allocations: [
+        {
+          documentId: sales._id,
+          documentName: sales.invoiceName,
+          documentCounter: sales.counter,
+          documentCurrencyCode: sales.currency?.currencyCode || "",
+          allocatedAmountMainCurrency: paymentAmountMain,
+          allocatedAmountDocumentCurrency: appliedDocumentCurrency,
+          documentTotal: sales.invoiceGrandTotal,
+          documentType: "sales_invoice",
+          fxDiff,
+          invoiceRate,
+          paymentRate,
+        },
+      ],
+      postedBy: postedBy || null,
+      postedAt: postedAt || new Date(),
+    };
+
+    const paymentDocs = await paymentModel.create([paymentPayload], {
+      session,
+    });
+    const newPayment = paymentDocs[0];
+    const createdPayment = paymentDocs;
+
+    sales.totalRemainderMainCurrency = willBePaid
+      ? 0
+      : invoiceRemainderMain - paymentAmountMain;
+    sales.totalRemainder = willBePaid
+      ? 0
+      : invoiceRemainderForeign - appliedDocumentCurrency;
+
+    if (willBePaid) {
+      sales.paymentsStatus = "paid";
+      sales.paid = "paid";
+    }
+
+    sales.payments.push({
+      payment: paymentAmountFund,
+      paymentMainCurrency: paymentAmountMain,
+      financialFunds: fund.name,
+      paymentID: newPayment._id,
+      financialFundsCurrencyCode: fund.currencyCode,
+      exchangeRate: fund.exchangeRate,
+      date,
+      paymentInInvoiceCurrency: appliedDocumentCurrency,
+      financialFundsId: fund.id,
+      fxDiff,
+      invoiceRate,
+      paymentRate,
+    });
+
+    await sales.save({ session });
+
+    await createInvoiceHistory(
+      companyId,
+      sales._id,
+      "payment",
+      normalizedPayment.userId || req?.user?._id,
+      date,
+      `${paymentAmountFund} ${fund.currencyCode}`,
+      "invoice",
+      session,
+    );
+
+    await handleCustomerPaymentEntity({
+      customer,
+      companyId,
+      totalMainCurrency: paymentAmountMain,
+      paymentInFundCurrency: paymentAmountFund,
+      paymentId: newPayment._id,
+      refId: sales._id,
+      date,
+      description,
+      currencyCode: fund.currencyCode,
+      effectSide: "destination",
+      session,
+      fxDiff,
+    });
+
+    // ── Fund entity effect ─────────────────────────────────────
+    // incoming = customer pays us → money ENTERS fund → destination
+    // outgoing = we pay customer  → money LEAVES fund → source
+    await handleFundPaymentEntity({
+      fund,
+      companyId,
+      paymentInFundCurrency: paymentAmountFund,
+      paymentId: newPayment._id,
+      refId: sales._id,
+      refType: "refund_invoice",
+      source: "refund_sale",
+      date,
+      description,
+      effectSide: "source",
+      session,
+      createdBy: postedBy || req?.user?._id || null,
+    });
+
+    // ── Journal ────────────────────────────────────────────────
+    // only for standalone payments — not when called from invoice creation
+    if (journalAccounts && ownsSession) {
+      await savePaymentJournal({
+        journalAccounts,
+        paymentAmountMain,
+        totalFxDiff: fxDiff,
+        date,
+        description,
+        journalCounter,
+        companyId,
+        session,
+        payment: newPayment,
+        partyName: party.name,
+        paymentNature,
+      });
+    }
+
+    // ✅ FIX: return both createdPayment AND fxDiff (matches purchase)
+    return { createdPayment, fxDiff };
+  };
+
+  try {
+    if (ownsSession) {
+      let result;
+      await session.withTransaction(async () => {
+        result = await run();
+      });
+      return result;
+    } else {
+      return await run();
+    }
+  } catch (err) {
+    throw err;
+  } finally {
+    if (ownsSession) await session.endSession();
+  }
+};
+
 const handleCustomerPayment = async (
   req,
   companyId,
@@ -3022,4 +3270,5 @@ module.exports = {
   handleSalaryPayment,
   buildReversalJournal,
   reverseAllocation,
+  handleRefundSalesPayment,
 };

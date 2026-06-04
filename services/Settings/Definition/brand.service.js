@@ -1,3 +1,4 @@
+const productModel = require("../../../models/productModel");
 const brandModel = require("../../../models/Settings/Definition/brand.model");
 const ApiError = require("../../../utils/apiError");
 // const productModel = require("../../../models/Stocks/Products/product.model");
@@ -73,15 +74,15 @@ exports.deleteBrand = async ({ companyId, id, session }) => {
   if (!brand) {
     throw new ApiError("Brand not found", 404);
   }
-  // const brandUsed = await productModel
-  //   .exists({
-  //     companyId,
-  //     $or: [{ brand: id }],
-  //   })
-  //   .session(session);
-  // if (brandUsed) {
-  //   throw new ApiError("Brand is used in products", 400);
-  // }
+  const brandUsed = await productModel
+    .exists({
+      companyId,
+      $or: [{ brand: id }],
+    })
+    .session(session);
+  if (brandUsed) {
+    throw new ApiError("Brand is used in products", 400);
+  }
   await brand.deleteOne({ session });
   return { data: brand };
 };

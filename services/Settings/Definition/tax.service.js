@@ -1,6 +1,7 @@
 const taxModel = require("../../../models/Settings/Definition/tax.model");
 const ApiError = require("../../../utils/apiError");
 // const productModel = require("../../../models/Stocks/Products/product.model");
+const productModel = require("../../../models/productModel");
 
 exports.getTaxs = async ({ companyId }) => {
   const query = { companyId };
@@ -47,6 +48,7 @@ exports.getTax = async ({ companyId, id }) => {
 
 exports.createTax = async ({ companyId, data, session }) => {
   data.companyId = companyId;
+  data.slug = data.name.toLowerCase().replace(/\s+/g, "-");
   const tax = await taxModel.create([data], { session });
   return { data: tax[0] };
 };
@@ -69,18 +71,18 @@ exports.deleteTax = async ({ companyId, id, session }) => {
     throw err;
   }
 
-  // const taxUsed = await productModel
-  //   .exists({
-  //     companyId,
-  //     $or: [{ tax: id }],
-  //   })
-  //   .session(session);
+  const taxUsed = await productModel
+    .exists({
+      companyId,
+      $or: [{ tax: id }],
+    })
+    .session(session);
 
-  // if (taxUsed) {
-  //   const err = new Error("Cannot delete tax because it is linked to products");
-  //   err.statusCode = 400;
-  //   throw err;
-  // }
+  if (taxUsed) {
+    const err = new Error("Cannot delete tax because it is linked to products");
+    err.statusCode = 400;
+    throw err;
+  }
 
   await tax.deleteOne({ session });
 
