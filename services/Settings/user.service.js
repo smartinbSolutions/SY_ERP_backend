@@ -1,4 +1,4 @@
-const userCompanySettingsModel = require("../../models/Settings/userCompanySettings.model");
+const userCompanySettingsModel = require("../../models/Settings/user_company_settings.model");
 const isEmail = require("../../utils/tools/isEmail");
 const sendEmail = require("../../utils/sendEmail");
 const mongoose = require("mongoose");
@@ -369,6 +369,8 @@ exports.getUser = async ({ companyId, id }) => {
     // .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
     .populate("stocks.stockId", "name _id")
     .lean();
+
+  console.log(settings);
 
   return {
     data: flattenUserForCompany(user, { ...(settings || {}), companyId }),

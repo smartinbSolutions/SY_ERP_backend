@@ -63,17 +63,15 @@ exports.login = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Incorrect password", 401));
   }
 
-  // if (!user.active) {
-  //   return next(new ApiError("Account is not active", 401));
-  // }
-
   const selectedCompany = user.companies.find(
     (c) => c.companyId.toString() === companyId,
   );
   if (!selectedCompany || !selectedCompany.roleId) {
     return next(new ApiError("Role not assigned", 403));
   }
-
+  if (!selectedCompany.active) {
+    return next(new ApiError("Account is not active", 401));
+  }
   const role = selectedCompany.roleId;
 
   if (!role.channels.includes("dashboard")) {
@@ -143,7 +141,9 @@ exports.protect = asyncHandler(async (req, res, next) => {
   }
 });
 exports.checkCompanyEditable = async (req, res, next) => {
-  const companyId = normalizeCompanyId(req.query.companyId || req.body.companyId);
+  const companyId = normalizeCompanyId(
+    req.query.companyId || req.body.companyId,
+  );
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
