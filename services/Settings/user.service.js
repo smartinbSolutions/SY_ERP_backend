@@ -53,7 +53,8 @@ const flattenUserForCompany = (user, settings = null) => {
   const userObject = user.toObject ? user.toObject() : user;
   const settingsObject = settings?.toObject ? settings.toObject() : settings;
   const companyData = (userObject.companies || []).find(
-    (company) => String(company.companyId) === String(settingsObject?.companyId),
+    (company) =>
+      String(company.companyId) === String(settingsObject?.companyId),
   );
   const selectedRole = companyData?.roleId || null;
   const active = settingsObject?.active ?? companyData?.active ?? true;
@@ -66,7 +67,8 @@ const flattenUserForCompany = (user, settings = null) => {
     active,
     status: settingsObject?.status || (active ? "active" : "inactive"),
     PosUser: Boolean(settingsObject?.salesPoint),
-    salesPoint: settingsObject?.salesPoint?._id || settingsObject?.salesPoint || "",
+    salesPoint:
+      settingsObject?.salesPoint?._id || settingsObject?.salesPoint || "",
     tags: (settingsObject?.tagIds || []).map(mapTag),
     expenseTags: (settingsObject?.expenseTagIds || []).map(mapTag),
     purchaseTags: (settingsObject?.purchaseTagIds || []).map(mapTag),
@@ -134,7 +136,9 @@ const validateRole = async ({ roleId, companyId, session }) => {
     throw new ApiError("Invalid roleId", 400);
   }
 
-  const role = await rolesModel.findOne({ _id: roleId, companyId }).session(session);
+  const role = await rolesModel
+    .findOne({ _id: roleId, companyId })
+    .session(session);
   if (!role) {
     throw new ApiError("Role not found", 404);
   }
@@ -362,7 +366,7 @@ exports.getUser = async ({ companyId, id }) => {
     .select(
       "salesPoint selectedQuickActions stocks status active tagIds expenseTagIds purchaseTagIds salesTagIds",
     )
-    .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
+    // .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
     .populate("stocks.stockId", "name _id")
     .lean();
 
