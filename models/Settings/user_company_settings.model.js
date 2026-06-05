@@ -12,10 +12,10 @@ const UserCompanySettingsSchema = new mongoose.Schema(
 
     salesPoint: { type: mongoose.Schema.ObjectId, ref: "salesPoints" },
 
-    tagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tags" }],
-    expenseTagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tags" }],
-    purchaseTagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tags" }],
-    salesTagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tags" }],
+    tagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tag" }],
+    expenseTagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tag" }],
+    purchaseTagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tag" }],
+    salesTagIds: [{ type: mongoose.Schema.ObjectId, ref: "Tag" }],
 
     selectedQuickActions: { type: [String], default: [] },
 
@@ -36,12 +36,12 @@ const UserCompanySettingsSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 UserCompanySettingsSchema.index({ companyId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model(
   "UserCompanySettings",
-  UserCompanySettingsSchema
+  UserCompanySettingsSchema,
 );

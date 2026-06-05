@@ -23,10 +23,10 @@ const tagsSchema = new mongoose.Schema(
     type: String,
     parentTag: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Tags",
+      ref: "tag",
       default: null,
     },
-    children: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tags" }],
+    children: [{ type: mongoose.Schema.Types.ObjectId, ref: "tag" }],
     sync: { type: Boolean, default: false },
     companyId: {
       type: String,
@@ -34,7 +34,7 @@ const tagsSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Tags", tagsSchema);
+module.exports = mongoose.model("tag", tagsSchema);

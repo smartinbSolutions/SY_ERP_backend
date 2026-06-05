@@ -366,11 +366,9 @@ exports.getUser = async ({ companyId, id }) => {
     .select(
       "salesPoint selectedQuickActions stocks status active tagIds expenseTagIds purchaseTagIds salesTagIds",
     )
-    // .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
+    .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
     .populate("stocks.stockId", "name _id")
     .lean();
-
-  console.log(settings);
 
   return {
     data: flattenUserForCompany(user, { ...(settings || {}), companyId }),
