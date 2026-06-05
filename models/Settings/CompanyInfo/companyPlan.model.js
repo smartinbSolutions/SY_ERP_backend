@@ -19,7 +19,13 @@ const planSchema = new mongoose.Schema(
       crm: { type: Boolean, default: false },
       manufacturing: { type: Boolean, default: false },
     },
-
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "companyinfo",
+      required: true,
+      unique: true,
+      index: true,
+    },
     maxUsers: Number,
     maxBranches: Number,
     maxProducts: Number,
