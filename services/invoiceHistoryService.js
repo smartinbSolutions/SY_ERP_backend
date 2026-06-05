@@ -1,7 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
-const emoloyeeShcema = require("../models/employeeModel");
 const { ObjectId } = require("mongodb");
 const ApiError = require("../utils/apiError");
 
@@ -35,7 +34,7 @@ exports.createInvoiceHistory = async (
   formattedDate,
   desc = "",
   from = "",
-  session = null
+  session = null,
 ) => {
   try {
     const history = {

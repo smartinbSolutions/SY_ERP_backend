@@ -6,7 +6,7 @@ const categorySchema = require("../../models/CategoryModel");
 const brandSchema = require("../../models/Settings/Definition/brand.model");
 const UnitSchema = require("../../models/Settings/Definition/unit.model");
 const currencySchema = require("../../models/Settings/currency.model");
-const TaxSchema = require("../../models/taxModel");
+const TaxSchema = require("../../models/Settings/Definition/tax.model");
 
 // @desc Create raw material
 // @route POST /api/raw_material

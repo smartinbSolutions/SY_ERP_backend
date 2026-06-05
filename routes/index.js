@@ -10,7 +10,6 @@ const cartRout = require("./ecommerce/cartRout");
 const ecommerceOrderRouter = require("./ecommerce/ecommerceOrderRout");
 const reviewRout = require("./ecommerce/reviewRout");
 const wishlistRouter = require("./ecommerce/wishlistRout");
-const employeeRoute = require("./employeeRoute");
 const expenseCategoriesRoute = require("./Accounting/Expense/expensesCategoryRoute");
 const invoiceHistoryRoute = require("./invoiceHistoryRoute");
 const paymentTypes = require("./paymentTypesRoute");
@@ -140,7 +139,6 @@ const mountRoutes = (app) => {
   app.use("/api/suppliers", supplierRoute);
   app.use("/api/roledashboard", RoleDashboardRoute);
   app.use("/api/v1/roles", roleRouter);
-  app.use("/api/employee", employeeRoute);
   app.use("/api/discount", discountRoute);
   app.use("/api/v1/unit", unitRout);
   app.use("/api/v1/tax", taxRout);

@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const xlsx = require("xlsx");
 const productModel = require("../models/productModel");
-const TaxSchema = require("../models/taxModel");
+const TaxSchema = require("../models/Settings/Definition/tax.model");
 const { default: slugify } = require("slugify");
 
 const multerFilter = function (req, file, cb) {
@@ -120,7 +120,7 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
       { _id: req.body.parentCategory, companyId },
       {
         $push: { children: category._id },
-      }
+      },
     );
   }
 
@@ -174,7 +174,7 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!category) {
@@ -291,7 +291,7 @@ exports.importCategory = asyncHandler(async (req, res, next) => {
           await parentCategory.save();
         } else {
           console.warn(
-            `Parent category with ID ${category.parentCategory} not found.`
+            `Parent category with ID ${category.parentCategory} not found.`,
           );
         }
       }

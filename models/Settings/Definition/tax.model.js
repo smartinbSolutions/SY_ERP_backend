@@ -84,4 +84,4 @@ TaxSchema.index(
 TaxSchema.index({ companyId: 1, isActive: 1 });
 TaxSchema.index({ companyId: 1, createdAt: -1 });
 
-module.exports = mongoose.model("Taxs", TaxSchema);
+module.exports = mongoose.model("Tax", TaxSchema);
