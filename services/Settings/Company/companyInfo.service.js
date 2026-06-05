@@ -213,6 +213,7 @@ const createDemoSubscription = async ({ body, companyId, session }) => {
         maxBranches: 3,
         maxProducts: 1000,
         isActive: true,
+        companyId,
       },
     },
     {
