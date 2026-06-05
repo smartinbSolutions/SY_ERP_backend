@@ -13,6 +13,7 @@ const E_user_Schema = require("../models/ecommerce/E_user_Modal");
 const { default: axios } = require("axios");
 const thirdPartyAuthSchema = require("../models/ecommerce/thirdPartyAuthModel");
 const companyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.model");
+const userCompanySettingsModel = require("../models/Settings/user_company_settings.model");
 
 const normalizeCompanyId = (value) => {
   if (!value) return value;
@@ -77,7 +78,16 @@ exports.login = asyncHandler(async (req, res, next) => {
   if (!role.channels.includes("dashboard")) {
     return next(new ApiError("No dashboard access", 403));
   }
-  user.password = undefined;
+
+  const settings = await userCompanySettingsModel
+    .findOne({ companyId, userId: user._id })
+    .select("selectedQuickActions")
+    .lean();
+
+  const userData = user.toObject();
+  userData.password = undefined;
+  userData.settings = settings || null;
+  userData.selectedQuickActions = settings?.selectedQuickActions || [];
 
   const token = createToken({
     userId: user._id,
@@ -90,7 +100,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: true,
-    data: user,
+    data: userData,
     role,
     token,
     company: companyId,

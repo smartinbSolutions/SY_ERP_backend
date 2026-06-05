@@ -66,6 +66,7 @@ const flattenUserForCompany = (user, settings = null) => {
     settings: settingsObject || null,
     active,
     status: settingsObject?.status || (active ? "active" : "inactive"),
+    selectedQuickActions: settingsObject?.selectedQuickActions || [],
     PosUser: Boolean(settingsObject?.salesPoint),
     salesPoint:
       settingsObject?.salesPoint?._id || settingsObject?.salesPoint || "",
@@ -408,7 +409,7 @@ exports.updateUser = async ({ companyId, body, id }) => {
       .populate({ path: "companies.roleId", select: "name _id channels" });
     if (!user) throw new Error("User not found");
 
-    const settingsPayload = buildSettingsPayload(body);
+    const settingsPayload = buildSettingsPayload(body, { partial: true });
     Object.keys(settingsPayload).forEach((key) => {
       if (settingsPayload[key] === undefined) delete settingsPayload[key];
     });
