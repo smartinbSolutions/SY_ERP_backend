@@ -8,18 +8,21 @@ const {
 
 const RefundSalesInvoices = express.Router();
 
-RefundSalesInvoices.use(authService.protect);
+RefundSalesInvoices.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 RefundSalesInvoices.route("/")
   .post(
     authService.allowedTo("sales.refund.create"),
     authService.checkCompanyEditable,
-    createRefundSalesInvoice
+    createRefundSalesInvoice,
   )
   .get(authService.allowedTo("sales.refund.read"), findAllSalesRefunds);
 RefundSalesInvoices.route("/:id").get(
   authService.allowedTo("sales.refund.read"),
-  findOneSalesRefund
+  findOneSalesRefund,
 );
 
 module.exports = RefundSalesInvoices;

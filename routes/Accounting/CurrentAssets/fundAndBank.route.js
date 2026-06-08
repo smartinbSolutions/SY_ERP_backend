@@ -13,20 +13,23 @@ const {
 
 const FundAndBank = express.Router();
 
-FundAndBank.use(authService.protect);
+FundAndBank.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 FundAndBank.route("/")
   .post(
     authService.allowedTo("funds.create"),
     authService.checkCompanyEditable,
-    createFundAndBank
+    createFundAndBank,
   )
   .get(authService.allowedTo("funds.read"), findAllFundAndBank);
 
 FundAndBank.route("/sales-point/:id").get(
   authService.allowedTo("funds.read"),
   authService.checkCompanyEditable,
-  getFundAndBankForSalesPoint
+  getFundAndBankForSalesPoint,
 );
 
 FundAndBank.route("/:id")
@@ -34,23 +37,23 @@ FundAndBank.route("/:id")
   .put(
     authService.allowedTo("funds.update"),
     authService.checkCompanyEditable,
-    updateFundAndBank
+    updateFundAndBank,
   )
   .delete(
     authService.allowedTo("funds.delete"),
     authService.checkCompanyEditable,
-    deleteFundAndBank
+    deleteFundAndBank,
   );
 
 FundAndBank.route("/reports/:id").get(
   authService.allowedTo("funds.read"),
-  findSpecificFundReports
+  findSpecificFundReports,
 );
 
 FundAndBank.route("/:id/adjust").post(
   authService.allowedTo("funds.adjust"),
   authService.checkCompanyEditable,
-  createFundAdjustment
+  createFundAdjustment,
 );
 
 module.exports = FundAndBank;

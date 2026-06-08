@@ -10,7 +10,10 @@ const authService = require("../services/authService");
 
 const paymentTypes = express.Router();
 
-paymentTypes.use(authService.protect);
+paymentTypes.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 paymentTypes
   .route("/")

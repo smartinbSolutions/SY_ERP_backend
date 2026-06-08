@@ -5,7 +5,12 @@ const {
 const closingReportRoute = express.Router();
 const authService = require("../../services/authService");
 
-closingReportRoute.use(authService.protect);
-closingReportRoute.route("/").get(authService.allowedTo("reports.read"), getClosingReports);
+closingReportRoute.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
+closingReportRoute
+  .route("/")
+  .get(authService.allowedTo("reports.read"), getClosingReports);
 
 module.exports = closingReportRoute;

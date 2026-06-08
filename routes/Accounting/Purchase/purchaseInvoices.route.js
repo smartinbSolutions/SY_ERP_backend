@@ -19,7 +19,10 @@ const {
 
 const PurchaseInvoices = express.Router();
 
-PurchaseInvoices.use(authService.protect);
+PurchaseInvoices.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -28,7 +31,7 @@ PurchaseInvoices.use(authService.protect);
 */
 PurchaseInvoices.route("/supplier/:supplierId").get(
   authService.allowedTo("purchase.invoice.read"),
-  findSupplierPurchaseInvoicesForRefund
+  findSupplierPurchaseInvoicesForRefund,
 );
 
 /*
@@ -41,18 +44,18 @@ PurchaseInvoices.route("/draft/:id")
     authService.allowedTo("purchase.invoice.update.draft"),
     authService.checkCompanyEditable,
     uploadFile,
-    updatePurchaseDraftInvoice
+    updatePurchaseDraftInvoice,
   )
   .delete(
     authService.allowedTo("purchase.invoice.delete.draft"),
     authService.checkCompanyEditable,
-    deletePurchaseInvoiceDraft
+    deletePurchaseInvoiceDraft,
   );
 
 PurchaseInvoices.route("/post/:id").put(
   authService.allowedTo("purchase.invoice.post"),
   authService.checkCompanyEditable,
-  postPurchaseInvoiceDraft
+  postPurchaseInvoiceDraft,
 );
 
 /*
@@ -63,14 +66,14 @@ PurchaseInvoices.route("/post/:id").put(
 PurchaseInvoices.route("/cancel/:id").put(
   authService.allowedTo("purchase.invoice.cancel"),
   authService.checkCompanyEditable,
-  cancelPurchaseInvoice
+  cancelPurchaseInvoice,
 );
 
 PurchaseInvoices.route("/update/:id").put(
   authService.allowedTo("purchase.invoice.update.posted"),
   authService.checkCompanyEditable,
   uploadFile,
-  updatePostedPurchaseInvoice
+  updatePostedPurchaseInvoice,
 );
 
 /*
@@ -83,7 +86,7 @@ PurchaseInvoices.route("/")
     authService.allowedTo("purchase.invoice.create"),
     authService.checkCompanyEditable,
     uploadFile,
-    createPurchaseInvoice
+    createPurchaseInvoice,
   )
   .get(authService.allowedTo("purchase.invoice.read"), findAllPurchaseInvoices);
 
@@ -94,7 +97,7 @@ PurchaseInvoices.route("/")
 */
 PurchaseInvoices.route("/:id").get(
   authService.allowedTo("purchase.invoice.read"),
-  findOnePurchaseInvoice
+  findOnePurchaseInvoice,
 );
 
 module.exports = PurchaseInvoices;

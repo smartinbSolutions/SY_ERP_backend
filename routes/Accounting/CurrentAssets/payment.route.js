@@ -9,7 +9,10 @@ const {
 } = require("../../../controllers/Accounting/CurrentAssets/Payments.controller");
 
 const paymentRoute = express.Router();
-paymentRoute.use(authService.protect);
+paymentRoute.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 paymentRoute
   .route("/")
@@ -17,15 +20,17 @@ paymentRoute
   .post(
     authService.allowedTo("payments.create"),
     authService.checkCompanyEditable,
-    createPayment
+    createPayment,
   );
-paymentRoute.route("/:id").get(authService.allowedTo("payments.read"), getOnePayment);
+paymentRoute
+  .route("/:id")
+  .get(authService.allowedTo("payments.read"), getOnePayment);
 paymentRoute
   .route("/cancel/:id")
   .post(
     authService.allowedTo("payments.create"),
     authService.checkCompanyEditable,
-    cancelPayment
+    cancelPayment,
   );
 
 module.exports = paymentRoute;

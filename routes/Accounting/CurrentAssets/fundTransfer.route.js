@@ -9,25 +9,28 @@ const {
 
 const FundTransfer = express.Router();
 
-FundTransfer.use(authService.protect);
+FundTransfer.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 FundTransfer.route("/")
   .post(
     authService.allowedTo("funds.transfer"),
     authService.checkCompanyEditable,
-    createFundTransfer
+    createFundTransfer,
   )
   .get(authService.allowedTo("funds.read"), getAllFundTransfers);
 
 FundTransfer.route("/:id").get(
   authService.allowedTo("funds.read"),
-  getOneFundTransfer
+  getOneFundTransfer,
 );
 
 FundTransfer.route("/:id/cancel").put(
   authService.allowedTo("funds.transfer"),
   authService.checkCompanyEditable,
-  cancelFundTransfer
+  cancelFundTransfer,
 );
 
 module.exports = FundTransfer;

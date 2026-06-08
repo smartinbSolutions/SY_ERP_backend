@@ -8,7 +8,10 @@ const {
 
 const ShortageRoute = express.Router();
 
-ShortageRoute.use(authService.protect);
+ShortageRoute.use(
+  authService.checkPlanFeatures("inventory"),
+  authService.protect,
+);
 
 ShortageRoute.route("/")
   .get(authService.allowedTo("stock.read"), getAllShortage)

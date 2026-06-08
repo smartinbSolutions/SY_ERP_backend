@@ -19,7 +19,10 @@ const upload = multer();
 
 const accountingTreeRouter = express.Router();
 
-accountingTreeRouter.use(authService.protect);
+accountingTreeRouter.use(
+  authService.protect,
+  authService.checkPlanFeatures("accounting"),
+);
 
 // Routes
 accountingTreeRouter
@@ -28,35 +31,42 @@ accountingTreeRouter
   .post(
     authService.allowedTo("chart_of_accounts.create"),
     authService.checkCompanyEditable,
-    createAccountingTree
+    createAccountingTree,
   );
 accountingTreeRouter
   .route("/calculatebalance")
   .get(authService.allowedTo("chart_of_accounts.read"), calculateBalance)
-  .get(authService.allowedTo("chart_of_accounts.read"), getAccountingTreeNoBalance);
-accountingTreeRouter.route("/tree").get(
-  authService.allowedTo("chart_of_accounts.read"),
-  getAccountingTreeNoBalance
-);
-accountingTreeRouter.route("/chart-off-accounts").get(
-  authService.allowedTo("chart_of_accounts.read"),
-  getChartOfAccounts
-);
+  .get(
+    authService.allowedTo("chart_of_accounts.read"),
+    getAccountingTreeNoBalance,
+  );
+accountingTreeRouter
+  .route("/tree")
+  .get(
+    authService.allowedTo("chart_of_accounts.read"),
+    getAccountingTreeNoBalance,
+  );
+accountingTreeRouter
+  .route("/chart-off-accounts")
+  .get(authService.allowedTo("chart_of_accounts.read"), getChartOfAccounts);
 accountingTreeRouter
   .route("/treefromjournals")
   .get(
     authService.allowedTo("chart_of_accounts.read"),
-    getAccountingTreeFromJournals
+    getAccountingTreeFromJournals,
   );
 
 accountingTreeRouter
   .route("/import")
-  .get(authService.allowedTo("chart_of_accounts.export"), getAccountingTreeForExport)
+  .get(
+    authService.allowedTo("chart_of_accounts.export"),
+    getAccountingTreeForExport,
+  )
   .post(
     authService.allowedTo("chart_of_accounts.create"),
     authService.checkCompanyEditable,
     upload.single("file"),
-    importAccountingTree
+    importAccountingTree,
   );
 
 accountingTreeRouter
@@ -65,7 +75,7 @@ accountingTreeRouter
   .put(
     authService.allowedTo("chart_of_accounts.update"),
     authService.checkCompanyEditable,
-    changeBalance
+    changeBalance,
   );
 
 accountingTreeRouter
@@ -73,13 +83,13 @@ accountingTreeRouter
   .put(
     authService.allowedTo("chart_of_accounts.update"),
     authService.checkCompanyEditable,
-    updateAccountingTree
+    updateAccountingTree,
   )
   .get(authService.allowedTo("chart_of_accounts.read"), getAccountingTree)
   .delete(
     authService.allowedTo("chart_of_accounts.delete"),
     authService.checkCompanyEditable,
-    deleteAccountingTree
+    deleteAccountingTree,
   );
 
 module.exports = accountingTreeRouter;

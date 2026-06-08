@@ -11,7 +11,10 @@ const {
 
 const reconciliationRoute = express.Router();
 
-reconciliationRoute.use(authService.protect);
+reconciliationRoute.use(
+  authService.checkPlanFeatures("inventory"),
+  authService.protect,
+);
 
 reconciliationRoute
   .route("/")

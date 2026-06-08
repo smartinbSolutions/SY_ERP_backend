@@ -13,10 +13,16 @@ const {
 
 const PosReceiptRefundRoute = express.Router();
 
-PosReceiptRefundRoute.use(authService.protect);
+PosReceiptRefundRoute.use(
+  authService.checkPlanFeatures("pos"),
+  authService.protect,
+);
 
 PosReceiptRefundRoute.route("/")
-  .get(authService.allowedTo("pos.receipts.refund.read"), findAllPosReceiptRefund)
+  .get(
+    authService.allowedTo("pos.receipts.refund.read"),
+    findAllPosReceiptRefund,
+  )
   .post(
     authService.allowedTo("sales.refund.create"),
     authService.checkCompanyEditable,

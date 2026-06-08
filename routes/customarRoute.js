@@ -12,6 +12,8 @@ const {
 } = require("../services/customarServices");
 const multer = require("multer");
 const upload = multer();
+router.use(authService.checkPlanFeatures("accounting"), authService.protect);
+
 router.route("/e-edit/:id").put(authService.ecommerceProtect, updataCustomar);
 router
   .route("/updatePassword")
@@ -19,23 +21,20 @@ router
 router
   .route("/")
   .post(
-    authService.protect,
     authService.allowedTo("customer.create"),
     authService.checkCompanyEditable,
-    createCustomar
+    createCustomar,
   )
-  .get(authService.protect, authService.allowedTo("customer.read"), getCustomars);
+  .get(authService.allowedTo("customer.read"), getCustomars);
 router
   .route("/:id")
-  .get(authService.protect, authService.allowedTo("customer.read"), getCustomar)
+  .get(authService.allowedTo("customer.read"), getCustomar)
   .put(
-    authService.protect,
     authService.allowedTo("customer.update"),
     authService.checkCompanyEditable,
-    updataCustomar
+    updataCustomar,
   )
   .delete(
-    authService.protect,
     authService.allowedTo("customer.delete"),
     authService.checkCompanyEditable,
     deleteCustomar,

@@ -12,7 +12,7 @@ const authService = require("../../services/authService");
 
 const PosReceiptRoute = express.Router();
 
-PosReceiptRoute.use(authService.protect);
+PosReceiptRoute.use(authService.checkPlanFeatures("pos"), authService.protect);
 
 PosReceiptRoute.route("/")
   .get(authService.allowedTo("sales.invoice.read"), findAllReceipt)

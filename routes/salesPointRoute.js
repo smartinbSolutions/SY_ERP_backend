@@ -11,7 +11,7 @@ const {
 
 const SalesPointRout = express.Router();
 
-SalesPointRout.use(authService.protect);
+SalesPointRout.use(authService.checkPlanFeatures("pos"), authService.protect);
 
 SalesPointRout.route("/")
   .get(authService.allowedTo("pos.point.read"), getSalesPoint)

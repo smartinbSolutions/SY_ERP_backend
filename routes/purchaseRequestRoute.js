@@ -9,7 +9,10 @@ const {
 const authService = require("../services/authService");
 
 const purchaseRequestRouter = express.Router();
-purchaseRequestRouter.use(authService.protect);
+purchaseRequestRouter.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 // Create a new purchaseRequest / Get all purchaseRequests
 purchaseRequestRouter
@@ -17,7 +20,7 @@ purchaseRequestRouter
   .post(
     authService.allowedTo("purchase.request.create"),
     authService.checkCompanyEditable,
-    createCashPurchaseRequest
+    createCashPurchaseRequest,
   )
   .get(authService.allowedTo("purchase.request.read"), getAllPurchaseRequest);
 
@@ -26,7 +29,7 @@ purchaseRequestRouter
   .put(
     authService.allowedTo("purchase.request.update"),
     authService.checkCompanyEditable,
-    archivePurchaseRequest
+    archivePurchaseRequest,
   );
 // Get / update / delete a specific purchaseRequest by ID
 purchaseRequestRouter
@@ -35,7 +38,7 @@ purchaseRequestRouter
   .put(
     authService.allowedTo("purchase.request.update"),
     authService.checkCompanyEditable,
-    updatePurchaseRequest
+    updatePurchaseRequest,
   );
 
 module.exports = purchaseRequestRouter;

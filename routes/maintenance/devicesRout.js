@@ -14,32 +14,36 @@ const upload = multer();
 
 const devicesRout = express.Router();
 
+devicesRout.use(
+  authService.checkPlanFeatures("maintenance"),
+  authService.protect,
+);
+
 devicesRout
   .route("/")
-  .get(authService.protect, authService.allowedTo("maintenance.devices.read"), getDevices)
+  .get(authService.allowedTo("maintenance.devices.read"), getDevices)
   .post(
-    authService.protect,
     authService.allowedTo("maintenance.devices.create"),
     authService.checkCompanyEditable,
     createDevice,
   );
-devicesRout.route("/test").post(
-  authService.protect,
-  authService.allowedTo("maintenance.devices.create"),
-  authService.checkCompanyEditable,
-  upload.single("file"),
-  importDevice,
-);
+devicesRout
+  .route("/test")
+  .post(
+    authService.allowedTo("maintenance.devices.create"),
+    authService.checkCompanyEditable,
+    upload.single("file"),
+    importDevice,
+  );
 
 devicesRout
   .route("/:id")
-  .get(authService.protect, authService.allowedTo("maintenance.devices.read"), getOneDevice)
+  .get(authService.allowedTo("maintenance.devices.read"), getOneDevice)
   .put(
-    authService.protect,
     authService.allowedTo("maintenance.devices.update"),
     authService.checkCompanyEditable,
     updateDevices,
   )
-  .delete(authService.protect, authService.allowedTo("maintenance.devices.update"), deleteDevice);
+  .delete(authService.allowedTo("maintenance.devices.update"), deleteDevice);
 
 module.exports = devicesRout;

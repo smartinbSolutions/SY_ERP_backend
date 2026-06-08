@@ -9,12 +9,18 @@ const {
   deleteManitenaceUser,
   importClint,
 } = require("../../services/maintenance/maintenanceUserService");
-const { getDevicesByUserID } = require("../../services/maintenance/devicesService");
+const {
+  getDevicesByUserID,
+} = require("../../services/maintenance/devicesService");
 
 const manitUserRout = express.Router();
 const multer = require("multer");
 const upload = multer();
-manitUserRout.use(authService.protect);
+
+manitUserRout.use(
+  authService.checkPlanFeatures("maintenance"),
+  authService.protect,
+);
 
 manitUserRout
   .route("/")
@@ -24,16 +30,17 @@ manitUserRout
     authService.checkCompanyEditable,
     createManitenaceUser,
   );
-manitUserRout.route("/devices/:id").get(
-  authService.allowedTo("maintenance.devices.read"),
-  getDevicesByUserID,
-);
-manitUserRout.route("/test").post(
-  authService.allowedTo("maintenance.clients.create"),
-  authService.checkCompanyEditable,
-  upload.single("file"),
-  importClint,
-);
+manitUserRout
+  .route("/devices/:id")
+  .get(authService.allowedTo("maintenance.devices.read"), getDevicesByUserID);
+manitUserRout
+  .route("/test")
+  .post(
+    authService.allowedTo("maintenance.clients.create"),
+    authService.checkCompanyEditable,
+    upload.single("file"),
+    importClint,
+  );
 
 manitUserRout
   .route("/:id")

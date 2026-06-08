@@ -8,7 +8,10 @@ const {
 
 const invoiceHistoryRoute = express.Router();
 
-invoiceHistoryRoute.use(authService.protect);
+invoiceHistoryRoute.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 invoiceHistoryRoute.route("/:id").get(getInvoiceById);
 invoiceHistoryRoute
   .route("/")

@@ -9,7 +9,10 @@ const {
 const authService = require("../services/authService");
 
 const finalAsset = express.Router();
-finalAsset.use(authService.protect);
+finalAsset.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 finalAsset
   .route("/")

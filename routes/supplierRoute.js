@@ -13,24 +13,28 @@ const {
 
 const authService = require("../services/authService");
 const router = express.Router();
-router.use(authService.protect);
+router.use(authService.checkPlanFeatures("accounting"), authService.protect);
 
 router
   .route("/")
   .post(
     authService.allowedTo("supplier.create"),
     authService.checkCompanyEditable,
-    createSupplier
+    createSupplier,
   )
   .get(authService.allowedTo("supplier.read"), getSuppliers);
 
 router
   .route("/:id")
-  .get(authService.allowedTo("supplier.read"), getSupplierVlaidator, getSupplier)
+  .get(
+    authService.allowedTo("supplier.read"),
+    getSupplierVlaidator,
+    getSupplier,
+  )
   .put(
     authService.allowedTo("supplier.update"),
     authService.checkCompanyEditable,
-    updataSupplier
+    updataSupplier,
   )
   .delete(
     authService.allowedTo("supplier.delete"),

@@ -14,7 +14,10 @@ const {
 
 const RefundPurchaseInvoices = express.Router();
 
-RefundPurchaseInvoices.use(authService.protect);
+RefundPurchaseInvoices.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 /*
 |--------------------------------------------------------------------------
 | Helper / Lookup Routes
@@ -23,7 +26,7 @@ RefundPurchaseInvoices.use(authService.protect);
 RefundPurchaseInvoices.post(
   "/items-by-invoices",
   authService.allowedTo("purchase.refund.read"),
-  findRefundablePurchaseItemsByInvoices
+  findRefundablePurchaseItemsByInvoices,
 );
 
 /*
@@ -52,7 +55,7 @@ RefundPurchaseInvoices.route("/")
     authService.allowedTo("purchase.refund.create"),
     authService.checkCompanyEditable,
     uploadFile,
-    createRefundPurchaseInvoice
+    createRefundPurchaseInvoice,
   )
   .get(authService.allowedTo("purchase.refund.read"), findAllPurchaseRefunds);
 
@@ -63,7 +66,7 @@ RefundPurchaseInvoices.route("/")
 */
 RefundPurchaseInvoices.route("/:id").get(
   authService.allowedTo("purchase.refund.read"),
-  findOnePurchaseRefund
+  findOnePurchaseRefund,
 );
 
 module.exports = RefundPurchaseInvoices;

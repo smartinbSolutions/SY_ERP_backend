@@ -13,11 +13,10 @@ const planSchema = new mongoose.Schema(
     features: {
       accounting: { type: Boolean, default: false },
       inventory: { type: Boolean, default: false },
-      sales: { type: Boolean, default: false },
-      purchases: { type: Boolean, default: false },
       hr: { type: Boolean, default: false },
-      crm: { type: Boolean, default: false },
-      manufacturing: { type: Boolean, default: false },
+      pos: { type: Boolean, default: false },
+      resturant: { type: Boolean, default: false },
+      maintenance: { type: Boolean, default: false },
     },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,

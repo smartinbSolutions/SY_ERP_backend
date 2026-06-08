@@ -14,7 +14,10 @@ const {
 
 const journalEntriesRoute = express.Router();
 
-journalEntriesRoute.use(authService.protect);
+journalEntriesRoute.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 journalEntriesRoute
   .route("/")
@@ -24,7 +27,7 @@ journalEntriesRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
-    createJournal
+    createJournal,
   );
 
 journalEntriesRoute
@@ -32,18 +35,16 @@ journalEntriesRoute
   .put(
     authService.allowedTo("journal_entry.create"),
     authService.checkCompanyEditable,
-    auditingJournal
+    auditingJournal,
   );
 
-journalEntriesRoute.route("/:id").get(
-  authService.allowedTo("journal_entry.read"),
-  getOneJournal
-);
+journalEntriesRoute
+  .route("/:id")
+  .get(authService.allowedTo("journal_entry.read"), getOneJournal);
 
-journalEntriesRoute.route("/link/:linkNum").get(
-  authService.allowedTo("journal_entry.read"),
-  getOneJournalByLink
-);
+journalEntriesRoute
+  .route("/link/:linkNum")
+  .get(authService.allowedTo("journal_entry.read"), getOneJournalByLink);
 
 journalEntriesRoute
   .route("/accountwithjournal/:id")

@@ -11,22 +11,18 @@ const authService = require("../services/authService");
 
 const rawMaterialRoute = express.Router();
 
+rawMaterialRoute.use(
+  authService.checkPlanFeatures("resturant"),
+  authService.protect,
+);
 rawMaterialRoute
   .route("/")
   .get(getAllRawMaterials)
-  .post(
-    authService.protect,
-    authService.checkCompanyEditable,
-    createRawMaterial,
-  );
-brandRout
+  .post(authService.checkCompanyEditable, createRawMaterial);
+rawMaterialRoute
   .route("/:id")
   .get(getOneRawMaterial)
-  .put(authService.protect, authService.checkCompanyEditable, updateRawMaterial)
-  .delete(
-    authService.protect,
-    authService.checkCompanyEditable,
-    deleteRawMaterial,
-  );
+  .put(authService.checkCompanyEditable, updateRawMaterial)
+  .delete(authService.checkCompanyEditable, deleteRawMaterial);
 
 module.exports = rawMaterialRoute;

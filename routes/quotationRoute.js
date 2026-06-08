@@ -9,7 +9,10 @@ const {
 const authService = require("../services/authService");
 
 const quotationRouter = express.Router();
-quotationRouter.use(authService.protect);
+quotationRouter.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 // Create a new quotation / Get all quotations
 quotationRouter
@@ -17,14 +20,16 @@ quotationRouter
   .post(
     authService.allowedTo("sales.quotation.create"),
     authService.checkCompanyEditable,
-    createCashQuotation
+    createCashQuotation,
   )
   .get(authService.allowedTo("sales.quotation.read"), getAllQuotations);
-quotationRouter.route("/archive/:id").put(
-  authService.allowedTo("sales.quotation.update.status"),
-  authService.checkCompanyEditable,
-  archiveQuotation
-);
+quotationRouter
+  .route("/archive/:id")
+  .put(
+    authService.allowedTo("sales.quotation.update.status"),
+    authService.checkCompanyEditable,
+    archiveQuotation,
+  );
 // Get / update / delete a specific quotation by ID
 quotationRouter
   .route("/:id")
@@ -32,7 +37,7 @@ quotationRouter
   .put(
     authService.allowedTo("sales.quotation.update.draft"),
     authService.checkCompanyEditable,
-    updateQuotation
+    updateQuotation,
   );
 
 module.exports = quotationRouter;

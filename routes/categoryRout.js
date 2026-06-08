@@ -23,15 +23,19 @@ const categoryRout = express.Router();
 const multer = require("multer");
 const upload = multer();
 
+categoryRout.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
+
 categoryRout
   .route("/last-children")
-  .get(authService.protect, authService.allowedTo("category.read"), getLastChildrenCategories);
+  .get(authService.allowedTo("category.read"), getLastChildrenCategories);
 
 categoryRout
   .route("/")
-  .get(authService.protect, authService.allowedTo("category.read"), getCategories)
+  .get(authService.allowedTo("category.read"), getCategories)
   .post(
-    authService.protect,
     authService.allowedTo("category.create"),
     authService.checkCompanyEditable,
     uploadCategoryImage,
@@ -39,18 +43,22 @@ categoryRout
     createCategoryVlaidator,
     createCategory,
   );
-categoryRout.route("/import").post(
-  authService.protect,
-  authService.allowedTo("category.create"),
-  authService.checkCompanyEditable,
-  upload.single("file"),
-  importCategory,
-);
+categoryRout
+  .route("/import")
+  .post(
+    authService.allowedTo("category.create"),
+    authService.checkCompanyEditable,
+    upload.single("file"),
+    importCategory,
+  );
 categoryRout
   .route("/:id")
-  .get(authService.protect, authService.allowedTo("category.read"), getCategoryValidator, getCategory)
+  .get(
+    authService.allowedTo("category.read"),
+    getCategoryValidator,
+    getCategory,
+  )
   .put(
-    authService.protect,
     authService.allowedTo("category.update"),
     authService.checkCompanyEditable,
     uploadCategoryImage,
@@ -59,7 +67,6 @@ categoryRout
     updateCategory,
   )
   .delete(
-    authService.protect,
     authService.allowedTo("category.delete"),
     authService.checkCompanyEditable,
     deleteCategoryValidator,

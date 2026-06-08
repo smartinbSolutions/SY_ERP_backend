@@ -9,7 +9,10 @@ const {
 const authService = require("../services/authService");
 
 const AssetCardRoute = express.Router();
-AssetCardRoute.use(authService.protect);
+AssetCardRoute.use(
+  authService.protect,
+  authService.checkPlanFeatures("accounting"),
+);
 
 AssetCardRoute.route("/")
   .post(createAsset)

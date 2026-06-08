@@ -14,6 +14,7 @@ const { default: axios } = require("axios");
 const thirdPartyAuthSchema = require("../models/ecommerce/thirdPartyAuthModel");
 const companyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.model");
 const userCompanySettingsModel = require("../models/Settings/user_company_settings.model");
+const companyPlanModel = require("../models/Settings/CompanyInfo/companyPlan.model");
 
 const normalizeCompanyId = (value) => {
   if (!value) return value;
@@ -150,6 +151,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Not login", 401));
   }
 });
+
 exports.checkCompanyEditable = async (req, res, next) => {
   const companyId = normalizeCompanyId(
     req.query.companyId || req.body.companyId,
@@ -765,6 +767,53 @@ exports.allowedTo = (...allowedPermissions) =>
     if (!hasAccess) {
       return next(new ApiError("Access denied", 403));
     }
+
+    next();
+  });
+
+exports.checkPlanFeatures = (...allowedFeatures) =>
+  asyncHandler(async (req, res, next) => {
+    const companyId = normalizeCompanyId(
+      req.companyId || req.query.companyId || req.body.companyId,
+    );
+
+    if (!companyId) {
+      return next(new ApiError("companyId is required", 400));
+    }
+
+    const requiredFeatures = allowedFeatures.flat().filter(Boolean);
+
+    if (!requiredFeatures.length) {
+      return next();
+    }
+
+    const companyPlan = await companyPlanModel
+      .findOne({ companyId: companyId })
+      .lean();
+
+    console.log(companyPlan);
+    if (!companyPlan) {
+      return next(new ApiError("Company plan not found", 404));
+    }
+
+    const features = companyPlan.features || {};
+
+    const notAllowed = requiredFeatures.filter(
+      (feature) => features[feature] !== true,
+    );
+
+    if (notAllowed.length) {
+      return next(
+        new ApiError(
+          `The following features are not enabled in your plan: ${notAllowed.join(
+            ", ",
+          )}`,
+          403,
+        ),
+      );
+    }
+
+    req.companyPlan = companyPlan;
 
     next();
   });

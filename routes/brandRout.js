@@ -18,7 +18,7 @@ const {
 const authService = require("../services/authService");
 
 const brandRout = express.Router();
-
+brandRout.use(authService.checkPlanFeatures("accounting"));
 brandRout
   .route("/")
   .get(getBrands)

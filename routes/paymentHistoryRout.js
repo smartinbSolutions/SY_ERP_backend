@@ -4,7 +4,10 @@ const authService = require("../services/authService");
 const { getPaymentHistory } = require("../services/paymentHistoryService");
 
 const paymentHistoryRout = express.Router();
-paymentHistoryRout.use(authService.protect);
+paymentHistoryRout.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 paymentHistoryRout.route("/:id").get(getPaymentHistory);
 

@@ -10,26 +10,19 @@ const {
 } = require("../services/unTracedproductServices");
 const unTracedproductLogRout = express.Router();
 
+unTracedproductLogRout.use(
+  authService.checkPlanFeatures("inventory"),
+  authService.protect,
+);
+
 unTracedproductLogRout
   .route("/")
   .get(getUnTracedproductLog)
-  .post(
-    authService.protect,
-    authService.checkCompanyEditable,
-    createUnTracedproductLog,
-  );
+  .post(authService.checkCompanyEditable, createUnTracedproductLog);
 unTracedproductLogRout
   .route("/:id")
   .get(getOneUnTracedproductLog)
-  .put(
-    authService.protect,
-    authService.checkCompanyEditable,
-    updataUnTracedproductLog,
-  )
-  .delete(
-    authService.protect,
-    authService.checkCompanyEditable,
-    deleteUnTracedproductLog,
-  );
+  .put(authService.checkCompanyEditable, updataUnTracedproductLog)
+  .delete(authService.checkCompanyEditable, deleteUnTracedproductLog);
 
 module.exports = unTracedproductLogRout;

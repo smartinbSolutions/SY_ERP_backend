@@ -14,7 +14,10 @@ const {
 
 const SalesInvoices = express.Router();
 
-SalesInvoices.use(authService.protect);
+SalesInvoices.use(
+  authService.checkPlanFeatures("accounting"),
+  authService.protect,
+);
 
 SalesInvoices.route("/post/:id").put(
   authService.allowedTo("sales.invoice.post"),

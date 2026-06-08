@@ -7,7 +7,10 @@ const {
 const authService = require("../services/authService");
 
 const assetCategoryRoute = express.Router();
-assetCategoryRoute.use(authService.protect);
+assetCategoryRoute.use(
+  authService.protect,
+  authService.checkPlanFeatures("accounting"),
+);
 
 assetCategoryRoute
   .route("/")

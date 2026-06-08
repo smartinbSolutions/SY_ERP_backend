@@ -56,7 +56,6 @@ const recipeRoute = require("./resturant_management/recipeRoute");
 const manufactorProductRoute = require("./resturant_management/manufatorProductRoute");
 const menuCategoryRout = require("./resturant_management/menuCategoryRoute");
 const positionsRout = require("./Hr/positionsRoute");
-const efaturaRoute = require("./efatura/efaturaRoute");
 const assetCategoryRoute = require("./assetCategoryRoute");
 const finalAsset = require("./finalAssetRoute");
 const assetCardRoute = require("./assetCardRoute");
@@ -203,9 +202,6 @@ const mountRoutes = (app) => {
 
   //HepsiJet
   app.use("/api/hepsijet", hepsiJetRouter);
-
-  //E-Fatura
-  app.use("/api/efatura", efaturaRoute);
 
   //Hr
   app.use("/api/staff", staffRout);
