@@ -12,6 +12,8 @@ const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const {
   createJournalService,
+  createJournalServiceV2,
+  createJournalEntryService,
 } = require("../../Accounting/JournalEntries/journalEntries.Service");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
@@ -19,6 +21,7 @@ const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerMod
 const { ExpressValidator } = require("express-validator");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
+const counterModel = require("../../../models/Settings/counterModel");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -55,16 +58,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -296,7 +299,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session,
+    session
   );
 
   return newSalesInvoice;
@@ -335,14 +338,14 @@ exports.applySalesInventoryEffectsService = async ({
     const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id),
+      (s) => String(s.stockId) === String(item.stock._id)
     );
     const oldQty = Number(stockRow?.productQuantity || 0);
 
     if (soldQty > oldQty) {
       throw new ApiError(
         `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
-        400,
+        400
       );
     }
 
@@ -393,15 +396,15 @@ exports.applySalesInventoryEffectsService = async ({
     if (qtyToSell > 0) {
       throw new ApiError(
         `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
-        400,
+        400
       );
     }
 
     const invoiceItem = newSalesInvoice.invoicesItems.find(
-      (i) => String(i.id) === String(item.id),
+      (i) => String(i.id) === String(item.id)
     );
     const returnCartItem = newSalesInvoice.returnCartItem.find(
-      (i) => String(i.id) === String(item.id),
+      (i) => String(i.id) === String(item.id)
     );
 
     if (invoiceItem) {
@@ -429,7 +432,7 @@ exports.applySalesInventoryEffectsService = async ({
             actionType: actionType,
           },
         ],
-        { session },
+        { session }
       );
 
       await createProductMovement({
@@ -507,19 +510,13 @@ exports.applySalesCustomerEffectsService = async ({
   }
 
   const totalMain = Number(totalSalesPriceMainCurrency || 0);
-  const remainderMain = Number(totalRemainderMainCurrency || 0);
-
-  customer.total += totalMain;
-  customer.TotalUnpaid += totalMain;
-
-  await customer.save({ session });
 
   await createPaymentHistoryV2({
     companyId,
     entryType: "invoice",
-    transactionDate: date || newSalesInvoice.orderDate,
+    transactionDate: date,
     amountTransactionCurrency: newSalesInvoice.invoiceGrandTotal,
-    amountMainCurrency: totalSalesPriceMainCurrency,
+    amountMainCurrency: totalMain,
     customerId: customer._id,
     referenceId: newSalesInvoice._id,
     sourceModule: "sales",
@@ -546,62 +543,58 @@ exports.debugAndCreateSalesDraftJournalService = async ({
   const journalMeta = journalPreview?.journalMeta || {};
   const journalAccounts = journalPreview?.journalAccounts || [];
 
-  if (!journalMeta?.journalName) {
+  if (!journalMeta?.journalName)
     throw new ApiError("journal name is missing", 400);
-  }
-
-  if (!journalMeta?.journalDate) {
+  if (!journalMeta?.journalDate)
     throw new ApiError("journal date is missing", 400);
-  }
-
   if (!Array.isArray(journalAccounts) || journalAccounts.length === 0) {
     throw new ApiError("journal accounts are missing", 400);
   }
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
-
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
-  const journalPayload = {
-    ...journalMeta,
-    linkCounter: String(journalLinkCounter),
-    refCounter: String(invoiceRefCounter || ""),
-    counter: counterFormat,
-    refId: salesInvoice?._id,
-    party: journalMeta?.party || salesInvoice?.customer?.id || "",
-    journalType: journalMeta?.journalType || "Sales",
-    filesArray: [],
-    journalDebit: totalDebit,
-    journalCredit: totalCredit,
-    journalAccounts,
-  };
+  // ── Get journal counter ────────────────────────────────────────
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session }
+  );
 
-  const { journalAccounts: lines, ...journalInfo } = journalPayload;
-
-  const createdJournal = await createJournalService({
+  // ── Save using same service as purchase ───────────────────────
+  const createdJournal = await createJournalEntryService({
+    data: {
+      ...journalMeta,
+      journalAccounts,
+      linkCounter: String(journalLinkCounter),
+      refCounter: String(invoiceRefCounter || ""),
+      counter: counterFormat,
+      refId: salesInvoice?._id,
+      party: journalMeta?.party || salesInvoice?.customer?.id || "",
+      journalType: journalMeta?.journalType || "Sales",
+      filesArray: [],
+      journalDebit: totalDebit,
+      journalCredit: totalCredit,
+    },
     companyId,
-    journalInfo,
-    journalAccounts: lines,
+    nextCounterJournal,
     session,
   });
 
-  return {
-    createdJournal,
-    journalPayload,
-  };
+  return { createdJournal };
 };
 
 exports.updateSalesInvoiceDraftService = async ({
@@ -646,7 +639,7 @@ exports.updateSalesInvoiceDraftService = async ({
   const invoiceTax = Number(req.body.invoiceTax || 0);
   const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0,
+    req.body.ManualInvoiceDiscountValue || 0
   );
 
   const paid = "unpaid";
@@ -654,10 +647,10 @@ exports.updateSalesInvoiceDraftService = async ({
   const paymentInMainCurrency = 0;
   const totalRemainder = invoiceGrandTotal;
   const totalRemainderMainCurrency = totalInMainCurrency;
-
+  console.log(req.body);
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.orderDate,
-    req.body.orderDate,
+    req.body.orderDate
   );
 
   const updatePayload = {
@@ -688,8 +681,11 @@ exports.updateSalesInvoiceDraftService = async ({
     totalRemainder,
     totalRemainderMainCurrency,
 
-    date: normalizedDate,
+    orderDate: normalizedDate,
     description: req.body.description || "",
+
+    shipmentNumber: req.body.shipmentNumber || "", // ← added
+    shipmentDate: req.body.shipmentDate || null, // ← added
   };
 
   const invoice = await orderModel.findOneAndUpdate(
@@ -702,7 +698,7 @@ exports.updateSalesInvoiceDraftService = async ({
     {
       new: true,
       session,
-    },
+    }
   );
 
   await createInvoiceHistory(
@@ -713,7 +709,7 @@ exports.updateSalesInvoiceDraftService = async ({
     normalizedDate,
     "Draft Sales invoice updated",
     "sales",
-    session,
+    session
   );
 
   return invoice;
@@ -742,7 +738,7 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session },
+    { session }
   );
 
   return true;
@@ -765,7 +761,7 @@ exports.reverseSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0,
+        0
     );
 
   const reversalConfig = {
@@ -803,7 +799,7 @@ exports.reverseSalesInventoryEffectsService = async ({
     }
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id),
+      (s) => String(s.stockId) === String(item.stock._id)
     );
 
     if (!stockRow) {
@@ -885,7 +881,7 @@ exports.reverseSalesInventoryEffectsService = async ({
             actionType: currentMode.actionType,
           },
         ],
-        { session },
+        { session }
       );
 
       await batch.save({ session });
@@ -993,7 +989,7 @@ exports.reverseSalesJournalEffectsService = async ({
   if (!salesInvoice?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on sales invoice",
-      400,
+      400
     );
   }
 
@@ -1051,18 +1047,18 @@ exports.reverseSalesJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
