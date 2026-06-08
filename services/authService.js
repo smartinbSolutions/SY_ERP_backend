@@ -789,7 +789,6 @@ exports.checkPlanFeatures = (...allowedFeatures) =>
       .findOne({ companyId: companyId })
       .lean();
 
-    console.log(companyPlan);
     if (!companyPlan) {
       return next(new ApiError("Company plan not found", 404));
     }
