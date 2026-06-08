@@ -14,15 +14,31 @@ const menuOrderRouter = express.Router();
 
 menuOrderRouter
   .route("/")
-  .get(getAllmenuOrders)
-  .post(authService.protect, createmenuOrder);
+  .get(authService.checkPlanFeatures("resturant"), getAllmenuOrders)
+  .post(
+    authService.checkPlanFeatures("resturant"),
+    authService.protect,
+    createmenuOrder,
+  );
 menuOrderRouter
   .route("/move-order")
-  .post(authService.protect, moveOrderToInProgress);
+  .post(
+    authService.checkPlanFeatures("resturant"),
+    authService.protect,
+    moveOrderToInProgress,
+  );
 menuOrderRouter
   .route("/:id")
-  .get(getOnemenuOrder)
-  .put(authService.protect, updatemenuOrder)
-  .delete(authService.protect, deletemenuOrder);
+  .get(authService.checkPlanFeatures("resturant"), getOnemenuOrder)
+  .put(
+    authService.checkPlanFeatures("resturant"),
+    authService.protect,
+    updatemenuOrder,
+  )
+  .delete(
+    authService.checkPlanFeatures("resturant"),
+    authService.protect,
+    deletemenuOrder,
+  );
 
 module.exports = menuOrderRouter;

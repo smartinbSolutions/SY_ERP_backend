@@ -8,10 +8,9 @@ const {
   updateBatch,
 } = require("../../services/resturant_management/batchService");
 
-
 const router = express.Router();
-router.use(authService.protect);
-router.route("/all/:id").get(getAllBatches)
+router.use(authService.checkPlanFeatures("resturant"), authService.protect);
+router.route("/all/:id").get(getAllBatches);
 router.route("/").get(getAllBatches).post(createBatch);
 router.route("/:id").get(getOneBatch).put(updateBatch).delete(deleteBatch);
 

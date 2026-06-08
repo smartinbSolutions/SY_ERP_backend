@@ -13,9 +13,18 @@ const authService = require("../../services/authService");
 
 const menuCategoryRout = express.Router();
 
+menuCategoryRout.use(
+  authService.checkPlanFeatures("resturant"),
+  authService.protect,
+);
+
 menuCategoryRout
   .route("/")
-  .get(authService.protect, authService.allowedTo("menu_categories.read"), getMenuCategories)
+  .get(
+    authService.protect,
+    authService.allowedTo("menu_categories.read"),
+    getMenuCategories,
+  )
   .post(
     authService.protect,
     authService.allowedTo("menu_categories.create"),
@@ -25,7 +34,11 @@ menuCategoryRout
   );
 menuCategoryRout
   .route("/:id")
-  .get(authService.protect, authService.allowedTo("menu_categories.read"), getMenuCategory)
+  .get(
+    authService.protect,
+    authService.allowedTo("menu_categories.read"),
+    getMenuCategory,
+  )
   .put(
     authService.protect,
     authService.allowedTo("menu_categories.update"),

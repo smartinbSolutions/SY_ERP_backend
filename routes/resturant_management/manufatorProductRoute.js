@@ -12,7 +12,7 @@ const {
 
 const router = express.Router();
 
-router.use(authService.protect);
+router.use(authService.checkPlanFeatures("resturant"), authService.protect);
 
 router
   .route("/")
@@ -22,7 +22,7 @@ router
     authService.checkCompanyEditable,
     uploadmanufactorProductImage,
     resizermanufactorProductImage,
-    createmanufactorProduct
+    createmanufactorProduct,
   );
 router
   .route("/:id")
@@ -32,12 +32,12 @@ router
     authService.checkCompanyEditable,
     uploadmanufactorProductImage,
     resizermanufactorProductImage,
-    updatemanufactorProduct
+    updatemanufactorProduct,
   )
   .delete(
     authService.allowedTo("menu_items.delete"),
     authService.checkCompanyEditable,
-    deletemanufactorProduct
+    deletemanufactorProduct,
   );
 
 module.exports = router;
