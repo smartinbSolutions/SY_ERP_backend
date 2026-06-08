@@ -10,7 +10,7 @@ const { createRawMatrialMovement } = require("../../utils/rawMatrialMovement");
 // @access Private
 
 exports.createBatch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     console.log("companyId is missing");
@@ -32,7 +32,7 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
     const rawMaterial = await RawMaterialModel.findOneAndUpdate(
       { _id: BatchData.rawMaterialId, companyId },
       { $inc: { quantity: req.body.quantity, cost: req.body.buyingPrice } },
-      { new: true }
+      { new: true },
     );
 
     if (!rawMaterial) {
@@ -58,7 +58,7 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
       companyId,
       `A new batch has been added to raw material: ${rawMaterial.name}`,
       req.body.currency || "",
-      rawMaterial.currency || ""
+      rawMaterial.currency || "",
     );
 
     res.status(201).json({
@@ -79,7 +79,7 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
 // @route GET /api/Batch
 // @access Private
 exports.getAllBatches = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -126,7 +126,7 @@ exports.getAllBatches = asyncHandler(async (req, res, next) => {
 // @route GET /api/Batch
 // @access Private
 exports.getOneBatch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -161,7 +161,7 @@ exports.getOneBatch = asyncHandler(async (req, res, next) => {
 // @route PUT /api/Batch/:id
 // @access Private
 exports.updateBatch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -175,7 +175,7 @@ exports.updateBatch = asyncHandler(async (req, res, next) => {
     const updatedBatch = await BatchModel.findOneAndUpdate(
       { _id: BatchId, companyId },
       updatedData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     // If the Batch is not found
@@ -205,7 +205,7 @@ exports.updateBatch = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/Batch/:id
 // @access Private
 exports.deleteBatch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

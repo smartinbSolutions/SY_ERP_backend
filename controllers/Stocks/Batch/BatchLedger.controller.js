@@ -4,7 +4,7 @@ const {
 } = require("../../../services/Stocks/Batch/BatchLedger.service");
 
 exports.findAllBatchLedgerForProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

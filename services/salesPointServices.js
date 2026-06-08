@@ -2,7 +2,7 @@ const asyncHandler = require("express-async-handler");
 const salsePointModel = require("../models/salesPointModel");
 
 exports.createSalesPoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -14,7 +14,7 @@ exports.createSalesPoint = asyncHandler(async (req, res, next) => {
 });
 
 exports.getSalesPoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -27,7 +27,7 @@ exports.getSalesPoint = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneSalePoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -42,7 +42,7 @@ exports.getOneSalePoint = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateSalePoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -60,7 +60,7 @@ exports.updateSalePoint = asyncHandler(async (req, res, next) => {
 });
 
 exports.openAndCloseSalePoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

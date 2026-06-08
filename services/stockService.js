@@ -13,7 +13,7 @@ const { createProductBatch } = require("./productBatchServices");
 const prodcutBatchModel = require("../models/Stocks/products/prodcutBatchModel");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -29,7 +29,7 @@ exports.createStock = asyncHandler(async (req, res, next) => {
 });
 
 exports.getStocks = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -49,7 +49,7 @@ exports.getStocks = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -154,7 +154,7 @@ exports.getOneStock = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -178,7 +178,7 @@ exports.updateStock = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -200,7 +200,7 @@ exports.deleteStock = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/stock/transfer
 // @access  Private
 exports.transformQuantity = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -550,7 +550,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
 // @access Private
 
 exports.getTransferStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -586,7 +586,7 @@ exports.getTransferStock = asyncHandler(async (req, res, next) => {
 });
 
 exports.getTransferForStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -627,7 +627,7 @@ exports.getTransferForStock = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllStatementStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -664,7 +664,7 @@ exports.getAllStatementStock = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneTransferStock = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

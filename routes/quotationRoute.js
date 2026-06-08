@@ -10,8 +10,8 @@ const authService = require("../services/authService");
 
 const quotationRouter = express.Router();
 quotationRouter.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 // Create a new quotation / Get all quotations

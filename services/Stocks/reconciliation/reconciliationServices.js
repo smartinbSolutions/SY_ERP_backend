@@ -11,7 +11,7 @@ const counterModel = require("../../../models/Settings/counterModel");
 
 // Create a new reconciliation report
 exports.createStockReconciliation = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
@@ -88,7 +88,7 @@ exports.createStockReconciliation = asyncHandler(async (req, res) => {
 // Upsert a reconciliation item
 exports.upsertReconciliationItem = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
     const {
       reconciliationId,
       productId,
@@ -172,7 +172,7 @@ exports.upsertReconciliationItem = asyncHandler(async (req, res, next) => {
 // @route   GET /api/reconciliation/items
 // @access  Private
 exports.getReconciliationItems = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const reconciliationId = req.query.reconciliationId;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 50;
@@ -350,7 +350,7 @@ exports.getReconciliationItemsViewVersion = asyncHandler(async (req, res) => {
 });
 // Get all reconciliation reports
 exports.getAllReconciliations = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
 
@@ -387,7 +387,7 @@ exports.getAllReconciliations = asyncHandler(async (req, res) => {
 });
 // Get one reconciliation report by ID
 exports.getReconciliationById = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId)
@@ -406,7 +406,7 @@ exports.getReconciliationById = asyncHandler(async (req, res) => {
 });
 
 exports.deleteReconciliationItem = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
   const { productId } = req.query;
 
@@ -428,7 +428,7 @@ exports.deleteReconciliationItem = asyncHandler(async (req, res) => {
 });
 
 exports.getOneItemForReconciliation = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
   const { productId } = req.query;
   if (!companyId)
@@ -448,7 +448,7 @@ exports.getOneItemForReconciliation = asyncHandler(async (req, res) => {
 });
 
 // exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
-//   const companyId = req.query.companyId;
+//   const companyId = req.companyId;
 //   const { id } = req.params;
 
 //   if (!companyId) {
@@ -548,7 +548,7 @@ exports.getOneItemForReconciliation = asyncHandler(async (req, res) => {
 // });
 
 exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

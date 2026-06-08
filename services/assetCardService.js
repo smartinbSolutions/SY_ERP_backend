@@ -7,7 +7,7 @@ const finalAsset = require("../models/finalAssetModel");
 
 // Get list of Assets
 exports.getAssets = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -75,7 +75,7 @@ exports.getAssets = asyncHandler(async (req, res, next) => {
 
 // Create Asset
 exports.createAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -93,7 +93,7 @@ exports.createAsset = asyncHandler(async (req, res, next) => {
 
 // Get specific Asset by id
 exports.getAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -129,7 +129,7 @@ exports.getAsset = asyncHandler(async (req, res, next) => {
 
 // Update specific Asset
 exports.updateAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -140,7 +140,7 @@ exports.updateAsset = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   ).populate("category", "name");
 
   if (!asset) {
@@ -156,7 +156,7 @@ exports.updateAsset = asyncHandler(async (req, res, next) => {
 
 // Delete specific Asset
 exports.deleteAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

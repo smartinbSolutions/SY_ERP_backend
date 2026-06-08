@@ -9,8 +9,8 @@ const {
 const RefundSalesInvoices = express.Router();
 
 RefundSalesInvoices.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 RefundSalesInvoices.route("/")

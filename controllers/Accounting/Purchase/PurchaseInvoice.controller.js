@@ -44,7 +44,7 @@ const linkPanelModel = require("../../../models/linkPanelModel");
 */
 
 exports.findAllPurchaseInvoices = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -65,7 +65,7 @@ exports.findAllPurchaseInvoices = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOnePurchaseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -87,7 +87,7 @@ exports.findOnePurchaseInvoice = asyncHandler(async (req, res, next) => {
 
 exports.findSupplierPurchaseInvoicesForRefund = asyncHandler(
   async (req, res, next) => {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -106,11 +106,11 @@ exports.findSupplierPurchaseInvoicesForRefund = asyncHandler(
       totalItems,
       data: purchaseInvoices,
     });
-  }
+  },
 );
 
 exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceDraft = req.body.isDraft === "true";
 
   const session = await mongoose.startSession();
@@ -127,20 +127,20 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
         nextCounterPayment = await counterModel.findOneAndUpdate(
           { companyId, name: "Payment" },
           { $inc: { seq: 1 } },
-          { new: true, upsert: true, session }
+          { new: true, upsert: true, session },
         );
       }
 
       nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Purchase Invoice" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
 
       nextCounterJournal = await counterModel.findOneAndUpdate(
         { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
     }
 
@@ -233,7 +233,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
           next,
           normalizedPayment,
-          session
+          session,
         );
 
         fxDiff = result.fxDiff || 0; // ← capture fxDiff
@@ -254,10 +254,10 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           .session(session);
 
         const fxGainLink = linkings.find(
-          (l) => l.name === "Foreign Exchange Gain"
+          (l) => l.name === "Foreign Exchange Gain",
         );
         const fxLossLink = linkings.find(
-          (l) => l.name === "Foreign Exchange Loss"
+          (l) => l.name === "Foreign Exchange Loss",
         );
 
         const isLoss = fxDiff > 0;
@@ -265,7 +265,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           ? fxLossLink?.accountData
           : fxGainLink?.accountData;
         const partyJournalAccount = journalPreview.journalAccounts.find(
-          (a) => a.accountType === "Supplier_Payment"
+          (a) => a.accountType === "Supplier_Payment",
         );
         console.log("fxAccount", fxAccount);
         if (fxAccount && partyJournalAccount) {
@@ -342,7 +342,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
 */
 
 exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
   const session = await mongoose.startSession();
 
@@ -358,17 +358,20 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     if (purchaseInvoice.isDraft === true || purchaseInvoice.status === "draft")
       return next(
-        new ApiError("Draft purchase invoice should use draft update flow", 400)
+        new ApiError(
+          "Draft purchase invoice should use draft update flow",
+          400,
+        ),
       );
 
     if (purchaseInvoice.status === "cancelled")
       return next(
-        new ApiError("Cancelled purchase invoice cannot be updated", 400)
+        new ApiError("Cancelled purchase invoice cannot be updated", 400),
       );
 
     if (purchaseInvoice.auditing === true)
       return next(
-        new ApiError("Audited purchase invoice cannot be updated", 400)
+        new ApiError("Audited purchase invoice cannot be updated", 400),
       );
 
     if (
@@ -378,17 +381,17 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "Paid purchase invoice cannot be updated in this step",
-          400
-        )
+          400,
+        ),
       );
 
     const padZero = (v) => String(v).padStart(2, "0");
     const padMs = (v) => String(v).padStart(3, "0");
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     /*
@@ -530,7 +533,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       updateDate,
       "Purchase invoice updated",
       "purchase",
-      session
+      session,
     );
 
     await session.commitTransaction();
@@ -555,7 +558,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -584,7 +587,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     if (purchaseInvoice.auditing === true) {
       return next(
-        new ApiError("Audited purchase invoice cannot be cancelled", 400)
+        new ApiError("Audited purchase invoice cannot be cancelled", 400),
       );
     }
 
@@ -595,8 +598,8 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "Paid purchase invoice cannot be cancelled in this step",
-          400
-        )
+          400,
+        ),
       );
     }
     const baseCounter = Number(req.body.counter || 0);
@@ -605,9 +608,9 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const prepared = await preparePurchaseInvoiceDataFromDraftService({
@@ -658,7 +661,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Purchase invoice cancelled",
       "purchase",
-      session
+      session,
     );
 
     await session.commitTransaction();
@@ -682,7 +685,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -717,7 +720,7 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
     const nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Purchase Invoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     const baseCounter = Number(req.body.counter || 0);
@@ -795,7 +798,7 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
 */
 
 exports.updatePurchaseDraftInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
   }
@@ -839,7 +842,7 @@ exports.updatePurchaseDraftInvoice = asyncHandler(async (req, res, next) => {
 |--------------------------------------------------------------------------
 */
 exports.deletePurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const invoiceId = req.params.id;
 
   if (!companyId) {

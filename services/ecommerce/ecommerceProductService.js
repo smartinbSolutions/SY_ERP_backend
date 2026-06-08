@@ -88,7 +88,7 @@ exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
 // @route Post /api/productLazy
 // @access public
 exports.getLezyProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -335,7 +335,7 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
 // @route put /api/ecommersproduct
 // @access private
 exports.updateEcommerceProducts = async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -430,7 +430,7 @@ exports.updateEcommerceProducts = async (req, res, next) => {
 
 exports.updateEcommerceProductDeActive = asyncHandler(
   async (req, res, next) => {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -475,7 +475,7 @@ exports.updateEcommerceProductDeActive = asyncHandler(
 // @route put /api/ecommersproduct
 // @access private
 exports.setEcommerceProductPublish = async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -509,7 +509,7 @@ exports.setEcommerceProductPublish = async (req, res, next) => {
 // @route GET /api/product/importEcommerceProduct
 // @access Private
 exports.getEcommerceImportProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -573,7 +573,7 @@ exports.getEcommerceImportProduct = asyncHandler(async (req, res, next) => {
 // @route GET /api/product/ecommerce-active-product
 // @access private
 exports.ecommerceActiveProudct = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -653,7 +653,7 @@ exports.ecommerceActiveProudct = asyncHandler(async (req, res) => {
 // @route GET /api/product/ecommerce-dashboard-stats
 // @access private
 exports.ecommerceDashboardStats = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -703,7 +703,7 @@ exports.ecommerceDashboardStats = asyncHandler(async (req, res) => {
 // @route PUT /api/featureProduct
 // @access private
 exports.setEcommerceProductFeatured = async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -766,7 +766,7 @@ exports.setEcommerceProductFeatured = async (req, res, next) => {
 // @route GET /api/getFeatureProduct
 // @access private
 exports.getEcommerceProductFeatured = async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -798,7 +798,7 @@ exports.getEcommerceProductFeatured = async (req, res, next) => {
 // @route PUT /api/sponsorProduct
 // @access private
 exports.setEcommerceProductSponsored = async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -860,7 +860,7 @@ exports.setEcommerceProductSponsored = async (req, res, next) => {
 // @route GET /api/sponsorProduct
 // @access private
 exports.getEcommerceProductSponsored = async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

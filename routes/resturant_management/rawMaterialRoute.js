@@ -9,7 +9,7 @@ const {
 } = require("../../services/resturant_management/rawMaterialsServices");
 
 const router = express.Router();
-router.use(authService.checkPlanFeatures("resturant"), authService.protect);
+router.use(authService.protect, authService.checkPlanFeatures("resturant"));
 
 router.route("/").get(getAllRawMaterials).post(createRawMaterial);
 router

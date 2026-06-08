@@ -13,7 +13,7 @@ const {
 
 const authService = require("../services/authService");
 const router = express.Router();
-router.use(authService.checkPlanFeatures("accounting"), authService.protect);
+router.use(authService.protect, authService.checkPlanFeatures("accounting"));
 
 router
   .route("/")

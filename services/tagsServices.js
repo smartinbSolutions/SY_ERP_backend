@@ -8,7 +8,7 @@ const TagModel = require("../models/tagModel");
 // @route GET /api/tags
 // @accsess public
 exports.getTags = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,7 +21,7 @@ exports.getTags = asyncHandler(async (req, res, next) => {
 // @route POST /api/tags
 // @access Private
 exports.createTag = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -40,7 +40,7 @@ exports.createTag = asyncHandler(async (req, res, next) => {
       { _id: req.body.parentTag, companyId },
       {
         $push: { children: Tag._id },
-      }
+      },
     );
   }
   res
@@ -52,7 +52,7 @@ exports.createTag = asyncHandler(async (req, res, next) => {
 // @route GET /api/tags/:id
 // @access Public
 exports.getTag = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -69,7 +69,7 @@ exports.getTag = asyncHandler(async (req, res, next) => {
 // @route PUT /api/tags/:id
 // @access Private
 exports.updateTag = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -88,7 +88,7 @@ exports.updateTag = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (oldParentId !== newParentId) {
@@ -97,7 +97,7 @@ exports.updateTag = asyncHandler(async (req, res, next) => {
         { _id: oldParentId, companyId },
         {
           $pull: { children: updatedTag._id },
-        }
+        },
       );
     }
 
@@ -106,7 +106,7 @@ exports.updateTag = asyncHandler(async (req, res, next) => {
         { _id: newParentId, companyId },
         {
           $addToSet: { children: updatedTag._id },
-        }
+        },
       );
     }
   }
@@ -120,7 +120,7 @@ exports.updateTag = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/tags/:id
 // @access Private
 exports.deleteTag = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -138,8 +138,8 @@ exports.deleteTag = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         `Tag has children. Please delete the children before deleting this tag.`,
-        400
-      )
+        400,
+      ),
     );
   }
 
@@ -149,7 +149,7 @@ exports.deleteTag = asyncHandler(async (req, res, next) => {
       { _id: tag.parentTag, companyId },
       {
         $pull: { children: id },
-      }
+      },
     );
   }
 

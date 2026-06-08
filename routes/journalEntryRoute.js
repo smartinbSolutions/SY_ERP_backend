@@ -18,8 +18,8 @@ const {
 const accountingRoute = express.Router();
 
 accountingRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 accountingRoute

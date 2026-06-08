@@ -8,7 +8,7 @@ const PaymentHistoryModel = require("../models/paymentHistoryModel");
 
 //Create New Supplier
 exports.createSupplier = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -48,7 +48,7 @@ exports.createSupplier = asyncHandler(async (req, res, next) => {
 //Get All Suppliers
 //@rol: who has rol can Get Suppliers Data
 exports.getSuppliers = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -97,7 +97,7 @@ exports.getSuppliers = asyncHandler(async (req, res, next) => {
 //@rol: who has rol can Get the Supplier's Data
 exports.getSupplier = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -122,7 +122,7 @@ exports.getSupplier = asyncHandler(async (req, res, next) => {
 //@rol: who has rol can update the Supplier's Data
 exports.updataSupplier = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -151,7 +151,7 @@ exports.updataSupplier = asyncHandler(async (req, res, next) => {
       req.body,
       {
         new: true,
-      }
+      },
     );
     // const purchase = await PurchaseInvoicesModel.findOne({
     //   openingBalanceId: supplier.openingBalanceId,
@@ -178,7 +178,7 @@ exports.updataSupplier = asyncHandler(async (req, res, next) => {
 //@rol:who has rol can Delete the Supplier
 exports.deleteSupplier = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -191,13 +191,13 @@ exports.deleteSupplier = asyncHandler(async (req, res, next) => {
   if (paymentHistory.length > 0) {
     return next(
       new ApiError(`you have a payment for this supplier ${id}`),
-      400
+      400,
     );
   }
   const supplier = await supplierModel.findByIdAndUpdate(
     { _id: id, companyId },
     { archives: "true" },
-    { new: true }
+    { new: true },
   );
 
   if (!supplier) {

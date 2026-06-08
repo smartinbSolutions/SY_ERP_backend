@@ -36,7 +36,7 @@ exports.resizerBrandImage = asyncHandler(async (req, res, next) => {
 });
 
 exports.getBrands = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -61,7 +61,7 @@ exports.getBrands = asyncHandler(async (req, res) => {
 });
 
 exports.getBrand = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -77,7 +77,7 @@ exports.getBrand = asyncHandler(async (req, res) => {
 });
 
 exports.createBrand = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -100,7 +100,7 @@ exports.createBrand = asyncHandler(async (req, res) => {
 });
 
 exports.updateBrand = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -122,7 +122,7 @@ exports.updateBrand = asyncHandler(async (req, res) => {
 });
 
 exports.deleteBrand = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

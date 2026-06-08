@@ -12,7 +12,7 @@ const {
 } = require("../../../services/Accounting/CurrentAssets/Funds/FundAndBanck.service");
 
 exports.findAllFundAndBank = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -31,7 +31,7 @@ exports.findAllFundAndBank = asyncHandler(async (req, res, next) => {
 });
 
 exports.createFundAndBank = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -57,7 +57,7 @@ exports.createFundAndBank = asyncHandler(async (req, res, next) => {
 });
 
 exports.createFundAdjustment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -85,7 +85,7 @@ exports.createFundAdjustment = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneFundAndBank = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -103,7 +103,7 @@ exports.findOneFundAndBank = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateFundAndBank = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -133,7 +133,7 @@ exports.updateFundAndBank = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteFundAndBank = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
@@ -154,7 +154,7 @@ exports.deleteFundAndBank = asyncHandler(async (req, res, next) => {
 });
 
 exports.getFundAndBankForSalesPoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -184,7 +184,7 @@ exports.getFundAndBankForSalesPoint = asyncHandler(async (req, res, next) => {
 
 exports.findSpecificFundReports = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }

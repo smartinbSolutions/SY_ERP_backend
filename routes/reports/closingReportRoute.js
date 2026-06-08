@@ -6,8 +6,8 @@ const closingReportRoute = express.Router();
 const authService = require("../../services/authService");
 
 closingReportRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 closingReportRoute
   .route("/")

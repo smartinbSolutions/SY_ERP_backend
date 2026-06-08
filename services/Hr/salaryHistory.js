@@ -8,7 +8,7 @@ const reportsFinancialFundsSchema = require("../../models/Accounting/CurrentAsse
 const currencySchema = require("../../models/Settings/currency.model");
 
 exports.getSalaryHistories = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -34,7 +34,7 @@ exports.getSalaryHistories = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneSalaryHistory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -59,7 +59,7 @@ exports.getOneSalaryHistory = asyncHandler(async (req, res, next) => {
 
 exports.getSalaryisHistoryForStaff = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -110,7 +110,7 @@ exports.getSalaryisHistoryForStaff = asyncHandler(async (req, res, next) => {
 });
 
 exports.createOneSalaryHistory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -126,7 +126,7 @@ exports.createOneSalaryHistory = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateOneSalaryHistory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -153,7 +153,7 @@ exports.updateOneSalaryHistory = asyncHandler(async (req, res, next) => {
 
 exports.createSalaryHistories = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -223,7 +223,7 @@ exports.paidSalaryOneStaff = asyncHandler(async (req, res, next) => {
   try {
     const { id } = req.params;
     const { amountPaid, fundID, paymentInFundCurrency } = req.body;
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -301,7 +301,7 @@ exports.paidSalaryOneStaff = asyncHandler(async (req, res, next) => {
 exports.paidSalaryForAllStaff = asyncHandler(async (req, res, next) => {
   try {
     const { fundID, paymentInFundCurrency } = req.body;
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -361,7 +361,7 @@ exports.paidSalaryForAllStaff = asyncHandler(async (req, res, next) => {
 });
 
 exports.unpaidSalaryForAllStaff = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

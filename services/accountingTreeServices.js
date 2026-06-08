@@ -7,7 +7,7 @@ const currencySchema = require("../models/Settings/currency.model");
 const journalEntryModel = require("../models/journalEntryModel");
 
 exports.getAccountingTree = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -457,7 +457,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
   }
 });
 exports.getChartOfAccounts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -515,7 +515,7 @@ exports.getChartOfAccounts = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAccountingTreeNoBalance = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -527,7 +527,7 @@ exports.getAccountingTreeNoBalance = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAccountingTreeForExport = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -541,7 +541,7 @@ exports.getAccountingTreeForExport = asyncHandler(async (req, res, next) => {
 });
 
 exports.createAccountingTree = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -553,7 +553,7 @@ exports.createAccountingTree = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -572,7 +572,7 @@ exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAccountingTreeByCode = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -587,7 +587,7 @@ exports.getAccountingTreeByCode = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteAccountingTree = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -625,7 +625,7 @@ exports.deleteAccountingTree = asyncHandler(async (req, res, next) => {
 });
 
 exports.importAccountingTree = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -712,7 +712,7 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
 });
 
 exports.changeBalance = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -734,7 +734,7 @@ exports.changeBalance = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneAccountingTree = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -751,7 +751,7 @@ exports.getOneAccountingTree = asyncHandler(async (req, res, next) => {
 });
 
 exports.calculateBalance = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
 

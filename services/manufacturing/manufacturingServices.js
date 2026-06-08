@@ -19,7 +19,7 @@ exports.createBOM = asyncHandler(async (req, res) => {
     preparationSteps = [],
   } = req.body;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -103,7 +103,7 @@ exports.updateBOM = asyncHandler(async (req, res) => {
     preparationSteps = [],
   } = req.body;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -188,7 +188,7 @@ exports.deleteBOM = asyncHandler(async (req, res) => {
 });
 
 exports.getAllBOMs = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -258,7 +258,7 @@ exports.produceProduct = asyncHandler(async (req, res) => {
       unitEqual,
       counter,
     } = req.body;
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     //BASIC VALIDATION
     if (!companyId) {

@@ -16,7 +16,7 @@ const { createProductMovement } = require("../../utils/productMovement");
 const { default: axios } = require("axios");
 
 exports.createCashOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -44,7 +44,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   // 1) Get cart depend on cartId
   const { id } = req.params;
   const cart = await CartModel.findOne({ _id: id, companyId }).populate(
-    "cartItems.product"
+    "cartItems.product",
   );
 
   if (!cart) {
@@ -122,7 +122,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 });
 
 exports.createOrderDashboard = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -155,7 +155,7 @@ exports.createOrderDashboard = asyncHandler(async (req, res, next) => {
     // Calculate total order price
     const cartPrice = cartItems.reduce(
       (acc, item) => acc + item.taxPrice * item.quantity,
-      0
+      0,
     );
     const totalOrderPrice = cartPrice + taxPrice + shippingPrice;
     const nextCounter =
@@ -213,7 +213,7 @@ exports.createOrderDashboard = asyncHandler(async (req, res, next) => {
 });
 
 exports.filterOrderCustomerById = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -270,7 +270,7 @@ exports.filterOrderCustomerById = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllOrderforCustomer = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -324,7 +324,7 @@ exports.findAllOrderforCustomer = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllOrders = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
 
@@ -366,7 +366,7 @@ exports.findAllOrders = asyncHandler(async (req, res, next) => {
             { "customarData.name": { $regex: keywordRegex } },
           ],
         },
-      }
+      },
     );
   }
 
@@ -468,7 +468,7 @@ exports.findAllOrders = asyncHandler(async (req, res, next) => {
         as: "customar",
       },
     },
-    { $unwind: { path: "$customar", preserveNullAndEmptyArrays: true } }
+    { $unwind: { path: "$customar", preserveNullAndEmptyArrays: true } },
   );
 
   const buildStatusStage = (status) => ({
@@ -584,7 +584,7 @@ exports.findAllOrders = asyncHandler(async (req, res, next) => {
 });
 
 exports.filterOneOrderForLoggedUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -606,7 +606,7 @@ exports.filterOneOrderForLoggedUser = asyncHandler(async (req, res, next) => {
 
 exports.UpdateEcommersOrder = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -640,7 +640,7 @@ exports.UpdateEcommersOrder = asyncHandler(async (req, res, next) => {
 
     updatedCartItems.forEach((item) => {
       const index = order.cartItems.findIndex(
-        (i) => i.product.toString() === item.product._id
+        (i) => i.product.toString() === item.product._id,
       );
 
       if (index !== -1) {
@@ -660,7 +660,7 @@ exports.UpdateEcommersOrder = asyncHandler(async (req, res, next) => {
 
 exports.customarChangeOrderStatus = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -720,7 +720,7 @@ exports.customarChangeOrderStatus = asyncHandler(async (req, res, next) => {
 });
 
 exports.convertEcommersOrderToInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -826,7 +826,7 @@ exports.convertEcommersOrderToInvoice = asyncHandler(async (req, res, next) => {
   const ecommerceOrder = await ecommerceOrderModel.findOneAndUpdate(
     { _id: id, companyId },
     { invoiceCreated: true, refNumber: order._id },
-    { new: true }
+    { new: true },
   );
 
   if (!ecommerceOrder) {
@@ -849,7 +849,7 @@ exports.convertEcommersOrderToInvoice = asyncHandler(async (req, res, next) => {
 
         const totalStockQuantity = product.stocks.reduce(
           (total, stock) => total + stock.productQuantity,
-          0
+          0,
         );
 
         await createProductMovement(
@@ -862,7 +862,7 @@ exports.convertEcommersOrderToInvoice = asyncHandler(async (req, res, next) => {
           "movement",
           "out",
           "Sales Invoice",
-          companyId
+          companyId,
         );
 
         return {
@@ -884,7 +884,7 @@ exports.convertEcommersOrderToInvoice = asyncHandler(async (req, res, next) => {
           },
         };
       }
-    })
+    }),
   );
 
   // Filter out null or undefined operations
@@ -910,7 +910,7 @@ exports.payTROrder = asyncHandler(async (req, res, next) => {
       req?.body?.userInfo || req?.body?.order?.userInfo;
 
     const payment_amount = Number(
-      req?.body?.totalAmount || req?.body?.order?.totalAmount
+      req?.body?.totalAmount || req?.body?.order?.totalAmount,
     );
     const user_ip = req?.body?.ipAddress || req?.body?.order?.ipAddress;
     const user_name =
@@ -995,7 +995,7 @@ exports.payTROrder = asyncHandler(async (req, res, next) => {
         data,
         {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        }
+        },
       );
 
       if (response.data.status === "success") {
@@ -1070,14 +1070,14 @@ exports.returnMoney = asyncHandler(async (req, res, next) => {
         qs,
         {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        }
+        },
       );
 
       if (response.data.status === "success") {
         const order = await orderModel.findById(merchant_oid);
         if (!order) {
           return next(
-            new ApiError(`No order found for ID: ${merchant_oid}`, 404)
+            new ApiError(`No order found for ID: ${merchant_oid}`, 404),
           );
         }
 

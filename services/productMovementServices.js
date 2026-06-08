@@ -5,7 +5,7 @@ const productModel = require("../models/productModel");
 
 // Get all products movement
 exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -75,7 +75,7 @@ exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
 // Get product movement by ID
 exports.getProductMovementByID = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -125,7 +125,7 @@ exports.getProductMovementByID = asyncHandler(async (req, res, next) => {
 });
 
 exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -208,7 +208,7 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
 });
 
 exports.getSalesReports = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const idType = req.query.type || "product";
   const { startDate, endDate } = req.query;
   const { id } = req.params;

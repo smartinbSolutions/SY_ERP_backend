@@ -71,7 +71,7 @@ const setImageURL = (doc) => {
 exports.createOffer = async (req, res) => {
   try {
     const offerData = req.body;
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -276,7 +276,7 @@ exports.createOffer = async (req, res) => {
 exports.updateOffer = async (req, res) => {
   const offerId = req.params.id;
   const updateData = req.body;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -300,7 +300,7 @@ exports.updateOffer = async (req, res) => {
 
 exports.deleteOffer = async (req, res) => {
   const offerId = req.params.id;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -330,7 +330,7 @@ exports.deleteOffer = async (req, res) => {
 };
 
 exports.getOffer = async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -370,7 +370,7 @@ exports.getOffer = async (req, res) => {
 
 exports.getOneOffer = async (req, res) => {
   const offerId = req.params.id;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -393,7 +393,7 @@ exports.getOneOffer = async (req, res) => {
 };
 
 exports.getOneOfferByProduct = async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

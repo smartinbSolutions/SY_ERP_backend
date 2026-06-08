@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 
 // Get all payment methods
 exports.getPaymentMethods = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -22,7 +22,7 @@ exports.getPaymentMethods = asyncHandler(async (req, res, next) => {
 
 // Get specific payment method by ID
 exports.getPaymentMethod = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -41,7 +41,7 @@ exports.getPaymentMethod = asyncHandler(async (req, res, next) => {
 
 // Update specific payment method
 exports.updatePaymentMethod = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -66,7 +66,7 @@ exports.updatePaymentMethod = asyncHandler(async (req, res, next) => {
       bankName: paymentMethod.bankName,
       companyRatio: paymentMethod.companyRatio,
     },
-    { new: true }
+    { new: true },
   );
   if (!paymentMethod) {
     return next(new ApiError(`No payment method found for ID ${id}`, 404));

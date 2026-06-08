@@ -39,7 +39,7 @@ const ParasutServices = (() => {
     } catch (error) {
       console.error(
         "Error generating token:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
     }
   };
@@ -59,7 +59,7 @@ const ParasutServices = (() => {
     } catch (error) {
       console.error(
         "Error refreshing token:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
     }
   };
@@ -89,7 +89,7 @@ const ParasutServices = (() => {
     } catch (error) {
       console.error(
         `Error fetching data:`,
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
 
       if (error.response?.status === 401) {
@@ -122,7 +122,7 @@ const ParasutServices = (() => {
 
   const getCount = async (req, res, next) => {
     try {
-      const companyId = req.query.companyId;
+      const companyId = req.companyId;
 
       if (!companyId) {
         return res.status(400).json({ message: "companyId is required" });
@@ -153,17 +153,17 @@ const ParasutServices = (() => {
             } catch (error) {
               console.error(
                 `Error fetching stock count for ${doc._id}:`,
-                error
+                error,
               );
               doc.quantity = 0;
             }
-          })
+          }),
         );
 
         // Only delay if there are more batches left
         if (i + BATCH_SIZE < docs.length) {
           console.log(
-            `Waiting ${DELAY_MS / 1000} seconds before next batch...`
+            `Waiting ${DELAY_MS / 1000} seconds before next batch...`,
           );
           await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
         }

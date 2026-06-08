@@ -8,7 +8,7 @@ const UserModel = require("../../models/ecommerce/E_user_Modal");
 
 // @access  Protected/User
 exports.addAddress = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -20,7 +20,7 @@ exports.addAddress = asyncHandler(async (req, res, next) => {
     {
       $addToSet: { addresses: req.body },
     },
-    { new: true }
+    { new: true },
   );
 
   res.status(200).json({
@@ -34,7 +34,7 @@ exports.addAddress = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/addresses/:addressId
 // @access  Protected/User
 exports.removeAddress = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -45,7 +45,7 @@ exports.removeAddress = asyncHandler(async (req, res, next) => {
     {
       $pull: { addresses: { _id: req.params.addressId } },
     },
-    { new: true }
+    { new: true },
   );
 
   res.status(200).json({
@@ -59,7 +59,7 @@ exports.removeAddress = asyncHandler(async (req, res, next) => {
 // @route   GET /api/addresses
 // @access  Protected/User
 exports.getLoggedUserAddresses = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -81,7 +81,7 @@ exports.getLoggedUserAddresses = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/addresses/:addressId
 // @access  Protected/User
 exports.updateAddress = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -92,7 +92,7 @@ exports.updateAddress = asyncHandler(async (req, res, next) => {
     {
       $set: { "addresses.$": req.body },
     },
-    { new: true }
+    { new: true },
   );
 
   if (!user) {
@@ -113,7 +113,7 @@ exports.updateAddress = asyncHandler(async (req, res, next) => {
 // @route   GET /api/addresses/:addressId
 // @access  Protected/User
 exports.getAddressById = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -121,7 +121,7 @@ exports.getAddressById = asyncHandler(async (req, res, next) => {
 
   const user = await UserModel.findOne(
     { _id: req.user._id, "addresses._id": req.params.addressId, companyId },
-    { "addresses.$": 1 }
+    { "addresses.$": 1 },
   );
 
   if (!user || !user.addresses.length) {

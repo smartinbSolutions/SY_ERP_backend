@@ -12,7 +12,7 @@ const {
 } = require("../services/customarServices");
 const multer = require("multer");
 const upload = multer();
-router.use(authService.checkPlanFeatures("accounting"), authService.protect);
+router.use(authService.protect, authService.checkPlanFeatures("accounting"));
 
 router.route("/e-edit/:id").put(authService.ecommerceProtect, updataCustomar);
 router

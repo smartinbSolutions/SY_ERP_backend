@@ -42,9 +42,9 @@ exports.createEFatura = asyncHandler(async (req, res, next) => {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
         },
-      }
+      },
     );
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -59,7 +59,7 @@ exports.createEFatura = asyncHandler(async (req, res, next) => {
         ettn: response?.data?.id,
         efaturaStatus: "0",
       },
-      { new: true }
+      { new: true },
     );
 
     createInvoiceHistory(
@@ -67,7 +67,7 @@ exports.createEFatura = asyncHandler(async (req, res, next) => {
       orderNumber,
       "edit",
       req.user?._id,
-      req.body?.orderInfoModel?.orderDate || timeIsoString
+      req.body?.orderInfoModel?.orderDate || timeIsoString,
     );
 
     return res.status(201).json({
@@ -148,7 +148,7 @@ exports.updateEfaturaStatus = asyncHandler(async (req, res) => {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
         },
-      }
+      },
     );
 
     return res.status(200).json({
@@ -159,7 +159,7 @@ exports.updateEfaturaStatus = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error(
       "E-Fatura Update Status Error:",
-      error?.response?.data || error
+      error?.response?.data || error,
     );
     return res.status(500).json({
       status: "error",
@@ -197,7 +197,7 @@ exports.getAllIncomingEFatura = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error(
       "E-Fatura Get Incoming Error:",
-      error?.response?.data || error
+      error?.response?.data || error,
     );
     return res.status(500).json({
       status: "error",

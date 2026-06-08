@@ -6,7 +6,7 @@ const tablesModel = require("../../models/resturant_management/tablesModel");
 // @route POST /api/table
 // @access Private
 exports.createTable = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -15,8 +15,6 @@ exports.createTable = asyncHandler(async (req, res, next) => {
   try {
     // Create Table with the provided currency
     const table = await tablesModel.create(req.body);
-
-      
 
     // Respond with success message and created Table data
     res.status(201).json({
@@ -37,7 +35,7 @@ exports.createTable = asyncHandler(async (req, res, next) => {
 // @route GET /api/table
 // @access Private
 exports.getAllTables = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const tableNumber = req.query.tableNumber;
 
   if (!companyId) {
@@ -85,7 +83,7 @@ exports.getAllTables = asyncHandler(async (req, res, next) => {
 // @route GET /api/table
 // @access Private
 exports.getOneTable = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -117,7 +115,7 @@ exports.getOneTable = asyncHandler(async (req, res, next) => {
 // @route PUT /api/table/:id
 // @access Private
 exports.updateTable = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -131,7 +129,7 @@ exports.updateTable = asyncHandler(async (req, res, next) => {
     const updatedTable = await tablesModel.findOneAndUpdate(
       { _id: tableId, companyId },
       updatedData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     // If the Table is not found
@@ -161,7 +159,7 @@ exports.updateTable = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/table/:id
 // @access Private
 exports.deleteTable = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

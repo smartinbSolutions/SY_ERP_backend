@@ -5,7 +5,7 @@ const departmentModel = require("../../models/Hr/departmentModel");
 
 /////////
 exports.getAllDepartments = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const branchId = req.query.branchId;
   const keyword = req.query.keyword;
 
@@ -32,7 +32,7 @@ exports.getAllDepartments = asyncHandler(async (req, res, next) => {
 
   // Pagination
   const page = parseInt(req.query.page) || 1;
-const limit = parseInt(req.query.limit) || 0;
+  const limit = parseInt(req.query.limit) || 0;
   const skip = (page - 1) * limit;
 
   const total = await departmentModel.countDocuments(query);
@@ -56,7 +56,7 @@ const limit = parseInt(req.query.limit) || 0;
 
 ////////
 exports.getOneDepartment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -82,7 +82,7 @@ exports.getOneDepartment = asyncHandler(async (req, res, next) => {
 
 /////////
 exports.createDepartment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -105,7 +105,7 @@ exports.createDepartment = asyncHandler(async (req, res, next) => {
 
 //////
 exports.updateDepartment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -124,7 +124,7 @@ exports.updateDepartment = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!department) {
@@ -136,7 +136,7 @@ exports.updateDepartment = asyncHandler(async (req, res, next) => {
 
 ////////
 exports.deleteDepartment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -23,7 +23,7 @@ const {
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 
 exports.findAllPurchaseRefunds = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -45,7 +45,7 @@ exports.findAllPurchaseRefunds = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOnePurchaseRefund = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -68,7 +68,7 @@ exports.findOnePurchaseRefund = asyncHandler(async (req, res, next) => {
 
 exports.findRefundablePurchaseItemsByInvoices = asyncHandler(
   async (req, res, next) => {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -86,11 +86,11 @@ exports.findRefundablePurchaseItemsByInvoices = asyncHandler(
       purchaseInvoicesCount,
       data: refundableItems,
     });
-  }
+  },
 );
 
 exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -106,12 +106,12 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       await counterModel.findOneAndUpdate(
         { companyId, name: "refundPurchaseInvoice" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
     nextCounterJournal = await counterModel.findOneAndUpdate(
       { companyId, name: "Journal" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     const prepared = await prepareRefundPurchaseInvoiceDataService({
@@ -200,7 +200,7 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         companyId,
         next,
         normalizedPayment,
-        session
+        session,
       );
 
       fxDiff = result.fxDiff || 0;
@@ -218,10 +218,10 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         .session(session);
 
       const fxGainLink = linkings.find(
-        (l) => l.name === "Foreign Exchange Gain"
+        (l) => l.name === "Foreign Exchange Gain",
       );
       const fxLossLink = linkings.find(
-        (l) => l.name === "Foreign Exchange Loss"
+        (l) => l.name === "Foreign Exchange Loss",
       );
 
       const isLoss = fxDiff < 0.0;
@@ -229,7 +229,7 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         ? fxLossLink?.accountData
         : fxGainLink?.accountData;
       const partyJournalAccount = journalPreview.journalAccounts.find(
-        (a) => a.accountType === "Supplier_Payment"
+        (a) => a.accountType === "Supplier_Payment",
       );
 
       if (fxAccount && partyJournalAccount) {

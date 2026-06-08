@@ -7,7 +7,7 @@ const PaymentTypesModel = require("../models/paymentTypesModel");
 // @rout Get /api/paymenttype
 // @access priveta
 exports.getPaymentTypes = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,7 +21,7 @@ exports.getPaymentTypes = asyncHandler(async (req, res) => {
 //route Post /api/paymenttype
 //@access Private
 exports.createPaymentType = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -42,7 +42,7 @@ exports.createPaymentType = asyncHandler(async (req, res, next) => {
 //@access Private
 exports.getOnePaymentType = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -51,7 +51,7 @@ exports.getOnePaymentType = asyncHandler(async (req, res, next) => {
   const paymentType = await PaymentTypesModel.findById({ _id: id, companyId });
   if (!paymentType) {
     return next(
-      new ApiError(`There is no payment type with this id ${id}`, 404)
+      new ApiError(`There is no payment type with this id ${id}`, 404),
     );
   } else {
     res.status(200).json({ status: "true", data: paymentType });
@@ -64,7 +64,7 @@ exports.getOnePaymentType = asyncHandler(async (req, res, next) => {
 exports.updataPaymentType = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -75,12 +75,12 @@ exports.updataPaymentType = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!paymentType) {
     return next(
-      new ApiError(`There is no payment type with this id ${id}`, 404)
+      new ApiError(`There is no payment type with this id ${id}`, 404),
     );
   } else {
     res.status(200).json({
@@ -97,7 +97,7 @@ exports.updataPaymentType = asyncHandler(async (req, res, next) => {
 exports.deleteOnePaymentType = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -16,8 +16,8 @@ const {
 const ExpenseInvoices = express.Router();
 
 ExpenseInvoices.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 ExpenseInvoices.route("/")

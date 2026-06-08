@@ -4,7 +4,7 @@ const pageModel = require("../../models/ecommerce/pageModel");
 const ApiError = require("../../utils/apiError");
 
 exports.createPage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -20,7 +20,7 @@ exports.createPage = asyncHandler(async (req, res, next) => {
 });
 
 exports.getPage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -35,7 +35,7 @@ exports.getPage = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOnePage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -54,7 +54,7 @@ exports.getOnePage = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -67,7 +67,7 @@ exports.updatePage = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   res.status(200).json({

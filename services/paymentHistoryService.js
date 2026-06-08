@@ -16,7 +16,7 @@ const createPaymentHistory = async (
   paymentText,
   refText,
   transactionCurrency,
-  session = null
+  session = null,
 ) => {
   try {
     const normalizedDate = date
@@ -84,7 +84,7 @@ const createPaymentHistoryV2 = async ({
     if (supplierId && customerId) {
       throw new ApiError(
         "Only one of supplierId or customerId should be provided",
-        400
+        400,
       );
     }
 
@@ -119,7 +119,7 @@ const getPaymentHistory = async (req, res, next) => {
   const pageSize = parseInt(req.query.limit, 10) || 10;
   const page = parseInt(req.query.page, 10) || 1;
   const skip = (page - 1) * pageSize;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

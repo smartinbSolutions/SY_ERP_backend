@@ -12,7 +12,7 @@ const { getIo } = require("../../utils/socket");
 // @access Private
 
 exports.createmenuOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -123,7 +123,7 @@ exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
 // @route GET /api/menuOrder
 // @access Private
 exports.getOnemenuOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -175,7 +175,7 @@ exports.getOnemenuOrder = asyncHandler(async (req, res, next) => {
 // @route PUT /api/menuOrder/:id
 // @access Private
 exports.updatemenuOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -233,7 +233,7 @@ exports.updatemenuOrder = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/menuOrder/:id
 // @access Private
 exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -301,17 +301,16 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
 
     if (productId) {
       itemsToProcess = order.orderItems.filter(
-        (item) => item.productId._id.toString() === productId
+        (item) => item.productId._id.toString() === productId,
       );
       if (itemsToProcess.length === 0)
         throw new Error("Product not found in this order");
     }
 
-
     for (const item of itemsToProcess) {
       const product = item.productId;
       console.log(
-        `\n➡️ Processing product: ${product._id} (${product.name || "Unnamed"})`
+        `\n➡️ Processing product: ${product._id} (${product.name || "Unnamed"})`,
       );
 
       if (product.RecipeId) {
@@ -322,7 +321,7 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
 
         if (!recipe) {
           console.log(
-            `⚠️ No recipe found for ${product._id}, using batches directly...`
+            `⚠️ No recipe found for ${product._id}, using batches directly...`,
           );
           const availableBatches = await batchModel
             .find({ rawMaterialId: product._id, leftQuantity: { $gt: 0 } })
@@ -351,13 +350,13 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
               companyId,
               `Consumed in order ${order._id}`,
               batch.currency || "",
-              batch.currency || ""
+              batch.currency || "",
             );
           }
 
           if (remainingQty > 0)
             console.log(
-              `⚠️ Not enough stock for product ${product._id}. Remaining: ${remainingQty}`
+              `⚠️ Not enough stock for product ${product._id}. Remaining: ${remainingQty}`,
             );
 
           item.status = "In Progress";
@@ -397,13 +396,13 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
               companyId,
               `Consumed in order ${order._id}`,
               batch.currency || "",
-              batch.currency || ""
+              batch.currency || "",
             );
           }
 
           if (remainingQty > 0)
             console.log(
-              `⚠️ Not enough stock for material ${material.rawMatrialId.name}. Remaining: ${remainingQty}`
+              `⚠️ Not enough stock for material ${material.rawMatrialId.name}. Remaining: ${remainingQty}`,
             );
         }
       } else {
@@ -438,13 +437,13 @@ exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
             companyId,
             `Consumed in order ${order._id}`,
             batch.currency || "",
-            batch.currency || ""
+            batch.currency || "",
           );
         }
 
         if (remainingQty > 0)
           console.log(
-            `⚠️ Not enough stock for product ${product._id}. Remaining: ${remainingQty}`
+            `⚠️ Not enough stock for product ${product._id}. Remaining: ${remainingQty}`,
           );
       }
 

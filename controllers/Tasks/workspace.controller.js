@@ -8,7 +8,7 @@ exports.createWorkspace = async (req, res) => {
     const data = await workspaceService.createWorkspace(
       req.body,
       req.user._id,
-      req.query.companyId, // 🔥 ممكن نحسّنها لاحقًا
+      req.companyId, // 🔥 ممكن نحسّنها لاحقًا
     );
 
     return res.status(201).json({

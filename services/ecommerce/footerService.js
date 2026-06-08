@@ -4,7 +4,7 @@ const footerModel = require("../../models/ecommerce/footerModel");
 const ApiError = require("../../utils/apiError");
 
 exports.addFooters = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -20,7 +20,7 @@ exports.addFooters = asyncHandler(async (req, res, next) => {
 });
 
 exports.getFooters = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -34,7 +34,7 @@ exports.getFooters = asyncHandler(async (req, res, next) => {
 });
 
 exports.getFooter = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -51,7 +51,7 @@ exports.getFooter = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateFooter = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -63,7 +63,7 @@ exports.updateFooter = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!footer) {
     return next(new ApiError(`Not fond for this id ${id}`));
@@ -76,7 +76,7 @@ exports.updateFooter = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteFooter = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -20,8 +20,8 @@ const {
 const PurchaseInvoices = express.Router();
 
 PurchaseInvoices.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 /*

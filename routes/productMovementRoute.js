@@ -13,8 +13,8 @@ const {
 const productMovementsRoute = express.Router();
 
 productMovementsRoute.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 productMovementsRoute
   .route("/")

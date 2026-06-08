@@ -3,7 +3,7 @@ const reconciliationModel = require("../models/reconciliationModel");
 const asyncHandler = require("express-async-handler");
 
 exports.getReconciliations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -35,7 +35,7 @@ exports.getReconciliations = asyncHandler(async (req, res, next) => {
 });
 
 exports.createReconciliatio = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -52,7 +52,7 @@ exports.createReconciliatio = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneReconciliatio = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -69,7 +69,7 @@ exports.getOneReconciliatio = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteReconciliatio = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -87,7 +87,7 @@ exports.deleteReconciliatio = asyncHandler(async (req, res, next) => {
 
 exports.getAllReconciliationsForAccount = asyncHandler(
   async (req, res, next) => {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -103,5 +103,5 @@ exports.getAllReconciliationsForAccount = asyncHandler(
       status: "success",
       data: Reconciliatio,
     });
-  }
+  },
 );

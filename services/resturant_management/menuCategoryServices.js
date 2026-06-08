@@ -35,7 +35,7 @@ exports.resizerMenuCategoryImage = asyncHandler(async (req, res, next) => {
 });
 
 exports.getMenuCategories = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -72,7 +72,7 @@ exports.getMenuCategories = asyncHandler(async (req, res, next) => {
 });
 
 exports.createMenuCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -89,7 +89,7 @@ exports.createMenuCategory = asyncHandler(async (req, res, next) => {
 });
 
 exports.getMenuCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -104,7 +104,7 @@ exports.getMenuCategory = asyncHandler(async (req, res, next) => {
 });
 
 exports.updataMenuCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -115,11 +115,11 @@ exports.updataMenuCategory = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!menuCategory) {
     return next(
-      new ApiError(`No Menu Category for this id ${req.params.id}`, 404)
+      new ApiError(`No Menu Category for this id ${req.params.id}`, 404),
     );
   }
   res.status(200).json({
@@ -130,7 +130,7 @@ exports.updataMenuCategory = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteMenuCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

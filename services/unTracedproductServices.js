@@ -8,7 +8,7 @@ const { Search } = require("../utils/search");
 // @rout Get /api/untracedproductlog
 // @access priveta
 exports.getUnTracedproductLog = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -39,7 +39,7 @@ exports.getUnTracedproductLog = asyncHandler(async (req, res) => {
 // @rout Post /api/untracedproductlog
 // @access priveta
 exports.createUnTracedproductLog = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -57,7 +57,7 @@ exports.createUnTracedproductLog = asyncHandler(async (req, res) => {
 // @rout Get /api/untracedproductlog/:id
 // @access priveta
 exports.getOneUnTracedproductLog = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -74,7 +74,7 @@ exports.getOneUnTracedproductLog = asyncHandler(async (req, res, next) => {
 });
 
 exports.updataUnTracedproductLog = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -84,11 +84,11 @@ exports.updataUnTracedproductLog = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!UnTracedproductLog) {
     return next(
-      new ApiError(`No UnTracedproductLog for this id ${req.params.id}`, 404)
+      new ApiError(`No UnTracedproductLog for this id ${req.params.id}`, 404),
     );
   }
   res.status(200).json({
@@ -102,7 +102,7 @@ exports.updataUnTracedproductLog = asyncHandler(async (req, res, next) => {
 // @rout Delete /api/untracedproductlog/:id
 // @access priveta
 exports.deleteUnTracedproductLog = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

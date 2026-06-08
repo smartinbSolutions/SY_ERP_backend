@@ -2,13 +2,12 @@ const asyncHandler = require("express-async-handler");
 const UserModel = require("../../models/ecommerce/E_user_Modal");
 const productModel = require("../../models/productModel");
 
-
 // @desc    Add product to wishlist
 // @route   POST /api/wishlist
 // @access  Protected/User
 exports.addProductToWishlist = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -31,7 +30,7 @@ exports.addProductToWishlist = asyncHandler(async (req, res, next) => {
     const user = await UserModel.findOneAndUpdate(
       { _id: req.user._id, companyId },
       { $addToSet: { wishlist: req.body.productId } },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -56,7 +55,7 @@ exports.addProductToWishlist = asyncHandler(async (req, res, next) => {
 // @access  Protected/User
 exports.removeProductFromWishlist = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -82,7 +81,7 @@ exports.removeProductFromWishlist = asyncHandler(async (req, res, next) => {
       {
         $pull: { wishlist: req.params.productId },
       },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -106,7 +105,7 @@ exports.removeProductFromWishlist = asyncHandler(async (req, res, next) => {
 // @route   GET /api/wishlist
 // @access  Protected/User
 exports.getLoggedUserWishlist = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

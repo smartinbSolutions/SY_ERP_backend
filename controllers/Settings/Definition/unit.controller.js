@@ -3,7 +3,7 @@ const asyncHandler = require("express-async-handler");
 const unitService = require("../../../services/Settings/Definition/unit.service");
 
 exports.getUnits = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,7 +21,7 @@ exports.getUnits = asyncHandler(async (req, res) => {
 });
 
 exports.getUnit = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -37,7 +37,7 @@ exports.getUnit = asyncHandler(async (req, res) => {
 });
 
 exports.createUnit = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -58,7 +58,7 @@ exports.createUnit = asyncHandler(async (req, res) => {
 });
 
 exports.updateUnit = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -80,7 +80,7 @@ exports.updateUnit = asyncHandler(async (req, res) => {
 });
 
 exports.deleteUnit = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

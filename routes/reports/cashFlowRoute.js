@@ -5,8 +5,8 @@ const cashFlowRoute = express.Router();
 const authService = require("../../services/authService");
 
 cashFlowRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 cashFlowRoute
   .route("/")

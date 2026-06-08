@@ -12,7 +12,7 @@ const axios = require("axios");
 const unTracedproductLogModel = require("../../models/unTracedproductLogModel");
 
 exports.EcommerceOrderIntegration = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -285,7 +285,7 @@ const urlV2 = "https://efaturaservice.turkcellesirket.com/v2/";
 // const urlV2 = "https://efaturaservicetest.isim360.com/v2/";
 
 exports.EcommerceOrderIntegrationFull = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }

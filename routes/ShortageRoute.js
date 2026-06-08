@@ -9,8 +9,8 @@ const {
 const ShortageRoute = express.Router();
 
 ShortageRoute.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 
 ShortageRoute.route("/")

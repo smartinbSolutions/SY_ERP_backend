@@ -9,7 +9,7 @@ const {
 } = require("../../../services/Accounting/CurrentAssets/Funds/FundTransfer.service");
 
 exports.createFundTransfer = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -39,7 +39,7 @@ exports.createFundTransfer = asyncHandler(async (req, res) => {
 });
 
 exports.cancelFundTransfer = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const transferId = req.params.id;
 
   if (!companyId) {
@@ -72,7 +72,7 @@ exports.cancelFundTransfer = asyncHandler(async (req, res) => {
 });
 
 exports.getAllFundTransfers = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -84,7 +84,7 @@ exports.getAllFundTransfers = asyncHandler(async (req, res) => {
 });
 
 exports.getOneFundTransfer = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const transferId = req.params.id;
 
   if (!companyId) {

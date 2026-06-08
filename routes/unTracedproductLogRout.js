@@ -11,8 +11,8 @@ const {
 const unTracedproductLogRout = express.Router();
 
 unTracedproductLogRout.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 
 unTracedproductLogRout

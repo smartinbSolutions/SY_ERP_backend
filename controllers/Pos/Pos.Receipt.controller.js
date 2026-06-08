@@ -6,7 +6,7 @@ const receiptService = require("../../services/Pos/Pos.Receipt.service");
 const receiptModel = require("../../models/Pos/pos.receipt.model");
 
 exports.createPosReceipt = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
@@ -14,7 +14,7 @@ exports.createPosReceipt = asyncHandler(async (req, res, next) => {
       return res.status(400).json({ message: "companyId is required" });
     }
     req.body.employee = req.user.name;
-    req.body.companyId = req.query.companyId;
+    req.body.companyId = req.companyId;
 
     const nextCounterPayment = await counterModel.findOneAndUpdate(
       { companyId, name: "Payment" },
@@ -66,7 +66,7 @@ exports.createPosReceipt = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllReceipt = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -87,7 +87,7 @@ exports.findAllReceipt = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneReceipt = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -105,7 +105,7 @@ exports.findOneReceipt = asyncHandler(async (req, res, next) => {
 });
 
 exports.cancelReceipt = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const receiptId = req.params.id;
   const { stockId } = req.body;
 
@@ -169,7 +169,7 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
 });
 
 exports.findReceiptForDate = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -187,7 +187,7 @@ exports.findReceiptForDate = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllReceiptForSalesPoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

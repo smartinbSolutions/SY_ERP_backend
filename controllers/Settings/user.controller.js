@@ -8,7 +8,7 @@ const multer = require("multer");
 const multerStorage = multer.memoryStorage();
 
 exports.getUsers = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
@@ -32,7 +32,7 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
 });
 
 exports.createUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   await userService.checkUserLimit(companyId);
@@ -51,7 +51,7 @@ exports.createUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.getUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   const result = await userService.getUser({
@@ -67,7 +67,7 @@ exports.getUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   const user = await userService.updateUser({
@@ -85,7 +85,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   const result = await userService.deleteUser({
@@ -100,7 +100,7 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateUserPassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   const user = await userService.updateUserPassword({
@@ -117,7 +117,7 @@ exports.updateUserPassword = asyncHandler(async (req, res, next) => {
 });
 
 exports.reSendPassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
   const user = await userService.reSendPassword({

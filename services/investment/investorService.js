@@ -51,7 +51,7 @@ exports.resizeInvestorImages = asyncHandler(async (req, res, next) => {
           fileUrl: filename,
         });
       }
-    })
+    }),
   );
 
   next();
@@ -61,7 +61,7 @@ exports.resizeInvestorImages = asyncHandler(async (req, res, next) => {
 // @route POST /api/Investor
 // @access Private
 exports.createInvestor = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -107,7 +107,7 @@ exports.createInvestor = asyncHandler(async (req, res, next) => {
 // @route GET /api/investor
 // @access Private
 exports.getAllInvestors = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -186,7 +186,7 @@ exports.getAllInvestors = asyncHandler(async (req, res, next) => {
 // @route GET /api/Investor/:id
 // @access Private
 exports.getOneInvestor = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -290,7 +290,7 @@ exports.getOneInvestor = asyncHandler(async (req, res, next) => {
 // @route PUT /api/investorShares/:id
 // @access Private
 exports.updateInvestorShares = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const {
     shares,
     type,
@@ -427,8 +427,8 @@ const storageDisk = multer.diskStorage({
     const ext = file.mimetype.startsWith("image/")
       ? ".webp"
       : file.mimetype === "application/pdf"
-      ? ".pdf"
-      : "";
+        ? ".pdf"
+        : "";
 
     const safeFieldname = file.fieldname.replace(/[^a-zA-Z0-9_-]/g, "_");
     const filename = `Investor-${uuidv4()}-${Date.now()}-${safeFieldname}${ext}`;
@@ -525,7 +525,7 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
             }
           }
           return shouldKeep;
-        }
+        },
       );
     }
 
@@ -543,7 +543,7 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
           if (existingInvestor.profileImage) {
             try {
               fs.unlinkSync(
-                path.join("uploads/Investor", existingInvestor.profileImage)
+                path.join("uploads/Investor", existingInvestor.profileImage),
               );
             } catch (err) {
               console.warn("Failed to delete old profile image:", err.message);
@@ -552,7 +552,7 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
           existingInvestor.profileImage = file.filename;
         } else {
           const index = existingInvestor.attachments.findIndex(
-            (att) => att.key === key
+            (att) => att.key === key,
           );
           const newFile = { key, fileUrl: file.filename };
 
@@ -562,8 +562,8 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
               fs.unlinkSync(
                 path.join(
                   "uploads/Investor",
-                  existingInvestor.attachments[index].fileUrl
-                )
+                  existingInvestor.attachments[index].fileUrl,
+                ),
               );
             } catch (err) {
               console.warn("Failed to delete old attachment:", err.message);
@@ -596,7 +596,7 @@ exports.updateInvestor = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/Investor/:id
 // @access Private
 exports.deleteInvestor = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

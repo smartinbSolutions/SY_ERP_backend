@@ -14,8 +14,8 @@ const {
 const PosReceiptRefundRoute = express.Router();
 
 PosReceiptRefundRoute.use(
-  authService.checkPlanFeatures("pos"),
   authService.protect,
+  authService.checkPlanFeatures("pos"),
 );
 
 PosReceiptRefundRoute.route("/")

@@ -13,8 +13,8 @@ const {
 } = require("../../../services/Accounting/Expenses/expensesCategoryService");
 
 expenseCategoriesRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 expenseCategoriesRoute
   .route("/")

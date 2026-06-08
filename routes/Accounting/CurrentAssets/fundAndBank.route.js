@@ -14,8 +14,8 @@ const {
 const FundAndBank = express.Router();
 
 FundAndBank.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 FundAndBank.route("/")

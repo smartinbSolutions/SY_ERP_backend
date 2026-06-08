@@ -10,9 +10,9 @@ function padZero(value) {
 const getFormattedDateTime = () => {
   const now = new Date();
   return `${now.getFullYear()}-${padZero(now.getMonth() + 1)}-${padZero(
-    now.getDate()
+    now.getDate(),
   )} ${padZero(now.getHours())}:${padZero(now.getMinutes())}:${padZero(
-    now.getSeconds()
+    now.getSeconds(),
   )}`;
 };
 
@@ -20,7 +20,7 @@ const getFormattedDateTime = () => {
 //@route GET /api/questions
 //@accsess Public
 exports.getQuestions = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -39,7 +39,7 @@ exports.getQuestions = asyncHandler(async (req, res, next) => {
 //@route GET /api/questions/:id
 //@accsess Public
 exports.getOneQuestion = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -67,7 +67,7 @@ exports.getOneQuestion = asyncHandler(async (req, res, next) => {
 //@route POST /api/questions
 //@accsess Private
 exports.createQuestion = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -90,7 +90,7 @@ exports.createQuestion = asyncHandler(async (req, res, next) => {
 //@route PUT /api/questions/productQuestions/:id
 //@accsess Private
 exports.updateQuestion = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -101,7 +101,7 @@ exports.updateQuestion = asyncHandler(async (req, res, next) => {
     { ...req.body, updateTime: getFormattedDateTime() },
     {
       new: true,
-    }
+    },
   );
   if (!productQuestion) {
     return res.status(200).json({ status: "noQuestions" });
@@ -116,7 +116,7 @@ exports.updateQuestion = asyncHandler(async (req, res, next) => {
 //@route PUT /api/questions/approve/:id
 //@accsess Private
 exports.updateApprovedStatus = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -130,7 +130,7 @@ exports.updateApprovedStatus = asyncHandler(async (req, res, next) => {
     { approved, updateTime: getFormattedDateTime() },
     {
       new: true,
-    }
+    },
   );
 
   if (!productQuestion) {
@@ -144,7 +144,7 @@ exports.updateApprovedStatus = asyncHandler(async (req, res, next) => {
 //@route DELETE /api/questions/:id
 //@accsess Private
 exports.deleteQuestion = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -171,7 +171,7 @@ exports.deleteQuestion = asyncHandler(async (req, res, next) => {
 //@route GET /api/questions/productQuestions/:id
 //@accsess Public
 exports.getQuestionsByProduct = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

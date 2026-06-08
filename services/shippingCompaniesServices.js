@@ -36,7 +36,7 @@ exports.resizerShippingCompanyImage = asyncHandler(async (req, res, next) => {
 
 // Get all shipping companies
 exports.getShippingCompanies = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -52,7 +52,7 @@ exports.getShippingCompanies = asyncHandler(async (req, res, next) => {
 
 // Create shipping company
 exports.createShippingCompany = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -69,7 +69,7 @@ exports.createShippingCompany = asyncHandler(async (req, res, next) => {
 
 // Get specific shipping company by ID
 exports.getShippingCompany = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -89,7 +89,7 @@ exports.getShippingCompany = asyncHandler(async (req, res, next) => {
 
 // Update specific shipping company
 exports.updateShippingCompany = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -132,7 +132,7 @@ exports.updateShippingCompany = asyncHandler(async (req, res, next) => {
 
 // Delete specific shipping company
 exports.deleteShippingCompany = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

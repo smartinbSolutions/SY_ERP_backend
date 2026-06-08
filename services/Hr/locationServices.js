@@ -4,7 +4,7 @@ const ApiError = require("../../utils/apiError");
 const locationModel = require("../../models/Hr/locationModel");
 
 exports.getAllLocations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -47,14 +47,14 @@ exports.getAllLocations = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneLocations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
   if (!req.params.id) {
     return next(
-      new ApiError(`No Locations for this ID: ${req.params.id}`, 404)
+      new ApiError(`No Locations for this ID: ${req.params.id}`, 404),
     );
   }
   const locations = await locationModel.findOne({
@@ -65,7 +65,7 @@ exports.getOneLocations = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLocations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -75,7 +75,7 @@ exports.createLocations = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateLocations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -90,14 +90,14 @@ exports.updateLocations = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   res.status(200).json({ status: "success", data: locations });
 });
 
 exports.deleteLocations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 
 // Get list of third party auths
 exports.getAuths = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,7 +21,7 @@ exports.getAuths = asyncHandler(async (req, res, next) => {
 
 // Get specific third party auth by ID
 exports.getThirdPartyAuth = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -41,7 +41,7 @@ exports.getThirdPartyAuth = asyncHandler(async (req, res, next) => {
 
 // Update specific third party auth
 exports.updateThirdPartyAuth = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -54,12 +54,12 @@ exports.updateThirdPartyAuth = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!thirdPartyAuth) {
     return next(
-      new ApiError(`No third party auth found for id ${req.params.id}`, 404)
+      new ApiError(`No third party auth found for id ${req.params.id}`, 404),
     );
   }
 

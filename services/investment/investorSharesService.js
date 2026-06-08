@@ -6,7 +6,7 @@ const investmentCompanies = require("../../models/investment/investmentCompanies
 // @route POST /api/investorShares
 // @access Private
 exports.createinvestorShares = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -36,7 +36,7 @@ exports.createinvestorShares = asyncHandler(async (req, res, next) => {
 // @route GET /api/investorShares
 // @access Private
 exports.getAllinvestorShares = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -146,7 +146,7 @@ exports.getOneInvestorShares = asyncHandler(async (req, res, next) => {
 // @route PUT /api/investorShares/:id
 // @access Private
 exports.updateInvestorSharesModel = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -156,7 +156,7 @@ exports.updateInvestorSharesModel = asyncHandler(async (req, res, next) => {
     const updatedinvestorShares = await InvestorShares.findOneAndUpdate(
       { companyId, _id: req.params.id },
       req.body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedinvestorShares) {
@@ -184,7 +184,7 @@ exports.updateInvestorSharesModel = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/investorShares/:id
 // @access Private
 exports.deleteInvestorShares = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

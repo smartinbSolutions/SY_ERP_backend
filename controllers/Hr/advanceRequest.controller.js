@@ -246,7 +246,7 @@ exports.getMyAdvanceRequests = asyncHandler(async (req, res) => {
 
 // ================= GET ALL COMPANY REQUESTS =================
 exports.getAllAdvanceRequests = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId)
     return res
       .status(400)

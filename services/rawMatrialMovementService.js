@@ -4,7 +4,7 @@ const rawMatrialMovement = require("../models/rawMatrialMovementModel");
 
 // Get all RawMatrial movement
 exports.getAllRawMatrialMovements = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const rawMatrialId = req.query.rawMatrialId;
 
   if (!companyId) {
@@ -78,7 +78,7 @@ exports.getAllRawMatrialMovements = asyncHandler(async (req, res, next) => {
 // Get rawMaterial movement by ID
 exports.getRawMatrialMovementByID = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

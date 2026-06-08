@@ -27,7 +27,7 @@ exports.getAllPositions = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOnePositions = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -55,7 +55,7 @@ exports.getOnePositions = asyncHandler(async (req, res, next) => {
 });
 
 exports.createPositions = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -80,7 +80,7 @@ exports.createPositions = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", data: position });
 });
 exports.updatePositions = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -100,7 +100,7 @@ exports.updatePositions = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!positions) {
@@ -114,7 +114,7 @@ exports.updatePositions = asyncHandler(async (req, res, next) => {
 });
 
 exports.deletePositions = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -150,7 +150,7 @@ const PaymentSchema = new mongoose.Schema(
 
     postedBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
 
@@ -161,7 +161,7 @@ const PaymentSchema = new mongoose.Schema(
 
     cancelledBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
 
@@ -180,7 +180,7 @@ const PaymentSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 PaymentSchema.index({ counter: 1, companyId: 1 }, { unique: true });

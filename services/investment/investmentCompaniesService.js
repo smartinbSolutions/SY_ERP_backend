@@ -46,14 +46,14 @@ exports.resizeInvestmentCompaniesImages = asyncHandler(
     }
 
     next();
-  }
+  },
 );
 
 // @desc Create investmentCompanies
 // @route POST /api/investmentCompanies
 // @access Private
 exports.createInvestmentCompanies = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -81,7 +81,7 @@ exports.createInvestmentCompanies = asyncHandler(async (req, res, next) => {
 // @route GET /api/investmentCompanies
 // @access Private
 exports.getAllInvestmentCompaniess = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -108,7 +108,7 @@ exports.getAllInvestmentCompaniess = asyncHandler(async (req, res, next) => {
 // @route GET /api/investmentCompanies/:id
 // @access Private
 exports.getOneInvestmentCompanies = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -145,7 +145,7 @@ exports.getOneInvestmentCompanies = asyncHandler(async (req, res, next) => {
 // @route PUT /api/investmentCompanies/:id
 // @access Private
 exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -169,7 +169,7 @@ exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
         {
           new: true,
           runValidators: true,
-        }
+        },
       );
 
     if (!updatedInvestmentCompanies) {
@@ -191,7 +191,7 @@ exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
             {
               $set: { ownedShares: shares, isFounder: true, deletable: false },
             },
-            { new: true, upsert: false }
+            { new: true, upsert: false },
           );
 
           // Create a transaction record
@@ -202,7 +202,7 @@ exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
             sharePrice: Number(req.body.sharePrice),
             companyId,
           });
-        })
+        }),
       );
     }
 
@@ -224,7 +224,7 @@ exports.updateInvestmentCompanies = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/investmentCompanies/:id
 // @access Private
 exports.deleteInvestmentCompanies = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -278,7 +278,7 @@ exports.deleteCompanyBank = asyncHandler(async (req, res) => {
         bankQR: { _id: bankQRId },
       },
     },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedCompany) {
@@ -320,7 +320,7 @@ exports.updateCompanyBank = asyncHandler(async (req, res) => {
         "bankQR._id": bankQRId,
       },
       { $set: update },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedCompany) {

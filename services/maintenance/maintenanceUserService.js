@@ -7,7 +7,7 @@ const xlsx = require("xlsx");
 // @desc  Get All Manitenace User
 // @route Get /api/manituser
 exports.getManitenaceUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -45,7 +45,7 @@ exports.getManitenaceUser = asyncHandler(async (req, res, next) => {
 // @desc put update Manitenace User
 // @route put /api/manituser/:id
 exports.updateManitenaceUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -57,7 +57,7 @@ exports.updateManitenaceUser = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!manitUser) {
@@ -70,7 +70,7 @@ exports.updateManitenaceUser = asyncHandler(async (req, res, next) => {
 // @desc Get one Manitenace User
 // @route get /api/manituser/:id
 exports.getOneManitenaceUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -90,7 +90,7 @@ exports.getOneManitenaceUser = asyncHandler(async (req, res, next) => {
 // @desc post Manitenace User
 // @route post /api/manituser
 exports.createManitenaceUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -110,7 +110,7 @@ exports.createManitenaceUser = asyncHandler(async (req, res, next) => {
 // @desc delete Manitenace User
 // @route delete /api/manituser/id
 exports.deleteManitenaceUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -131,7 +131,7 @@ exports.deleteManitenaceUser = asyncHandler(async (req, res, next) => {
 });
 
 exports.importClint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

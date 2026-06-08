@@ -22,7 +22,7 @@ const orderModel = require("../models/Accounting/Sales/orderModel");
 // @route Get /api/product
 // @access Public
 exports.getAllProdcuts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -48,7 +48,7 @@ exports.getAllProdcuts = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateNumber = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -79,7 +79,7 @@ exports.updateNumber = asyncHandler(async (req, res, next) => {
 });
 
 exports.getProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -200,7 +200,7 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
 });
 
 exports.getProductsByType = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -300,7 +300,7 @@ exports.getProductsByType = asyncHandler(async (req, res, next) => {
 });
 
 exports.getProductPos = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -503,7 +503,7 @@ const createProductHandler = async (productData) => {
 // @route Post /api/product
 // @access Private
 exports.createProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -564,7 +564,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 // @access Private
 exports.getOneProduct = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -619,7 +619,7 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
 // @route Put /api/product/:id
 // @access Private
 exports.updateProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -766,7 +766,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 // @route Delete /api/product/:id
 // @access Private
 exports.archiveProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -825,7 +825,7 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
 // @route add /api/add
 // @access Private
 exports.importProduct = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -1037,7 +1037,7 @@ exports.importProduct = asyncHandler(async (req, res) => {
 // @route POST /api/product/importEcommerceProduct
 // @access Private
 exports.updateProductFromExcel = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -1109,7 +1109,7 @@ exports.updateProductFromExcel = asyncHandler(async (req, res) => {
 });
 
 exports.getProductBySuppliers = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -1161,7 +1161,7 @@ exports.getProductBySuppliers = asyncHandler(async (req, res) => {
 // @route PUT /api/product/bulk-update
 // @access Private
 exports.bulkUpdate = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const updates = req.body;
 
   if (!companyId) {
@@ -1262,7 +1262,7 @@ exports.bulkUpdate = asyncHandler(async (req, res, next) => {
 });
 
 exports.bulkUpdateProductInfo = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const updates = req.body;
 
   if (!companyId) {
@@ -1294,7 +1294,7 @@ exports.bulkUpdateProductInfo = asyncHandler(async (req, res, next) => {
 });
 
 exports.getNullQrProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -1313,7 +1313,7 @@ exports.getNullQrProduct = asyncHandler(async (req, res, next) => {
 });
 
 exports.generateBarCode = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { qrFormat, ids } = req.body;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
@@ -1468,7 +1468,7 @@ exports.generateBarCode = asyncHandler(async (req, res, next) => {
 // This function was created to shorten Nahed's work because she doesn't want to do anything.
 // Take this 1$ and don't tell her that I said this :)
 // exports.updateAllForNahed = asyncHandler(async (req, res) => {
-//   const companyId = req.query.companyId;
+//   const companyId = req.companyId;
 
 //   if (!companyId) {
 //     return res.status(400).json({ message: "companyId is required" });

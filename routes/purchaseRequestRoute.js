@@ -10,8 +10,8 @@ const authService = require("../services/authService");
 
 const purchaseRequestRouter = express.Router();
 purchaseRequestRouter.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 // Create a new purchaseRequest / Get all purchaseRequests

@@ -14,7 +14,7 @@ const UnitSchema = require("../../models/Settings/Definition/unit.model");
 // @route POST /api/recipe
 // @access Private
 exports.createRecipe = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -43,7 +43,7 @@ exports.createRecipe = asyncHandler(async (req, res, next) => {
 // @route GET /api/recipe
 // @access Private
 exports.getAllRecipes = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -95,7 +95,7 @@ exports.getAllRecipes = asyncHandler(async (req, res, next) => {
 // @route GET /api/recipe
 // @access Private
 exports.getOneRecipe = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -130,7 +130,7 @@ exports.getOneRecipe = asyncHandler(async (req, res, next) => {
 // @route PUT /api/recipe/:id
 // @access Private
 exports.updateRecipe = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -174,7 +174,7 @@ exports.updateRecipe = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/recipe/:id
 // @access Private
 exports.deleteRecipe = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

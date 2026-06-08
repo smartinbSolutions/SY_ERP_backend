@@ -19,7 +19,7 @@ const multerOptions = () => {
   const multerFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|webp/;
     const extname = allowedTypes.test(
-      file.originalname.toLowerCase().split(".").pop()
+      file.originalname.toLowerCase().split(".").pop(),
     );
     const mimeType = allowedTypes.test(file.mimetype);
     if (extname && mimeType) {
@@ -57,7 +57,7 @@ exports.processFilesAndImagesjournal = asyncHandler(async (req, res, next) => {
 });
 
 exports.getJournals = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -76,7 +76,7 @@ exports.getJournals = asyncHandler(async (req, res, next) => {
   });
 });
 exports.getOneJournal = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -94,7 +94,7 @@ exports.getOneJournal = asyncHandler(async (req, res, next) => {
 });
 
 // exports.createJournal = asyncHandler(async (req, res, next) => {
-//   const companyId = req.query.companyId;
+//   const companyId = req.companyId;
 
 //   if (!companyId) {
 //     return res.status(400).json({ message: "companyId is required" });
@@ -137,7 +137,7 @@ exports.getOneJournal = asyncHandler(async (req, res, next) => {
 // });
 
 exports.createJournal = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -151,7 +151,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     const nextCounterJournal = await counterModel.findOneAndUpdate(
       { companyId, name: "Journal" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     // ── validation happens inside service ──────────────────────
@@ -210,7 +210,7 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
 });
 
 exports.auditingJournal = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -240,7 +240,7 @@ exports.auditingJournal = asyncHandler(async (req, res, next) => {
 
 // controller — destructure data not account
 exports.getOneJournalByLink = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -17,7 +17,7 @@ const GROUP_4 = "group-4";
 const PRODUCT_TYPES = ["Normal", "Service", "rawmaterial", "manufactured"];
 
 const getCompanyId = (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     res.status(400).json({ message: "companyId is required" });

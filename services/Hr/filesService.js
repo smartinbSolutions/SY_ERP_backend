@@ -7,7 +7,7 @@ const FilesModel = require("../../models/Hr/filesModel");
  * @route   GET /api/files
  */
 exports.getAllFiles = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -15,9 +15,7 @@ exports.getAllFiles = asyncHandler(async (req, res, next) => {
   const query = { companyId };
 
   if (req.query.keyword) {
-    query.$or = [
-      { name: { $regex: req.query.keyword, $options: "i" } },
-    ];
+    query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
   }
 
   // Pagination
@@ -48,7 +46,7 @@ exports.getAllFiles = asyncHandler(async (req, res, next) => {
  * @route   GET /api/files/:id
  */
 exports.getOneFile = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -69,7 +67,7 @@ exports.getOneFile = asyncHandler(async (req, res, next) => {
  * @route   POST /api/files
  */
 exports.createFile = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -90,7 +88,7 @@ exports.createFile = asyncHandler(async (req, res, next) => {
  * @route   PUT /api/files/:id
  */
 exports.updateFile = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -100,7 +98,7 @@ exports.updateFile = asyncHandler(async (req, res, next) => {
   const file = await FilesModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   if (!file) {
@@ -119,7 +117,7 @@ exports.updateFile = asyncHandler(async (req, res, next) => {
  * @route   DELETE /api/files/:id
  */
 exports.deleteFile = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

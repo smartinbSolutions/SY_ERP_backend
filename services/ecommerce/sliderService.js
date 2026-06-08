@@ -43,14 +43,14 @@ exports.resizeSliderImages = asyncHandler(async (req, res, next) => {
 
         //save image into our db
         req.body.images.push(imagesName);
-      })
+      }),
     );
   }
   next();
 });
 
 exports.getSliders = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -62,7 +62,7 @@ exports.getSliders = asyncHandler(async (req, res, next) => {
 });
 
 exports.createSlider = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -73,7 +73,7 @@ exports.createSlider = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneSlider = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -90,7 +90,7 @@ exports.getOneSlider = asyncHandler(async (req, res, next) => {
 
 exports.updataSlider = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -100,7 +100,7 @@ exports.updataSlider = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!sliders) {
@@ -110,7 +110,7 @@ exports.updataSlider = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteSlider = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

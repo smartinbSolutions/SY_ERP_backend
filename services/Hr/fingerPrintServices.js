@@ -12,7 +12,7 @@ const { createViolationAndProcess } = require("./violationProcessor");
 //@route GET /api/finger-print
 //@access public just for Admin
 exports.getFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -185,7 +185,7 @@ exports.getLoggedUserFingerPrintsByDays = asyncHandler(
 
 exports.getTodayFingerPrint = asyncHandler(async (req, res, next) => {
   console.log("triggerd");
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
@@ -211,7 +211,7 @@ exports.getTodayFingerPrint = asyncHandler(async (req, res, next) => {
 //@route GET /api/finger-print/:id
 //@access public just for Admin
 exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -239,7 +239,7 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 //@route POST /api/finger-print
 //@access public just for Employee
 exports.createFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -273,7 +273,7 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const staffMember = await Staff.findOne({ email: req.user.email, companyId });
 
   if (!staffMember) {
@@ -404,7 +404,7 @@ function toMinutes(t) {
 //@route DELETE /api/finger-print/:id
 //@access public just for Admin
 exports.deleteFingerprint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -426,7 +426,7 @@ exports.deleteFingerprint = asyncHandler(async (req, res, next) => {
 //@route PUT /api/finger-print/:id
 //@access public just for Admin
 exports.updateFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

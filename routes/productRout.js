@@ -46,8 +46,8 @@ const {
 const productRout = express.Router();
 
 productRout.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 
 productRout.post(

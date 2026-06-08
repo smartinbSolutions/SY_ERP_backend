@@ -9,8 +9,8 @@ const {
 const productMovementsRoute = express.Router();
 
 productMovementsRoute.use(
-  authService.checkPlanFeatures("resturant"),
   authService.protect,
+  authService.checkPlanFeatures("resturant"),
 );
 productMovementsRoute.route("/").get(getAllRawMatrialMovements);
 productMovementsRoute.route("/:id").get(getRawMatrialMovementByID);

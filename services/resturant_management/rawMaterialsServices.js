@@ -12,7 +12,7 @@ const TaxSchema = require("../../models/Settings/Definition/tax.model");
 // @route POST /api/raw_material
 // @access Private
 exports.createRawMaterial = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -43,7 +43,7 @@ exports.createRawMaterial = asyncHandler(async (req, res, next) => {
 // @route GET /api/raw_material
 // @access Private
 exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -87,7 +87,7 @@ exports.getAllRawMaterials = asyncHandler(async (req, res, next) => {
 // @route GET /api/raw_material
 // @access Private
 exports.getOneRawMaterial = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -117,7 +117,7 @@ exports.getOneRawMaterial = asyncHandler(async (req, res, next) => {
 // @route PUT /api/raw_material/:id
 // @access Private
 exports.updateRawMaterial = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -161,7 +161,7 @@ exports.updateRawMaterial = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/raw_material/:id
 // @access Private
 exports.deleteRawMaterial = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

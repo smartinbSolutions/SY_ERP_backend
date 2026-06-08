@@ -14,7 +14,7 @@ const PaymentHistoryModel = require("../models/paymentHistoryModel");
 //Create New Customar
 //@rol: Who has rol can create
 exports.createCustomar = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -53,7 +53,7 @@ exports.createCustomar = asyncHandler(async (req, res, next) => {
 //Get All Customars
 //@rol: who has rol can Get Customars Data
 exports.getCustomars = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -102,7 +102,7 @@ exports.getCustomars = asyncHandler(async (req, res, next) => {
 //@rol: who has rol can Get the Customar's Data
 exports.getCustomar = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -126,7 +126,7 @@ exports.getCustomar = asyncHandler(async (req, res, next) => {
 //@rol: who has rol can update the Customar's Data
 exports.updataCustomar = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -155,7 +155,7 @@ exports.updataCustomar = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -189,7 +189,7 @@ exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
 exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -221,7 +221,7 @@ exports.deleteCustomar = asyncHandler(async (req, res, next) => {
 // desc imports
 
 // exports.importCustomer = asyncHandler(async (req, res, next) => {
-//   const companyId = req.query.companyId;
+//   const companyId = req.companyId;
 
 //   if (!companyId) {
 //     return res.status(400).json({ message: "companyId is required" });

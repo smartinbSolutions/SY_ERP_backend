@@ -142,7 +142,7 @@ exports.processStaffFiles = asyncHandler(async (req, res, next) => {
 
 /* ===================== GET STAFF LIST ===================== */
 exports.getStaff = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -199,7 +199,7 @@ exports.getStaff = asyncHandler(async (req, res) => {
 
 /* ===================== CREATE STAFF ===================== */
 exports.createStaff = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -271,7 +271,7 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
 /* ===================== GET ONE STAFF ===================== */
 exports.getOneStaff = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -300,7 +300,7 @@ exports.getOneStaff = asyncHandler(async (req, res, next) => {
 
 /* ===================== UPDATE STAFF ===================== */
 exports.updateStaff = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -347,7 +347,7 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
 
 /* ===================== DELETE STAFF ===================== */
 exports.deleteStaff = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }

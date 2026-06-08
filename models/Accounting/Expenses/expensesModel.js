@@ -122,7 +122,7 @@ const expensesSchema = new mongoose.Schema(
     },
     cancelledBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
     cancelledAt: {
@@ -147,7 +147,7 @@ const expensesSchema = new mongoose.Schema(
       _id: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("expenses", expensesSchema);

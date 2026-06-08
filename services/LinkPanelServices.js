@@ -1,9 +1,8 @@
 const asyncHandler = require("express-async-handler");
 const LinkPanelModel = require("../models/linkPanelModel");
 
-
 exports.getAllLinkPanel = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -30,7 +29,7 @@ exports.getAllLinkPanel = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLinkPanel = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -41,7 +40,7 @@ exports.createLinkPanel = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateLinkPanel = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -54,12 +53,12 @@ exports.updateLinkPanel = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   res.status(200).json({ message: "success", data: LinkPanel });
 });
 exports.getLinkPanel = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

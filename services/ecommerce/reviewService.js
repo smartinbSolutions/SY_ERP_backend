@@ -9,7 +9,7 @@ const ApiError = require("../../utils/apiError");
 //@route GEt /api/review
 //@accsess public
 exports.getReviews = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -24,7 +24,7 @@ exports.getReviews = asyncHandler(async (req, res, next) => {
 //@route GEt /api/review/:id
 //@accsess public
 exports.getOneReview = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -42,7 +42,7 @@ exports.getOneReview = asyncHandler(async (req, res, next) => {
 exports.getOneReviewByUser = asyncHandler(async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -81,7 +81,7 @@ exports.getOneReviewByUser = asyncHandler(async (req, res, next) => {
 //@route Post /api/review/:id
 //@accsess public
 exports.createReview = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -115,7 +115,7 @@ exports.createReview = asyncHandler(async (req, res, next) => {
 
     await productModel.findOneAndUpdate(
       { _id: req.body.product, companyId },
-      updateData
+      updateData,
     );
 
     res.status(200).json({ status: "success", data: review });
@@ -128,7 +128,7 @@ exports.createReview = asyncHandler(async (req, res, next) => {
 //@route Put /api/review/:id
 //@accsess public
 exports.updateReview = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -139,7 +139,7 @@ exports.updateReview = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!review) {
     return next(new ApiError(`No Brand found for id ${req.params.id}`, 404));
@@ -153,7 +153,7 @@ exports.updateReview = asyncHandler(async (req, res, next) => {
 //@route delete /api/review/:id
 //@accsess public
 exports.deleteReview = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -168,7 +168,7 @@ exports.deleteReview = asyncHandler(async (req, res, next) => {
 });
 
 exports.getReviewsByProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

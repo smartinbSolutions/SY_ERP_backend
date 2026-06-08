@@ -37,7 +37,7 @@ exports.resizeCompanyLogo = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllJobs = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -72,7 +72,7 @@ exports.getAllJobs = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneJob = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -88,7 +88,7 @@ exports.getOneJob = asyncHandler(async (req, res, next) => {
 });
 
 exports.createJobs = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -98,7 +98,7 @@ exports.createJobs = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateJob = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -125,13 +125,13 @@ exports.updateJob = asyncHandler(async (req, res, next) => {
     for (const key in req.body.companyInfo) {
       updateData[`companyInfo.${key}`] = req.body.companyInfo[key];
     }
-    delete updateData.companyInfo; 
+    delete updateData.companyInfo;
   }
 
   const updatedJob = await jobsModel.findOneAndUpdate(
     { _id: id, companyId },
     { $set: updateData },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedJob) {
@@ -145,7 +145,7 @@ exports.updateJob = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteJob = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

@@ -7,7 +7,7 @@ const createToken = require("../../utils/createToken");
 const ApiError = require("../../utils/apiError");
 // Create New customer
 exports.createUser = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -25,7 +25,7 @@ exports.createUser = asyncHandler(async (req, res, next) => {
 });
 //Get All Users
 exports.getUsers = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -56,7 +56,7 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
 
 exports.getOneUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -73,7 +73,7 @@ exports.getOneUser = asyncHandler(async (req, res, next) => {
 // Update user
 exports.updateUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -90,7 +90,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     );
     res.status(200).json({
       success: true,
@@ -101,7 +101,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
 });
 // updat user Password
 exports.updateUserPassword = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -117,7 +117,7 @@ exports.updateUserPassword = asyncHandler(async (req, res, next) => {
     },
     {
       new: true,
-    }
+    },
   );
 
   if (!user) {
@@ -132,7 +132,7 @@ exports.updateUserPassword = asyncHandler(async (req, res, next) => {
 // Delete user
 exports.deleteUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

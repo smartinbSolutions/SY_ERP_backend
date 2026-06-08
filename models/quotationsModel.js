@@ -4,7 +4,7 @@ const quotationSchema = new mongoose.Schema(
   {
     employee: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
     },
     archives: { type: Boolean, default: false },
 
@@ -102,7 +102,7 @@ const quotationSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Quotations", quotationSchema);

@@ -5,7 +5,7 @@ const branchesModel = require("../../models/Hr/branchesModel");
 
 /////////
 exports.getAllBranches = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -42,7 +42,7 @@ exports.getAllBranches = asyncHandler(async (req, res, next) => {
 
 ////////
 exports.getOneBranch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -71,7 +71,7 @@ exports.getOneBranch = asyncHandler(async (req, res, next) => {
 
 /////////
 exports.createBranch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -95,7 +95,7 @@ exports.createBranch = asyncHandler(async (req, res, next) => {
 
 //////
 exports.updateBranch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -128,7 +128,7 @@ exports.updateBranch = asyncHandler(async (req, res, next) => {
 
 ////////
 exports.deleteBranch = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

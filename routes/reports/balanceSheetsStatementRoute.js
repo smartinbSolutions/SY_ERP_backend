@@ -7,8 +7,8 @@ const balanceSheetsStatementRoute = express.Router();
 const authService = require("../../services/authService");
 
 balanceSheetsStatementRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 balanceSheetsStatementRoute
   .route("/")

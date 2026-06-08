@@ -106,7 +106,7 @@ exports.hrSignOut = asyncHandler(async (req, res, next) => {
 });
 
 exports.protectStaff = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -158,7 +158,7 @@ exports.protectStaff = asyncHandler(async (req, res, next) => {
 });
 
 exports.protectERP = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));

@@ -41,7 +41,7 @@ const OpeningInventorySchema = new mongoose.Schema(
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
+      ref: "user",
     },
   },
   { timestamps: true },

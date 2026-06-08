@@ -62,7 +62,7 @@ exports.resizeSliderImages = asyncHandler(async (req, res, next) => {
         } else {
           console.log("No match for fieldname:", fieldName);
         }
-      })
+      }),
     );
   } else {
     console.log("No files received");
@@ -71,7 +71,7 @@ exports.resizeSliderImages = asyncHandler(async (req, res, next) => {
 });
 
 exports.getSlider = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -79,13 +79,13 @@ exports.getSlider = asyncHandler(async (req, res, next) => {
 
   const settings = await ecommerceSettingsModel.findOne(
     { companyId },
-    "slider"
+    "slider",
   );
   res.status(200).json({ status: "success", data: settings.slider });
 });
 
 exports.updataSlider = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -115,7 +115,7 @@ exports.updataSlider = asyncHandler(async (req, res, next) => {
 
 // ############## Page section start
 exports.getPage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -125,7 +125,7 @@ exports.getPage = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOnePage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -150,7 +150,7 @@ exports.getOnePage = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePage = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -166,7 +166,7 @@ exports.updatePage = asyncHandler(async (req, res, next) => {
         "page.$": req.body,
       },
     },
-    { new: true }
+    { new: true },
   );
 
   if (!updatedSettings) {
@@ -184,7 +184,7 @@ exports.updatePage = asyncHandler(async (req, res, next) => {
 
 // ############## Contact Us section start
 exports.getContactUs = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -192,13 +192,13 @@ exports.getContactUs = asyncHandler(async (req, res, next) => {
 
   const settings = await ecommerceSettingsModel.findOne(
     { companyId },
-    "contactUs"
+    "contactUs",
   );
   res.status(200).json({ status: "success", data: settings.contactUs });
 });
 
 exports.updateContactUs = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -206,7 +206,7 @@ exports.updateContactUs = asyncHandler(async (req, res, next) => {
   const updatedSettings = await ecommerceSettingsModel.findOneAndUpdate(
     { companyId },
     { contactUs: req.body, companyId },
-    { new: true }
+    { new: true },
   );
   res.status(200).json({ status: "success", data: updatedSettings.contactUs });
 });

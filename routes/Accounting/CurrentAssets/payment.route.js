@@ -10,8 +10,8 @@ const {
 
 const paymentRoute = express.Router();
 paymentRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 paymentRoute

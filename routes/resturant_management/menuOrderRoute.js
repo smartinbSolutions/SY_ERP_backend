@@ -16,28 +16,28 @@ menuOrderRouter
   .route("/")
   .get(authService.checkPlanFeatures("resturant"), getAllmenuOrders)
   .post(
-    authService.checkPlanFeatures("resturant"),
     authService.protect,
+    authService.checkPlanFeatures("resturant"),
     createmenuOrder,
   );
 menuOrderRouter
   .route("/move-order")
   .post(
-    authService.checkPlanFeatures("resturant"),
     authService.protect,
+    authService.checkPlanFeatures("resturant"),
     moveOrderToInProgress,
   );
 menuOrderRouter
   .route("/:id")
   .get(authService.checkPlanFeatures("resturant"), getOnemenuOrder)
   .put(
-    authService.checkPlanFeatures("resturant"),
     authService.protect,
+    authService.checkPlanFeatures("resturant"),
     updatemenuOrder,
   )
   .delete(
-    authService.checkPlanFeatures("resturant"),
     authService.protect,
+    authService.checkPlanFeatures("resturant"),
     deletemenuOrder,
   );
 

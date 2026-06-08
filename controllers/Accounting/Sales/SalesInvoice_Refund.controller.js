@@ -45,7 +45,7 @@ exports.findAllSalesRefunds = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOneSalesRefund = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -67,7 +67,7 @@ exports.findOneSalesRefund = asyncHandler(async (req, res, next) => {
 });
 
 exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { invoiceId } = req.body;
 
   const session = await mongoose.startSession();

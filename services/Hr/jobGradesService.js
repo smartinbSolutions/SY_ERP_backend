@@ -7,7 +7,7 @@ const jobGradesModel = require("../../models/Hr/jobGradesModel");
 //        GET ALL GRADES
 // ===============================
 exports.getAllGrades = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -44,7 +44,7 @@ exports.getAllGrades = asyncHandler(async (req, res, next) => {
 //        GET ONE GRADE
 // ===============================
 exports.getOneGrade = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -74,7 +74,7 @@ exports.getOneGrade = asyncHandler(async (req, res, next) => {
 //        CREATE GRADE
 // ===============================
 exports.createGrades = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -100,7 +100,7 @@ exports.createGrades = asyncHandler(async (req, res, next) => {
 //        UPDATE GRADE
 // ===============================
 exports.updateGrades = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -119,7 +119,7 @@ exports.updateGrades = asyncHandler(async (req, res, next) => {
   const grade = await jobGradesModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   if (!grade) {
@@ -139,7 +139,7 @@ exports.updateGrades = asyncHandler(async (req, res, next) => {
 //        DELETE GRADE
 // ===============================
 exports.deleteGrades = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

@@ -12,8 +12,8 @@ const authService = require("../services/authService");
 const rawMaterialRoute = express.Router();
 
 rawMaterialRoute.use(
-  authService.checkPlanFeatures("resturant"),
   authService.protect,
+  authService.checkPlanFeatures("resturant"),
 );
 rawMaterialRoute
   .route("/")

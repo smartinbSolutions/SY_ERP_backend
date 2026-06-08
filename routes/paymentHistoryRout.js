@@ -5,8 +5,8 @@ const { getPaymentHistory } = require("../services/paymentHistoryService");
 
 const paymentHistoryRout = express.Router();
 paymentHistoryRout.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 paymentHistoryRout.route("/:id").get(getPaymentHistory);

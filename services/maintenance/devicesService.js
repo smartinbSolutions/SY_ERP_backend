@@ -10,7 +10,7 @@ const xlsx = require("xlsx");
 // @desc Get All Devices
 // @route get /api/device
 exports.getDevices = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -39,7 +39,7 @@ exports.getDevices = asyncHandler(async (req, res, next) => {
           { userPhone: { $regex: req.query.keyword, $options: "i" } },
         ],
       },
-      "_id"
+      "_id",
     );
 
     userIds = users.map((user) => user._id);
@@ -71,7 +71,7 @@ exports.getDevices = asyncHandler(async (req, res, next) => {
 // @desc put update Devices
 // @route put /api/device/:id
 exports.updateDevices = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -85,7 +85,7 @@ exports.updateDevices = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!devicesUpdate) {
@@ -97,7 +97,7 @@ exports.updateDevices = asyncHandler(async (req, res, next) => {
 // @desc Get one Devices
 // @route get /api/device/id
 exports.getOneDevice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -118,7 +118,7 @@ exports.getOneDevice = asyncHandler(async (req, res, next) => {
 // @desc post Devices
 // @route post /api/device
 exports.createDevice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -130,9 +130,9 @@ exports.createDevice = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1
+    date_ob.getMonth() + 1,
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}`;
 
   const nextCounter = (await deviceModel.countDocuments({ companyId })) + 1;
@@ -185,7 +185,7 @@ exports.createDevice = asyncHandler(async (req, res, next) => {
 // @desc delete delete Devices
 // @route delete /api/device/id
 exports.deleteDevice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -205,7 +205,7 @@ exports.deleteDevice = asyncHandler(async (req, res, next) => {
 });
 
 exports.getDevicesByUserID = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -233,7 +233,7 @@ exports.getDevicesByUserID = asyncHandler(async (req, res, next) => {
 });
 
 exports.importDevice = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

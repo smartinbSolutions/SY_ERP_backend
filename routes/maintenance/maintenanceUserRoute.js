@@ -18,8 +18,8 @@ const multer = require("multer");
 const upload = multer();
 
 manitUserRout.use(
-  authService.checkPlanFeatures("maintenance"),
   authService.protect,
+  authService.checkPlanFeatures("maintenance"),
 );
 
 manitUserRout

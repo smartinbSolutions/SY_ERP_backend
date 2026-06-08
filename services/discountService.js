@@ -6,7 +6,7 @@ const ApiError = require("../utils/apiError");
 //Create New discount
 //@rol: Who has rol can create the discount
 exports.createDiscount = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -24,7 +24,7 @@ exports.createDiscount = asyncHandler(async (req, res, next) => {
 //Get all discounts
 //@rol: who has rol can Get Customars Data
 exports.getDiscounts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -39,7 +39,7 @@ exports.getDiscounts = asyncHandler(async (req, res, next) => {
 exports.getOneDiscount = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -58,7 +58,7 @@ exports.getOneDiscount = asyncHandler(async (req, res, next) => {
 //@rol: who has rol can update the discount's Data
 exports.updateDiscount = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -69,7 +69,7 @@ exports.updateDiscount = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!discount) {
@@ -87,7 +87,7 @@ exports.updateDiscount = asyncHandler(async (req, res, next) => {
 //@rol:who has rol can Delete the Discount
 exports.deleteDiscount = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

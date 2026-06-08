@@ -12,8 +12,8 @@ const authService = require("../services/authService");
 const StockReconciliationRoute = express.Router();
 
 StockReconciliationRoute.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 
 StockReconciliationRoute.route("/").get(

@@ -11,8 +11,8 @@ const authService = require("../services/authService");
 const paymentTypes = express.Router();
 
 paymentTypes.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 paymentTypes

@@ -3,7 +3,7 @@ const quotationModel = require("../models/quotationsModel.js");
 const ApiError = require("../utils/apiError");
 
 exports.createCashQuotation = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -22,7 +22,7 @@ exports.createCashQuotation = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllQuotations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -104,7 +104,7 @@ exports.getAllQuotations = asyncHandler(async (req, res, next) => {
 });
 
 exports.getQuotationById = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -123,7 +123,7 @@ exports.getQuotationById = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateQuotation = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -136,7 +136,7 @@ exports.updateQuotation = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   if (!quotation) {
@@ -148,7 +148,7 @@ exports.updateQuotation = asyncHandler(async (req, res, next) => {
 
 exports.archiveQuotation = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -156,7 +156,7 @@ exports.archiveQuotation = asyncHandler(async (req, res, next) => {
   const quotation = await quotationModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true }
+    { new: true },
   );
 
   if (!quotation) {

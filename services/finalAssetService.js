@@ -5,13 +5,13 @@ const AssetSchema = require("../models/assetCard");
 
 // Get list of Assets
 exports.getFinalAssets = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
   const Assets = await FinalAssetModel.find({ companyId }).populate(
-    "assetCard"
+    "assetCard",
   );
   res
     .status(200)
@@ -20,7 +20,7 @@ exports.getFinalAssets = asyncHandler(async (req, res, next) => {
 
 // Create Asset
 exports.createFinalAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -36,7 +36,7 @@ exports.createFinalAsset = asyncHandler(async (req, res, next) => {
 
 // Get specific Asset by id
 exports.getFinalAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -44,7 +44,7 @@ exports.getFinalAsset = asyncHandler(async (req, res, next) => {
 
   const { id } = req.params;
   const Asset = await FinalAssetModel.findOne({ _id: id, companyId }).populate(
-    "assetCard"
+    "assetCard",
   );
 
   if (!Asset) {
@@ -55,7 +55,7 @@ exports.getFinalAsset = asyncHandler(async (req, res, next) => {
 
 // Update Asset by ID
 exports.updateFinalAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -67,7 +67,7 @@ exports.updateFinalAsset = asyncHandler(async (req, res, next) => {
     {
       new: true,
       runValidators: true,
-    }
+    },
   );
 
   if (!updatedAsset) {
@@ -82,7 +82,7 @@ exports.updateFinalAsset = asyncHandler(async (req, res, next) => {
 });
 // Delete Asset by ID
 exports.deleteFinalAsset = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

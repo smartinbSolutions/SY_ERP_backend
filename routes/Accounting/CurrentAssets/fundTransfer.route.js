@@ -10,8 +10,8 @@ const {
 const FundTransfer = express.Router();
 
 FundTransfer.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 FundTransfer.route("/")

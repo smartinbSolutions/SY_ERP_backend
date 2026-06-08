@@ -24,8 +24,8 @@ const multer = require("multer");
 const upload = multer();
 
 categoryRout.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 categoryRout

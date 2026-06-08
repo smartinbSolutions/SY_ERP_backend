@@ -15,8 +15,8 @@ const {
 const RefundPurchaseInvoices = express.Router();
 
 RefundPurchaseInvoices.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 /*
 |--------------------------------------------------------------------------

@@ -44,7 +44,7 @@ exports.resizerCategoryImage = asyncHandler(async (req, res, next) => {
 //@access Private
 exports.getLastChildrenCategories = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -68,7 +68,7 @@ exports.getLastChildrenCategories = asyncHandler(async (req, res, next) => {
 //@route Get /api/category/
 //@access Private
 exports.getCategories = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -83,7 +83,7 @@ exports.getCategories = asyncHandler(async (req, res, next) => {
 //@route Post /api/category
 //@access Private
 exports.createCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -135,7 +135,7 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
 //@route Get /api/category/:id
 //@access Private
 exports.getCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -153,7 +153,7 @@ exports.getCategory = asyncHandler(async (req, res, next) => {
 //@route Put /api/category/:id
 //@access Private
 exports.updateCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -220,7 +220,7 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
 //@route Delete /api/category/:id
 //@access Private
 exports.deleteCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -238,7 +238,7 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
 //@access Private
 
 exports.importCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

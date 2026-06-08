@@ -15,8 +15,8 @@ const upload = multer();
 const devicesRout = express.Router();
 
 devicesRout.use(
-  authService.checkPlanFeatures("maintenance"),
   authService.protect,
+  authService.checkPlanFeatures("maintenance"),
 );
 
 devicesRout

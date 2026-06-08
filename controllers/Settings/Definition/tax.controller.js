@@ -3,7 +3,7 @@ const asyncHandler = require("express-async-handler");
 const taxService = require("../../../services/Settings/Definition/tax.service");
 
 exports.getTaxs = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,7 +21,7 @@ exports.getTaxs = asyncHandler(async (req, res) => {
 });
 
 exports.getTax = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -37,7 +37,7 @@ exports.getTax = asyncHandler(async (req, res) => {
 });
 
 exports.createTax = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -58,7 +58,7 @@ exports.createTax = asyncHandler(async (req, res) => {
 });
 
 exports.updateTax = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -80,7 +80,7 @@ exports.updateTax = asyncHandler(async (req, res) => {
 });
 
 exports.deleteTax = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

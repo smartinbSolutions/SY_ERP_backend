@@ -4,9 +4,9 @@ const purchaseRequestSchema = new mongoose.Schema(
   {
     employee: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
     },
-        archives: { type: Boolean, default: false },
+    archives: { type: Boolean, default: false },
 
     invoicesItems: [
       {
@@ -74,7 +74,7 @@ const purchaseRequestSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("PurchaseRequest", purchaseRequestSchema);

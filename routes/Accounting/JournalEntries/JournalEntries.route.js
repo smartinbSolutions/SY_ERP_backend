@@ -15,8 +15,8 @@ const {
 const journalEntriesRoute = express.Router();
 
 journalEntriesRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 journalEntriesRoute

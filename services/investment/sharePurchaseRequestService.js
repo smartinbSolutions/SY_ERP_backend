@@ -5,7 +5,7 @@ const sharePurchaseRequestModel = require("../../models/investment/sharePurchase
 // @route POST /api/purchaseRequest
 // @access Private
 exports.createPurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -161,7 +161,7 @@ exports.getAllPurchaseRequest = asyncHandler(async (req, res) => {
 // @route GET /api/purchaseRequests/:id
 // @access Private
 exports.getOnePurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -208,7 +208,7 @@ exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!purchaseRequest) {
     return res.status(404).json({
@@ -225,7 +225,7 @@ exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/purchaseRequests/:id
 // @access Private
 exports.deletePurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

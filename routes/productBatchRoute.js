@@ -6,8 +6,8 @@ const { getAllProductBatch } = require("../services/productBatchServices");
 const productBatchRoute = express.Router();
 
 productBatchRoute.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 
 productBatchRoute

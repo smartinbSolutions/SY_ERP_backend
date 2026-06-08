@@ -153,9 +153,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
 });
 
 exports.checkCompanyEditable = async (req, res, next) => {
-  const companyId = normalizeCompanyId(
-    req.query.companyId || req.body.companyId,
-  );
+  const companyId = normalizeCompanyId(req.companyId || req.body.companyId);
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -190,7 +188,7 @@ exports.checkCompanyEditable = async (req, res, next) => {
 // @route     POST /api/auth/forgotpasswordpos
 // @access    Public
 exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -250,7 +248,7 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
 // @route     POST /api/auth/verifyresetcodepos
 // @access    Public
 exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -286,7 +284,7 @@ exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
 // @route     POST /api/auth/resetpasswordpos
 // @access    Public
 exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -705,7 +703,7 @@ exports.allowedTo = (...allowedPermissions) =>
   asyncHandler(async (req, res, next) => {
     const userId = req.user?._id;
     const companyId = normalizeCompanyId(
-      req.query.companyId || req.body.companyId || req.companyId,
+      req.companyId || req.body.companyId || req.companyId,
     );
     const requiredPermissions = allowedPermissions.flat().filter(Boolean);
 

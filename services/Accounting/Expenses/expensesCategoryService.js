@@ -7,7 +7,7 @@ const ApiError = require("../../../utils/apiError");
 // @route get /api/expenseCategories
 exports.createExpenseCategory = asyncHandler(async (req, res, next) => {
   try {
-    const companyId = req.query.companyId;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -116,7 +116,7 @@ exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
 // Get one expense category
 // @route get /api/expenseCategories/:id
 exports.getOneExpenseCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -132,7 +132,7 @@ exports.getOneExpenseCategory = asyncHandler(async (req, res, next) => {
     });
   if (!expenseCategory) {
     return next(
-      new ApiError(`There is no expense category with this id ${id}`, 404)
+      new ApiError(`There is no expense category with this id ${id}`, 404),
     );
   } else {
     res.status(200).json({ status: "true", data: expenseCategory });
@@ -142,7 +142,7 @@ exports.getOneExpenseCategory = asyncHandler(async (req, res, next) => {
 // Delete One expense category
 // @route delete /api/expenseCategories/:id
 exports.deleteOneExpenseCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -155,7 +155,7 @@ exports.deleteOneExpenseCategory = asyncHandler(async (req, res, next) => {
 
   if (!expenseCategory) {
     return next(
-      new ApiError(`There is no expense category with this id ${id}`, 404)
+      new ApiError(`There is no expense category with this id ${id}`, 404),
     );
   } else {
     res
@@ -168,7 +168,7 @@ exports.deleteOneExpenseCategory = asyncHandler(async (req, res, next) => {
 // @route delete /api/expenseCategories/:id
 exports.updateOneExpenseCategory = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -179,11 +179,11 @@ exports.updateOneExpenseCategory = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
   if (!expenseCategory) {
     return next(
-      new ApiError(`There is no expense category with this id ${id}`, 404)
+      new ApiError(`There is no expense category with this id ${id}`, 404),
     );
   } else {
     res

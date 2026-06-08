@@ -3,7 +3,7 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 
 exports.getTags = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -21,7 +21,7 @@ exports.getTags = asyncHandler(async (req, res) => {
 });
 
 exports.getTag = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -37,7 +37,7 @@ exports.getTag = asyncHandler(async (req, res) => {
 });
 
 exports.createTag = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -58,7 +58,7 @@ exports.createTag = asyncHandler(async (req, res) => {
 });
 
 exports.updateTag = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -80,7 +80,7 @@ exports.updateTag = asyncHandler(async (req, res) => {
 });
 
 exports.deleteTag = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const id = req.params.id;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

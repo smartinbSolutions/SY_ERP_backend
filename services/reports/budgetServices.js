@@ -5,7 +5,7 @@ const accountingTreeModel = require("../../models/accountingTreeModel");
 const journalEntryModel = require("../../models/journalEntryModel");
 
 exports.createbudgetReport = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -147,7 +147,7 @@ exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
   const updatedBudget = await budgetModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   res.status(200).json({
@@ -167,7 +167,7 @@ exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {
   const budget = await budgetModel.findOneAndUpdate(
     { _id: id, companyId },
     { status: req.body.status },
-    { new: true }
+    { new: true },
   );
 
   if (!budget) {

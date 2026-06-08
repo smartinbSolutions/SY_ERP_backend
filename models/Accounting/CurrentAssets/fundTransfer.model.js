@@ -31,7 +31,7 @@ const FundSideSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const FundTransferSchema = new mongoose.Schema(
@@ -112,7 +112,7 @@ const FundTransferSchema = new mongoose.Schema(
 
     postedBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
 
@@ -123,7 +123,7 @@ const FundTransferSchema = new mongoose.Schema(
 
     cancelledBy: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
       default: null,
     },
 
@@ -142,7 +142,7 @@ const FundTransferSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 FundTransferSchema.index({ counter: 1, companyId: 1 }, { unique: true });

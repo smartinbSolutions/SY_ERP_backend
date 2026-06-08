@@ -6,7 +6,7 @@ const { createInvoiceHistory } = require("./invoiceHistoryService");
 const invoiceHistoryModel = require("../models/invoiceHistoryModel");
 
 exports.getAllPurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -84,7 +84,7 @@ exports.getAllPurchaseRequest = asyncHandler(async (req, res, next) => {
 });
 
 exports.getPurchaseRequestById = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -125,7 +125,7 @@ exports.getPurchaseRequestById = asyncHandler(async (req, res, next) => {
 });
 
 exports.createCashPurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -141,10 +141,10 @@ exports.createCashPurchaseRequest = asyncHandler(async (req, res, next) => {
   const futureDateOb = new Date(ts);
   futureDateOb.setSeconds(futureDateOb.getSeconds());
   const formattedDateAdd3 = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
   const registryDate = `${req.body.registryDate}T${formattedDateAdd3}Z`;
   const deliveryDate = `${req.body.deliveryDate}T${formattedDateAdd3}Z`;
@@ -169,13 +169,13 @@ exports.createCashPurchaseRequest = asyncHandler(async (req, res, next) => {
     purchaseRequest._id,
     "create",
     req.user._id,
-    req.body.registryDate
+    req.body.registryDate,
   );
   res.status(201).json({ status: "success", data: purchaseRequest });
 });
 
 exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -189,10 +189,10 @@ exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
   const futureDateOb = new Date(ts);
   futureDateOb.setSeconds(futureDateOb.getSeconds());
   const formattedDateAdd3 = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
   if (req.body.registryDate && req.body.deliveryDate) {
     const registryDate = `${req.body.registryDate}T${formattedDateAdd3}Z`;
@@ -206,7 +206,7 @@ exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
   const purchaseRequest = await purchaseRequestModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
-    { new: true }
+    { new: true },
   );
 
   if (!purchaseRequest) {
@@ -217,14 +217,14 @@ exports.updatePurchaseRequest = asyncHandler(async (req, res, next) => {
     id,
     "edit",
     req.user._id,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
   res.status(201).json({ status: "success", data: purchaseRequest });
 });
 
 exports.archivePurchaseRequest = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -232,7 +232,7 @@ exports.archivePurchaseRequest = asyncHandler(async (req, res, next) => {
   const purchaseRequest = await purchaseRequestModel.findOneAndUpdate(
     { _id: id, companyId },
     { archives: req.body.archives },
-    { new: true }
+    { new: true },
   );
 
   if (!purchaseRequest) {

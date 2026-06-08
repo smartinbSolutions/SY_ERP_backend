@@ -27,7 +27,7 @@ const prodcutBatchModel = require("../models/Stocks/products/prodcutBatchModel")
 // @route   POST /api/salse-pos
 // @access  privet/Pos Sales
 exports.createCashOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -329,7 +329,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 // @route   GET /api/salse-pos
 // @access  privet/All
 exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { startDate, endDate } = req.query;
   const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
 
@@ -425,7 +425,7 @@ exports.findAllSalsePos = asyncHandler(async (req, res, next) => {
 // @route   GET /api/salse-pos/:id
 // @access  privet/All
 exports.findOneSalsePos = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -453,7 +453,7 @@ exports.findOneSalsePos = asyncHandler(async (req, res, next) => {
 });
 
 exports.findAllSalsePosForSalsePoint = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -507,7 +507,7 @@ exports.findAllSalsePosForSalsePoint = asyncHandler(async (req, res, next) => {
 });
 
 exports.editPosOrder = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -649,7 +649,7 @@ exports.editPosOrder = asyncHandler(async (req, res, next) => {
 });
 
 exports.returnPosSales = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -901,7 +901,7 @@ exports.returnPosSales = asyncHandler(async (req, res, next) => {
 // @route   GET /api/getReturnOrder
 // @access  privet
 exports.getReturnPosSales = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -952,7 +952,7 @@ exports.getReturnPosSales = asyncHandler(async (req, res, next) => {
 // @route   GET /api/getReturnOrder/:id
 // @access  privet
 exports.getOneReturnPosSales = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -969,7 +969,7 @@ exports.getOneReturnPosSales = asyncHandler(async (req, res, next) => {
 });
 
 exports.canceledPosSales = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -1110,7 +1110,7 @@ exports.getReceiptForDate = asyncHandler(async (req, res, next) => {
 });
 
 exports.getRefundReceiptForDate = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -1134,7 +1134,7 @@ exports.getRefundReceiptForDate = asyncHandler(async (req, res, next) => {
 });
 
 exports.mergeRefundReceipts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const { startDate, endDate, id } = req.body;
   req.body.employee = req.user.name;
   if (!companyId) {
@@ -1294,7 +1294,7 @@ exports.mergeRefundReceipts = asyncHandler(async (req, res, next) => {
 });
 
 exports.fundAndReportsInPOS = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }

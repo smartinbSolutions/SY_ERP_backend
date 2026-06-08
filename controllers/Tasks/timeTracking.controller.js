@@ -8,7 +8,7 @@ exports.createTimeLog = async (req, res) => {
     const data = await timeTrackingService.createTimeLog(
       req.body,
       req.user._id,
-      req.query.companyId,
+      req.companyId,
     );
 
     return res.status(201).json({

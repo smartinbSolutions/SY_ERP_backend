@@ -38,7 +38,7 @@ exports.resizermanufactorProductImage = asyncHandler(async (req, res, next) => {
 // @route POST /api/manufactorProduct
 // @access Private
 exports.createmanufactorProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -49,7 +49,7 @@ exports.createmanufactorProduct = asyncHandler(async (req, res, next) => {
   try {
     // Create manufactorProduct with the provided currency
     const manufactorProduct = await manufactorProductModel.create(
-      manufactorProductData
+      manufactorProductData,
     );
 
     // Respond with success message and created manufactorProduct data
@@ -71,7 +71,7 @@ exports.createmanufactorProduct = asyncHandler(async (req, res, next) => {
 // @route GET /api/manufactorProduct
 // @access Private
 exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -158,7 +158,7 @@ exports.getAllmanufactorProducts = asyncHandler(async (req, res, next) => {
 // @route GET /api/manufactorProduct
 // @access Private
 exports.getOnemanufactorProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -200,7 +200,7 @@ exports.getOnemanufactorProduct = asyncHandler(async (req, res, next) => {
 // @route PUT /api/manufactorProduct/:id
 // @access Private
 exports.updatemanufactorProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -220,7 +220,7 @@ exports.updatemanufactorProduct = asyncHandler(async (req, res, next) => {
       await manufactorProductModel.findOneAndUpdate(
         { _id: manufactorProductId, companyId },
         { $set: updatedData },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true },
       );
 
     // If the manufactorProduct is not found
@@ -250,7 +250,7 @@ exports.updatemanufactorProduct = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/manufactorProduct/:id
 // @access Private
 exports.deletemanufactorProduct = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

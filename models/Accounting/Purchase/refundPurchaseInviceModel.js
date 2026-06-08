@@ -167,7 +167,7 @@ const returnPurchaseInvicesSchema = new mongoose.Schema(
 
     employee: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
     },
 
     invoiceNumber: {
@@ -188,12 +188,12 @@ const returnPurchaseInvicesSchema = new mongoose.Schema(
 
     auditing: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model(
   "refundpurchaseinvoices",
-  returnPurchaseInvicesSchema
+  returnPurchaseInvicesSchema,
 );
 
 // const mongoose = require("mongoose");
@@ -306,9 +306,9 @@ module.exports = mongoose.model(
 //       type: String,
 //       default: "unpaid",
 //     },
-//     employee: {
+//     user: {
 //       type: mongoose.Schema.ObjectId,
-//       ref: "Employee",
+//       ref: "user",
 //     },
 //     invoiceNumber: {
 //       type: String,

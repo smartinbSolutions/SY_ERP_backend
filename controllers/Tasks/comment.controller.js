@@ -6,7 +6,7 @@ exports.createComment = async (req, res) => {
 
     const comment = await commentService.createComment(
       req.body,
-      req.query.companyId,
+      req.companyId,
       req.user._id,
     );
 

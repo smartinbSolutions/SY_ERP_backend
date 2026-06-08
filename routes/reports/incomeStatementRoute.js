@@ -6,8 +6,8 @@ const incomeStatementRoute = express.Router();
 const authService = require("../../services/authService");
 
 incomeStatementRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 incomeStatementRoute
   .route("/")

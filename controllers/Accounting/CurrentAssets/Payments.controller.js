@@ -8,7 +8,7 @@ const {
 } = require("../../../services/Accounting/CurrentAssets/Payments/Payment.service");
 
 exports.createPayment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -24,7 +24,7 @@ exports.createPayment = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOnePayment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const paymentId = req.params.id;
 
   const payment = await getOnePaymentService({
@@ -39,7 +39,7 @@ exports.getOnePayment = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllPayments = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
@@ -62,7 +62,7 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
 // cancelPayment controller
 // ─────────────────────────────────────────────────────────────────
 exports.cancelPayment = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   const paymentId = req.params.id;
 
   if (!companyId)

@@ -11,8 +11,8 @@ const {
 const linkPanelRoute = express.Router();
 
 linkPanelRoute.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 linkPanelRoute

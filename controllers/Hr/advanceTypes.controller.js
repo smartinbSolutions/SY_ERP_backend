@@ -16,7 +16,7 @@ exports.createAdvanceType = asyncHandler(async (req, res, next) => {
     maxMonthsInstallments,
     maxInstallmentPercentage,
   } = req.body;
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
   if (!policyId) return next(new ApiError("policyId is required", 400));

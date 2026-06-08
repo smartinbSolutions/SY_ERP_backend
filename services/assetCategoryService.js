@@ -4,7 +4,7 @@ const ApiError = require("../utils/apiError");
 
 // Get list of Assets
 exports.getAssetsCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -18,7 +18,7 @@ exports.getAssetsCategory = asyncHandler(async (req, res, next) => {
 
 // Create Asset
 exports.createAssetCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -34,7 +34,7 @@ exports.createAssetCategory = asyncHandler(async (req, res, next) => {
 
 // Get specific Asset by id
 exports.getAssetCategory = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

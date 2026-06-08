@@ -14,8 +14,8 @@ const authService = require("../../services/authService");
 const menuCategoryRout = express.Router();
 
 menuCategoryRout.use(
-  authService.checkPlanFeatures("resturant"),
   authService.protect,
+  authService.checkPlanFeatures("resturant"),
 );
 
 menuCategoryRout

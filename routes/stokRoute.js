@@ -17,7 +17,7 @@ const {
 
 const stockRout = express.Router();
 
-stockRout.use(authService.checkPlanFeatures("inventory"), authService.protect);
+stockRout.use(authService.protect, authService.checkPlanFeatures("inventory"));
 
 stockRout
   .route("/")

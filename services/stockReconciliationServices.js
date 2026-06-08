@@ -4,7 +4,7 @@ const reconciliationModel = require("../models/stockReconciliationModel");
 const { createProductMovement } = require("../utils/productMovement");
 
 exports.checkStockReconciliation = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -33,7 +33,7 @@ exports.checkStockReconciliation = asyncHandler(async (req, res, next) => {
 // @route   POST /api/stockReconciliation
 // @access  Private
 exports.createStockReconciliation = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -182,7 +182,7 @@ exports.createStockReconciliation = asyncHandler(async (req, res, next) => {
 // @route   GET /api/stockReconciliation
 // @access  Private
 exports.findAllReconciliations = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -225,7 +225,7 @@ exports.findAllReconciliations = asyncHandler(async (req, res, next) => {
 // @route   GET /api/stockReconciliation/:id
 // @access  Private
 exports.findReconciliationReport = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -246,7 +246,7 @@ exports.findReconciliationReport = asyncHandler(async (req, res, next) => {
 // @route   GET /api/stockReconciliation/:id/edit
 // @access  Private
 exports.updataOneReconciliationReport = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

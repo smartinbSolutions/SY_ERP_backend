@@ -5,7 +5,7 @@ const asyncHandler = require("express-async-handler");
 const productQuestionsModel = require("../models/ecommerce/productQuestionsModel");
 
 exports.getNotices = asyncHandler(async (req, res) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

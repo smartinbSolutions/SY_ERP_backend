@@ -10,8 +10,8 @@ const authService = require("../services/authService");
 
 const finalAsset = express.Router();
 finalAsset.use(
-  authService.checkPlanFeatures("accounting"),
   authService.protect,
+  authService.checkPlanFeatures("accounting"),
 );
 
 finalAsset

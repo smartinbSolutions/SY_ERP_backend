@@ -4,7 +4,7 @@ const ApiError = require("../../utils/apiError");
 const groupsModel = require("../../models/Hr/groupsModel");
 
 exports.getAllGroups = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -39,9 +39,8 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 exports.getOneGroups = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -49,20 +48,21 @@ exports.getOneGroups = asyncHandler(async (req, res, next) => {
   if (!req.params.id) {
     return next(new ApiError(`No Groups for this ID: ${req.params.id}`, 404));
   }
-  const groups = await groupsModel.findOne({
-    _id: req.params.id,
-    companyId,
-  })
-  .populate("locationId")
-  .populate("leavePolicy")
-  .populate("overtimePolicy")
-  .populate("advancePolicy")
-  .populate("deductionPolicy");
+  const groups = await groupsModel
+    .findOne({
+      _id: req.params.id,
+      companyId,
+    })
+    .populate("locationId")
+    .populate("leavePolicy")
+    .populate("overtimePolicy")
+    .populate("advancePolicy")
+    .populate("deductionPolicy");
   res.status(200).json({ status: "success", data: groups });
 });
 
 exports.createGroups = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -72,7 +72,7 @@ exports.createGroups = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateGroups = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -87,14 +87,14 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   res.status(200).json({ status: "success", data: groups });
 });
 
 exports.deleteGroups = asyncHandler(async (req, res, next) => {
-  const companyId = req.query.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
