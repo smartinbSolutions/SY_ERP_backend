@@ -316,22 +316,20 @@ exports.applySalesInventoryEffectsService = async ({
 }) => {
   const bulkOperations = [];
 
-  for (const item of invoicesItem) {
+  for (let index = 0; index < invoicesItem.length; index++) {
+    const item = invoicesItem[index];
+
     if (
       item.type === "unTracedproduct" ||
       item.type === "expense" ||
       item.type === "Service"
     ) {
-      console.log("Skipping item  type:", item.type);
       continue;
     }
 
     const product = productMap.get(item.id);
+
     if (!product || !item.stock?._id) {
-      console.log("Skipping item because product or stock missing", {
-        hasProduct: !!product,
-        stockId: item?.stock?._id,
-      });
       continue;
     }
 
@@ -340,13 +338,11 @@ exports.applySalesInventoryEffectsService = async ({
     const stockRow = (product.stocks || []).find(
       (s) => String(s.stockId) === String(item.stock._id),
     );
+
     const oldQty = Number(stockRow?.productQuantity || 0);
 
     if (soldQty > oldQty) {
-      throw new ApiError(
-        `Insufficient stock for product ${product.name} in warehouse ${item.stock.stock}. Requested: ${soldQty}, Available: ${oldQty}. Please adjust the quantity or select another warehouse.`,
-        400,
-      );
+      throw new ApiError(`Insufficient stock for product ${product.name}`, 400);
     }
 
     let qtyToSell = soldQty;
@@ -372,9 +368,9 @@ exports.applySalesInventoryEffectsService = async ({
       const usedQty = Math.min(available, qtyToSell);
 
       batch.remaining = Math.max(0, batch.remaining - usedQty);
-      if (batch.remaining <= 0) {
-        batch.remaining = 0;
-        batch.status = batch.remaining === 0 ? "reversed" : "active";
+
+      if (batch.remaining === 0) {
+        batch.status = "reversed";
       }
 
       await batch.save({ session });
@@ -394,49 +390,46 @@ exports.applySalesInventoryEffectsService = async ({
     }
 
     if (qtyToSell > 0) {
-      throw new ApiError(
-        `Insufficient stock for product "${product.name}". Requested: ${qtyToSell}, Available: ${oldQty}.`,
-        400,
-      );
+      throw new ApiError(`Insufficient stock for product ${product.name}`, 400);
     }
 
-    const invoiceItem = newSalesInvoice.invoicesItems.find(
-      (i) => String(i.id) === String(item.id),
-    );
-    const returnCartItem = newSalesInvoice.returnCartItem.find(
-      (i) => String(i.id) === String(item.id),
-    );
+    // 🔥 IMPORTANT: NO .find() → USE INDEX (each line is unique)
+    const invoiceItem = newSalesInvoice.invoicesItems[index];
+    const returnCartItem = newSalesInvoice.returnCartItem?.[index];
 
     if (invoiceItem) {
       invoiceItem.batches = itemBatches;
-      if (returnCartItem) returnCartItem.batches = itemBatches;
+    }
+
+    if (returnCartItem) {
+      returnCartItem.batches = itemBatches;
     }
 
     let soldTotalCost = 0;
 
     for (const fm of fifoMovements) {
-      soldTotalCost +=
-        Number(fm.quantity || 0) * Number(fm.costBuyingPrice || 0);
+      soldTotalCost += fm.quantity * fm.costBuyingPrice;
+
       await batchLedgerModel.create(
         [
           {
             productId: item.id,
             companyId,
-            stockId: item.stock?._id,
+            stockId: item.stock._id,
             type: "out",
             quantity: fm.quantity,
             batchId: fm.batchId,
             referenceType: "sales",
             referenceId: newSalesInvoice._id,
             movementDate: date,
-            actionType: actionType,
+            actionType,
           },
         ],
         { session },
       );
 
       await createProductMovement({
-        productId: product._id,
+        productId: item.id,
         reference: newSalesInvoice._id,
         newQuantity: oldQty - fm.quantity,
         quantity: fm.quantity,
@@ -790,6 +783,7 @@ exports.reverseSalesInventoryEffectsService = async ({
     if (item.type === "unTracedproduct" || item.type === "expense") continue;
 
     const product = productMap.get(item.id);
+
     if (!product) {
       throw new ApiError(`Product not found for item ${item.name}`, 404);
     }
@@ -830,24 +824,9 @@ exports.reverseSalesInventoryEffectsService = async ({
 
   for (const item of invoicesItem) {
     if (item.type === "unTracedproduct" || item.type === "expense") continue;
+    const product = productMap.get(item.id);
 
     let reverseQty = Number(item.soldQuantity || 0);
-
-    // const batches = await prodcutBatchModel
-    //   .find({
-    //     productId: item.id,
-    //     companyId,
-    //     stockId: item.stock._id,
-    //   })
-    //   .sort({ createdAt: -1 })
-    //   .session(session);
-
-    // if (!batches.length) {
-    //   throw new ApiError(
-    //     `Sales batch not found for product "${item.name}"`,
-    //     404,
-    //   );
-    // }
 
     for (const batchItem of item.batches) {
       const batch = await prodcutBatchModel
