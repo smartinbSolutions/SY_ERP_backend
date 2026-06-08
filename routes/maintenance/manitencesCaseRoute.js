@@ -16,7 +16,7 @@ const {
 
 const manitCaseRout = express.Router();
 
-maintCaseRout.use(
+manitCaseRout.use(
   authService.checkPlanFeatures("maintenance"),
   authService.protect,
 );
