@@ -64,7 +64,7 @@ const createProductMovement = async ({
                               : source === "Refund Purchase Invoice"
                                 ? "refundpurchaseinvoices"
                                 : source === "Refund Sales Invoice"
-                                  ? "returnOrder"
+                                  ? "refundSales"
                                   : source === "Purchase Invoice Cancellation"
                                     ? "PurchaseInvoices"
                                     : source ===
