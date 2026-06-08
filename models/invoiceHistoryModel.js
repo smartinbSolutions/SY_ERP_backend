@@ -14,7 +14,7 @@ const invoiceHistorySchema = new mongoose.Schema(
     from: String,
     employeeId: {
       type: mongoose.Schema.ObjectId,
-      ref: "Employee",
+      ref: "user",
     },
     date: String,
     desc: String,

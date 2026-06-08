@@ -160,7 +160,7 @@ exports.findOnePurchaseInvoiceService = async ({ req, companyId }) => {
   })
     .populate({
       path: "employee",
-      select: "name profileImg email phone",
+      select: "name  email phone",
     })
     .populate("invoicesItems.tax")
     .lean();
