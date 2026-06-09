@@ -219,6 +219,10 @@ exports.applyReciptInventoryEffectService = async ({
 
       batch.remaining = availableQty - usedQty;
 
+      if (batch.remaining === 0) {
+        batch.status = "reversed";
+      }
+
       await batch.save({ session });
 
       qtyToSell -= usedQty;
@@ -296,7 +300,7 @@ exports.applyReciptInventoryEffectService = async ({
         movementType: "out",
         source: "POS Receipt",
         companyId,
-        outPrice: movement.costBuyingPrice,
+        outPrice: item.orginalBuyingPrice,
         stockId: stockID,
         sellingPrice: Number(item.sellingPrice || 0),
         exchangeRate: Number(item.exchangeRate || 1),
