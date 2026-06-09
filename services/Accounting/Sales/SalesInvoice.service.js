@@ -369,10 +369,6 @@ exports.applySalesInventoryEffectsService = async ({
 
       batch.remaining = Math.max(0, batch.remaining - usedQty);
 
-      if (batch.remaining === 0) {
-        batch.status = "reversed";
-      }
-
       await batch.save({ session });
 
       itemBatches.push({
