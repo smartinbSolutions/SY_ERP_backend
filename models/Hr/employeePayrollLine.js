@@ -30,13 +30,13 @@ const payrollEmployeeLineSchema = new mongoose.Schema(
       type: String,
       enum: [
         "base_salary",
+        "leave_deduction",
         "fixed_allowance",
         "overtime",
         "bonus",
         "lateness_deduction",
         "absence_deduction",
         "early_leave_deduction",
-        "unpaid_leave_deduction",
         "loan_installment",
         "penalty",
         "manual_adjustment",
@@ -121,11 +121,12 @@ const payrollEmployeeLineSchema = new mongoose.Schema(
       required: true,
       default: true,
     },
-status: {
-  type: String,
-  enum: ["success", "failed", "skipped"],
-  default: "success",
-},    errorMessage: String,
+    status: {
+      type: String,
+      enum: ["success", "failed", "skipped"],
+      default: "success",
+    },
+    errorMessage: String,
   },
   {
     timestamps: true,

@@ -1,4 +1,3 @@
-
 const EmployeePayroll = require("../../../models/Hr/employeepayrollModel.js");
 const { CalculateAdvances } = require("./CalculateAdvances.js");
 const { calculateAttendance } = require("./CalculateAttendence.js");
@@ -7,6 +6,38 @@ const { CalculateOvertime } = require("./CalculateOvertime.js");
 
 exports.processEmployeePayroll = async (employee, context) => {
   let payroll;
+
+  // ==============================
+  // Employee Data
+  // ==============================
+  const employeeId = employee._id.toString();
+
+  const employeeAttendance = context.attendanceMap[employeeId] || [];
+  const employeeLeaves = context.leaveMap[employeeId] || [];
+  const employeeOvertime = context.overtimeMap[employeeId] || [];
+  const employeeAdvances = context.advanceMap[employeeId] || [];
+
+  // ==============================
+  // Debug Logs
+  // ==============================
+  console.log("\n==============================");
+  console.log("Employee:", employeeId);
+
+  console.log("Attendance:");
+  console.dir(employeeAttendance, { depth: null });
+
+  console.log("Leaves:");
+  console.dir(employeeLeaves, { depth: null });
+
+  console.log("Overtime:");
+  console.dir(employeeOvertime, { depth: null });
+
+  console.log("Advances:");
+  console.dir(employeeAdvances, { depth: null });
+
+  // ==============================
+  // Create Employee Payroll
+  // ==============================
   try {
     payroll = await EmployeePayroll.create({
       employeeId: employee._id,
@@ -18,18 +49,12 @@ exports.processEmployeePayroll = async (employee, context) => {
     });
   } catch (err) {
     console.error("❌ FULL ERROR:", err);
+    throw err;
   }
 
-  const employeeId = employee._id.toString();
-
-  const employeeAttendance = context.attendanceMap[employeeId] || [];
-  const employeeLeaves = context.leaveMap[employeeId] || [];
-  const employeeOvertime = context.overtimeMap[employeeId] || [];
-  const employeeAdvances = context.advanceMap[employeeId] || [];
-
-  // ================================
-  // EXECUTION ONLY (NO SIDE EFFECTS HERE)
-  // ================================
+  // ==============================
+  // Execute Calculators
+  // ==============================
   const attendance = await calculateAttendance({
     employee,
     attendance: employeeAttendance,
@@ -58,9 +83,9 @@ exports.processEmployeePayroll = async (employee, context) => {
     payroll,
   });
 
-  // ================================
-  // FINAL AGGREGATION ONLY
-  // ================================
+  // ==============================
+  // Final Salary
+  // ==============================
   const netSalary =
     (employee.salary || 0) +
     (overtime?.amount || 0) -

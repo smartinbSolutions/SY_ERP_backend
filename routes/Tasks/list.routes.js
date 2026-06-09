@@ -4,8 +4,8 @@ const router = express.Router({ mergeParams: true });
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
 const {
-  workspaceAccess,
   listAccess,
+  folderAccess,
 } = require("../../middlewares/Tasks/AccessMiddleware");
 
 const {
@@ -29,13 +29,18 @@ router.use(hrAuthServices.protectStaffOrERP);
 // CREATE LIST
 // POST /workspaces/:workspaceId/lists
 // ======================================
-router.post("/", workspaceAccess, checkPermission("create:list"), createList);
+router.post(
+  "/",
+  folderAccess,
+  checkPermission("create:list"),
+  createList,
+);
 
 // ======================================
 // GET LISTS
 // GET /workspaces/:workspaceId/lists
 // ======================================
-router.get("/", workspaceAccess, getLists);
+router.get("/", folderAccess, getLists);
 
 // ======================================
 // GET SINGLE LIST
@@ -49,7 +54,7 @@ router.get("/:listId", listAccess, getList);
 // ======================================
 router.patch(
   "/:listId",
-  workspaceAccess,
+  folderAccess,
   listAccess,
   checkPermission("update:list"),
   updateList,
@@ -61,7 +66,8 @@ router.patch(
 // ======================================
 router.delete(
   "/:listId",
-  workspaceAccess,
+
+  folderAccess,
   listAccess,
   checkPermission("delete:list"),
   deleteList,
@@ -73,7 +79,8 @@ router.delete(
 // ======================================
 router.post(
   "/:listId/members",
-  workspaceAccess,
+
+  folderAccess,
   listAccess,
   checkPermission("manage:members"),
   addMember,
@@ -85,7 +92,8 @@ router.post(
 // ======================================
 router.delete(
   "/:listId/members/:userId",
-  workspaceAccess,
+
+  folderAccess,
   listAccess,
   checkPermission("manage:members"),
   removeMember,

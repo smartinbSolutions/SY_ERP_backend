@@ -273,68 +273,151 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
-  const staffMember = await Staff.findOne({ email: req.user.email, companyId });
+  console.log("BODY RECEIVED:", req.body);
 
-  if (!staffMember) {
+  const companyId = req.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({
+      message: "companyId is required",
+    });
+  }
+
+  // ================================
+  // 1. STAFF + GROUP + LOCATION
+  // ================================
+  const staff = await Staff.findOne({
+    email: req.user.email,
+    companyId,
+  }).populate({
+    path: "groupId",
+    populate: {
+      path: "locationId",
+    },
+  });
+
+  if (!staff) {
     return res.status(400).json({
       status: false,
       message: "User is not a staff member",
     });
   }
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
-  // ---------------- TIME ----------------
-  function padZero(v) {
-    return v < 10 ? `0${v}` : v;
-  }
-
-  const now = new Date();
-  const date = `${now.getFullYear()}-${padZero(now.getMonth() + 1)}-${padZero(now.getDate())}`;
-  const time = `${padZero(now.getHours())}:${padZero(now.getMinutes())}:${padZero(now.getSeconds())}`;
-
-  req.body.date = date;
-  req.body.Time = time;
-  req.body.companyId = companyId;
-  req.body.userID = req.user.id;
-  req.body.name = staffMember.fullName;
-  req.body.email = staffMember.email;
-
-  // ---------------- CREATE FINGERPRINT ----------------
-  const fp = await fingerprintModel.create(req.body);
-
-  // ---------------- STAFF ----------------
-  const staff = await Staff.findById(req.user.id).populate("groupId");
-
-  if (!staff) {
-    console.log("🔴 Staff not found");
-    return res.status(404).json({ message: "Staff not found" });
-  }
 
   const group = staff.groupId;
+  const location = group?.locationId;
 
-  if (!group?.fixedAttendance) {
-    console.log(" No fixed attendance group");
-    return res.status(200).json({ status: "success", data: fp });
+  // ================================
+  // 2. LOCATION CHECK (NEW)
+  // ================================
+  const { latitude, longitude } = req.body;
+
+  if (!location || !latitude || !longitude) {
+    return res.status(400).json({
+      status: false,
+      message: "Location data is required",
+    });
   }
 
-  // ---------------- TIME CONVERSION ----------------
-  const actual = toMinutes(fp.Time);
+  const toRad = (v) => (v * Math.PI) / 180;
 
+  const getDistanceMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  const distance = getDistanceMeters(
+    latitude,
+    longitude,
+    location.latitude,
+    location.longitude,
+  );
+
+  const radius = location.radius || 150;
+
+  if (distance > radius) {
+    return res.status(400).json({
+      status: false,
+      message: "You are outside the allowed location",
+      distance: Math.round(distance),
+      allowedRadius: radius,
+    });
+  }
+
+  // ================================
+  // 3. TIMEZONE
+  // ================================
+  const timezone = location?.timezone || "UTC";
+  const now = new Date();
+
+  const formatterDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const formatterTime = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const date = formatterDate.format(now);
+  const time = formatterTime.format(now);
+
+  // ================================
+  // 4. BUILD DATA
+  // ================================
+  req.body.date = date;
+  req.body.Time = time;
+  req.body.timezone = timezone;
+  req.body.timestamp = now;
+
+  req.body.companyId = companyId;
+  req.body.userID = staff._id;
+  req.body.name = staff.fullName;
+  req.body.email = staff.email;
+
+  // ================================
+  // 5. CREATE FINGERPRINT
+  // ================================
+  const fp = await fingerprintModel.create(req.body);
+
+  if (!group?.fixedAttendance) {
+    return res.status(200).json({
+      status: "success",
+      data: fp,
+    });
+  }
+
+  // ================================
+  // 6. ATTENDANCE LOGIC
+  // ================================
+  const actual = toMinutes(fp.Time);
   const start = toMinutes(group.fixedAttendance.startTime);
   const end = toMinutes(group.fixedAttendance.endTime);
 
   const graceIn = group.fixedAttendance.earlyIn || 0;
   const graceOut = group.fixedAttendance.earlyOut || 0;
 
+  // ================================
+  // 7. CHECK-IN
+  // ================================
   if (fp.type === "Check-in") {
     const allowedLateLimit = start + graceIn;
 
     if (actual > allowedLateLimit) {
-      console.log("LATE DETECTED");
-
       await createViolationAndProcess({
         userId: staff._id,
         companyId,
@@ -343,19 +426,16 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
         minutesLate: actual - start,
         relatedAttendanceId: fp._id,
       });
-
-      console.log("LATE LOG CREATED");
-    } else {
-      console.log("CHECK-IN OK");
     }
   }
 
+  // ================================
+  // 8. CHECK-OUT
+  // ================================
   if (fp.type === "Check-out") {
     const allowedEarlyLeaveLimit = end - graceOut;
 
     if (actual < allowedEarlyLeaveLimit) {
-      console.log("EARLY LEAVE DETECTED");
-
       await createViolationAndProcess({
         userId: staff._id,
         companyId,
@@ -364,14 +444,10 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
         minutesLate: end - actual,
         relatedAttendanceId: fp._id,
       });
-
-      console.log("EARLY LEAVE LOG CREATED");
-    } else {
-      console.log("CHECK-OUT OK");
     }
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     status: "success",
     data: fp,
   });

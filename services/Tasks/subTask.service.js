@@ -1,4 +1,6 @@
+const activityLogModel = require("../../models/Hr/activityLogModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
+const staffModel = require("../../models/Hr/staffModel");
 const SubTask = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 const notificationHelper = require("./notificationHelper");
@@ -98,6 +100,24 @@ exports.createSubTask = async (data, userId, task) => {
     console.log("STEP 1: NO ASSIGNED RECIPIENTS");
   }
 
+  const actor = await staffModel.findById(userId).select("fullName").lean();
+
+  const actorName = actor?.fullName || "Someone";
+
+  await activityLogModel.create({
+    companyId: task.companyId,
+    actor: userId,
+    action: "subtask.created",
+    entityType: "subtask",
+    entityId: subTask._id,
+    workspaceId: populatedTask.list?.workspace?._id,
+    folderId: populatedTask.list?.folder?._id,
+    listId: populatedTask.list?._id,
+    taskId: task._id,
+
+    message: `${actorName} created subtask "${subTask.title}"`,
+  });
+
   // ======================================================
   // STEP 2: TREE NOTIFICATIONS
   // ======================================================
@@ -174,12 +194,12 @@ exports.getSubTaskById = async (subTaskId) => {
 // ======================================
 // UPDATE SUBTASK
 // ======================================
-exports.updateSubTask = async (subTaskId, data, actorId) => {
-  console.log("=== UPDATE SUBTASK START ===", {
-    subTaskId,
-    actorId,
-    data,
-  });
+exports.updateSubTask = async (subTaskId, data, actor) => {
+  const oldSubTask = await SubTask.findById(subTaskId);
+
+  if (!oldSubTask) {
+    throw new Error("SubTask not found");
+  }
 
   // =========================
   // UPDATE SUBTASK
@@ -188,10 +208,6 @@ exports.updateSubTask = async (subTaskId, data, actorId) => {
   const subTask = await SubTask.findByIdAndUpdate(subTaskId, data, {
     new: true,
   });
-
-  if (!subTask) {
-    throw new Error("SubTask not found");
-  }
 
   console.log("SUBTASK UPDATED", {
     subTaskId: subTask._id,
@@ -211,23 +227,81 @@ exports.updateSubTask = async (subTaskId, data, actorId) => {
     return subTask;
   }
 
+  // =========================
+  // GET ACTOR NAME (FIXED)
+  // =========================
+
+  const actorData = await staffModel
+    .findById(actor._id)
+    .select("fullName")
+    .lean();
+
+  const actorName = actorData?.fullName || "Someone";
+
   // ======================================================
-  // STEP 1: TREE NOTIFICATIONS
+  // SMART MESSAGE
+  // ======================================================
+
+  let message = `Subtask "${subTask.title}" was updated by ${actorName}`;
+
+  // title changed
+  if (data.title && data.title !== oldSubTask.title) {
+    message = `${actorName} renamed subtask "${oldSubTask.title}" to "${data.title}"`;
+  }
+
+  // status changed
+  else if (data.status && data.status !== oldSubTask.status) {
+    message = `${actorName} changed subtask "${subTask.title}" status to "${data.status}"`;
+  }
+
+  // priority changed
+  else if (data.priority && data.priority !== oldSubTask.priority) {
+    message = `${actorName} changed priority of subtask "${subTask.title}" to "${data.priority}"`;
+  } else if (data.dueDate) {
+    message = `${actorName} updated due date for subtask "${subTask.title}"`;
+  } else if (data.assignedTo) {
+    message = `${actorName} updated assignees for subtask "${subTask.title}"`;
+  } else if (data.description) {
+    message = `${actorName} updated description of subtask "${subTask.title}"`;
+  }
+
+  // ======================================================
+  // ACTIVITY LOG
+  // ======================================================
+
+  await activityLogModel.create({
+    actor: actor._id,
+
+    action: "subtask.updated",
+
+    entityType: "subtask",
+    entityId: subTask._id,
+
+    workspaceId: task.list?.workspace?._id,
+    folderId: task.list?.folder?._id,
+    listId: task.list?._id,
+    taskId: task._id,
+
+    message,
+  });
+
+  // ======================================================
+  // TREE NOTIFICATIONS
   // ======================================================
 
   console.log("STEP 1: TREE NOTIFICATIONS");
 
-  const recipients = notificationHelper.getRecipients(task, actorId, "task");
+  const recipients = notificationHelper.getRecipients(task, actor._id, "task");
 
   console.log("STEP 1: RECIPIENTS", recipients);
 
   if (recipients.length > 0) {
     const notifications = recipients.map((recipient) => ({
       recipient,
-      actor: actorId,
+      actor: actor._id,
       type: "subtask.updated",
       title: "SubTask Updated",
-      message: `Subtask "${subTask.title || subTask._id}" was updated`,
+      message,
       entity: {
         subTaskId: subTask._id,
         taskId: subTask.task,

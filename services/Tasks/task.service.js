@@ -5,6 +5,7 @@ const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 const notificationHelper = require("./notificationHelper");
+const activityLogModel = require("../../models/Hr/activityLogModel");
 
 // ======================================
 // CREATE TASK (workspace aware)
@@ -81,11 +82,21 @@ exports.createTask = async (data, userId) => {
     console.log("STEP 1: NO ASSIGNED RECIPIENTS");
   }
 
-  // ======================================================
-  // STEP 2: TREE NOTIFICATIONS
-  // ======================================================
+  const actor = await staffModel.findById(userId).select("fullName").lean();
 
-  console.log("STEP 2: TREE ONLY NOTIFICATIONS");
+  const actorName = actor?.fullName || "Someone";
+
+  await activityLogModel.create({
+    actor: userId,
+    action: "task.created",
+    entityType: "task",
+    entityId: task._id,
+    workspaceId: populatedTask.list?.workspace?._id,
+    folderId: populatedTask.list?.folder?._id,
+    listId: populatedTask.list?._id,
+    taskId: task._id,
+    message: `${actorName} created task "${task.title}"`,
+  });
 
   const recipients = notificationHelper.getRecipients(
     populatedTask,
@@ -101,7 +112,7 @@ exports.createTask = async (data, userId) => {
       actor: userId,
       type: "task.created",
       title: "Task Created",
-      message: `Task "${populatedTask.title}" was created`,
+      message: `Task "${populatedTask.title}" was created by ${actorName}`,
       entity: {
         taskId: populatedTask._id,
         listId: populatedTask.list,
@@ -162,30 +173,18 @@ exports.getAllTasks = async ({
     isArchived: false,
   };
 
-  // ===============================
-  // LIST FILTER
-  // ===============================
   if (listId && mongoose.Types.ObjectId.isValid(listId)) {
     filter.list = listId;
   }
 
-  // ===============================
-  // STATUS
-  // ===============================
   if (status) {
     filter.status = status;
   }
 
-  // ===============================
-  // PRIORITY
-  // ===============================
   if (priority) {
     filter.priority = priority;
   }
 
-  // ===============================
-  // ASSIGNED TO (BY NAME)
-  // ===============================
   if (assignedTo) {
     console.log(assignedTo);
 
@@ -293,6 +292,20 @@ exports.updateTask = async (taskId, data, actor) => {
     data,
   });
 
+  // =========================
+  // GET OLD TASK
+  // =========================
+
+  const oldTask = await Task.findById(taskId);
+
+  if (!oldTask) {
+    throw new Error("Task not found");
+  }
+
+  // =========================
+  // UPDATE TASK
+  // =========================
+
   const task = await Task.findByIdAndUpdate(taskId, data, {
     new: true,
   }).populate({
@@ -300,10 +313,82 @@ exports.updateTask = async (taskId, data, actor) => {
     populate: [{ path: "folder" }, { path: "workspace" }],
   });
 
-  if (!task) throw new Error("Task not found");
-
   console.log("TASK UPDATED", {
     taskId: task._id,
+  });
+
+  // ======================================================
+  // BUILD SMART MESSAGE + ACTION
+  // ======================================================
+
+  let action = "task.updated";
+
+  let message = `Task "${task.title}" was updated by ${actor.fullName}`;
+
+  // title changed
+  if (data.title && data.title !== oldTask.title) {
+    action = "task.renamed";
+    message = `${actor.fullName} renamed task "${oldTask.title}" to "${data.title}"`;
+  }
+
+  // status changed
+  else if (data.status && data.status !== oldTask.status) {
+    action = "task.status_changed";
+
+    message = `${actor.fullName} changed task "${task.title}" status to "${data.status}"`;
+  }
+
+  // priority changed
+  else if (data.priority && data.priority !== oldTask.priority) {
+    action = "task.priority_changed";
+
+    message = `${actor.fullName} changed priority of "${task.title}" to "${data.priority}"`;
+  }
+
+  // due date changed
+  else if (data.dueDate) {
+    action = "task.due_date_changed";
+
+    message = `${actor.fullName} updated due date for "${task.title}"`;
+  }
+
+  // assignees changed
+  else if (data.assignedTo) {
+    action = "task.assignees_changed";
+
+    message = `${actor.fullName} updated assignees for "${task.title}"`;
+  }
+
+  // description changed
+  else if (data.description) {
+    action = "task.description_changed";
+
+    message = `${actor.fullName} updated description of "${task.title}"`;
+  }
+
+  // checklist changed
+  else if (data.checklist) {
+    action = "task.checklist_changed";
+
+    message = `${actor.fullName} updated checklist of "${task.title}"`;
+  }
+
+  // ======================================================
+  // ACTIVITY LOG
+  // ======================================================
+
+  await activityLogModel.create({
+
+    companyId: task.companyId,
+    actor: actor._id,
+    action,
+    entityType: "task",
+    entityId: task._id,
+    workspaceId: task.list?.workspace?._id,
+    folderId: task.list?.folder?._id,
+    listId: task.list?._id,
+    taskId: task._id,
+    message,
   });
 
   // ======================================================
@@ -322,7 +407,7 @@ exports.updateTask = async (taskId, data, actor) => {
       actor: actor._id,
       type: "task.updated",
       title: "Task Updated",
-      message: `Task "${task.title}" was updated by ${actor.fullName}`,
+      message,
       entity: {
         taskId: task._id,
         listId: task.list,

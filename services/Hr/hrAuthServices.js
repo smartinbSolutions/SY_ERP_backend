@@ -65,8 +65,14 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
     user.password = undefined;
 
     // 🎟 generate token
-    const token = createToken(user, null, "staff");
-
+    const token = createToken({
+      userId: user._id,
+      email: user.email,
+      roleId: user.roleId,
+      channels: user.channels,
+      companyId: user.companyId,
+      authSource: "staff",
+    });
     console.log("✅ Token Generated");
 
     res.status(200).json({

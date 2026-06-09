@@ -39,7 +39,7 @@ exports.workspaceAccess = async (req, res, next) => {
 
     req.workspaceRole = workspaceMember?.role || null;
 
-    req.workspace = workspace;
+    req.workspace = workspace;  
 
     next();
   } catch (err) {

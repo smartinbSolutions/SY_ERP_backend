@@ -3,11 +3,21 @@ const mongoose = require("mongoose");
 const locationSchema = new mongoose.Schema(
   {
     name: String,
-    latitude: {
+
+    radius: {
+      type: Number,
+      default: 150,
+    },
+
+    timezone: {
+      type: String,
+      default: null,
+    },
+    longitude: {
       type: Number,
       required: true,
     },
-    longitude: {
+    latitude: {
       type: Number,
       required: true,
     },
