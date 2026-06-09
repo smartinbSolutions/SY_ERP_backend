@@ -68,13 +68,13 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
         { new: true, upsert: true, session }
       );
     }
-
+    console.log(req.body);
     const prepared = await prepareSalesInvoiceDataService({
       req,
       companyId,
       session,
     });
-
+    console.log(prepared);
     const newSalesInvoice = await createSalesInvoiceRecordService({
       req,
       invoiceDraft,
