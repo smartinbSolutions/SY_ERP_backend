@@ -1,43 +1,71 @@
+const mongoose = require("mongoose");
+
 const activityLogSchema = new mongoose.Schema(
   {
+
+    actor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "staff",
+      required: true,
+      index: true,
+    },
+
     action: {
       type: String,
-      enum: [
-        "create_task",
-        "update_task",
-        "delete_task",
-        "create_subtask",
-        "update_subtask",
-        "status_change",
-        "assign_user",
-        "add_comment",
-      ],
+      required: true,
+      index: true,
     },
 
-    task: {
+    entityType: {
+      type: String,
+      required: true,
+      enum: ["workspace", "folder", "list", "task", "subtask"],
+      index: true,
+    },
+
+    entityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      index: true,
+    },
+
+    workspaceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      index: true,
+      default: null,
+    },
+
+    folderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Folder",
+      index: true,
+      default: null,
+    },
+
+    listId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "List",
+      index: true,
+      default: null,
+    },
+
+    taskId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
-    },
-
-    subTask: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SubTask",
-    },
-
-    performedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-
-    changes: {
-      type: Object, // before / after
+      index: true,
+      default: null,
     },
 
     message: {
-      type: String, // optional readable text
+      type: String,
+      required: true,
+      trim: true,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 module.exports = mongoose.model("ActivityLog", activityLogSchema);

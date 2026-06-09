@@ -460,9 +460,13 @@ exports.updateWorkspace = async (workspaceId, data, actorId) => {
     throw new Error("Workspace not found");
   }
 
-  // =========================
-  // UPDATE FIELDS
-  // =========================
+  const actor = await staffModel
+    .findById(actorId)
+    .select("fullName")
+    .lean();
+
+  const actorName = actor?.fullName || "Someone";
+
 
   if (data.name) {
     workspace.name = data.name;
@@ -478,9 +482,9 @@ exports.updateWorkspace = async (workspaceId, data, actorId) => {
     workspaceId: workspace._id,
   });
 
-  // ======================================================
-  // STEP 1: WORKSPACE NOTIFICATIONS
-  // ======================================================
+  // =========================
+  // NOTIFICATIONS
+  // =========================
 
   console.log("STEP 1: WORKSPACE NOTIFICATIONS");
 
@@ -493,12 +497,14 @@ exports.updateWorkspace = async (workspaceId, data, actorId) => {
   console.log("STEP 1: RECIPIENTS", recipients);
 
   if (recipients.length > 0) {
+    const message = `Workspace "${workspace.name}" was updated by ${actorName}`;
+
     const notifications = recipients.map((recipient) => ({
       recipient,
       actor: actorId,
       type: "workspace.updated",
       title: "Workspace Updated",
-      message: `Workspace "${workspace.name}" was updated`,
+      message,
       entity: {
         workspaceId: workspace._id,
         model: "Workspace",

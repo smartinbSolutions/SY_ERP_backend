@@ -1,5 +1,3 @@
-// controllers/notification.controller.js
-
 const Notification = require("../../models/Hr/NotificationModel");
 
 /**

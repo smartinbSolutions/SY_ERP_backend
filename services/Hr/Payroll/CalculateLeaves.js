@@ -1,140 +1,105 @@
 const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
 /**
- * 1. فلترة الإجازات ضمن فترة الرواتب
+ * Filter leaves inside payroll period
  */
 function filterLeavesByPeriod(leaves, period) {
   const start = new Date(period.startDate);
   const end = new Date(period.endDate);
 
-  return (leaves || []).filter((l) => {
-    const leaveStart = new Date(l.startDate);
-    const leaveEnd = new Date(l.endDate);
+  return (leaves || []).filter((leave) => {
+    const leaveStart = new Date(leave.startDate);
+    const leaveEnd = new Date(leave.endDate);
 
     return leaveEnd >= start && leaveStart <= end;
   });
 }
 
-/**
- * 2. دمج الإجازات المتداخلة
- */
-function mergeLeaves(leaves) {
-  if (!leaves.length) return [];
-
-  const sorted = [...leaves].sort(
-    (a, b) => new Date(a.startDate) - new Date(b.startDate),
-  );
-
-  const merged = [];
-  let current = {
-    start: new Date(sorted[0].startDate),
-    end: new Date(sorted[0].endDate),
-  };
-
-  for (let i = 1; i < sorted.length; i++) {
-    const next = sorted[i];
-
-    const nextStart = new Date(next.startDate);
-    const nextEnd = new Date(next.endDate);
-
-    if (nextStart <= current.end) {
-      current.end = new Date(Math.max(current.end, nextEnd));
-    } else {
-      merged.push(current);
-      current = { start: nextStart, end: nextEnd };
-    }
-  }
-
-  merged.push(current);
-  return merged;
-}
-
-/**
- * 3. الحساب
- */
-function computeLeaves(leaves, employee, period) {
-  const filtered = filterLeavesByPeriod(leaves, period);
-  const merged = mergeLeaves(filtered);
-
-  const sessions = merged.map((l) => {
-    const days = Math.floor((l.end - l.start) / (1000 * 60 * 60 * 24)) + 1;
-
-    return {
-      startDate: l.start,
-      endDate: l.end,
-      days: Math.max(days, 0),
-    };
-  });
-
-  const totalDays = sessions.reduce((s, x) => s + x.days, 0);
-
-  const workingDaysPerMonth = 30;
-  const dailyRate = (employee.salary || 0) / workingDaysPerMonth;
-
-  const amount = totalDays * dailyRate;
-
-  return {
-    sessions,
-    totalDays,
-    dailyRate,
-    amount,
-  };
-}
-
-/**
- * 4. MAIN FUNCTION (WITH LINE CREATION)
- */
-exports.CalculateLeaves = async ({
-  employee,
-  leaves,
-  period,
-  payroll,
-}) => {
+exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
   try {
-    // =========================
-    // 1. CALCULATION
-    // =========================
-    const result = computeLeaves(leaves || [], employee, period);
+    console.log(`\n========== LEAVES START (${employee._id}) ==========\n`);
 
-    // =========================
-    // 2. LINE PAYLOAD
-    // =========================
-    const linePayload = {
-      payrollPeriodId: period._id,
-      payrollEmployeeId: payroll._id,
-      employeeId: employee._id,
+    const filteredLeaves = filterLeavesByPeriod(leaves, period);
 
-      category: "deduction",
-      type: "unpaid_leave_deduction",
-      label: "leaves",
+    console.log(
+      `Found ${filteredLeaves.length} leave logs inside payroll period`,
+    );
 
-      quantity: result.totalDays,
-      unit: "day",
-      rate: result.dailyRate,
+    const createdLines = [];
+    let totalDeduction = 0;
 
-      amount: result.amount,
+    const dailyRate = (employee.salary || 0) / 30;
 
-      sourceType: "leave_request",
-      isSystemGenerated: true,
+    for (const leave of filteredLeaves) {
+      const totalDays = leave.totalDays || 0;
 
-      status: "success",
-    };
+      // 👇 أهم تغيير هنا: نعتمد على نسبة الدفع
+      const payPercentage =
+        leave.appliedPayPercentage ?? leave.payPercentage ?? 0;
 
-    // =========================
-    // 3. DB WRITE (ONLY ON SUCCESS)
-    // =========================
-    const createdLine = await PayrollEmployeeLine.create(linePayload);
+      const leaveType = leave.leaveType;
+
+      console.log(`Checking leave type=${leaveType} | pay=${payPercentage}%`);
+
+      const unpaidRatio = (100 - payPercentage) / 100;
+      const amount = totalDays * dailyRate * unpaidRatio;
+
+      if (amount <= 0) {
+        console.log("No deduction (fully paid leave)");
+        continue;
+      }
+
+      console.log(
+        `Creating leave line -> days=${totalDays}, rate=${dailyRate}, amount=${amount}`,
+      );
+
+      const linePayload = {
+        payrollPeriodId: period._id,
+        payrollEmployeeId: payroll._id,
+        employeeId: employee._id,
+
+        category: "deduction",
+        type: "leave_deduction",
+        label: `leave_${leaveType}`,
+
+        quantity: totalDays,
+        unit: "day",
+        rate: dailyRate,
+
+        amount,
+
+        sourceType: "leave_request",
+        sourceId: leave._id,
+
+        effectiveDate: leave.startDate,
+
+        isSystemGenerated: true,
+        status: "success",
+      };
+
+      const createdLine = await PayrollEmployeeLine.create(linePayload);
+
+      createdLines.push(createdLine);
+
+      totalDeduction += amount;
+
+      console.log("✓ Line created successfully");
+    }
+
+    console.log(
+      `Finished leaves processing. Total deduction = ${totalDeduction}`,
+    );
 
     return {
       success: true,
-      result,
-      linePayload: createdLine,
+      amount: totalDeduction,
+      linesCount: createdLines.length,
+      linePayload: createdLines,
     };
   } catch (err) {
-    // =========================
-    // 4. FAILURE LINE
-    // =========================
-    const failureLine = {
+    console.error("LEAVES ERROR:", err);
+
+    const failureLine = await PayrollEmployeeLine.create({
       payrollPeriodId: period._id,
       payrollEmployeeId: payroll._id,
       employeeId: employee._id,
@@ -149,14 +114,13 @@ exports.CalculateLeaves = async ({
       errorMessage: err.message,
 
       isSystemGenerated: true,
-    };
-
-    const createdFailure = await PayrollEmployeeLine.create(failureLine);
+    });
 
     return {
       success: false,
-      result: null,
-      linePayload: createdFailure,
+      amount: 0,
+      linesCount: 0,
+      linePayload: failureLine,
       error: err.message,
     };
   }

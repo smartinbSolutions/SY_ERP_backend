@@ -29,6 +29,9 @@ const buildPayrollContext = async (periodId) => {
       // getDeductionData(employeeIds, period),
     ]);
 
+  console.log("========= LEAVE MAP =========");
+  console.dir(leaveMap, { depth: null });
+
   return {
     period,
     employees,
@@ -131,10 +134,12 @@ const getLeaveData = async (employeeIds, period) => {
           $push: {
             _id: "$_id",
             userId: "$userId",
-            leaveType: "$leaveType",
             startDate: "$startDate",
             endDate: "$endDate",
-            days: "$days",
+            totalDays: "$calculation.totalDays",
+            appliedPayPercentage: "$calculation.appliedPayPercentage",
+            leaveType: "$leaveSnapshot.typeKey",
+            payPercentage: "$leaveSnapshot.rule.payPercentage",
           },
         },
       },
@@ -167,7 +172,8 @@ const getLeaveData = async (employeeIds, period) => {
       },
     },
   ]);
-
+  console.log("RAW LEAVE AGGREGATE");
+  console.dir(result, { depth: null });
   return result?.[0]?.leaveMap || {};
 };
 

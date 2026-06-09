@@ -28,6 +28,7 @@ const createViolationAndProcess = async (data) => {
     const rule = await DeductionTypes.findOne({
       companyId,
       policyId: group.deductionPolicy,
+      violationType,
     }).lean();
 
     if (!rule) return violation;
@@ -103,7 +104,6 @@ const createViolationAndProcess = async (data) => {
         }
       }
     }
-
 
     console.log(`✅ Violation processed | user: ${userId} | count: ${count}`);
 

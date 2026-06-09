@@ -50,7 +50,7 @@ const deductionTypesSchema = new mongoose.Schema(
 
             deductionUnit: {
               type: String,
-              enum: ["day", "hour", "fixed"],
+              enum: ["day", "hour", "minutes", "fixed"],
             },
 
             deductionValue: {
