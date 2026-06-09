@@ -14,7 +14,7 @@ const { buildTurkeyDate } = require("../../services/Pos/Pos.Receipt.service");
 const posReceiptModel = require("../../models/Pos/pos.receipt.model");
 
 exports.findAllPosReceiptRefund = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId || req.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -35,7 +35,7 @@ exports.findAllPosReceiptRefund = asyncHandler(async (req, res, next) => {
 });
 
 exports.findOnePosReceiptRefund = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId || req.companyId;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

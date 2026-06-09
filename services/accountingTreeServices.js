@@ -188,8 +188,8 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
 //   }
 // });
 exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
-  const { companyId, startDate, endDate } = req.query;
-
+  const { startDate, endDate } = req.query;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }

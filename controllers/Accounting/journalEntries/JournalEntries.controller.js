@@ -178,7 +178,6 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
 
 exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
   const {
-    companyId,
     limit,
     page,
     keyword,
@@ -186,7 +185,7 @@ exports.getOneAccountAndJournal = asyncHandler(async (req, res, next) => {
     gotoLastMatched,
   } = req.query;
   const { id } = req.params;
-
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }

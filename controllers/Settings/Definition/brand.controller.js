@@ -81,7 +81,6 @@ exports.createBrand = asyncHandler(async (req, res) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  console.log(companyId);
 
   const session = await mongoose.startSession();
   session.startTransaction();

@@ -29,8 +29,8 @@ exports.createExpenseCategory = asyncHandler(async (req, res, next) => {
 // @route get /api/expenseCategories
 exports.getExpenseCategories = asyncHandler(async (req, res, next) => {
   try {
-    const { companyId, keyword = "", limit, page } = req.query;
-
+    const { keyword = "", limit, page } = req.query;
+    const companyId = req.companyId;
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
     }
