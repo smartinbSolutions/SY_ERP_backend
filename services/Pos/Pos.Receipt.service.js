@@ -106,7 +106,7 @@ exports.applyFundEffectService = async ({
 
     if (validFunds.length === 1 && !isMultFunds) {
       changeAmount = Number(change || 0);
-    } else if (isMultFunds && changeFund?.id === fundId) {
+    } else if (isMultFunds && changeFund?.id === fund.fundId) {
       changeAmount = Number(changeFund.changeInFundCurrency || 0);
     }
 
@@ -116,7 +116,7 @@ exports.applyFundEffectService = async ({
     await handleFundPaymentEntity({
       fund,
       companyId,
-      paymentInFundCurrency: fund.allocatedAmount,
+      paymentInFundCurrency: finalAmount,
       paymentId: null,
       refId: newReceipt.recipt._id,
       refType: "receipt",
@@ -219,9 +219,9 @@ exports.applyReciptInventoryEffectService = async ({
 
       batch.remaining = availableQty - usedQty;
 
-      if (batch.remaining === 0) {
-        batch.status = "reversed";
-      }
+      // if (batch.remaining === 0) {
+      //   batch.status = "reversed";
+      // }
 
       await batch.save({ session });
 
@@ -305,6 +305,7 @@ exports.applyReciptInventoryEffectService = async ({
         sellingPrice: Number(item.sellingPrice || 0),
         exchangeRate: Number(item.exchangeRate || 1),
         batchId: movement.batchId,
+        outPriceMainCurrrency: item.buyingpriceMainCurrence,
       });
     }
 
@@ -548,7 +549,8 @@ exports.reverseReceiptInventoryEffectsService = async ({
         movementType: "in",
         source: "POS Receipt Cancellation",
         companyId,
-        enterPrice: Number(batch.costBuyingPrice || 0),
+        enterPrice: Number(item.orginalBuyingPrice || 0),
+        enterPriceMainCurrency: item.buyingpriceMainCurrence,
         stockId: stockId,
         buyingPrice: Number(item.orginalBuyingPrice || 0),
         exchangeRate: item.exchangeRate,

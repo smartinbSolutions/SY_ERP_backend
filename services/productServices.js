@@ -591,12 +591,7 @@ exports.getOneProduct = asyncHandler(async (req, res, next) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    // Fetch stock count from Parasut API
-    // if (product?.parasutID.length > 5) {
-    //   const parasutProduct = await getParasutOneProduct(product?.parasutID);
 
-    //   product.quantity = parasutProduct?.data?.attributes?.stock_count || 0;
-    // }
     const setImageURL = (doc) => {
       if (doc.image) {
         doc.image = `${process.env.BASE_URL}/product/${doc.image}`;
