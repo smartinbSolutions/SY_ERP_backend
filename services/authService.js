@@ -15,6 +15,7 @@ const thirdPartyAuthSchema = require("../models/ecommerce/thirdPartyAuthModel");
 const companyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.model");
 const userCompanySettingsModel = require("../models/Settings/user_company_settings.model");
 const companyPlanModel = require("../models/Settings/CompanyInfo/companyPlan.model");
+const companySubscriptionModel = require("../models/Settings/CompanyInfo/companySubscription.model");
 
 const normalizeCompanyId = (value) => {
   if (!value) return value;
@@ -90,6 +91,10 @@ exports.login = asyncHandler(async (req, res, next) => {
   userData.settings = settings || null;
   userData.selectedQuickActions = settings?.selectedQuickActions || [];
 
+  const companyPlan = await companyPlanModel
+    .findOne({ companyId: companyId })
+    .lean();
+
   const token = createToken({
     userId: user._id,
     email: user.email,
@@ -97,6 +102,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     channels: role.channels,
     companyId,
     authSource: "erp",
+    companyPlan: companyPlan.features,
   });
 
   res.status(200).json({
@@ -105,6 +111,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     role,
     token,
     company: companyId,
+    companyPlan,
   });
 });
 
@@ -775,6 +782,19 @@ exports.checkPlanFeatures = (...allowedFeatures) =>
       req.companyId || req.query.companyId || req.body.companyId,
     );
 
+    let token;
+
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return next(new ApiError("Not login", 401));
+    }
+
     if (!companyId) {
       return next(new ApiError("companyId is required", 400));
     }
@@ -785,15 +805,20 @@ exports.checkPlanFeatures = (...allowedFeatures) =>
       return next();
     }
 
-    const companyPlan = await companyPlanModel
+    const companySubscription = await companySubscriptionModel
       .findOne({ companyId: companyId })
-      .lean();
+      .lean()
+      .populate("planId");
 
-    if (!companyPlan) {
+    if (!companySubscription) {
       return next(new ApiError("Company plan not found", 404));
     }
 
-    const features = companyPlan.features || {};
+    if (!companySubscription.isActive) {
+      return next(new ApiError("Company plan is inactive", 403));
+    }
+
+    const features = companySubscription.planId?.features || {};
 
     const notAllowed = requiredFeatures.filter(
       (feature) => features[feature] !== true,
@@ -810,7 +835,7 @@ exports.checkPlanFeatures = (...allowedFeatures) =>
       );
     }
 
-    req.companyPlan = companyPlan;
+    req.companyPlan = companySubscription;
 
     next();
   });
