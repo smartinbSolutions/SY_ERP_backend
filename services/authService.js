@@ -102,7 +102,6 @@ exports.login = asyncHandler(async (req, res, next) => {
     channels: role.channels,
     companyId,
     authSource: "erp",
-    companyPlan: companyPlan.features,
   });
 
   res.status(200).json({

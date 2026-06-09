@@ -7,7 +7,6 @@ const createToken = ({
   channels,
   companyId,
   authSource,
-  companyPlan,
 }) => {
   return jwt.sign(
     {
@@ -17,7 +16,6 @@ const createToken = ({
       channels,
       authSource,
       companyId,
-      companyPlan,
     },
     process.env.JWT_SECRET_KEY,
     { expiresIn: process.env.JWT_EXPIRE_TIME },
