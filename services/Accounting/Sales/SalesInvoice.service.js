@@ -672,7 +672,7 @@ exports.updateSalesInvoiceDraftService = async ({
 
     orderDate: normalizedDate,
     description: req.body.description || "",
-
+    currencyExchangeRate: req.body.currencyExchangeRate,
     shipmentNumber: req.body.shipmentNumber || "", // ← added
     shipmentDate: req.body.shipmentDate || null, // ← added
   };
