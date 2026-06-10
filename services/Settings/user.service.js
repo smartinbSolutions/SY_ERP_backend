@@ -470,15 +470,16 @@ exports.updateUserPassword = async ({ companyId, id, body }) => {
   return { data: user };
 };
 
-exports.reSendPassword = async ({ body }) => {
+exports.reSendPassword = async ({ body, email }) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  const email = body.email;
 
   try {
     //Generate Password
-    const userPass = generatePassword();
+    const userPass = body.password || generatePassword();
+
     const hashedPassword = await bcrypt.hash(userPass, 12);
+    console.log(email);
 
     const user = await usersModel.findOneAndUpdate(
       { email },
@@ -489,11 +490,11 @@ exports.reSendPassword = async ({ body }) => {
     if (!user) {
       throw new ApiError("User not found", 404);
     }
-
-    await sendEmail({
-      email: user.email,
-      subject: "Your Account Temporary Password",
-      message: `
+    if (!body.password) {
+      await sendEmail({
+        email: user.email,
+        subject: "Your Account Temporary Password",
+        message: `
 Dear ${user.name},
 
 A temporary password has been generated for your account.
@@ -508,7 +509,8 @@ This is an automated message (noreply@smartinb.com). Please do not reply.
 Best regards,
 System Administration
       `,
-    });
+      });
+    }
     return {
       message: "User Update Password",
       data: user,

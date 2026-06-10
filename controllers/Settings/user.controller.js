@@ -122,6 +122,7 @@ exports.reSendPassword = asyncHandler(async (req, res, next) => {
 
   const user = await userService.reSendPassword({
     body: req.body,
+    email: req.params.email,
   });
 
   return res.status(201).json({
