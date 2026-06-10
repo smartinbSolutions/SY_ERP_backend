@@ -1,16 +1,25 @@
-const sgMail = require("@sendgrid/mail");
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const { Resend } = require("resend");
 
 const sendEmail = async (options) => {
-  const msg = {
-    to: options.email,
-    from: "SmartERP <no-reply@smartinb.com>",
-    subject: options.subject,
-    text: options.message,
-  };
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { data, error } = await resend.emails.send({
+      from: "SmartERP <no-reply@smartinb.com>",
+      to: options.email,
+      replyTo: options.replyTo,
+      subject: options.subject,
+      html: options.message,
+    });
 
-  await sgMail.send(msg);
-  console.log("Email sent 🐘");
+    if (error) {
+      console.error("Error sending email:", error);
+      return;
+    }
+
+    console.log("Email sent successfully");
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
 };
 
 module.exports = sendEmail;
