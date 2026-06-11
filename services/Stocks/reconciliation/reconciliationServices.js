@@ -210,7 +210,8 @@ exports.getReconciliationItems = asyncHandler(async (req, res) => {
 });
 
 exports.getReconciliationItemsViewVersion = asyncHandler(async (req, res) => {
-  const { companyId, reconciliationId, search = "" } = req.query;
+  const { reconciliationId, search = "" } = req.query;
+  const companyId = req.companyId;
 
   const page = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.max(parseInt(req.query.limit) || 50, 1);

@@ -15,7 +15,7 @@ const createRawMatrialMovement = async (
   companyId,
   desc,
   newCurrency,
-  oldCurrency
+  oldCurrency,
 ) => {
   try {
     const newMovement = new RawMatrialMovement({
@@ -40,7 +40,7 @@ const createRawMatrialMovement = async (
     console.error("Error saving raw material movement:", error);
     throw new ApiError(
       `Error creating raw material movement: ${error.message}`,
-      500
+      500,
     );
   }
 };

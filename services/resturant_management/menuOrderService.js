@@ -64,7 +64,8 @@ exports.createmenuOrder = asyncHandler(async (req, res, next) => {
 // @route GET /api/menuOrder
 // @access Private
 exports.getAllmenuOrders = asyncHandler(async (req, res, next) => {
-  const { companyId, orderStatus, salePointId } = req.query;
+  const { orderStatus, salePointId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -270,7 +271,8 @@ exports.deletemenuOrder = asyncHandler(async (req, res, next) => {
 //////
 //////
 exports.moveOrderToInProgress = asyncHandler(async (req, res, next) => {
-  const { orderId, productId, companyId } = req.query;
+  const { orderId, productId } = req.query;
+  const companyId = req.companyId;
 
   console.log("➡️ moveOrderToInProgress called with:", req.query);
 

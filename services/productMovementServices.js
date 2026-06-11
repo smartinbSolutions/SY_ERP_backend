@@ -524,8 +524,9 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
 //   });
 // });
 exports.getProductCostLedger = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate, page = 1, limit = 20 } = req.query;
+  const { startDate, endDate, page = 1, limit = 20 } = req.query;
   const { id } = req.params;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -660,7 +661,8 @@ exports.getProductCostLedger = asyncHandler(async (req, res) => {
   });
 });
 exports.getProductMovementReport = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate, id, category, filter } = req.query;
+  const { startDate, endDate, id, category, filter } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

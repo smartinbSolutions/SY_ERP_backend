@@ -258,7 +258,8 @@ exports.deleteInvestmentCompanies = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteCompanyBank = asyncHandler(async (req, res) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
+
   const { id, bankQRId } = req.params;
 
   if (!companyId || !bankQRId) {
@@ -296,7 +297,7 @@ exports.deleteCompanyBank = asyncHandler(async (req, res) => {
 
 exports.updateCompanyBank = asyncHandler(async (req, res) => {
   const { id, bankQRId } = req.params;
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

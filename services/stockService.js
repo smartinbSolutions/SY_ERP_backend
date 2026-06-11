@@ -677,7 +677,6 @@ exports.getOneTransferStock = asyncHandler(async (req, res, next) => {
 
 exports.getStocksProducts = asyncHandler(async (req, res) => {
   const {
-    companyId,
     stockId,
     startDate,
     endDate,
@@ -685,6 +684,7 @@ exports.getStocksProducts = asyncHandler(async (req, res) => {
     page = 1,
     limit = 20,
   } = req.query;
+  const companyId = req.companyId;
 
   const pageNumber = parseInt(page);
   const pageLimit = parseInt(limit);

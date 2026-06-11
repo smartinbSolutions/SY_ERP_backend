@@ -513,8 +513,9 @@ exports.produceProduct = asyncHandler(async (req, res) => {
 });
 
 exports.getProductionLogs = asyncHandler(async (req, res) => {
-  const { companyId, limit = 10, page = 1 } = req.query;
+  const { limit = 10, page = 1 } = req.query;
   const { productId } = req.params;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -548,7 +549,6 @@ exports.getProductionLogs = asyncHandler(async (req, res) => {
 
 exports.getAllProductionLogs = asyncHandler(async (req, res) => {
   const {
-    companyId,
     limit = 10,
     page = 1,
     productId,
@@ -557,6 +557,7 @@ exports.getAllProductionLogs = asyncHandler(async (req, res) => {
     from,
     to,
   } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

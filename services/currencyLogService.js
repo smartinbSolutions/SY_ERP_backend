@@ -3,7 +3,8 @@ const currencyLogModel = require("../models/Settings/currencyLog.model");
 const currencyModel = require("../models/Settings/currency.model");
 
 exports.getCurrencyLog = asyncHandler(async (req, res) => {
-  const { companyId, id, page = 1, limit = 50 } = req.query;
+  const { id, page = 1, limit = 50 } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -30,7 +31,8 @@ exports.getCurrencyLog = asyncHandler(async (req, res) => {
   });
 });
 exports.getCurrencyRatesByDate = asyncHandler(async (req, res) => {
-  const { companyId, date } = req.query;
+  const { date } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });

@@ -1071,8 +1071,9 @@ exports.canceledPosSales = asyncHandler(async (req, res, next) => {
 });
 
 exports.getReceiptForDate = asyncHandler(async (req, res, next) => {
-  const { companyId, keyword, sortBy, sortOrder } = req.query;
+  const { keyword, sortBy, sortOrder } = req.query;
   const { id } = req.params;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

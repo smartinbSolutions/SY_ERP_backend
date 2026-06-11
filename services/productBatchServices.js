@@ -72,8 +72,9 @@ exports.createProductBatch = async function createProductBatch({
 };
 
 exports.getAllProductBatch = asyncHandler(async (req, res) => {
-  const { companyId, page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10 } = req.query;
   const { id } = req.params;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
