@@ -257,11 +257,23 @@ exports.creaeteAccountingTreeService = async ({
   body,
   currency,
 }) => {
-  const accounts = bigAccountingTree.map((item) => ({
-    ...item,
-    companyId,
-    currency: currency._id,
-  }));
+  let accounts;
+
+  if (body.accountTree === "big") {
+    accounts = bigAccountingTree.map((item) => ({
+      ...item,
+      companyId,
+      currency: currency._id,
+    }));
+  } else if (body.accountTree === "small") {
+    //coming Soon
+
+    accounts = bigAccountingTree.map((item) => ({
+      ...item,
+      companyId,
+      currency: currency._id,
+    }));
+  } else return true;
 
   await accountingTreeModel.insertMany(accounts, {
     session,
