@@ -45,6 +45,7 @@ const AccountingTreeSchema = new mongoose.Schema(
         "intercompanyAndRelatedPartyExpenses",
         "intercompanyAndRelatedPartyIncomeAndExpense",
         "nonOperatingExpensesTax",
+        "asset",
       ],
     },
     detailType: String,

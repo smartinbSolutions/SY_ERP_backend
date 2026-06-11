@@ -50,7 +50,14 @@ exports.createCompanyInfo = asyncHandler(async (req, res) => {
       body: req.body,
       session,
     });
+    console.log(result);
 
+    await companyInfoService.creaeteAccountingTreeService({
+      session,
+      companyId: result.companyInfo._id,
+      body: req.body,
+      currency: result.currency,
+    });
     await session.commitTransaction();
     session.endSession();
 

@@ -16,6 +16,8 @@ const ecommercePaymentMethodModel = require("../../../models/ecommerce/ecommerce
 const ApiError = require("../../../utils/apiError");
 const companyPlanModel = require("../../../models/Settings/CompanyInfo/companyPlan.model");
 const subscriptionModel = require("../../../models/Settings/CompanyInfo/companySubscription.model");
+const accountingTreeModel = require("../../../models/accountingTreeModel");
+const bigAccountingTree = require("../../../utils/data/bigAccountingTree.json");
 
 const companyInfoFields = [
   "companyName",
@@ -249,6 +251,25 @@ const createDemoSubscription = async ({ body, companyId, session }) => {
   return subscription;
 };
 
+exports.creaeteAccountingTreeService = async ({
+  session,
+  companyId,
+  body,
+  currency,
+}) => {
+  const accounts = bigAccountingTree.map((item) => ({
+    ...item,
+    companyId,
+    currency: currency._id,
+  }));
+
+  await accountingTreeModel.insertMany(accounts, {
+    session,
+  });
+
+  return true;
+};
+
 exports.getCompanyInfo = async ({ req, companyId }) => {
   const companyInfo = await companyInfoModel.findOne({ _id: companyId });
   if (!companyInfo) {
@@ -348,7 +369,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameAr: "المستودعات",
         previewNameEn: "Stocks",
         previewNameTr: "Depolar",
-        group: "Stock",
+        group: "Inventory",
         companyId,
       },
       {
@@ -380,8 +401,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameAr: "كلفة الخدمات المباعة",
         previewNameEn: "Cost of sold services",
         previewNameTr: "Satılan servislerin maliyeti",
-        group: "Stock",
-
+        group: "Inventory",
         companyId,
       },
       {
@@ -390,7 +410,6 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameEn: "Earned discount",
         previewNameTr: "Kazanılan indirimler",
         group: "Discount",
-
         companyId,
       },
       {
@@ -399,7 +418,6 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameEn: "Discount granted",
         previewNameTr: "Verilen indirimler",
         group: "Discount",
-
         companyId,
       },
       {
@@ -407,8 +425,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameAr: "الرواتب",
         previewNameEn: "Salary",
         previewNameTr: "Maaşlar",
-        group: "Salary",
-
+        group: "HR",
         companyId,
       },
       {
@@ -416,8 +433,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameAr: "الرواتب المتوجب دفعها",
         previewNameEn: "Should pay salary",
         previewNameTr: "Ödemesi gereken maaşlar",
-        group: "Salary",
-
+        group: "HR",
         companyId,
       },
       {
@@ -425,8 +441,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameAr: "كلفة المنتجات المباعة",
         previewNameEn: "Cost of sold products",
         previewNameTr: "Satılan ürünlerin maliyeti",
-        group: "Stock",
-
+        group: "Inventory",
         companyId,
       },
       {
@@ -444,7 +459,6 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameEn: "Walk-In customer",
         previewNameTr: "Nakdi müşteri",
         group: "Sales",
-
         companyId,
       },
       {
@@ -452,8 +466,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameAr: "ضبط المخزون",
         previewNameEn: "Inventory adjustment",
         previewNameTr: "Stok düzenlemesi",
-        group: "Stock",
-
+        group: "Inventory",
         companyId,
       },
       {
@@ -509,7 +522,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameEn: "Foreign Exchange Gain",
         previewNameAr: "أرباح فروقات أسعار الصرف",
         previewNameTr: "Kur Farkı Gelirleri",
-        group: "Profit & Loss",
+        group: "Accounting",
         companyId,
       },
       {
@@ -518,7 +531,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
         previewNameEn: "Foreign Exchange Loss",
         previewNameAr: "خسائر فروقات أسعار الصرف",
         previewNameTr: "Kur Farkı Giderleri",
-        group: "Profit & Loss",
+        group: "Accounting",
         companyId,
       },
     ];
@@ -588,7 +601,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
       );
     }
 
-    await currencyModel.create(
+    const currency = await currencyModel.create(
       [
         {
           currencyCode: body.currencyCode,
@@ -695,12 +708,14 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
       await session.commitTransaction();
       session.endSession();
     }
+    console.log(currency);
 
     return {
       companyInfo: mergeCompanyInfoWithSettings(companyInfo, companySetting[0]),
       companySetting: companySetting[0],
       insertMainRole,
       currentSubscription,
+      currency,
     };
   } catch (err) {
     if (ownsSession) {

@@ -1,0 +1,5482 @@
+[
+  {
+    "name": "Assets",
+    "nameAr": "الأصول",
+    "nameTr": "Varlıklar",
+    "code": "1",
+    "accountType": "fixedAsset",
+
+    "parentCode": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Mobiles",
+    "nameAr": "هواتف",
+    "nameTr": "telefonlar",
+    "code": "1.1.3.2.9",
+    "accountType": "fixedAsset",
+    "description": "",
+    "parentCode": "1.1.3.2",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Solar Power System",
+    "nameAr": "منطومة الطاقة الشمسية",
+    "nameTr": "Güneş Enerjisi Sistemi",
+    "code": "1.1.4.2",
+    "accountType": "fixedAsset",
+    "parentCode": "1.1.4",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Fixtures and fittings",
+    "nameAr": "مجمع اهتلاك - التركيبات و التجهيزات",
+    "nameTr": "Birikmiş amortisman - tesisatlar ve donanımlar",
+    "code": "1.1.4.9.4",
+    "accountType": "fixedAsset",
+    "parentCode": "1.1.4.9",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Screens",
+    "nameAr": "مجمع اهتلاك - شاشات",
+    "nameTr": "Birikmiş Amortisman - Ekranlar",
+    "code": "1.1.4.9.3.2.2",
+    "accountType": "fixedAsset",
+    "description": "",
+    "parentCode": "1.1.4.9.3.2",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Computers(laptops)",
+    "nameAr": "مجمع اهتلاك - أجهزة الكمبيوتر",
+    "nameTr": "Birikmiş Amortisman - Bilgisayarlar",
+    "code": "1.1.4.9.3.2.1",
+    "accountType": "fixedAsset",
+    "description": "",
+    "parentCode": "1.1.4.9.3.2",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Restricted cash and financial assets",
+    "nameAr": "النقد والأصول المالية المقيدة",
+    "nameTr": "Kısıtlanmış nakit ve finansal varlıklar",
+    "code": "1.11.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Al Baraka Islamic Bank SYP",
+    "nameAr": "بنك البركة الاسلامي سوري",
+    "nameTr": "Al Baraka İslami Bankası SYP",
+    "code": "1.11.1.2.3",
+    "depreciationAccount": null,
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.11.1.2",
+    "accountCategory": null,
+
+    "creditor": 35088.0,
+    "debtor": 35095.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Crypto assets (classified as financial assets)",
+    "nameAr": "الأصول الرقمية (مصنفة كأصول مالية)",
+    "nameTr": "Kripto varlıklar (finansal varlık olarak sınıflandırılır)",
+    "code": "1.5.4",
+    "accountType": "financialAssets",
+
+    "parentCode": "1.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "credit customers",
+    "nameAr": "العملاء الآجلين",
+    "nameTr": "Vadeli Müşteriler",
+    "code": "1.8.2.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Deferred tax assets",
+    "nameAr": "أصول الضرائب المؤجلة",
+    "nameTr": "Ertelenmiş vergi varlıkları",
+    "code": "1.9.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.9",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Issued capital",
+    "nameAr": "رأس المال المصدر",
+    "nameTr": "İhraç edilen sermaye",
+    "code": "2.1.1",
+    "accountType": "equity",
+
+    "parentCode": "2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Treasury shares",
+    "nameAr": "الأسهم الخزينة",
+    "nameTr": "Hazine hisseleri",
+    "code": "2.3.8",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Goods & Products Sales point of time",
+    "nameAr": "البضائع والمنتجات بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki Mal ve Ürün Satışları",
+    "code": "4.1.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales Returns- Goods",
+    "nameAr": "مرتجعات المبيعات- السلع",
+    "nameTr": "Satış İadeleri - Mallar",
+    "code": "4.5.1",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.5",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Social Insurance",
+    "nameAr": "تأمينات اجتماعية",
+    "nameTr": "Sosyal Güvenlik Primleri",
+    "code": "5.1.2.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Salaries",
+    "nameAr": "رواتب قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Departmanı Maaşları",
+    "code": "5.1.2.1.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Housing Allowance",
+    "nameAr": "بدل سكن القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Konut Yardımı",
+    "code": "5.1.2.2.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Prim ve Teşvikleri",
+    "code": "5.1.2.8.1.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Deduction Days & Hours",
+    "nameAr": "أيام وساعات الخصم لقسم المالية",
+    "nameTr": "Finans Bölümü Kesinti Günleri ve Saatleri",
+    "code": "5.1.2.8.3.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Deduction Days & Hours",
+    "nameAr": "أيام وساعات الخصم لقسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Kesinti Günleri ve Saatleri",
+    "code": "5.1.2.8.3.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense -Computers & office equipments",
+    "nameAr": "مصروف اهتلاك -حواسيب و معدات مكتبية",
+    "nameTr": "Amortisman Gideri - Bilgisayarlar ve Ofis Ekipmanları",
+    "code": "5.1.4.2.4.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "insurance expense",
+    "nameAr": "مصاريف التأمين",
+    "nameTr": "Sigorta gideri",
+    "code": "5.3.2",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "License Taxes and Fees",
+    "nameAr": "ضرائب رسوم التراخيص",
+    "nameTr": "Ruhsat Harçları / Ruhsat Vergileri",
+    "code": "6.3.6",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Tax income",
+    "nameAr": "ضريبة دخل",
+    "nameTr": "Vergi geliri",
+    "code": "6.4.1",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Tax assets",
+    "nameAr": "أصول الضرائب",
+    "nameTr": "Vergi varlıkları",
+    "code": "1.9",
+    "accountType": "currentAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Vehicle Hyundai Tucson",
+    "nameAr": "المركبة (سيارة) هيونداي توسان",
+    "nameTr": "Hyundai Tucson Aracı",
+    "code": "1.1.3.1.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Vehicle Hyundai SantaFe",
+    "nameAr": "المركبة (سيارة) هيونداي سانتافيه",
+    "nameTr": "Hyundai SantaFe Aracı",
+    "code": "1.1.3.1.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Routers",
+    "nameAr": "راوتر",
+    "nameTr": "Yönlendiriciler",
+    "code": "1.1.3.2.6",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Furniture",
+    "nameAr": "أثاث",
+    "nameTr": "Mobilya",
+    "code": "1.1.4.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4",
+
+    "creditor": 0,
+    "debtor": 10955.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Furniture",
+    "nameAr": "مجمع اهتلاك - أثاث",
+    "nameTr": "Birikmiş Amortisman - Mobilya",
+    "code": "1.1.4.9.4.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Intellectual property",
+    "nameAr": "الملكية الفكرية",
+    "nameTr": "Fikri mülkiyet",
+    "code": "1.4.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Crypto assets (classified as intangible)",
+    "nameAr": "الأصول الرقمية (مصنفة كأصول غير ملموسة)",
+    "nameTr": "Kripto varlıklar (maddi olmayan varlık olarak sınıflandırılır)",
+    "code": "1.4.6",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Security Deposits",
+    "nameAr": "ودائع ضمان",
+    "nameTr": "Güvenlik Depozitoları",
+    "code": "1.5.1.1",
+    "accountType": "financialAssets",
+    "description": "",
+
+    "parentCode": "1.5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Merchandise(Stock)",
+    "nameAr": "البضائع",
+    "nameTr": "Ticari mal",
+    "code": "1.6.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Service provider work in process (not classified as inventory)",
+    "nameAr": "أعمال مقدم الخدمة قيد التنفيذ (غير مصنفة كمخزون)",
+    "nameTr": "Hizmet sağlayıcıların yapım aşamasındaki işleri (stok olarak sınıflandırılmamıştır)",
+    "code": "1.7.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Member's equity",
+    "nameAr": "حقوق أعضاء الشركة",
+    "nameTr": "Üye özkaynağı",
+    "code": "2.1.4",
+    "accountType": "equity",
+
+    "parentCode": "2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Reserve of gains and losses on remeasuring available-for-sale financial assets",
+    "nameAr": "احتياطي الأرباح والخسائر من إعادة قياس الأصول المالية المتاحة للبيع",
+    "nameTr": "Satılmaya hazır finansal varlıkların yeniden değerlenmesi kar/zarar rezervi",
+    "code": "2.3.3",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Reserve of remeasurements of defined benefit plans",
+    "nameAr": "احتياطي إعادة قياسات خطط المنافع المحددة",
+    "nameTr": "Tanımlanmış fayda planları yeniden değerleme rezervi",
+    "code": "2.3.4",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other financial liabilities",
+    "nameAr": "الالتزامات المالية الأخرى",
+    "nameTr": "Diğer finansal yükümlülükler",
+    "code": "3.3",
+    "accountType": "nonCurrentLiabilities",
+
+    "parentCode": "3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Recruitment Services Sales point of time",
+    "nameAr": "مبيعات خدمات التوظيف بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki İstihdam Hizmetleri Satışları",
+    "code": "4.1.2.2",
+    "accountType": "revenue",
+
+    "parentCode": "4.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Other adjustments",
+    "nameAr": "تعديلات أخرى",
+    "nameTr": "Diğer düzenlemeler",
+    "code": "4.3.3",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.3",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales Allowances",
+    "nameAr": "مسموحات المبيعات",
+    "nameTr": "Satış İndirimleri",
+    "code": "4.4.2",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Expenses (classified by function)",
+    "nameAr": "المصروفات (مصنفة حسب الوظيفة)",
+    "nameTr": "Giderler (işlevine göre sınıflandırılmış)",
+    "code": "5.2",
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Prim ve Teşvikleri",
+    "code": "5.1.2.8.1.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Deduction Days & Hours",
+    "nameAr": "أيام وساعات الخصم لقسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Kesinti Günleri ve Saatleri",
+    "code": "5.1.2.8.3.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense - Machinery, Equipment & Vehicles",
+    "nameAr": "مصروف الاهتلاك- منظومة الطاقة الشمسية",
+    "nameTr": "Amortisman Gideri – Güneş Enerjisi Sistemi",
+    "code": "5.1.4.2.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Cost Of Sales Products",
+    "nameAr": "تكلفة المبيعات – المنتجات",
+    "nameTr": "Ürün Satış Maliyetleri",
+    "code": "5.2.1.1",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Purchase Allowances",
+    "nameAr": "مسموحات المشتريات",
+    "nameTr": "Alış İadeleri",
+    "code": "5.2.1.1.3",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2.1.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Purchase Returns",
+    "nameAr": "مرتجعات الشراء",
+    "nameTr": "Satın Alma İadeleri",
+    "code": "5.2.1.1.4",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2.1.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Stationery and office supplies Expenses",
+    "nameAr": "مصاريف القرطاسية ومستلزمات المكتب",
+    "nameTr": "Kırtasiye ve ofis malzemeleri",
+    "code": "5.2.2.1.3",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.2.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Tax income (expense)",
+    "nameAr": "ضريبة دخل (مصروف)",
+    "nameTr": "Vergi geliri (gideri)",
+    "code": "6.4",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Crypto asset gain or loss",
+    "nameAr": "الربح أو الخسارة من الأصول الرقمية",
+    "nameTr": "Kripto varlık kâr veya zararları",
+    "code": "6.2.4",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Municipal Taxes",
+    "nameAr": "ضرائب البلدية",
+    "nameTr": "Belediye Vergileri",
+    "code": "6.3.3",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "liabilities",
+    "nameAr": "الخصوم",
+    "nameTr": "Yükümlülükler",
+    "code": "3",
+    "accountType": "liabilities",
+
+    "parentCode": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "equity",
+    "nameAr": "حقوق الملكية",
+    "nameTr": "Özkaynaklar",
+    "code": "2",
+    "accountType": "equity",
+
+    "parentCode": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Goodwill",
+    "nameAr": "الشهرة (السمعة التجارية)",
+    "nameTr": "Şerefiye",
+    "code": "1.3",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Prepayments and accrued income including contract assets",
+    "nameAr": "المدفوعات المسبقة والإيرادات المستحقة بما في ذلك أصول العقود",
+    "nameTr": "Peşin ödemeler ve tahakkuk eden gelirler (sözleşme varlıkları dahil)",
+    "code": "1.7",
+    "accountType": "currentAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Computers (laptops)",
+    "nameAr": "أجهزة الكمبيوتر",
+    "nameTr": "Bilgisayarlar",
+    "code": "1.1.3.2.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Refrigerator",
+    "nameAr": "براد",
+    "nameTr": "Buzdolabı",
+    "code": "1.1.3.2.3",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Money counter",
+    "nameAr": "عدادة نقود",
+    "nameTr": "Para sayma makinesi",
+    "code": "1.1.3.2.8",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Land and land improvements",
+    "nameAr": "مجمع اهتلاك - الأراضي والتحسينات الأرضية",
+    "nameTr": "Birikmiş Amortisman – Arazi ve Arazi İyileştirmeleri",
+    "code": "1.1.4.9.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Cash equivalents",
+    "nameAr": "النقد المعادل",
+    "nameTr": "Nakit benzerleri",
+    "code": "1.11.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Work in progress",
+    "nameAr": "الأعمال قيد التنفيذ",
+    "nameTr": "Yapım aşamasındaki işler",
+    "code": "1.6.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other inventories",
+    "nameAr": "المخزونات الأخرى",
+    "nameTr": "Diğer stoklar",
+    "code": "1.6.5",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other debts and borrowings",
+    "nameAr": "ديون وقروض أخرى",
+    "nameTr": "Diğer borçlar ve krediler",
+    "code": "3.3.4",
+    "accountType": "nonCurrentLiabilities",
+
+    "parentCode": "3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Investment Sales point of time",
+    "nameAr": "مبيعات الاستثمارات بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki Yatırım Satışları",
+    "code": "4.1.1.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.1.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Governance Services Sales over time",
+    "nameAr": "مبيعات خدمات الحوكمة على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Yönetim Hizmetleri Satışları",
+    "code": "4.2.2.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales Discounts",
+    "nameAr": "حسومات المبيعات",
+    "nameTr": "Satış İskontoları",
+    "code": "4.4.1",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Bills and Subscriptions Expenses",
+    "nameAr": "مصروف الاشتراكات و الفواتير",
+    "nameTr": "Abonelik ve Fatura Giderleri",
+    "code": "5.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Increase in decrease in inventories of finished goods and work in progress",
+    "nameAr": "الزيادة أو النقص في المخزون من السلع تامة الصنع والعمل قيد التنفيذ",
+    "nameTr": "Bitmiş ürünler ve yapım aşamasındaki iş stoklarındaki artış veya azalış",
+    "code": "5.1.5",
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Prim ve Teşvikleri",
+    "code": "5.1.2.8.1.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Legal Services Expense",
+    "nameAr": "مصروف خدمات قانونية",
+    "nameTr": "Hukuki Hizmet Gideri",
+    "code": "5.1.3.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "SantafFe car Rent Expenses",
+    "nameAr": "استئجار سيارة سانتفيه",
+    "nameTr": "SantafFe araç kiralama giderleri",
+    "code": "5.1.4.1.2",
+    "depreciationAccount": "",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.1.4.1",
+    "accountCategory": "",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Cost of sales",
+    "nameAr": "تكلفة المبيعات",
+    "nameTr": "Satış maliyeti",
+    "code": "5.2.1",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Formation Expenses",
+    "nameAr": "مصاريف تأسيس",
+    "nameTr": "Kuruluş Giderleri",
+    "code": "5.2.2.1.5",
+    "depreciationAccount": null,
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.2.2.1",
+    "accountCategory": "operating",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Credit Losses",
+    "nameAr": "خسائر الائتمان",
+    "nameTr": "Kredi zararları",
+    "code": "6.2.7",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Property Taxes",
+    "nameAr": "ضرائب على الممتلكات",
+    "nameTr": "Emlak Vergileri",
+    "code": "6.3.1",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other financial assets",
+    "nameAr": "الأصول المالية الأخرى",
+    "nameTr": "Diğer finansal varlıklar",
+    "code": "1.5",
+    "accountType": "financialAssets",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Cash and cash equivalents",
+    "nameAr": "النقد والنقد المعادل",
+    "nameTr": "Nakit ve nakit benzerleri",
+    "code": "1.11",
+    "accountType": "currentAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Screens",
+    "nameAr": "شاشات",
+    "nameTr": "Ekranlar",
+    "code": "1.1.3.2.2",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Audio equipment",
+    "nameAr": "معدات صوتية",
+    "nameTr": "Ses ekipmanı",
+    "code": "1.1.3.2.10",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Animals",
+    "nameAr": "الحيوانات",
+    "nameTr": "Hayvanlar",
+    "code": "1.10.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.10",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Cash",
+    "nameAr": "النقد",
+    "nameTr": "Nakit",
+    "code": "1.11.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Petty Cash",
+    "nameAr": "صندوق نثري",
+    "nameTr": "Kasa Harçlığı",
+    "code": "1.11.4",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "USD Cash",
+    "nameAr": "USD النقد",
+    "nameTr": "USD Nakit",
+    "code": "1.11.1.1.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "TRY Cash",
+    "nameAr": "TRY النقد",
+    "nameTr": "TRY Nakit",
+    "code": "1.11.1.1.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1.1",
+
+    "creditor": 1001.0,
+    "debtor": 1001.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Syrian International Islamic Bank",
+    "nameAr": "بنك سوريا الدولي الإسلامي",
+    "nameTr": "Suriye Uluslararası İslami Bankası",
+    "code": "1.11.1.2.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Trade and distribution assets",
+    "nameAr": "أصول التجارة والتوزيع",
+    "nameTr": "Ticaret ve dağıtım varlıkları",
+    "code": "1.4.3",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accrued income including contract assets",
+    "nameAr": "الإيرادات المستحقة بما في ذلك أصول العقود",
+    "nameTr": "Tahakkuk eden gelirler (sözleşme varlıkları dahil)",
+    "code": "1.7.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "VAT Recoverable / Input VAT",
+    "nameAr": "ضريبة قيمة مضافة على المشتريات",
+    "nameTr": "İndirilecek KDV",
+    "code": "1.9.1.1.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.9.1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Retained earnings profit loss for reporting period",
+    "nameAr": "أرباح وخسائر الفترة المحاسبية",
+    "nameTr": "Raporlama dönemi kar/zararı dahil dağıtılmamış karlar",
+    "code": "2.2.1",
+    "accountType": "equity",
+
+    "parentCode": "2.2",
+
+    "creditor": 0,
+    "debtor": 84316.0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Customer related provisions",
+    "nameAr": "مخصصات متعلقة بالعملاء",
+    "nameTr": "Müşteri ile ilgili karşılıklar",
+    "code": "3.2.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accrued taxes other than payroll",
+    "nameAr": "الضرائب المستحقة بخلاف ضريبة الرواتب",
+    "nameTr": "Maaş dışı tahakkuk eden vergiler",
+    "code": "3.4.4",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Recognized over time",
+    "nameAr": "الاعتراف على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Tanınma",
+    "code": "4.2",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Bank Expenses",
+    "nameAr": "مصاريف بنكية",
+    "nameTr": "Banka Masrafları",
+    "code": "5.7",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employees' Health Insurance",
+    "nameAr": "تأمينات صحية الموظفين",
+    "nameTr": "Personel Sağlık Sigortası",
+    "code": "5.1.2.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employees' Transportation Allowance",
+    "nameAr": "بدل المواصلات للموظفين",
+    "nameTr": "Personel Ulaşım Ödeneği",
+    "code": "5.1.2.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Transportation Allowance",
+    "nameAr": "بدل مواصلات قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Ulaşım Ödeneği",
+    "code": "5.1.2.3.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Transportation Allowance",
+    "nameAr": "بدل مواصلات قسم المالية",
+    "nameTr": "Finans Bölümü Ulaşım Ödeneği",
+    "code": "5.1.2.3.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Prim ve Teşvikleri",
+    "code": "5.1.2.8.1.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Overtime Pay",
+    "nameAr": "الأجر الإضافي قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Aleppo Branch Rent Expense",
+    "nameAr": "مصروف ايجار فرع حلب",
+    "nameTr": "Halep Şubesi Kira Gideri",
+    "code": "5.1.4.1.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense -Solar Power System",
+    "nameAr": "مصروف اهتلاك- منظومة الطاقة الشمسية",
+    "nameTr": "Amortisman Gideri - Güneş Enerji Sistemi",
+    "code": "5.1.4.2.4.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Selling, general and administrative expense",
+    "nameAr": "مصروفات البيع والمصاريف الإدارية والعمومية",
+    "nameTr": "Pazarlama, genel ve yönetim giderleri",
+    "code": "5.2.2",
+    "accountType": "expense",
+
+    "parentCode": "5.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Banking Services Fees",
+    "nameAr": "مصاريف خدمات بنكية",
+    "nameTr": "Bankacılık Hizmet Ücretleri",
+    "code": "5.7.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Agricultural biological assets",
+    "nameAr": "الأصول البيولوجية الزراعية",
+    "nameTr": "Tarım biyolojik varlıkları",
+    "code": "1.10",
+    "accountType": "currentAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Inventories",
+    "nameAr": "المخزونات",
+    "nameTr": "Stoklar",
+    "code": "1.6",
+    "accountType": "currentAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Office Equipment",
+    "nameAr": "معدات مكتب",
+    "nameTr": "Ofis ekipmanları",
+    "code": "1.1.3.2",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Completed",
+    "nameAr": "مكتملة",
+    "nameTr": "Tamamlanmış",
+    "code": "1.2.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Prepayments",
+    "nameAr": "المدفوعات المسبقة",
+    "nameTr": "Peşin ödemeler",
+    "code": "1.7.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Prepaid Rent",
+    "nameAr": "ايجار مدفوع مقدم",
+    "nameTr": "Peşin Ödenmiş Kira",
+    "code": "1.7.1.1",
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.7.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Loans and receivables",
+    "nameAr": "القروض والذمم المالية",
+    "nameTr": "Krediler ve alacaklar",
+    "code": "1.8.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Owners equity",
+    "nameAr": "حقوق ملكية المالكين",
+    "nameTr": "Sahip özkaynak",
+    "code": "2.4",
+    "accountType": "equity",
+
+    "parentCode": "2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other equity interest",
+    "nameAr": "حقوق ملكية أخرى",
+    "nameTr": "Diğer özkaynak payları",
+    "code": "2.1.5",
+    "accountType": "equity",
+
+    "parentCode": "2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional equity items",
+    "nameAr": "عناصر حقوق ملكية إضافية",
+    "nameTr": "Ek özkaynak kalemleri",
+    "code": "2.3.9",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "VAT Payable / Output VAT",
+    "nameAr": "ضريبة قيمة مضافة على المبيعات",
+    "nameTr": "Hesaplanan KDV",
+    "code": "3.4.4.1.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4.4.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Adjustments",
+    "nameAr": "التسويات",
+    "nameTr": "Düzenlemeler",
+    "code": "4.3",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Employees' Housing Allowance",
+    "nameAr": "بدل السكن للموظفين",
+    "nameTr": "Personel Konut Ödeneği",
+    "code": "5.1.2.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other Cash or In-kind Benefits for Employees",
+    "nameAr": "مزايا أخرى نقدية أو عينية",
+    "nameTr": "Diğer Nakit veya Ayni Personel Yan Hakları",
+    "code": "5.1.2.8",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Housing Allowance",
+    "nameAr": "بدل سكن قسم الموارد البشرية",
+    "nameTr": "İK Bölümü Konut Yardımı",
+    "code": "5.1.2.2.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Living Allowance",
+    "nameAr": "بدل معيشة القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Yaşam Ödeneği",
+    "code": "5.1.2.4.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Living Allowance",
+    "nameAr": "بدل معيشة قسم المالية",
+    "nameTr": "Finans Bölümü Yaşam Ödeneği",
+    "code": "5.1.2.4.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Health Insurance",
+    "nameAr": "تأمينات صحية قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Sağlık Sigortası",
+    "code": "5.1.2.6.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Health Insurance",
+    "nameAr": "تأمينات صحية قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Sağlık Sigortası",
+    "code": "5.1.2.6.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Training and Development",
+    "nameAr": "تدريب وتطوير القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Eğitim ve Gelişim",
+    "code": "5.1.2.7.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Prim ve Teşvikleri",
+    "code": "5.1.2.8.1.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense - Buildings, structures and improvements",
+    "nameAr": "مصروف الاهتلاك- أثاث",
+    "nameTr": "Amortisman Gideri – Mobilya",
+    "code": "5.1.4.2.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense - Fixtures and fittings",
+    "nameAr": "مصروف الاهتلاك- البرامج الالكترونية الإدارية",
+    "nameTr": "Amortisman Gideri – Elektronik Yönetim Yazılımı",
+    "code": "5.1.4.2.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense -Vehicle 1",
+    "nameAr": "مصروف اهتلاك- سيارة 1",
+    "nameTr": "Amortisman Gideri - Araç 1",
+    "code": "5.1.4.2.3.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Inventory Purchases",
+    "nameAr": "مشتريات المخزون",
+    "nameTr": "Stok Alımları",
+    "code": "5.2.1.1.1",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2.1.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Software Expense",
+    "nameAr": "مصروف البرامج الالكترونية",
+    "nameTr": "Yazılım gideri",
+    "code": "5.5.4",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Gains and losses",
+    "nameAr": "الأرباح والخسائر",
+    "nameTr": "Kâr ve zararlar",
+    "code": "6.2",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Investments gain or loss",
+    "nameAr": "الربح أو الخسارة من الاستثمارات",
+    "nameTr": "Yatırım kâr veya zararları",
+    "code": "6.2.2",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Expenses",
+    "nameAr": "المصروفات",
+    "nameTr": "Giderler",
+    "code": "5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Additional financial assets",
+    "nameAr": "الأصول المالية الإضافية",
+    "nameTr": "Ek finansal varlıklar",
+    "code": "1.5.3",
+    "accountType": "financialAssets",
+
+    "parentCode": "1.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Jadwa Technology Fund",
+    "nameAr": "صندوق جدوى للتكنولوجيا",
+    "nameTr": "Jadwa Teknoloji Fonu",
+    "code": "1.5.1.2",
+    "accountType": "financialAssets",
+    "description": "",
+
+    "parentCode": "1.5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Value Added Taxes (VAT)",
+    "nameAr": "ضرائب القيمة المضافة",
+    "nameTr": "Katma Değer Vergisi (KDV)",
+    "code": "1.9.1.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.9.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accruals, deferrals and additional liabilities",
+    "nameAr": "المستحقات والمخصصات والخصوم الإضافية",
+    "nameTr": "Tahakkuklar, ertelenmiş gelirler ve ek yükümlülükler",
+    "code": "3.4",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other payables",
+    "nameAr": "ذمم أخرى",
+    "nameTr": "Diğer borçlar",
+    "code": "3.1.4",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Bonds (debentures)",
+    "nameAr": "السندات (السندات المدينة)",
+    "nameTr": "Tahviller (borçlanma senetleri)",
+    "code": "3.3.3",
+    "accountType": "nonCurrentLiabilities",
+
+    "parentCode": "3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Sales Returns",
+    "nameAr": "مرتجعات المبيعات",
+    "nameTr": "Satış İadeleri",
+    "code": "4.5",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Services Sales point of time",
+    "nameAr": "مبيعات الخدمات بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki Hizmet Satışları",
+    "code": "4.1.2",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Consideration paid payable to customers",
+    "nameAr": "المقابل المدفوع المستحق للعملاء",
+    "nameTr": "Müşterilere ödenecek bedel",
+    "code": "4.3.2",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.3",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Information Technology Department Living Allowance",
+    "nameAr": "بدل معيشة قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Yaşam Ödeneği",
+    "code": "5.1.2.4.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense",
+    "nameAr": "مصروف الاهتلاك",
+    "nameTr": "Amortisman Gideri",
+    "code": "5.1.4.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Administrative Expenses",
+    "nameAr": "مصاريف ادارية",
+    "nameTr": "Genel Yönetim Giderleri",
+    "code": "5.2.2.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Accumulated Depreciation-water cooler",
+    "nameAr": "مجمع اهتلاك - مبرد ماء",
+    "nameTr": "Birikmiş Amortisman - Su sebili",
+    "code": "1.1.4.9.3.2.5",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.4.9.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Banks",
+    "nameAr": "البنوك",
+    "nameTr": "Bankalar",
+    "code": "1.11.1.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Al Baraka Islamic Bank",
+    "nameAr": "بنك بركة الإسلامي",
+    "nameTr": "Al Baraka İslami Bankası",
+    "code": "1.11.1.2.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Prepaid Expenses",
+    "nameAr": "مصاريف مدفوعة مقدماً",
+    "nameTr": "Peşin Ödenmiş Giderler",
+    "code": "1.7.1.2",
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.7.1",
+
+    "creditor": 2872.0,
+    "debtor": 3289.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Nontrade and other receivables",
+    "nameAr": "الذمم المالية غير التجارية وأخرى",
+    "nameTr": "Ticari olmayan ve diğer alacaklar",
+    "code": "1.8.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Partner's capital",
+    "nameAr": "رأس مال الشركاء",
+    "nameTr": "Ortak sermayesi",
+    "code": "2.1.3",
+    "accountType": "equity",
+
+    "parentCode": "2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Trade and other payables",
+    "nameAr": "الذمم التجارية وأخرى",
+    "nameTr": "Ticari ve diğer borçlar",
+    "code": "3.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accruals",
+    "nameAr": "المستحقات",
+    "nameTr": "Tahakkuklar",
+    "code": "3.4.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Variable consideration",
+    "nameAr": "المقابل المتغير",
+    "nameTr": "Değişken bedel",
+    "code": "4.3.1",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.3",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales Allowances - Services",
+    "nameAr": "مسموحات المبيعات - الخدمات",
+    "nameTr": "Satış İndirimleri - Hizmetler",
+    "code": "4.4.2.2",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.4.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Material and merchandise",
+    "nameAr": "المواد والبضائع",
+    "nameTr": "Malzeme ve ticari mal",
+    "code": "5.1.1",
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Salaries",
+    "nameAr": "رواتب قسم اللوجستي",
+    "nameTr": "Lojistik Departmanı Maaşları",
+    "code": "5.1.2.1.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Transportation Allowance",
+    "nameAr": "بدل مواصلات قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Ulaşım Ödeneği",
+    "code": "5.1.2.3.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Overtime Pay",
+    "nameAr": "الأجر الإضافي القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Amortization Expense of Intangible fixedAsset",
+    "nameAr": "مصاريف إهلاك الأصول الثابتة غير الملموسة",
+    "nameTr": "Maddi Olmayan Duran Varlıkların Amortisman Giderleri",
+    "code": "5.1.4.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense -Furniture",
+    "nameAr": "مصروف اهتلاك - أثاث",
+    "nameTr": "Amortisman Gideri - Mobilya",
+    "code": "5.1.4.2.4.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Selling Expenses",
+    "nameAr": "مصاريف البيع",
+    "nameTr": "Satış Giderleri",
+    "code": "5.2.2.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Water Bill Expense",
+    "nameAr": "مصروف فاتورة مياه",
+    "nameTr": "Su Faturası Gideri",
+    "code": "5.5.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Taxes other than income and payroll and fees",
+    "nameAr": "الضرائب (غير دخل وضريبة الرواتب والرسوم)",
+    "nameTr": "Gelir ve maaş dışı vergiler ve ücretler",
+    "code": "6.3",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "water cooler",
+    "nameAr": "مبرد ماء",
+    "nameTr": "Su sebili",
+    "code": "1.1.3.2.5",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Printers",
+    "nameAr": "طابعات",
+    "nameTr": "Yazıcılar",
+    "code": "1.1.3.2.7",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 678.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation",
+    "nameAr": "مجمعات الاهتلاك",
+    "nameTr": "Birikmiş Amortismanı",
+    "code": "1.1.4.9",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Cash on hand",
+    "nameAr": "صندوق النقد",
+    "nameTr": "Kasa Hesabı",
+    "code": "1.11.1.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "SYR Cash OLD",
+    "nameAr": "SYR النقد عملة قديمة",
+    "nameTr": "SYR Nakit",
+    "code": "1.11.1.1.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1.1",
+
+    "creditor": 44711.0,
+    "debtor": 44773.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet",
+
+    "accountCategory": null,
+    "depreciationAccount": null
+  },
+  {
+    "name": "Petty cash syr",
+    "nameAr": "صندوق النثرية بالليرة السورية",
+    "nameTr": "SYP küçük kasa",
+    "code": "1.11.4.2",
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.11.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Right of use assets",
+    "nameAr": "أصول حق الاستخدام",
+    "nameTr": "Kullanım hakkı varlıkları",
+    "code": "1.4.5",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Formation Expenses Assets",
+    "nameAr": "مصاريف التأسيس",
+    "nameTr": "Kuruluş Giderleri",
+    "code": "1.4.7.1",
+    "depreciationAccount": null,
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.4.7",
+    "accountCategory": null,
+
+    "creditor": 6812.0,
+    "debtor": 6812.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Prepaid software Expenses",
+    "nameAr": "مصاريف برمجية مدفوعة مقدماً",
+    "nameTr": "Peşin ödenmiş yazılım giderleri",
+    "code": "1.7.1.3",
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.7.1",
+
+    "creditor": 804.0,
+    "debtor": 1524.0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Total equity attributable to owners of parent",
+    "nameAr": "إجمالي حقوق الملكية المنسوبة لمالكي الشركة الأم",
+    "nameTr": "Ana ortaklara ait toplam özkaynak",
+    "code": "2.1",
+    "accountType": "equity",
+
+    "parentCode": "2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "In suspense",
+    "nameAr": "في الحجز",
+    "nameTr": "Beklemede",
+    "code": "2.2.3",
+    "accountType": "equity",
+
+    "parentCode": "2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Interest payable",
+    "nameAr": "الفوائد المستحقة",
+    "nameTr": "Faiz borçları",
+    "code": "3.1.3",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Credit Suppliers",
+    "nameAr": "الموردون الآجلين",
+    "nameTr": "Vadeli Tedarikçiler",
+    "code": "3.1.1.2",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1.1",
+
+    "creditor": 17363.0,
+    "debtor": 8149.0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Litigation and regulatory",
+    "nameAr": "المخصصات القانونية والتنظيمية",
+    "nameTr": "Dava ve düzenleyici karşılıklar",
+    "code": "3.2.2",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional provisions",
+    "nameAr": "مخصصات إضافية",
+    "nameTr": "Ek karşılıklar",
+    "code": "3.2.3",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional liabilities",
+    "nameAr": "الالتزامات الإضافية",
+    "nameTr": "Ek yükümlülükler",
+    "code": "3.4.5",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Unpaid Accrued Salaries Usd",
+    "nameAr": "الرواتب مستحقة وغير مدفوعة دولار",
+    "nameTr": "Tahakkuk etmiş ve ödenmemiş maaşlar $",
+    "code": "3.4.1.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Products and projects Sales over time",
+    "nameAr": "المنتجات والمشاريع على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Ürün ve Proje Satışları",
+    "code": "4.2.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales Allowances - Goods",
+    "nameAr": "مسموحات المبيعات - السلع",
+    "nameTr": "Satış İndirimleri - Mallar",
+    "code": "4.4.2.1",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.4.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Governance Department Living Allowance",
+    "nameAr": "بدل معيشة قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Yaşam Ödeneği",
+    "code": "5.1.2.4.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Training and Development",
+    "nameAr": "تدريب وتطوير قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Eğitim ve Gelişim",
+    "code": "5.1.2.7.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز",
+    "nameTr": "Primler ve Teşvikler",
+    "code": "5.1.2.8.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Lost Subscription",
+    "nameAr": "خسائر اكتتاب (اشتراك)",
+    "nameTr": "Kayıp Abonelik",
+    "code": "5.1.6.1",
+    "accountType": "costOfGoodsSold",
+    "description": "",
+
+    "parentCode": "5.1.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Heating expenses",
+    "nameAr": "مصاريف تدفئة",
+    "nameTr": "Isıtma giderleri",
+    "code": "5.2.2.1.4",
+    "depreciationAccount": "",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.2.2.1",
+    "accountCategory": "",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Office Maintenance Expenses",
+    "nameAr": "مصاريف صيانة مكتب",
+    "nameTr": "Ofis Bakım Giderleri",
+    "code": "5.4.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Digital marketing Expense",
+    "nameAr": "مصروفات التسويق الرقمي",
+    "nameTr": "Dijital pazarlama gideri",
+    "code": "5.8.1",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Fixtures and fittings",
+    "nameAr": "التركيبات والتجهيزات",
+    "nameTr": "Donanım ve aksesuarlar",
+    "code": "1.1.4",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Buildings, structures and improvements",
+    "nameAr": "مجمع اهتلاك - المباني والهياكل والتحسينات",
+    "nameTr": "Birikmiş Amortisman – Binalar, Yapılar ve İyileştirmeler",
+    "code": "1.1.4.9.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Bearer plants",
+    "nameAr": "النباتات الحاملة",
+    "nameTr": "Taşıyıcı bitkiler",
+    "code": "1.10.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.10",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Derivative financial assets",
+    "nameAr": "الأصول المالية المشتقة",
+    "nameTr": "Türev finansal varlıklar",
+    "code": "1.5.2",
+    "accountType": "financialAssets",
+
+    "parentCode": "1.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Payables (foreign currency)",
+    "nameAr": "ذمم بالعملات الأجنبية",
+    "nameTr": "Yabancı para borçları",
+    "code": "3.1.5",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Construction projects (special accounts)",
+    "nameAr": "مشاريع الإنشاءات (حسابات خاصة)",
+    "nameTr": "İnşaat projeleri (özel hesaplar)",
+    "code": "3.4.3",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Sales Allowances & Discounts",
+    "nameAr": "حسومات ومسموحات المبيعات",
+    "nameTr": "Satış İndirimleri ve İskontoları",
+    "code": "4.4",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Murabaha Sales point of time",
+    "nameAr": "مبيعات المرابحة بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki Murabaha Satışları",
+    "code": "4.1.1.2",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.1.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Governance Services Sales point of time",
+    "nameAr": "مبيعات خدمات الحوكمة بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki Yönetim Hizmetleri Satışları",
+    "code": "4.1.2.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.1.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales Discounts - Goods",
+    "nameAr": "حسومات المبيعات - السلع",
+    "nameTr": "Satış İskontoları - Mallar",
+    "code": "4.4.1.1",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.4.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Marketing and Advertising Expenses",
+    "nameAr": "مصاريف التسويق و الإعلان",
+    "nameTr": "Pazarlama ve reklam giderleri",
+    "code": "5.8",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Salaries",
+    "nameAr": "رواتب قسم المالية",
+    "nameTr": "Finans Departmanı Maaşları",
+    "code": "5.1.2.1.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Housing Allowance",
+    "nameAr": "بدل سكن قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Konut Yardımı",
+    "code": "5.1.2.2.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Health Insurance",
+    "nameAr": "تأمينات صحية القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Sağlık Sigortası",
+    "code": "5.1.2.6.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Deduction Days & Hours",
+    "nameAr": "خصم أيام وساعات العمل",
+    "nameTr": "Çalışma Günü ve Saat Kesintisi",
+    "code": "5.1.2.8.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Services Expense",
+    "nameAr": "مصروف خدمات استشارية",
+    "nameTr": "Danışmanlık Hizmetleri Gideri",
+    "code": "5.1.3.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Disposal of assets gain or loss",
+    "nameAr": "الربح أو الخسارة من التصرف في الأصول",
+    "nameTr": "Varlık satış kâr veya zararları",
+    "code": "6.2.5",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Derivatives gain or loss",
+    "nameAr": "الربح أو الخسارة من المشتقات المالية",
+    "nameTr": "Türev kâr veya zararları",
+    "code": "6.2.3",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Impairment Loss or Reversal Determined in Accordance with IFRS9",
+    "nameAr": "خسارة الاضمحلال أو عكسها المحددة وفقًا للمعيار الدولي للتقارير المالية رقم 9 (IFRS 9)",
+    "nameTr": "IFRS9’a göre belirlenen değer düşüklüğü zararı veya geri dönüşü",
+    "code": "6.2.8",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Sanitation Tax",
+    "nameAr": "ضريبة نظافة",
+    "nameTr": "Temizlik Vergisi",
+    "code": "6.3.3.1",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Municipal Tax on Commercial Activity",
+    "nameAr": "ضريبة بلدية على النشاط التجاري",
+    "nameTr": "Ticari Faaliyetler Üzerine Belediye Vergisi",
+    "code": "6.3.3.2",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Investment property",
+    "nameAr": "العقارات الاستثمارية",
+    "nameTr": "Yatırım amaçlı mülk",
+    "code": "1.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Vehicles",
+    "nameAr": "المركبات (سيارات)",
+    "nameTr": "Araçlar",
+    "code": "1.1.3.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Machinery and equipment",
+    "nameAr": "مجمع اهتلاك - الآلات و المعدات",
+    "nameTr": "Birikmiş amortisman - makineler ve ekipmanlar",
+    "code": "1.1.4.9.3",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-gas oven",
+    "nameAr": "مجمع اهتلاك - فرن غاز",
+    "nameTr": "Birikmiş Amortisman - Gazlı fırın",
+    "code": "1.1.4.9.3.2.4",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.4.9.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other agricultural assets",
+    "nameAr": "الأصول الزراعية الأخرى",
+    "nameTr": "Diğer tarımsal varlıklar",
+    "code": "1.10.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.10",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Acquisition in progress",
+    "nameAr": "الاستحواذ الجاري",
+    "nameTr": "Edinim aşamasında",
+    "code": "1.4.8",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+
+  {
+    "name": "Loans received",
+    "nameAr": "القروض المستلمة",
+    "nameTr": "Alınan krediler",
+    "code": "3.3.2",
+    "accountType": "nonCurrentLiabilities",
+
+    "parentCode": "3.3",
+
+    "creditor": 282046.0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Investment Sales over Time",
+    "nameAr": "مبيعات استثمارات على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Yatırım Satışları",
+    "code": "4.2.1.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Recruitment Services Sales over time",
+    "nameAr": "مبيعات خدمات التوظيف على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde İstihdam Hizmetleri Satışları",
+    "code": "4.2.2.2",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Other work performed by entity and capitalized",
+    "nameAr": "أعمال أخرى نفذتها الكيان وتم رسملتها",
+    "nameTr": "Varlık olarak kaydedilen diğer işler",
+    "code": "5.1.6",
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Salaries Expenses",
+    "nameAr": "مصاريف الراوتب",
+    "nameTr": "Maaş Giderleri",
+    "code": "5.1.2.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Salaries",
+    "nameAr": "رواتب قسم الحوكمة",
+    "nameTr": "Yönetişim Departmanı Maaşları",
+    "code": "5.1.2.1.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Training and Development",
+    "nameAr": "تدريب وتطوير قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Eğitim ve Gelişim",
+    "code": "5.1.2.7.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Overtime Pay",
+    "nameAr": "الأجر الإضافي قسم المالية",
+    "nameTr": "Finans Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Purchase  Discounts",
+    "nameAr": "خصم المشتريات",
+    "nameTr": "Alış İskontoları",
+    "code": "5.2.1.1.2",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2.1.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Vehicle Maintenance Expenses",
+    "nameAr": "مصاريف صيانة سيارات",
+    "nameTr": "Araç Bakım Giderleri",
+    "code": "5.4.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other revenue and expenses",
+    "nameAr": "الإيرادات والمصروفات الأخرى",
+    "nameTr": "Diğer gelir ve giderler",
+    "code": "6.1",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Foreign currency gain or loss",
+    "nameAr": "الربح أو الخسارة من العملات الأجنبية",
+    "nameTr": "Döviz kâr veya zararları",
+    "code": "6.2.1",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Impairment loss",
+    "nameAr": "خسارة الاضمحلال",
+    "nameTr": "Değer düşüklüğü zararı",
+    "code": "6.2.9",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other non-operating income and expenses",
+    "nameAr": "الإيرادات والمصروفات غير التشغيلية الأخرى",
+    "nameTr": "Diğer faaliyet dışı gelir ve giderler",
+    "code": "6",
+    "accountType": "nonOperatingExpenses/income",
+
+    "parentCode": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Additional property, plant and equipment",
+    "nameAr": "الممتلكات والمنشآت والمعدات الإضافية",
+    "nameTr": "Ek mülk, tesis ve ekipman",
+    "code": "1.1.6",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Right of use assets (classified as PP&E)",
+    "nameAr": "أصول حق الاستخدام (مصنفة كممتلكات ومنشآت ومعدات)",
+    "nameTr": "Kullanım hakkı varlıkları (Mülk, tesis ve ekipman olarak sınıflandırılır)",
+    "code": "1.1.5",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Land and land improvements",
+    "nameAr": "الأراضي والتحسينات الأرضية",
+    "nameTr": "Arazi ve arazi iyileştirmeleri",
+    "code": "1.1.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "gas oven",
+    "nameAr": "فرن غاز",
+    "nameTr": "Gazlı fırın",
+    "code": "1.1.3.2.4",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Air conditioners",
+    "nameAr": "مكيفات",
+    "nameTr": "Klimalar",
+    "code": "1.1.4.3",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Vehicle Hyundai Tucson",
+    "nameAr": "مجمع اهتلاك - سيارة هيونداي توسان",
+    "nameTr": "Birikmiş Amortisman - Hyundai Tucson Aracı",
+    "code": "1.1.4.9.3.1.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9.3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Under construction or development",
+    "nameAr": "تحت الإنشاء أو التطوير",
+    "nameTr": "Yapım veya geliştirme aşamasında",
+    "code": "1.2.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Contracts and rights",
+    "nameAr": "العقود والحقوق",
+    "nameTr": "Sözleşmeler ve haklar",
+    "code": "1.4.4",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Noon Tek Company",
+    "nameAr": "شركة نون تيك",
+    "nameTr": "Noon Tek Şirketi",
+    "code": "1.5.1.2.1",
+    "accountType": "financialAssets",
+    "description": "",
+
+    "parentCode": "1.5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Finished goods",
+    "nameAr": "السلع تامة الصنع",
+    "nameTr": "Bitmiş ürünler",
+    "code": "1.6.4",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional assets",
+    "nameAr": "الأصول الإضافية",
+    "nameTr": "Ek varlıklar",
+    "code": "1.7.4",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional item paid-in capital",
+    "nameAr": "رأس المال المدفوع الإضافي",
+    "nameTr": "Ek ödenmiş sermaye kalemleri",
+    "code": "2.1.2",
+    "accountType": "equity",
+
+    "parentCode": "2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+
+  {
+    "name": "Retained earnings excluding profit loss for reporting period",
+    "nameAr": "الأرباح المحتجزة باستثناء أرباح وخسائر الفترة المحاسبية",
+    "nameTr": "Raporlama dönemi kar/zararı hariç dağıtılmamış karlar",
+    "code": "2.2.2",
+    "accountType": "equity",
+
+    "parentCode": "2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Unpaid Accrued Salaries SYP",
+    "nameAr": "رواتب مستحقة وغير مدفوعة ل.س",
+    "nameTr": "Tahakkuk etmiş ve ödenmemiş maaşlar SYP",
+    "code": "3.4.1.2",
+    "accountType": "currentLiabilities",
+    "description": "",
+
+    "parentCode": "3.4.1",
+
+    "creditor": 840.0,
+    "debtor": 840.0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Vehicles Expenses",
+    "nameAr": "مصاريف المركبات",
+    "nameTr": "Araç Giderleri",
+    "code": "5.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Expenses (classified by nature)",
+    "nameAr": "المصروفات (مصنفة حسب الطبيعة)",
+    "nameTr": "Giderler (doğasına göre sınıflandırılmış)",
+    "code": "5.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employee benefits expense",
+    "nameAr": "مصروفات منافع الموظفين",
+    "nameTr": "Çalışan faydaları giderleri",
+    "code": "5.1.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Management Allowances",
+    "nameAr": "بدلات الإدارة",
+    "nameTr": "Yönetim ödenekleri",
+    "code": "5.1.2.9",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Consulting Department Transportation Allowance",
+    "nameAr": "بدل مواصلات القسم الاستشاري",
+    "nameTr": "Danışmanlık Bölümü Ulaşım Ödeneği",
+    "code": "5.1.2.3.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Living Allowance",
+    "nameAr": "بدل معيشة قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Yaşam Ödeneği",
+    "code": "5.1.2.4.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Training and Development",
+    "nameAr": "تدريب وتطوير قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Eğitim ve Gelişim",
+    "code": "5.1.2.7.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Deduction Days & Hours",
+    "nameAr": "أيام وساعات الخصم لقسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Kesinti Günleri ve Saatleri",
+    "code": "5.1.2.8.3.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Overtime Pay",
+    "nameAr": "أيام وساعات الخصم لقسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.3.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "External audit and accounting Expense",
+    "nameAr": "مصروف التدقيق و المحاسبة الخارجية",
+    "nameTr": "Dış denetim ve muhasebe gideri",
+    "code": "5.1.3.3",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.1.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense - Land and land improvements",
+    "nameAr": "مصروف الاهتلاك- الأراضي وتحسينات الأراضي",
+    "nameTr": "Amortisman Gideri - Arazi ve Arazi İyileştirmeleri",
+    "code": "5.1.4.2.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Cost Of Sales Services",
+    "nameAr": "تكلفة المبيعات – الخدمات",
+    "nameTr": "Hizmet Satış Maliyetleri",
+    "code": "5.2.1.2",
+    "depreciationAccount": null,
+    "accountType": "costOfGoodsSold",
+
+    "parentCode": "5.2.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Printing brochures Expense",
+    "nameAr": "مصروفات طباعة الإعلانات",
+    "nameTr": "Reklam baskı gideri",
+    "code": "5.8.2",
+    "accountType": "operatingExpenses",
+    "description": "",
+
+    "parentCode": "5.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other expenses",
+    "nameAr": "المصروفات الأخرى",
+    "nameTr": "Diğer giderler",
+    "code": "6.1.2",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Debt related gain or loss",
+    "nameAr": "الربح أو الخسارة المتعلقة بالديون",
+    "nameTr": "Borç ilişkili kâr veya zararları",
+    "code": "6.2.6",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Computer software",
+    "nameAr": "برامج الحاسوب",
+    "nameTr": "Bilgisayar yazılımı",
+    "code": "1.4.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Raw materials and production supplies",
+    "nameAr": "المواد الخام وإمدادات الإنتاج",
+    "nameTr": "Hammadde ve üretim malzemeleri",
+    "code": "1.6.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other tax assets",
+    "nameAr": "أصول ضرائب أخرى",
+    "nameTr": "Diğer vergi varlıkları",
+    "code": "1.9.3",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.9",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Retained earnings",
+    "nameAr": "الأرباح المحتجزة",
+    "nameTr": "Dağıtılmamış karlar",
+    "code": "2.2",
+    "accountType": "equity",
+
+    "parentCode": "2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Dividend payables",
+    "nameAr": "الذمم المستحقة للربح",
+    "nameTr": "Temettü borçları",
+    "code": "3.1.2",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Derivative financial liabilities",
+    "nameAr": "الالتزامات المالية المشتقة",
+    "nameTr": "Türev finansal yükümlülükler",
+    "code": "3.3.6",
+    "accountType": "nonCurrentLiabilities",
+
+    "parentCode": "3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Lease obligations",
+    "nameAr": "التزامات الإيجار",
+    "nameTr": "Kira yükümlülükleri",
+    "code": "3.3.5",
+    "accountType": "liabilities",
+
+    "parentCode": "3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Feasibility Study Services Sales over time",
+    "nameAr": "مبيعات خدمات دراسة الجدوى على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Fizibilite Hizmetleri Satışları",
+    "code": "4.2.2.3",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Sales  Discounts - Services",
+    "nameAr": "حسومات المبيعات - الخدمات",
+    "nameTr": "Satış İskontoları - Hizmetler",
+    "code": "4.4.1.2",
+    "depreciationAccount": null,
+    "accountType": "contraRevenue",
+
+    "parentCode": "4.4.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Consulting Department Salaries",
+    "nameAr": "رواتب القسم الاستشاري",
+    "nameTr": "Danışmanlık Departmanı Maaşları",
+    "code": "5.1.2.1.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Housing Allowance",
+    "nameAr": "بدل سكن قسم المالية",
+    "nameTr": "Finans Bölümü Konut Yardımı",
+    "code": "5.1.2.2.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Health Insurance",
+    "nameAr": "تأمينات صحية قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Sağlık Sigortası",
+    "code": "5.1.2.6.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Health Insurance",
+    "nameAr": "تأمينات صحية قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Sağlık Sigortası",
+    "code": "5.1.2.6.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Depreciation Expense -Vehicle 2",
+    "nameAr": "مصروف اهتلاك- سيارة 2",
+    "nameTr": "Amortisman Gideri - Araç 2",
+    "code": "5.1.4.2.3.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Fuel Expenses",
+    "nameAr": "مصاريف الوقود",
+    "nameTr": "Yakıt Giderleri",
+    "code": "5.3.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Money Transfer Fees",
+    "nameAr": "مصاريف تحويل الأموال",
+    "nameTr": "Para Transfer Ücretleri",
+    "code": "5.7.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Customs Taxes",
+    "nameAr": "ضرائب جمركية",
+    "nameTr": "Gümrük Vergileri",
+    "code": "6.3.2",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Construction in progress",
+    "nameAr": "الإنشاءات الجارية",
+    "nameTr": "Yapım aşamasındaki yatırımlar",
+    "code": "1.1.7",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Vehicles",
+    "nameAr": "مجمع اهتلاك - سيارات",
+    "nameTr": "Birikmiş Amortisman - Araçlar",
+    "code": "1.1.4.9.3.1",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.4.9.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "petty cash usd",
+    "nameAr": "صندوق النثريات دولار",
+    "nameTr": "USD küçük kasa",
+    "code": "1.11.4.1",
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.11.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional intangible assets",
+    "nameAr": "الأصول غير الملموسة الإضافية",
+    "nameTr": "Ek maddi olmayan varlıklar",
+    "code": "1.4.7",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Electronic licenses",
+    "nameAr": "تراخيص الكترونية",
+    "nameTr": "Elektronik lisanslar",
+    "code": "1.4.6.2",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.4.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Contracts with customers",
+    "nameAr": "العقود مع العملاء",
+    "nameTr": "Müşteri sözleşmeleri",
+    "code": "1.8.2",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Tax assets",
+    "nameAr": "أصول الضرائب",
+    "nameTr": "Vergi varlıkları",
+    "code": "1.9.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.9",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Other reserves",
+    "nameAr": "الاحتياطيات الأخرى",
+    "nameTr": "Diğer rezervler",
+    "code": "2.3",
+    "accountType": "equity",
+
+    "parentCode": "2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+
+  {
+    "name": "Stock receivables",
+    "nameAr": "الذمم المالية المتعلقة بالمخزون",
+    "nameTr": "Stok alacakları",
+    "code": "2.3.7",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Provisions",
+    "nameAr": "المخصصات",
+    "nameTr": "Karşılıklar",
+    "code": "3.2",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Maintenance Expenses",
+    "nameAr": "مصاريف صيانة",
+    "nameTr": "Bakım Giderleri",
+    "code": "5.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Human Resources Department Overtime Pay",
+    "nameAr": "الأجر الإضافي قسم الموارد البشرية",
+    "nameTr": "İnsan Kaynakları Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Deduction Days & Hours",
+    "nameAr": "أيام وساعات الخصم لقسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Kesinti Günleri ve Saatleri",
+    "code": "5.1.2.8.3.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Electricity Bill Expense",
+    "nameAr": "مصروف فاتورة كهرباء",
+    "nameTr": "Elektrik Faturası Gideri",
+    "code": "5.5.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Intangible assets excluding goodwill",
+    "nameAr": "الأصول غير الملموسة باستثناء الشهرة",
+    "nameTr": "Şerefiye hariç maddi olmayan varlıklar",
+    "code": "1.4",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Property, plant and equipment",
+    "nameAr": "الممتلكات والمنشآت والمعدات",
+    "nameTr": "Mülk, tesis ve ekipman",
+    "code": "1.1",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Vehicle Hyundai SantaFe",
+    "nameAr": "مجمع اهتلاك - سيارة هيونداي سانتافيه",
+    "nameTr": "Birikmiş Amortisman - Hyundai SantaFe Aracı",
+    "code": "1.1.4.9.3.1.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9.3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Solar Power System",
+    "nameAr": "مجمع اهتلاك - منظومة الطاقة الشمسية",
+    "nameTr": "Birikmiş Amortisman - Güneş Enerji Sistemi",
+    "code": "1.1.4.9.4.2",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1.4.9.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Cash Customer",
+    "nameAr": "العميل النقدي",
+    "nameTr": "Nakit Müşteri",
+    "code": "1.8.2.1",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+
+  {
+    "name": "Reserve of exchange differences on translation",
+    "nameAr": "احتياطي فروق الترجمة الناتجة عن تحويل العملة",
+    "nameTr": "Çeviri kaynaklı kur farkı rezervi",
+    "code": "2.3.1",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Reserve of cash flow hedges",
+    "nameAr": "احتياطي تحوطات التدفق النقدي",
+    "nameTr": "Nakit akışı riskten korunma rezervi",
+    "code": "2.3.2",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Trade payables",
+    "nameAr": "الذمم التجارية",
+    "nameTr": "Ticari borçlar",
+    "code": "3.1.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Notes payable",
+    "nameAr": "الأوراق المالية المستحقة",
+    "nameTr": "Ödenecek senetler",
+    "code": "3.3.1",
+    "accountType": "nonCurrentLiabilities",
+
+    "parentCode": "3.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Services Sales over time",
+    "nameAr": "مبيعات الخدمات على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Hizmet Satışları",
+    "code": "4.2.2",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Staff Living Allowance",
+    "nameAr": "بدل معيشة للموظفين",
+    "nameTr": "Personel Geçim Ödeneği",
+    "code": "5.1.2.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Salaries",
+    "nameAr": "رواتب قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Departmanı Maaşları",
+    "code": "5.1.2.1.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Governance Department Transportation Allowance",
+    "nameAr": "بدل مواصلات قسم الحوكمة",
+    "nameTr": "Yönetişim Bölümü Ulaşım Ödeneği",
+    "code": "5.1.2.3.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Living Allowance",
+    "nameAr": "بدل معيشة قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Yaşam Ödeneği",
+    "code": "5.1.2.4.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employer’s Share of Social Insurance",
+    "nameAr": "حصة الشركة من التأمينات",
+    "nameTr": "İşveren Payı SGK Primi",
+    "code": "5.1.2.5.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Health Insurance",
+    "nameAr": "تأمينات صحية قسم المالية",
+    "nameTr": "Finans Bölümü Sağlık Sigortası",
+    "code": "5.1.2.6.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Training and Development",
+    "nameAr": "تدريب وتطوير قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Eğitim ve Gelişim",
+    "code": "5.1.2.7.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Training and Development",
+    "nameAr": "تدريب وتطوير قسم المالية",
+    "nameTr": "Finans Bölümü Eğitim ve Gelişim",
+    "code": "5.1.2.7.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.7",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Hospitality Expenses",
+    "nameAr": "مصاريف الضيافة",
+    "nameTr": "Misafir Ağırlama Giderleri",
+    "code": "5.2.2.1.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.2.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employee Relocation Expenses",
+    "nameAr": "مصاريف نقل موظفين",
+    "nameTr": "Çalışanların Taşınma Giderleri",
+    "code": "5.6.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Travel Expenses",
+    "nameAr": "مصاريف سفر",
+    "nameTr": "Seyahat Giderleri",
+    "code": "5.6.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other revenue",
+    "nameAr": "الإيرادات الأخرى",
+    "nameTr": "Diğer gelirler",
+    "code": "6.1.1",
+    "accountType": "nonOperatingIncome",
+
+    "parentCode": "6.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "revenue",
+    "nameAr": "الإيرادات",
+    "nameTr": "Gelirler",
+    "code": "4",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": null,
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Machinery and equipment",
+    "nameAr": "الآلات والمعدات",
+    "nameTr": "Makine ve ekipman",
+    "code": "1.1.3",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Office Equipment",
+    "nameAr": "مجمع اهتلاك - معدات مكتب",
+    "nameTr": "Birikmiş Amortisman - Ofis ekipmanları",
+    "code": "1.1.4.9.3.2",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.4.9.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Depreciation-Refrigerator",
+    "nameAr": "مجمع اهتلاك - براد",
+    "nameTr": "Birikmiş Amortisman - Buzdolabı",
+    "code": "1.1.4.9.3.2.3",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.1.4.9.3.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "EUR Cash",
+    "nameAr": "EUR النقد",
+    "nameTr": "EUR Nakit",
+    "code": "1.11.1.1.4",
+    "accountType": "currentAsset",
+
+    "parentCode": "1.11.1.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Non-derivative financial assets",
+    "nameAr": "الأصول المالية غير المشتقة",
+    "nameTr": "Türev olmayan finansal varlıklar",
+    "code": "1.5.1",
+    "accountType": "financialAssets",
+
+    "parentCode": "1.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Additional AOCI items",
+    "nameAr": "عناصر إضافية أخرى من حقوق الملكية الشاملة الأخرى (AOCI)",
+    "nameTr": "Ek AOCI kalemleri",
+    "code": "2.3.6",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Reserve of gains and losses on remeasuring available-for-sale financial assets",
+    "nameAr": "احتياطي الأرباح والخسائر من إعادة قياس الأصول المالية المتاحة للبيع",
+    "nameTr": "Satılmaya hazır finansal varlıkların yeniden değerlenmesi kar/zarar rezervi",
+    "code": "2.3.5",
+    "accountType": "equity",
+
+    "parentCode": "2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Deferred income and refund liabilities",
+    "nameAr": "الدخل المؤجل والالتزامات المتعلقة بالمبالغ المستردة",
+    "nameTr": "Ertelenmiş gelirler ve iade yükümlülükleri",
+    "code": "3.4.2",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Value Added Taxes (VAT)",
+    "nameAr": "ضرائب القيمة المضافة",
+    "nameTr": "Katma Değer Vergisi (KDV)",
+    "code": "3.4.4.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Feasibility Study Services Sales point of time",
+    "nameAr": "مبيعات خدمات دراسة الجدوى بنقطة زمنية",
+    "nameTr": "Belirli Bir Zamandaki Fizibilite Hizmetleri Satışları",
+    "code": "4.1.2.3",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.1.2",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Transportation Expenses",
+    "nameAr": "مصاريف نقل",
+    "nameTr": "Ulaşım Gideri",
+    "code": "5.6",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Rent, depreciation, amortization and depletion",
+    "nameAr": "الإيجار والاستهلاك والإطفاء والنضوب",
+    "nameTr": "Kira, amortisman ve tükenme",
+    "code": "5.1.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employees' Training and Development",
+    "nameAr": "تدريب وتطوير الموظفين",
+    "nameTr": "Personel Eğitim ve Gelişim",
+    "code": "5.1.2.7",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Housing Allowance",
+    "nameAr": "بدل سكن قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Konut Yardımı",
+    "code": "5.1.2.2.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Overtime Pay",
+    "nameAr": "الأجر الإضافي",
+    "nameTr": "Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Overtime Pay",
+    "nameAr": "الأجر الإضافي قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Rent Expense",
+    "nameAr": "مصروف الايجار",
+    "nameTr": "Kira Gideri",
+    "code": "5.1.4.1",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "general expenses",
+    "nameAr": "مصاريف عمومية",
+    "nameTr": "Genel Giderler",
+    "code": "5.2.2.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Cleaning And Kitchen Expenses",
+    "nameAr": "مصاريف التنظيف والمطبخ",
+    "nameTr": "Temizlik ve Mutfak Giderleri",
+    "code": "5.2.2.1.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.2.2.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Rental Taxes",
+    "nameAr": "ضرائب على الإيجارات",
+    "nameTr": "Kira Vergileri",
+    "code": "6.3.4",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Import and Export Taxes and Fees",
+    "nameAr": "ضرائب ورسوم استيراد وتصدير",
+    "nameTr": "İthalat ve İhracat Vergileri ve Harçları",
+    "code": "6.3.5",
+    "accountType": "nonOperatingExpenses",
+
+    "parentCode": "6.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Receivables and contracts",
+    "nameAr": "الذمم المالية والعقود",
+    "nameTr": "Alacaklar ve sözleşmeler",
+    "code": "1.8",
+    "accountType": "currentAsset",
+
+    "parentCode": "1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Accumulated Amortization of Intangible fixedAsset",
+    "nameAr": "مجمع اهتلاك الأصول الثابتة غير الملموسة",
+    "nameTr": "Maddi Olmayan Duran Varlıkların Birikmiş İtfa Payları",
+    "code": "1.4.9",
+    "accountType": "fixedAsset",
+
+    "parentCode": "1.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Company website",
+    "nameAr": "موقع الشركة الالكتروني",
+    "nameTr": "Şirketin web sitesi",
+    "code": "1.4.6.1",
+    "accountType": "fixedAsset",
+    "description": "",
+
+    "parentCode": "1.4.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Cash supplier",
+    "nameAr": "المورد النقدي",
+    "nameTr": "Nakit Tedarikçi",
+    "code": "3.1.1.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.1.1",
+
+    "creditor": 20305.0,
+    "debtor": 20305.0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Advance Payment from Realized Profits",
+    "nameAr": "دفعة مقدمة من أرباح حقيقية",
+    "nameTr": "Gerçekleşmiş Kârdan Yapılan Avans Ödeme",
+    "code": "3.4.2.1",
+    "accountType": "currentLiabilities",
+
+    "parentCode": "3.4.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Recognized point of time",
+    "nameAr": "الاعتراف في نقطة زمنية محددة",
+    "nameTr": "Belirli Bir Zamandaki Tanınma",
+    "code": "4.1",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Murabaha Sales over Time",
+    "nameAr": "مبيعات المرابحة على مدى فترة زمنية",
+    "nameTr": "Zaman İçinde Murabaha Satışları",
+    "code": "4.2.1.2",
+    "depreciationAccount": null,
+    "accountType": "revenue",
+
+    "parentCode": "4.2.1",
+    "accountCategory": null,
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Trading Account"
+  },
+  {
+    "name": "Services expense",
+    "nameAr": "مصروفات الخدمات",
+    "nameTr": "Hizmet giderleri",
+    "code": "5.1.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Housing Allowance",
+    "nameAr": "بدل سكن قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Konut Yardımı",
+    "code": "5.1.2.2.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Logistics Department Transportation Allowance",
+    "nameAr": "بدل مواصلات قسم اللوجستي",
+    "nameTr": "Lojistik Bölümü Ulaşım Ödeneği",
+    "code": "5.1.2.3.4",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.3",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Employee’s Share of Social Insurance",
+    "nameAr": "حصة الموظف من التأمينات",
+    "nameTr": "İşçi Payı SGK Primi",
+    "code": "5.1.2.5.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Finance Department Bonuses & Incentives",
+    "nameAr": "مكافآت و حوافز قسم المالية",
+    "nameTr": "Finans Bölümü Prim ve Teşvikleri",
+    "code": "5.1.2.8.1.2",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.1",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Information Technology Department Overtime Pay",
+    "nameAr": "الأجر الإضافي قسم تكنولوجيا المعلومات",
+    "nameTr": "Bilgi Teknolojileri Bölümü Fazla Mesai Ücreti",
+    "code": "5.1.2.8.2.5",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.1.2.8.2",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "General Maintenance Expenses",
+    "nameAr": "مصاريف صيانة عامة",
+    "nameTr": "Genel Bakım Giderleri",
+    "code": "5.4.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.4",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Communication Expenses",
+    "nameAr": "مصروف اتصالات",
+    "nameTr": "İletişim Gideri",
+    "code": "5.5.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.5",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "General Transportation Expenses",
+    "nameAr": "مصاريف نقل عامة",
+    "nameTr": "Genel Taşıma Giderleri",
+    "code": "5.6.3",
+    "accountType": "operatingExpenses",
+
+    "parentCode": "5.6",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Other gains and losses",
+    "nameAr": "أرباح وخسائر أخرى",
+    "nameTr": "Diğer kâr ve zararlar",
+    "code": "6.2.10",
+    "accountType": "nonOperatingExpenses",
+    "parentCode": "6.2",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit/credit",
+    "sync": false,
+    "finalAccount": "Profit and Loss Account"
+  },
+  {
+    "name": "Unpaid Accrued expence USD",
+    "nameAr": "مصروفات مستحقة وغير مدفوعة بدولار أميركي",
+    "nameTr": "Ödenmemiş Birikmiş Giderler USD",
+    "code": "3.4.1.3",
+    "depreciationAccount": "",
+    "accountType": "currentLiabilities",
+    "description": "",
+    "parentCode": "3.4.1",
+    "accountCategory": "",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "Unpaid Accrued expence SYP",
+    "nameAr": "مصروفات مستحقة وغير مدفوعة بليرة سورية",
+    "nameTr": "",
+    "code": "3.4.1.4",
+    "depreciationAccount": "",
+    "accountType": "currentLiabilities",
+    "description": "",
+    "parentCode": "3.4.1",
+    "accountCategory": "",
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "credit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  },
+  {
+    "name": "SYP Cash NEW",
+    "nameAr": "النقد سوري عملة جديدة",
+    "nameTr": "",
+    "code": "1.11.1.1.5",
+    "depreciationAccount": "",
+    "accountType": "currentAsset",
+    "description": "",
+
+    "parentCode": "1.11.1.1",
+    "accountCategory": "",
+
+    "creditor": 0,
+    "debtor": 0,
+    "balanceType": "debit",
+    "sync": false,
+    "finalAccount": "Balance Sheet"
+  }
+]
