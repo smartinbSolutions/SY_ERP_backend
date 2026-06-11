@@ -83,7 +83,8 @@ const asyncHandler = require("express-async-handler");
 //   });
 // });
 exports.getClosingReports = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate, finalAccount } = req.query;
+  const { startDate, endDate, finalAccount } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId || !startDate || !endDate) {
     return res
@@ -153,7 +154,7 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
 
     journals.forEach((journal) => {
       const journalAccountsFiltered = journal.journalAccounts.filter((ja) =>
-        accountIds.includes(ja.id)
+        accountIds.includes(ja.id),
       );
 
       journalAccountsFiltered.forEach((ja) => {
@@ -179,7 +180,8 @@ exports.getClosingReports = asyncHandler(async (req, res) => {
   });
 });
 exports.createClosingReports = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate, finalAccount } = req.query;
+  const { startDate, endDate, finalAccount } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId || !startDate || !endDate) {
     return res

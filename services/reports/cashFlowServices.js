@@ -4,16 +4,17 @@ const accountingTreeModel = require("../../models/accountingTreeModel");
 const journalEntryModel = require("../../models/journalEntryModel");
 
 exports.CashFlowReports = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate } = req.query;
+  const { startDate, endDate } = req.query;
+  const companyId = req.companyId;
 
   /* get All Cash Accounts */
   const cashAccounts = await accountingTreeModel
     .find({
       companyId,
       _id: {
-        $in: (
-          await financialFundsModel.find({ companyId }).lean()
-        ).map((fund) => fund.linkAccount),
+        $in: (await financialFundsModel.find({ companyId }).lean()).map(
+          (fund) => fund.linkAccount,
+        ),
       },
     })
     .sort({ code: 1 })
@@ -24,10 +25,10 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
       companyId,
       accountType: {
         $in: [
-          "Operating Expenses",
-          "Non Operating Expenses",
-          "Current Asset",
-          "Current Liabilities",
+          "operatingExpenses",
+          "nonOperatingExpenses",
+          "currentAsset",
+          "currentLiabilities",
         ],
       },
       accountCategory: "operating",
@@ -38,7 +39,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
   const investingAccounts = await accountingTreeModel
     .find({
       companyId,
-      accountType: ["Fixed Assets"],
+      accountType: ["fixedAsset"],
       accountCategory: "investing",
     })
     .lean();
@@ -46,7 +47,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
   const financingAccounts = await accountingTreeModel
     .find({
       companyId,
-      accountType: ["Non-Current Liabilities", "Equity", "Current Asset"],
+      accountType: ["nonCurrentLiabilities", "equity", "currentAsset"],
       accountCategory: "financing",
     })
     .lean();
@@ -118,10 +119,10 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
   }));
 
   const operatingTypes = [
-    "Current Asset",
-    "Current Liabilities",
-    "Operating Expenses",
-    "Non Operating Expenses",
+    "currentAsset",
+    "currentLiabilities",
+    "operatingExpenses",
+    "nonOperatingExpenses",
   ];
 
   const operatingReport = {};
@@ -137,7 +138,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     const total = currentData.reduce((s, a) => s + a.balance, 0);
     const previousTotal = currentData.reduce(
       (s, a) => s + a.previousBalance,
-      0
+      0,
     );
     operatingReport[section] = {
       total,
@@ -146,7 +147,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     };
   });
 
-  const investingTypes = ["Fixed Assets"];
+  const investingTypes = ["fixedAsset"];
   const investingReport = {};
 
   investingTypes.forEach((section) => {
@@ -161,7 +162,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     const total = currentData.reduce((s, a) => s + a.balance, 0);
     const previousTotal = currentData.reduce(
       (s, a) => s + a.previousBalance,
-      0
+      0,
     );
 
     investingReport[section] = {
@@ -171,7 +172,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     };
   });
 
-  const financingTypes = ["Non-Current Liabilities", "Equity", "Current Asset"];
+  const financingTypes = ["nonCurrentLiabilities", "equity", "currentAsset"];
   const financingReport = {};
 
   financingTypes.forEach((section) => {
@@ -186,7 +187,7 @@ exports.CashFlowReports = asyncHandler(async (req, res) => {
     const total = currentData.reduce((s, a) => s + a.balance, 0);
     const previousTotal = currentData.reduce(
       (s, a) => s + a.previousBalance,
-      0
+      0,
     );
 
     financingReport[section] = {

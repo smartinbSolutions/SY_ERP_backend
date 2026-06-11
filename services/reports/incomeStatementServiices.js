@@ -3,7 +3,8 @@ const accountingTreeModel = require("../../models/accountingTreeModel");
 const journalEntryModel = require("../../models/journalEntryModel");
 
 exports.getIncomeStatement = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate } = req.query;
+  const { startDate, endDate } = req.query;
+  const companyId = req.companyId;
 
   const accounts = await accountingTreeModel
     .find({ companyId })
@@ -86,17 +87,17 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
   };
 
   const incomeSections = [
-    "Revenue",
-    "Contra-Revenue",
-    "Cost of Good Sold",
-    "Operating Expenses",
-    "Non Operating Expenses",
-    "Non Operating income",
-    "Non Operating Expenses/income",
-    "Non Operating Expenses - Tax",
-    "Intercompany and related party income and expense",
-    "Intercompany and related party expenses",
-    "Intercompany and related party income",
+    "revenue",
+    "contraRevenue",
+    "costOfGoodsSold",
+    "operatingExpenses",
+    "nonOperatingExpenses",
+    "nonOperatingIncome",
+    "nonOperatingExpenses/income",
+    "nonOperatingExpensesTax",
+    "intercompanyAndRelatedPartyIncomeAndExpense",
+    "intercompanyAndRelatedPartyExpenses",
+    "intercompanyAndRelatedPartyIncome",
   ];
 
   const report = {};
@@ -105,13 +106,13 @@ exports.getIncomeStatement = asyncHandler(async (req, res) => {
     const mainAccounts = rootAccounts.filter(
       (acc) =>
         acc.accountType &&
-        acc.accountType.toLowerCase() === section.toLowerCase()
+        acc.accountType.toLowerCase() === section.toLowerCase(),
     );
 
     const sectionData = mainAccounts.map(calculateTreeBalances);
     const sectionTotal = sectionData.reduce(
       (sum, acc) => sum + (acc.totalBalance || 0),
-      0
+      0,
     );
 
     report[section] = { total: sectionTotal, accounts: sectionData };

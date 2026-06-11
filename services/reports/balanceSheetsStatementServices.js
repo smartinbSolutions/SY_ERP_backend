@@ -3,8 +3,8 @@ const accountingTreeModel = require("../../models/accountingTreeModel");
 const journalEntryModel = require("../../models/journalEntryModel");
 
 exports.getBalanceSheetsStatement = asyncHandler(async (req, res) => {
-  const { companyId, startDate, endDate } = req.query;
-
+  const { startDate, endDate } = req.query;
+  const companyId = req.companyId;
   const accounts = await accountingTreeModel
     .find({ companyId })
     .sort({ code: 1 })
@@ -85,14 +85,14 @@ exports.getBalanceSheetsStatement = asyncHandler(async (req, res) => {
   };
 
   const incomeSections = [
-    "Fixed Assets",
-    "Financial Assets",
-    "Current Asset",
-    "Intercompany and related party assets",
-    "Equity",
-    "Current Liabilities",
-    "Non-Current Liabilities",
-    "Intercompany and related party liabilities",
+    "fixedAsset",
+    "financialAssets",
+    "currentAsset",
+    "intercompanyAndRelatedPartyAssets",
+    "equity",
+    "currentLiabilities",
+    "nonCurrentLiabilities",
+    "intercompanyAndRelatedPartyLiabilities",
   ];
 
   const report = {};
@@ -101,13 +101,13 @@ exports.getBalanceSheetsStatement = asyncHandler(async (req, res) => {
     const mainAccounts = rootAccounts.filter(
       (acc) =>
         acc.accountType &&
-        acc.accountType.toLowerCase() === section.toLowerCase()
+        acc.accountType.toLowerCase() === section.toLowerCase(),
     );
 
     const sectionData = mainAccounts.map(calculateTreeBalances);
     const sectionTotal = sectionData.reduce(
       (sum, acc) => sum + (acc.totalBalance || 0),
-      0
+      0,
     );
 
     report[section] = { total: sectionTotal, accounts: sectionData };

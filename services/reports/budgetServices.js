@@ -22,8 +22,8 @@ exports.createbudgetReport = asyncHandler(async (req, res) => {
 });
 
 exports.getAccountForbudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId, type } = req.query;
-
+  const { type } = req.query;
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -54,7 +54,8 @@ exports.getAccountForbudgetReport = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllbudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId, budgetCategory } = req.query;
+  const { budgetCategory } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -103,7 +104,7 @@ exports.getAllbudgetReport = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOneBudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -120,8 +121,7 @@ exports.getOneBudgetReport = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
-
+  const companyId = req.companyId;
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -157,7 +157,7 @@ exports.updateBudgetReport = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateBudgetReportsStatus = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -285,9 +285,9 @@ exports.relocateBudget = asyncHandler(async (req, res) => {
 });
 
 exports.getMonthJornal = asyncHandler(async (req, res) => {
-  const { companyId, year } = req.query;
+  const { year } = req.query;
   const budgetId = req.params.id;
-
+  const companyId = req.companyId;
   if (!companyId || !year) {
     return res.status(400).json({ message: "companyId and year are required" });
   }
