@@ -29,8 +29,16 @@ const advanceLogSchema = new mongoose.Schema(
       index: true,
     },
 
+    // ✅ FIXED: repayment fully defined
+    repayment: {
+      firstDeductionDate: {
+        type: Date,
+        default: null,
+      },
+    },
+
     // =========================
-    // RULE SNAPSHOT (SYSTEM STATE)
+    // RULE SNAPSHOT
     // =========================
     ruleSnapshot: {
       typeKey: String,
@@ -42,43 +50,16 @@ const advanceLogSchema = new mongoose.Schema(
     },
 
     // =========================
-    // CALCULATION (ACTUAL RESULT)
+    // CALCULATION
     // =========================
     calculation: {
-      requestedAmount: {
-        type: Number,
-        default: 0,
-      },
-
-      approvedAmount: {
-        type: Number,
-        default: 0,
-      },
-
-      salarySnapshot: {
-        type: Number,
-        default: 0,
-      },
-
-      appliedPercentageOfSalary: {
-        type: Number,
-        default: 0,
-      },
-
-      installments: {
-        type: Number,
-        default: null,
-      },
-
-      installmentAmount: {
-        type: Number,
-        default: null,
-      },
-
-      remainingAfterApproval: {
-        type: Number,
-        default: 0,
-      },
+      requestedAmount: { type: Number, default: 0 },
+      approvedAmount: { type: Number, default: 0 },
+      salarySnapshot: { type: Number, default: 0 },
+      appliedPercentageOfSalary: { type: Number, default: 0 },
+      installments: { type: Number, default: null },
+      installmentAmount: { type: Number, default: null },
+      remainingAfterApproval: { type: Number, default: 0 },
     },
 
     approvedBy: {
@@ -95,6 +76,12 @@ const advanceLogSchema = new mongoose.Schema(
     managerComment: {
       type: String,
       trim: true,
+    },
+
+    // ⚠️ IMPORTANT FIX (engine expects it)
+    shouldDeduct: {
+      type: Boolean,
+      default: true,
     },
   },
   {

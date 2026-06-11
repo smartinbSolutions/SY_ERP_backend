@@ -1,26 +1,25 @@
 const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
 /**
- * 1. فلترة السلف ضمن فترة الرواتب
+ * فلترة السلف حسب الفترة
  */
 function filterAdvancesByPeriod(advances, period) {
-  const start = new Date(period.startDate);
   const end = new Date(period.endDate);
 
   return (advances || []).filter((a) => {
-    const approved = new Date(a.approvedAt);
-    return approved >= start && approved <= end;
+    const approvedAt = new Date(a.approvedAt);
+    return approvedAt <= end;
   });
 }
 
 /**
- * 2. إزالة التكرار (مهم جداً لمنع double deduction)
+ * إزالة التكرار (نفس الطلب لا يتكرر داخل payroll)
  */
 function uniqueAdvances(advances) {
   const map = new Map();
 
   for (const a of advances) {
-    const key = `${a.userId}-${a.advanceTypeId}`;
+    const key = `${a.userId}-${a.advanceRequestId}`;
 
     if (!map.has(key)) {
       map.set(key, a);
@@ -30,103 +29,120 @@ function uniqueAdvances(advances) {
   return Array.from(map.values());
 }
 
-/**
- * 3. حساب السلف
- * ⚠️ هنا أهم نقطة: لا يوجد amount في الداتا → لازم policy
- */
-function computeAdvances(advances, employee) {
-  const ADVANCE_DEFAULT_AMOUNT = 100; // fallback آمن
 
-  const breakdown = advances.map((a) => {
-    const amount = a.amount || ADVANCE_DEFAULT_AMOUNT;
+function shouldDeduct(advance, period) {
+  const firstDate = advance?.firstDeductionDate;
 
-    return {
-      advanceTypeId: a.advanceTypeId,
-      amount,
-    };
-  });
+  if (!firstDate) return true;
 
-  const totalAmount = breakdown.reduce((sum, x) => sum + x.amount, 0);
+  return new Date(period.startDate) >= new Date(firstDate);
+}
 
-  return {
-    breakdown,
-    totalAmount,
-  };
+
+function getInstallmentAmount(advance) {
+  // الحالة 1: موجودة مباشرة من aggregation
+  if (advance?.installmentAmount) {
+    return advance.installmentAmount;
+  }
+
+  // الحالة 2: fallback
+  if (advance?.approvedAmount && advance?.installments) {
+    return advance.approvedAmount / advance.installments;
+  }
+
+  return 0;
 }
 
 /**
- * 4. MAIN FUNCTION
+ * MAIN ADVANCE CALCULATION ENGINE
  */
-exports.CalculateAdvances = async ({
-  employee,
-  advances,
-  period,
-  payroll,
-}) => {
+exports.CalculateAdvances = async ({ employee, advances, period, payroll }) => {
   try {
+    console.log("\n===== ADVANCE ENGINE START =====");
+    console.log("Employee ID:", employee?._id);
+    console.log("Advances input:", advances?.length || 0);
+    console.log("Period:", period);
+
     // =========================
-    // 1. FILTER
+    // 1. FILTER BY PERIOD
     // =========================
     const filtered = filterAdvancesByPeriod(advances, period);
+    console.log("After filter:", filtered.length);
 
     // =========================
-    // 2. UNIQUE
+    // 2. REMOVE DUPLICATES
     // =========================
     const unique = uniqueAdvances(filtered);
+    console.log("After dedup:", unique.length);
+
+    let totalDeduction = 0;
+    const createdLines = [];
 
     // =========================
-    // 3. CALCULATION
+    // 3. LOOP ADVANCES
     // =========================
-    const result = computeAdvances(unique, employee);
+    for (const advance of unique) {
+      const installmentAmount = getInstallmentAmount(advance);
+      const allowDeduction = shouldDeduct(advance, period);
 
-    // إذا لا يوجد سلف
-    if (!unique.length) {
-      return {
-        success: true,
-        result: {
-          totalAmount: 0,
-          breakdown: [],
-        },
-        linePayload: null,
+      console.log("\n--- ADVANCE ITEM ---");
+      console.log("userId:", advance?.userId);
+      console.log("requestId:", advance?.advanceRequestId);
+      console.log("approvedAt:", advance?.approvedAt);
+      console.log("installmentAmount:", installmentAmount);
+      console.log("shouldDeduct:", allowDeduction);
+
+      // =========================
+      // ELIGIBILITY CHECK
+      // =========================
+      if (!allowDeduction) continue;
+      if (!installmentAmount || installmentAmount <= 0) continue;
+
+      // =========================
+      // CREATE PAYROLL LINE
+      // =========================
+      const linePayload = {
+        payrollPeriodId: period._id,
+        payrollEmployeeId: payroll._id,
+        employeeId: employee._id,
+
+        category: "deduction",
+        type: "advance_installment",
+        label: "advance_installment",
+
+        quantity: 1,
+        unit: "installment",
+
+        rate: installmentAmount,
+        amount: installmentAmount,
+
+        sourceType: "advance",
+        sourceId: advance._id,
+        sourceRef: advance.advanceRequestId,
+        isSystemGenerated: true,
+        status: "success",
       };
+
+      const created = await PayrollEmployeeLine.create(linePayload);
+
+      createdLines.push(created);
+      totalDeduction += installmentAmount;
     }
 
-    // =========================
-    // 4. LINE PAYLOAD
-    // =========================
-    const linePayload = {
-      payrollPeriodId: period._id,
-      payrollEmployeeId: payroll._id,
-      employeeId: employee._id,
-
-      category: "deduction",
-      type: "loan_installment",
-      label: "advances",
-
-      quantity: unique.length,
-      unit: "fixed",
-      rate: null,
-
-      amount: result.totalAmount,
-
-      sourceType: "loan",
-      isSystemGenerated: true,
-
-      status: "success",
-    };
-
-    const createdLine = await PayrollEmployeeLine.create(linePayload);
+    console.log("\n===== ADVANCE ENGINE END =====");
+    console.log("Total deduction:", totalDeduction);
+    console.log("Lines:", createdLines.length);
 
     return {
       success: true,
-      result,
-      linePayload: createdLine,
+      amount: totalDeduction,
+      linesCount: createdLines.length,
+      lines: createdLines,
     };
   } catch (err) {
-    // =========================
-    // 5. FAILURE LINE
-    // =========================
-    const failureLine = {
+    console.log("ADVANCE ENGINE ERROR:", err.message);
+
+    const failureLine = await PayrollEmployeeLine.create({
       payrollPeriodId: period._id,
       payrollEmployeeId: payroll._id,
       employeeId: employee._id,
@@ -136,20 +152,17 @@ exports.CalculateAdvances = async ({
       label: "advances_failed",
 
       amount: 0,
-
       status: "failed",
       errorMessage: err.message,
 
       isSystemGenerated: true,
-    };
-
-    const createdFailure = await PayrollEmployeeLine.create(failureLine);
+    });
 
     return {
       success: false,
-      result: null,
-      linePayload: createdFailure,
+      amount: 0,
       error: err.message,
+      line: failureLine,
     };
   }
 };

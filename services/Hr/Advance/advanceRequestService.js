@@ -128,7 +128,7 @@ exports.handleApprovalTransaction = async (
     console.log("⚙️ Action:", action);
 
     // =========================
-    // STEP 1: HANDLE APPROVAL FLOW
+    // STEP 1: APPROVAL ENGINE
     // =========================
     const updatedRequest = await handleApproval(
       request,
@@ -192,10 +192,12 @@ exports.handleApprovalTransaction = async (
     const appliedPercentageOfSalary =
       salarySnapshot > 0 ? (approvedAmount / salarySnapshot) * 100 : 0;
 
-    const installments = freshRequest.installments || null;
+    const installments = advanceType.allowInstallments
+      ? freshRequest.installments || 0
+      : 0;
 
     const installmentAmount =
-      installments && installments > 0 ? approvedAmount / installments : null;
+      installments > 0 ? approvedAmount / installments : null;
 
     const calculation = {
       requestedAmount,
@@ -210,11 +212,26 @@ exports.handleApprovalTransaction = async (
     console.log("📊 Calculation:", calculation);
 
     // =========================
-    // STEP 6: CREATE LOG (FIXED)
+    // STEP 6: CREATE LOG
     // =========================
     if (freshRequest.status === "approved") {
       console.log("✅ FINAL APPROVAL → creating log");
 
+      // -------------------------
+      // NEW: determine first deduction date
+      // -------------------------
+      const nextPeriod = await payrollPeriodModel
+        .findOne({
+          payrollGroupId: employee.payrollGroupId,
+          companyId: freshRequest.companyId,
+          startDate: { $gt: freshRequest.approvedAt },
+        })
+        .sort({ startDate: 1 });
+
+      const firstDeductionDate =
+        nextPeriod?.startDate || freshRequest.approvedAt;
+
+      // ensure approvedAt exists
       if (!freshRequest.approvedAt) {
         freshRequest.approvedAt = new Date();
       }
@@ -227,7 +244,12 @@ exports.handleApprovalTransaction = async (
 
         ruleSnapshot,
 
-        calculation, // 🔥 FIX: THIS WAS MISSING BEFORE
+        calculation,
+
+        // NEW FIELD
+        repayment: {
+          firstDeductionDate,
+        },
 
         approvedBy: userId,
         approvedAt: freshRequest.approvedAt,
