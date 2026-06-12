@@ -285,10 +285,11 @@ exports.cancelPaymentService = async ({
     paymentInFundCurrency: amountFund,
     paymentId: payment._id,
     refId: payment._id,
+    refType: "payment",
+    source: "payment",
     date: cancelDate,
     description: `payment ${payment.counter} has been cancelled for ${reason}`,
     effectSide: isOutgoing ? "destination" : "source",
-    sourceExchangeRate: 1,
     paymentNature: payment.paymentNature,
     session,
   });
