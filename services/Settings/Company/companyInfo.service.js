@@ -270,8 +270,8 @@ exports.creaeteAccountingTreeService = async ({
 
     accounts = bigAccountingTree.map((item) => ({
       ...item,
-      companyId,
       currency: currency._id,
+      companyId,
     }));
   } else return true;
 

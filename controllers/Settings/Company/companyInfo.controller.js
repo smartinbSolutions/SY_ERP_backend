@@ -56,7 +56,7 @@ exports.createCompanyInfo = asyncHandler(async (req, res) => {
       session,
       companyId: result.companyInfo._id,
       body: req.body,
-      currency: result.currency,
+      currency: result.currency[0],
     });
     await session.commitTransaction();
     session.endSession();
