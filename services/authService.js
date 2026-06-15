@@ -177,6 +177,23 @@ exports.checkCompanyEditable = async (req, res, next) => {
   if (!company) {
     return next(new ApiError("Company not found", 404));
   }
+  const now = new Date();
+
+  const subscription = await companySubscriptionModel.findOne({
+    companyId,
+    endDate: { $gte: now },
+  });
+
+  if (!subscription) {
+    return next(
+      new ApiError(
+        "Your subscription has expired. Please renew your subscription.",
+        403,
+      ),
+    );
+  }
+
+  console.log(subscription);
 
   if (company.rollOver) {
     return next(
