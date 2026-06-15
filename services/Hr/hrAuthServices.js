@@ -142,12 +142,13 @@ exports.protectStaff = asyncHandler(async (req, res, next) => {
     // 3️⃣ Check staff existence
     const currentUser = await StaffsModel.findOne({
       _id: decoded.userId,
-      companyId,
+      companyId: decoded.companyId,
     });
 
     if (!currentUser) {
       return next(new ApiError("Staff not found", 404));
     }
+    req.companyId = decoded.companyId;
 
     // 4️⃣ Attach staff to request
     req.user = currentUser;
