@@ -112,11 +112,11 @@ exports.hrSignOut = asyncHandler(async (req, res, next) => {
 });
 
 exports.protectStaff = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+  // const companyId = req.companyId;
 
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
+  // if (!companyId) {
+  //   return next(new ApiError("companyId is required", 400));
+  // }
 
   let token;
   if (
@@ -288,7 +288,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const staff = await staffModel.findOne({ email });
   if (!staff) {
     return next(
-      new ApiError(`There is no staff with this email address ${email}`, 404),
+      new ApiError(`There is no staff with this email address ${email}`, 404)
     );
   }
 
@@ -324,8 +324,8 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         "There was an error sending the email. Try again later!",
-        500,
-      ),
+        500
+      )
     );
   }
 });
@@ -352,7 +352,7 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
 
   const isResetCodeValid = await bcrypt.compare(
     resetCode,
-    staff.passwordResetCode,
+    staff.passwordResetCode
   );
 
   if (!isResetCodeValid) {
@@ -384,8 +384,8 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         `There is no staff with this email address ${req.body.email}`,
-        404,
-      ),
+        404
+      )
     );
   }
   if (!staff.resetCodeVerified) {
