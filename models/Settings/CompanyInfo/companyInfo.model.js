@@ -19,7 +19,6 @@ const companyInfoSchema = new mongoose.Schema(
       match: [/^\S+@\S+\.\S+$/, "Invalid email"],
     },
     companyTel: String,
-    turkcellApiKey: String,
 
     companyLogo: {
       type: String,

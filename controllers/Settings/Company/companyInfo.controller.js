@@ -172,40 +172,64 @@ exports.updateCompanySetting = asyncHandler(async (req, res) => {
 
 // Have to Start after
 
-// exports.rollover = asyncHandler(async (req, res, next) => {
-//   const { companyId } = req.query;
+exports.rollover = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
 
-//   const {
-//     endDate: endDates,
-//     startDate: startDates,
-//     manualJournal,
-//     priceMethod,
-//     profitloseAccounts,
-//     type,
-//   } = req.body;
+  if (!req.body.endDate || !req.body.startDate) {
+    throw new ApiError(
+      "Journal date and price method are required to continue rollover",
+      400,
+    );
+  }
+  try {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    //Data
+    const newCompanyInfo = await companyInfoService.rolloverService({
+      companyId,
+      session,
+      body: req.body,
+    });
+    const BeginningInvoice = await companyInfoService.BeginningInvoiceService({
+      companyId,
+      newCompanyId: newCompanyInfo.newCompanyId,
+      session,
+      newStocks: newCompanyInfo.newStocks,
+      date: newCompanyInfo.date,
+      counter: newCompanyInfo.counter,
+      units: newCompanyInfo.units,
+      newunits: newCompanyInfo.newunits,
+      priceMethod: newCompanyInfo.priceMethod,
+      manualJournal: newCompanyInfo.manualJournal,
+      categoryMap: newCompanyInfo.categoryMap,
+      unitMap: newCompanyInfo.unitMap,
+      taxMap: newCompanyInfo.taxMap,
+      currencyMap: newCompanyInfo.currencyMap,
+      brandMap: newCompanyInfo.brandMap,
+    });
 
-//   if (!endDates || !startDates) {
-//     throw new ApiError(
-//       "Journal date and price method are required to continue rollover",
-//       400,
-//     );
-//   }
-//   try {
-//     const session = await mongoose.startSession();
-//     session.startTransaction();
-//     //Data
+    await companyInfoService.openingInventoryRolloverService({
+      products: BeginningInvoice.products,
+      newCompanyId: newCompanyInfo.newCompanyId,
+      session,
+      newStocks: newCompanyInfo.newStocks,
+      date: newCompanyInfo.date,
+      counter: newCompanyInfo.counter,
+      priceMethod: newCompanyInfo.priceMethod,
+      manualJournal: newCompanyInfo.manualJournal,
+    });
 
-//     await session.commitTransaction();
-//     session.endSession();
+    await session.commitTransaction();
+    session.endSession();
 
-//     res.status(201).json({
-//       status: true,
-//       message: "Rollover completed successfully",
-//       data: newCompanyInfo[0],
-//     });
-//   } catch (error) {
-//     await session.abortTransaction();
-//     session.endSession();
-//     next(error);
-//   }
-// });
+    res.status(201).json({
+      status: true,
+      message: "Rollover completed successfully",
+      data: newCompanyInfo[0],
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
+  }
+});
