@@ -1,6 +1,7 @@
 const tagService = require("../../../services/Settings/Definition/tag.service");
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
+const { default: slugify } = require("slugify");
 
 exports.getTags = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
@@ -43,6 +44,7 @@ exports.createTag = asyncHandler(async (req, res) => {
   }
   const session = await mongoose.startSession();
   session.startTransaction();
+  req.body.slug = slugify(req.body.name);
   const result = await tagService.createTag({
     companyId,
     data: req.body,

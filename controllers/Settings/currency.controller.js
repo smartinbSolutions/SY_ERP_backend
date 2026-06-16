@@ -59,19 +59,27 @@ exports.updateCurrency = asyncHandler(async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  const currency = await currencyService.updateCurrencyService({
-    currencyId: id,
-    companyId,
-    updateData: req.body,
-    session,
-    user: req.user,
-  });
-  await session.abortTransaction();
-  session.endSession();
-  res.status(200).json({
-    status: true,
-    data: currency,
-  });
+  try {
+    const currency = await currencyService.updateCurrencyService({
+      id,
+      companyId,
+      body: req.body,
+      session,
+      user: req.user,
+    });
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      status: true,
+      data: currency,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 });
 
 exports.deleteCurrency = asyncHandler(async (req, res) => {

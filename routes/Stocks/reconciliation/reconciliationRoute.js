@@ -15,8 +15,8 @@ const authService = require("../../../services/authService");
 const reconciliationRoute = express.Router();
 
 reconciliationRoute.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory"),
 );
 
 // Collection routes

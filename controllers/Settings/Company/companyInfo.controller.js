@@ -50,7 +50,6 @@ exports.createCompanyInfo = asyncHandler(async (req, res) => {
       body: req.body,
       session,
     });
-    console.log(result);
 
     await companyInfoService.creaeteAccountingTreeService({
       session,

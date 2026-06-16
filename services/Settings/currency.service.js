@@ -82,13 +82,12 @@ exports.updateCurrencyService = async ({
     await currencyLogModel.create(
       [
         {
-          currencyId: currency._id,
-          oldRate: oldRate,
-          newRate: newRate,
+          currencyId: existingCurrency._id,
+          oldRate,
+          newRate,
           changeType: "initial",
           updatedBy: user?.name || "system",
           companyId,
-          newRate: body.buyingExchangeRate,
         },
       ],
       { session },

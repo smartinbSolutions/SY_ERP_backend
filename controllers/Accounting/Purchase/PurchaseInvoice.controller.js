@@ -458,7 +458,6 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       invoiceDraft: false,
       ...newPrepared,
       companyId,
-      nextCounterPayment,
       draftJournalSnapshot: null,
       nextCounterPurchaseInvoices: null,
       session,

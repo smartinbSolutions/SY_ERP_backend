@@ -102,11 +102,10 @@ const ensureCompanySetting = async ({ companyId, session }) => {
 const demoFeatureKeys = [
   "accounting",
   "inventory",
-  "sales",
-  "purchases",
   "hr",
-  "crm",
-  "manufacturing",
+  "pos",
+  "resturant",
+  "maintenance",
 ];
 
 const getDemoPricingConfig = () => ({
@@ -123,12 +122,12 @@ const getDemoPricingConfig = () => ({
     starter: {
       name: "Starter",
       priceMonthly: 45,
-      modules: ["accounting", "inventory", "sales"],
+      modules: ["accounting", "inventory", "pos"],
     },
     business: {
       name: "Business",
       priceMonthly: 75,
-      modules: ["accounting", "inventory", "sales", "purchases", "hr"],
+      modules: ["accounting", "inventory", "pos", "maintenance", "hr"],
     },
     complete: {
       name: "Complete",
@@ -720,7 +719,6 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
       await session.commitTransaction();
       session.endSession();
     }
-    console.log(currency);
 
     return {
       companyInfo: mergeCompanyInfoWithSettings(companyInfo, companySetting[0]),

@@ -785,31 +785,10 @@ exports.archiveProduct = asyncHandler(async (req, res, next) => {
       { new: true },
     );
 
-    const movementType = product.archives === "true" ? "out" : "in";
-
-    const savedMovement = await createProductMovement(
-      product._id,
-      product._id,
-      product.quantity,
-      product.quantity,
-      0,
-      0,
-      "movement",
-      movementType,
-      "archive",
-      companyId,
-      "",
-      "",
-      "",
-      product.buyingprice,
-      product.taxPrice,
-    );
-
     res.status(200).json({
       status: "success",
       message: "Product Archived",
       data: updatedProduct,
-      movement: savedMovement,
     });
   } catch (error) {
     return new ApiError(`Error archiving product: ${error.message}`, 500);

@@ -6,7 +6,7 @@ exports.getTags = async ({ companyId }) => {
   const data = await tagModel.find(query).sort({ createdAt: -1 }).lean();
 
   return {
-    data,
+    data: data,
     results: data.length,
   };
 };
@@ -42,7 +42,14 @@ exports.deleteTag = async ({ companyId, id, session }) => {
     err.statusCode = 404;
     throw err;
   }
-
+  const haveParent = await tagModel
+    .findOne({ companyId, parentId: id })
+    .session(session);
+  if (haveParent) {
+    const err = new Error("this is have used");
+    err.statusCode = 404;
+    throw err;
+  }
   await tag.deleteOne({ session });
 
   return tag;

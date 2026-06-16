@@ -226,10 +226,17 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
   const { id } = req.params;
+  const parentCategory = await categoryModel.findOne({ parentCategory: id });
+  if (parentCategory) {
+    return next(
+      new ApiError(`can't delete this Category for this id ${id}`, 404),
+    );
+  }
   const category = await categoryModel.findOneAndDelete({ _id: id, companyId });
   if (!category) {
     return next(new ApiError(`No Category for this id ${id}`, 404));
   }
+
   res.status(200).json({ status: "true", message: "Category Deleted" });
 });
 
