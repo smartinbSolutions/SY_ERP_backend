@@ -10,16 +10,21 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
-  const posted = req.query.posted || false;
+
   try {
     const type = req.params.id;
+
     const filter = type
-      ? { companyId, $or: [{ code: type }, { accountType: type }] }
+      ? {
+          companyId,
+          $or: [{ code: type }, { accountType: type }],
+        }
       : { companyId };
 
-    // Use aggregation pipeline to sort by numeric code safely
     const accounts = await AccountingTree.aggregate([
       { $match: filter },
       {
@@ -43,24 +48,75 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
           as: "currency",
         },
       },
-      { $unwind: { path: "$currency", preserveNullAndEmptyArrays: true } },
+      {
+        $unwind: {
+          path: "$currency",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
     ]);
+
+    const journalSums = await journalEntryModel.aggregate([
+      {
+        $match: {
+          companyId,
+        },
+      },
+      { $unwind: "$journalAccounts" },
+      {
+        $group: {
+          _id: {
+            $toString: "$journalAccounts.id",
+          },
+          totalDebit: {
+            $sum: {
+              $ifNull: ["$journalAccounts.MainDebit", 0],
+            },
+          },
+          totalCredit: {
+            $sum: {
+              $ifNull: ["$journalAccounts.MainCredit", 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const journalMap = new Map(
+      journalSums.map((item) => [
+        item._id,
+        {
+          totalDebit: item.totalDebit,
+          totalCredit: item.totalCredit,
+        },
+      ]),
+    );
+
+    const accountsWithBalance = accounts.map((account) => {
+      const journal = journalMap.get(account._id.toString());
+
+      return {
+        ...account,
+        totalDebit: journal?.totalDebit || 0,
+        totalCredit: journal?.totalCredit || 0,
+      };
+    });
 
     const buildTree = (data, parentCode = null) => {
       return data
         .filter((item) => item.parentCode === parentCode)
-        .map((item) => {
-          const children = buildTree(data, item.code);
-
-          return {
-            ...item,
-            children: children.length > 0 ? children : [],
-          };
-        });
+        .map((item) => ({
+          ...item,
+          children: buildTree(data, item.code),
+        }));
     };
 
-    const treeData = buildTree(accounts);
-    res.status(200).json({ status: "success", data: treeData });
+    const treeData = buildTree(accountsWithBalance);
+
+    res.status(200).json({
+      status: "success",
+      data: treeData,
+    });
   } catch (error) {
     next(error);
   }
