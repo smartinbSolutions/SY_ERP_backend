@@ -53,8 +53,7 @@ const flattenUserForCompany = (user, settings = null) => {
   const userObject = user.toObject ? user.toObject() : user;
   const settingsObject = settings?.toObject ? settings.toObject() : settings;
   const companyData = (userObject.companies || []).find(
-    (company) =>
-      String(company.companyId) === String(settingsObject?.companyId),
+    (company) => String(company.companyId) === String(settingsObject?.companyId)
   );
   const selectedRole = companyData?.roleId || null;
   const active = settingsObject?.active ?? companyData?.active ?? true;
@@ -212,7 +211,7 @@ exports.getUsers = async ({
     flattenUserForCompany(u, {
       ...(settingsMap.get(String(u._id)) || {}),
       companyId,
-    }),
+    })
   );
 
   return { pages: totalPages, results: totalItems, data };
@@ -258,7 +257,7 @@ exports.createUser = async ({ companyId, body }) => {
             ],
           },
         ],
-        { session },
+        { session }
       );
       userDoc = created[0];
 
@@ -271,11 +270,11 @@ exports.createUser = async ({ companyId, body }) => {
             status: "active",
           },
         ],
-        { session },
+        { session }
       );
     } else {
       const existingCompany = findUser.companies?.some(
-        (companyEntry) => String(companyEntry.companyId) === String(companyId),
+        (companyEntry) => String(companyEntry.companyId) === String(companyId)
       );
 
       if (existingCompany) {
@@ -293,7 +292,7 @@ exports.createUser = async ({ companyId, body }) => {
             },
           },
         },
-        { new: true, session },
+        { new: true, session }
       );
 
       await userCompanySettingsModel.updateOne(
@@ -306,7 +305,7 @@ exports.createUser = async ({ companyId, body }) => {
             status: "active",
           },
         },
-        { upsert: true, session },
+        { upsert: true, session }
       );
     }
 
@@ -355,7 +354,7 @@ exports.getUser = async ({ companyId, id }) => {
   }
 
   const companyData = (user.companies || []).find(
-    (c) => String(c.companyId) === String(companyId),
+    (c) => String(c.companyId) === String(companyId)
   );
 
   if (!companyData?.roleId) {
@@ -365,7 +364,7 @@ exports.getUser = async ({ companyId, id }) => {
   const settings = await userCompanySettingsModel
     .findOne({ companyId: String(companyId), userId: user._id })
     .select(
-      "salesPoint selectedQuickActions stocks status active tagIds expenseTagIds purchaseTagIds salesTagIds",
+      "salesPoint selectedQuickActions stocks status active tagIds expenseTagIds purchaseTagIds salesTagIds"
     )
     .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
     .populate("stocks.stockId", "name _id")
@@ -404,7 +403,7 @@ exports.updateUser = async ({ companyId, body, id }) => {
       .findOneAndUpdate(
         { _id: id, "companies.companyId": String(companyId) },
         { $set: userSet },
-        { new: true, session },
+        { new: true, session }
       )
       .populate({ path: "companies.roleId", select: "name _id channels" });
     if (!user) throw new Error("User not found");
@@ -423,7 +422,7 @@ exports.updateUser = async ({ companyId, body, id }) => {
           ...settingsPayload,
         },
       },
-      { upsert: true, new: true, session },
+      { upsert: true, new: true, session }
     );
 
     await session.commitTransaction();
@@ -441,7 +440,7 @@ exports.deleteUser = async ({ id, companyId }) => {
   const settings = await userCompanySettingsModel.findOneAndUpdate(
     { userId: id, companyId },
     [{ $set: { active: { $not: "$active" } } }],
-    { new: true },
+    { new: true }
   );
 
   if (!settings) {
@@ -460,7 +459,7 @@ exports.updateUserPassword = async ({ companyId, id, body }) => {
     },
     {
       new: true,
-    },
+    }
   );
 
   if (!user) {
@@ -471,46 +470,89 @@ exports.updateUserPassword = async ({ companyId, id, body }) => {
 };
 
 exports.reSendPassword = async ({ body, email }) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    //Generate Password
     const userPass = body.password || generatePassword();
-
     const hashedPassword = await bcrypt.hash(userPass, 12);
-    console.log(email);
 
     const user = await usersModel.findOneAndUpdate(
       { email },
       { password: hashedPassword },
-      { new: true },
+      { new: true }
     );
 
     if (!user) {
       throw new ApiError("User not found", 404);
     }
+
     if (!body.password) {
       await sendEmail({
         email: user.email,
-        subject: "Your Account Temporary Password",
+        subject: "🔐 Password Reset - SmartERP",
         message: `
-Dear ${user.name},
-
-A temporary password has been generated for your account.
-
-Temporary Password:
-${userPass}
-
-For security reasons, please log in and change your password immediately.
-
-This is an automated message (noreply@smartinb.com). Please do not reply.
-
-Best regards,
-System Administration
-      `,
+      <!DOCTYPE html>
+      <html>
+      <body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+          <tr>
+            <td align="center">
+              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                
+                <tr>
+                  <td style="background:#1a73e8;padding:32px 40px;text-align:center;">
+                    <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:600;">SmartERP</h1>
+                    <p style="margin:6px 0 0;color:#c8dffe;font-size:13px;">Password Reset</p>
+                  </td>
+                </tr>
+      
+                <tr>
+                  <td style="padding:36px 40px;">
+                    <p style="margin:0 0 8px;font-size:15px;color:#333;">Dear <strong>${
+                      user.name
+                    }</strong>,</p>
+                    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">
+                      Your password has been reset. Use the new password below to log in to your account.
+                    </p>
+      
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                      <tr>
+                        <td style="background:#f0f4ff;border:1px dashed #1a73e8;border-radius:6px;padding:20px;text-align:center;">
+                          <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">New Password</p>
+                          <p style="margin:0;font-size:26px;font-weight:700;color:#1a73e8;letter-spacing:3px;">${userPass}</p>
+                        </td>
+                      </tr>
+                    </table>
+      
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                      <tr>
+                        <td style="background:#fde8e8;border-left:4px solid #e53935;border-radius:4px;padding:14px 16px;">
+                          <p style="margin:0;font-size:13px;color:#a00;">
+                            🔒 If you did not request this reset, contact your administrator immediately.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+      
+                <tr>
+                  <td style="background:#f9f9f9;padding:20px 40px;border-top:1px solid #eee;text-align:center;">
+                    <p style="margin:0;font-size:12px;color:#aaa;">
+                      This is an automated message — please do not reply.<br/>
+                      © ${new Date().getFullYear()} SmartERP · noreply@smartinb.com
+                    </p>
+                  </td>
+                </tr>
+      
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+        `,
       });
     }
+
     return {
       message: "User Update Password",
       data: user,
