@@ -2544,7 +2544,6 @@ const handleCustomerPayment = async (
         .session(session);
 
       if (!customer) throw new Error("Customer not found");
-      console.log("payment", payment);
       const paymentAmountMain = Number(payment.amountMainCurrency || 0);
       const paymentAmountInvoice = Number(payment.amount || 0);
 

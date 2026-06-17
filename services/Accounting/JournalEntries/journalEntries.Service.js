@@ -14,6 +14,7 @@ const customarModel = require("../../../models/Accounting/Sales/customarModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
+const ApiError = require("../../../utils/apiError");
 
 const validateJournalData = ({ journalAccounts, journalDate, journalMeta }) => {
   if (!journalDate) {
@@ -611,7 +612,12 @@ exports.getOneAccountAndJournalService = async ({
   };
 };
 
-exports.openBalanceJournal = async ({ req, companyId, session }) => {
+exports.openBalanceJournal = async ({
+  req,
+  companyId,
+  newJournal,
+  session,
+}) => {
   for (const item of req.body.journalAccounts) {
     const amountMainCurrency = (item.MainDebit || 0) - (item.MainCredit || 0);
     console.log(req.body.journalAccounts);
@@ -685,7 +691,7 @@ exports.openBalanceJournal = async ({ req, companyId, session }) => {
         session,
       });
     } else if (item.party === "Funds") {
-      const total = (item.MainDebit || 0) - (item.MainCredit || 0);
+      const total = (item.accountDebit || 0) - (item.accountCredit || 0);
 
       const fundsData = await financialFundsModel.findOneAndUpdate(
         { _id: item.partyId, companyId },
@@ -702,11 +708,16 @@ exports.openBalanceJournal = async ({ req, companyId, session }) => {
         [
           {
             date: journalDate,
-            amount: total,
-            type: "Opening Balance",
+            amount: Math.abs(total),
+            direction: total > 0 ? "in" : "out",
+            source: "opening_balance",
+            refType: "manual",
+            refId: newJournal._id,
+            payment: undefined,
             financialFundId: fundsData._id,
-            financialFundRest: total,
-            paymentType: total >= 0 ? "Deposit" : "Withdrawal",
+            financialFundRest: fundsData.fundBalance,
+            description: item.description,
+            createdBy: req.user._id,
             companyId,
           },
         ],

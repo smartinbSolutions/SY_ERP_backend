@@ -16,6 +16,7 @@ const currencyLogSchema = new mongoose.Schema(
       enum: ["initial", "update", "manual"],
       required: true,
     },
+    currencyId: String,
   },
   { timestamps: true },
 );

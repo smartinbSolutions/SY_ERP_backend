@@ -48,22 +48,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
       ? -Math.abs(Number(fundBalance))
       : Math.abs(Number(fundBalance));
 
-  const fundDocs = await financialFundsModel.create(
-    [
-      {
-        fundName,
-        type,
-        fundCurrency,
-        linkAccount,
-        fundBalance: signedBalance,
-        tags,
-        date: date || new Date(),
-        description,
-        companyId,
-      },
-    ],
-    { session }
-  );
+  const fundDocs = await financialFundsModel.create([req.body], { session });
 
   const fundAndBank = fundDocs[0];
 
@@ -92,7 +77,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     // ── 2b. Journal entry ──────────────────────────────────────────
@@ -101,7 +86,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
       const nextCounterJournal = await counterModel.findOneAndUpdate(
         { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
 
       await createJournalEntryService({
@@ -159,7 +144,7 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
   const fund = await financialFundsModel.findOneAndUpdate(
     { _id: fundId, companyId },
     { $inc: { fundBalance: delta } },
-    { new: true, session }
+    { new: true, session },
   );
 
   if (!fund) throw new Error("Fund not found");
@@ -182,14 +167,14 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   // ── 3. Save the journal ─────────────────────────────────────────
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
   console.log("nextCounterJournal", nextCounterJournal);
   await createJournalEntryService({
@@ -251,7 +236,7 @@ exports.updateFundAndBankService = async ({ req, companyId, session }) => {
         companyId,
       },
       req.body,
-      { new: true }
+      { new: true },
     )
     .session(session);
 
@@ -272,7 +257,7 @@ exports.deleteFundAndBankService = async ({ req, companyId, session }) => {
     })
     .session(session);
   let fundAndBank;
-  if (ReportsFinancialFunds <= 1) {
+  if (ReportsFinancialFunds <= 0) {
     fundAndBank = await financialFundsModel
       .findOneAndDelete({
         _id: id,
@@ -371,7 +356,7 @@ exports.getFundAndBankForSalesPointService = async ({
           path: "fundCurrency",
           select: "_id currencyCode currencyName exchangeRate",
         });
-    })
+    }),
   );
 
   return funds;

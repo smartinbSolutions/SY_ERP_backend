@@ -123,7 +123,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
     if (req.body.openbalance === "true") {
       req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
 
-      await openBalanceJournal({ req, companyId, session });
+      await openBalanceJournal({ req, companyId, newJournal, session });
     }
     await session.commitTransaction();
 

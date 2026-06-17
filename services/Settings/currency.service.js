@@ -82,7 +82,7 @@ exports.updateCurrencyService = async ({
     await currencyLogModel.create(
       [
         {
-          currencyId: existingCurrency._id,
+          currencyId: id,
           oldRate,
           newRate,
           changeType: "initial",
