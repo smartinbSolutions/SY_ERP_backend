@@ -626,7 +626,7 @@ exports.openBalanceJournal = async ({
       (item.accountDebit || 0) - (item.accountCredit || 0);
 
     const description = req.body.description || "";
-    const journalDate = req.body.journalDate;
+    const journalDate = newJournal.journalDate;
 
     if (item.party === "Customer") {
       await customarModel.findOneAndUpdate(
@@ -691,25 +691,22 @@ exports.openBalanceJournal = async ({
         session,
       });
     } else if (item.party === "Funds") {
-      const total = (item.accountDebit || 0) - (item.accountCredit || 0);
+      const fundsData = await financialFundsModel
+        .findOne({ _id: item.partyId, companyId })
+        .populate("fundCurrency")
+        .session(session);
+      fundsData.fundBalance +=
+        amountMainCurrency * fundsData.fundCurrency.exchangeRate;
 
-      const fundsData = await financialFundsModel.findOneAndUpdate(
-        { _id: item.partyId, companyId },
-        {
-          $inc: { fundBalance: total },
-        },
-        {
-          new: true,
-          session,
-        },
-      );
-
+      await fundsData.save({ session });
       await reportsFinancialFunds.create(
         [
           {
             date: journalDate,
-            amount: Math.abs(total),
-            direction: total > 0 ? "in" : "out",
+            amount: Math.abs(
+              amountMainCurrency * fundsData.fundCurrency.exchangeRate,
+            ),
+            direction: amountMainCurrency > 0 ? "in" : "out",
             source: "opening_balance",
             refType: "manual",
             refId: newJournal._id,
