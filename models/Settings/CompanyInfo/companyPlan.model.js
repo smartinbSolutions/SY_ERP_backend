@@ -35,7 +35,7 @@ const planSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("companyPlan", planSchema);
