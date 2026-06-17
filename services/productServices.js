@@ -971,7 +971,7 @@ exports.importProduct = asyncHandler(async (req, res) => {
 
         currency: currencyMap.get(row.currency),
         category: categoryMap.get(row.category),
-        unit: unitMap.get(row.unit),
+        unit: unitMap.get(row.unitPrice_1_name),
         brand: brandMap.get(row.brand),
         tax: taxMap.get(String(row.tax || 0)),
         type: req.body.type,
