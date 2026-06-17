@@ -6,6 +6,7 @@ const {
   createJournalEntryService,
   getOneJournalByLinkServices,
   getOneAccountAndJournalService,
+  openBalanceJournal,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 const counterModel = require("../../../models/Settings/counterModel");
 const multer = require("multer");
@@ -93,49 +94,6 @@ exports.getOneJournal = asyncHandler(async (req, res, next) => {
   });
 });
 
-// exports.createJournal = asyncHandler(async (req, res, next) => {
-//   const companyId = req.companyId;
-
-//   if (!companyId) {
-//     return res.status(400).json({ message: "companyId is required" });
-//   }
-//   const session = await mongoose.startSession();
-
-//   try {
-//     session.startTransaction();
-//     const nextCounterJournal = await counterModel.findOneAndUpdate(
-//       { companyId, name: "Journal" },
-//       { $inc: { seq: 1 } },
-//       { new: true, upsert: true, session }
-//     );
-
-//     const newJournal = await createJournalEntryService({
-//       req,
-//       companyId,
-//       nextCounterJournal,
-//       session,
-//     });
-
-//     createJournalEntryService({
-//       journalDate: newJournal.journalDate,
-//       journalAccounts: req.body.journalAccounts,
-//       companyId,
-//       session,
-//     });
-//     await session.commitTransaction();
-
-//     res.status(201).json({
-//       status: "true",
-//       data: newJournal,
-//     });
-//   } catch (error) {
-//     await session.abortTransaction();
-//     next(error);
-//   } finally {
-//     session.endSession();
-//   }
-// });
-
 exports.createJournal = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
@@ -162,6 +120,11 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
       session,
     });
 
+    if (req.body.openbalance === "true") {
+      req.body.journalAccounts = JSON.parse(req.body.journalAccounts);
+
+      await openBalanceJournal({ req, companyId, session });
+    }
     await session.commitTransaction();
 
     res.status(201).json({

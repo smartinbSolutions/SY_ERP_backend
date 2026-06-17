@@ -9,6 +9,11 @@ const periodicJournalEntriesModel = require("../../../models/reports/periodicJou
 const returnOrderModel = require("../../../models/Accounting/Sales/refund_sales.model");
 const counterModel = require("../../../models/Settings/counterModel");
 const reconciliationModel = require("../../../models/reconciliationModel");
+const suppliersModel = require("../../../models/Accounting/Purchase/suppliersModel");
+const customarModel = require("../../../models/Accounting/Sales/customarModel");
+const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
+const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
+const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 
 const validateJournalData = ({ journalAccounts, journalDate, journalMeta }) => {
   if (!journalDate) {
@@ -604,4 +609,109 @@ exports.getOneAccountAndJournalService = async ({
     data: account,
     journals: paginatedJournals,
   };
+};
+
+exports.openBalanceJournal = async ({ req, companyId, session }) => {
+  for (const item of req.body.journalAccounts) {
+    const amountMainCurrency = (item.MainDebit || 0) - (item.MainCredit || 0);
+    console.log(req.body.journalAccounts);
+
+    const amountTransactionCurrency =
+      (item.accountDebit || 0) - (item.accountCredit || 0);
+
+    const description = req.body.description || "";
+    const journalDate = req.body.journalDate;
+
+    if (item.party === "Customer") {
+      await customarModel.findOneAndUpdate(
+        {
+          _id: item.partyId,
+          companyId,
+        },
+        {
+          $inc: {
+            total: amountMainCurrency,
+            TotalUnpaid: amountMainCurrency,
+          },
+        },
+        { new: true, session },
+      );
+
+      await createPaymentHistoryV2({
+        companyId,
+        entryType: "payment",
+        transactionDate: journalDate,
+        amountTransactionCurrency,
+        amountMainCurrency,
+        customerId: item.partyId,
+        referenceId: "",
+        sourceModule: "payment",
+        actionType: "create",
+        paymentId: null,
+        balanceEffectType: amountMainCurrency >= 0 ? "Deposit" : "Withdrawal",
+        description,
+        transactionCurrency: item.accountCurrency,
+        session,
+      });
+    } else if (item.party === "Supplier") {
+      await suppliersModel.findOneAndUpdate(
+        {
+          _id: item.partyId,
+          companyId,
+        },
+        {
+          $inc: {
+            total: amountMainCurrency,
+            TotalUnpaid: amountMainCurrency,
+          },
+        },
+        { new: true, session },
+      );
+
+      await createPaymentHistoryV2({
+        companyId,
+        entryType: "payment",
+        transactionDate: journalDate,
+        amountTransactionCurrency,
+        amountMainCurrency,
+        supplierId: item.partyId,
+        referenceId: "",
+        sourceModule: "payment",
+        actionType: "create",
+        paymentId: null,
+        balanceEffectType: amountMainCurrency >= 0 ? "Withdrawal" : "Deposit",
+        description,
+        transactionCurrency: item.accountCurrency,
+        session,
+      });
+    } else if (item.party === "Funds") {
+      const total = (item.MainDebit || 0) - (item.MainCredit || 0);
+
+      const fundsData = await financialFundsModel.findOneAndUpdate(
+        { _id: item.partyId, companyId },
+        {
+          $inc: { fundBalance: total },
+        },
+        {
+          new: true,
+          session,
+        },
+      );
+
+      await reportsFinancialFunds.create(
+        [
+          {
+            date: journalDate,
+            amount: total,
+            type: "Opening Balance",
+            financialFundId: fundsData._id,
+            financialFundRest: total,
+            paymentType: total >= 0 ? "Deposit" : "Withdrawal",
+            companyId,
+          },
+        ],
+        { session },
+      );
+    }
+  }
 };

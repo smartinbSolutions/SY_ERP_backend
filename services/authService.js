@@ -193,8 +193,6 @@ exports.checkCompanyEditable = async (req, res, next) => {
     );
   }
 
-  console.log(subscription);
-
   if (company.rollOver) {
     return next(
       new ApiError(
