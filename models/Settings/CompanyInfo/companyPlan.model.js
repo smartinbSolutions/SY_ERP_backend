@@ -17,6 +17,7 @@ const planSchema = new mongoose.Schema(
       pos: { type: Boolean, default: false },
       resturant: { type: Boolean, default: false },
       maintenance: { type: Boolean, default: false },
+      manufacturing: { type: Boolean, default: false },
     },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
