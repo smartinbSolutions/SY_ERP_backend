@@ -1,22 +1,23 @@
 const asyncHandler = require("express-async-handler");
-const productModel = require("../models/Stocks/products/productModel");
+
 const slugify = require("slugify");
 const multer = require("multer");
-const ApiError = require("../utils/apiError");
+const ApiError = require("../../../utils/apiError");
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const csvtojson = require("csvtojson");
 const xlsx = require("xlsx");
 const { default: mongoose, Types } = require("mongoose");
-const brandModel = require("../models/Settings/Definition/brand.model");
-const UnitsModel = require("../models/Settings/Definition/unit.model");
-const taxModel = require("../models/Settings/Definition/tax.model");
-const currencyModel = require("../models/Settings/currency.model");
-const CategoryModel = require("../models/CategoryModel");
+const brandModel = require("../../../models/Settings/Definition/brand.model");
+const UnitsModel = require("../../../models/Settings/Definition/unit.model");
+const taxModel = require("../../../models/Settings/Definition/tax.model");
+const currencyModel = require("../../../models/Settings/currency.model");
+const CategoryModel = require("../../../models/CategoryModel");
 
-const { createProductMovement } = require("../utils/productMovement");
+const { createProductMovement } = require("../../../utils/productMovement");
 
-const orderModel = require("../models/Accounting/Sales/orderModel");
+const orderModel = require("../../../models/Accounting/Sales/orderModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 
 // @desc Get list product
 // @route Get /api/product

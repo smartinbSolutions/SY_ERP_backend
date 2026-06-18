@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
-const ProductMovement = require("../models/Stocks/products/productMovementModel");
+const ProductMovement = require("../../../models/Stocks/products/productMovementModel");
 const { default: mongoose } = require("mongoose");
-const productModel = require("../models/Stocks/products/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 
 // Get all products movement
 exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {

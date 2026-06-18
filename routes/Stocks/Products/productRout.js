@@ -17,10 +17,10 @@ const {
   generateBarCode,
   importProduct,
   getProductsByType,
-} = require("../services/productServices");
+} = require("../../../services/Stocks/Products/productServices");
 const {
   deleteProductValdiator,
-} = require("../utils/validators/productValidator");
+} = require("../../../utils/validators/productValidator");
 ``;
 const multer = require("multer");
 
@@ -28,7 +28,7 @@ const storage = multer.memoryStorage();
 
 const uploads = multer({ storage: storage });
 
-const authService = require("../services/authService");
+const authService = require("../../../services/authService");
 const {
   getLezyProduct,
   getEcommerceImportProduct,
@@ -41,13 +41,13 @@ const {
   getEcommerceProductFeatured,
   setEcommerceProductSponsored,
   getEcommerceProductSponsored,
-} = require("../services/ecommerce/ecommerceProductService");
+} = require("../../../services/ecommerce/ecommerceProductService");
 
 const productRout = express.Router();
 
 productRout.use(
   authService.protect,
-  authService.checkPlanFeatures("inventory"),
+  authService.checkPlanFeatures("inventory")
 );
 
 productRout.post(
@@ -55,7 +55,7 @@ productRout.post(
   authService.allowedTo("products.create"),
   authService.checkCompanyEditable,
   uploads.single("file"),
-  importProduct,
+  importProduct
 );
 
 productRout
@@ -66,7 +66,7 @@ productRout
     authService.checkCompanyEditable,
     uploadProductImage,
     resizerImage,
-    createProduct,
+    createProduct
   );
 
 productRout
@@ -75,7 +75,7 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    generateBarCode,
+    generateBarCode
   );
 productRout
   .route("/prductsByType")
@@ -97,7 +97,7 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    updateEcommerceProductDeActive,
+    updateEcommerceProductDeActive
   );
 
 productRout
@@ -105,7 +105,7 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    updateEcommerceProducts,
+    updateEcommerceProducts
   );
 
 productRout
@@ -120,7 +120,7 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    setEcommerceProductPublish,
+    setEcommerceProductPublish
   );
 
 productRout
@@ -128,7 +128,7 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    setEcommerceProductFeatured,
+    setEcommerceProductFeatured
   )
   .get(authService.allowedTo("products.read"), getEcommerceProductFeatured);
 
@@ -137,7 +137,7 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    setEcommerceProductSponsored,
+    setEcommerceProductSponsored
   )
   .get(authService.allowedTo("products.read"), getEcommerceProductSponsored);
 productRout
@@ -148,14 +148,14 @@ productRout
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    bulkUpdate,
+    bulkUpdate
   );
 productRout
   .route("/bulk-update-product-info")
   .put(
     authService.allowedTo("products.update"),
     authService.checkCompanyEditable,
-    bulkUpdateProductInfo,
+    bulkUpdateProductInfo
   );
 
 productRout
@@ -166,12 +166,12 @@ productRout
     authService.checkCompanyEditable,
     uploadProductImage,
     resizerImage,
-    updateProduct,
+    updateProduct
   )
   .delete(
     authService.allowedTo("products.archive"),
     authService.checkCompanyEditable,
-    archiveProduct,
+    archiveProduct
   );
 productRout
   .route("/suppliers/:id")

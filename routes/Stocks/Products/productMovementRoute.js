@@ -1,6 +1,6 @@
 const express = require("express");
 
-const authService = require("../services/authService");
+const authService = require("../../../services/authService");
 const {
   getAllProductsMovements,
   getProductMovementByID,
@@ -8,13 +8,13 @@ const {
   getSalesReports,
   getProductCostLedger,
   getProductMovementReport,
-} = require("../services/productMovementServices");
+} = require("../../../services/Stocks/Products/productMovementServices");
 
 const productMovementsRoute = express.Router();
 
 productMovementsRoute.use(
   authService.protect,
-  authService.checkPlanFeatures("inventory"),
+  authService.checkPlanFeatures("inventory")
 );
 productMovementsRoute
   .route("/")
@@ -32,7 +32,7 @@ productMovementsRoute
   .route("/product-reports")
   .get(
     authService.allowedTo("reports_products.read"),
-    getProductMovementReport,
+    getProductMovementReport
   );
 productMovementsRoute
   .route("/:id")
