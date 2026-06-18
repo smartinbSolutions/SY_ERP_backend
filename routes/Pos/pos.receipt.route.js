@@ -7,6 +7,7 @@ const {
   cancelReceipt,
   findReceiptForDate,
   findAllReceiptForSalesPoint,
+  mergeReceipts,
 } = require("../../controllers/Pos/Pos.Receipt.controller");
 const authService = require("../../services/authService");
 
@@ -35,6 +36,10 @@ PosReceiptRoute.route("/cancel_receipt/:id").put(
 PosReceiptRoute.route("/salespoint/:id").get(
   authService.allowedTo("sales.invoice.read"),
   findAllReceiptForSalesPoint,
+);
+PosReceiptRoute.route("/salespoint/:id").get(
+  authService.allowedTo("sales.invoice.read"),
+  mergeReceipts,
 );
 
 PosReceiptRoute.route("/:id").get(

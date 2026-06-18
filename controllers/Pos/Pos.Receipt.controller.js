@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const counterModel = require("../../models/Settings/counterModel");
 const receiptService = require("../../services/Pos/Pos.Receipt.service");
 const receiptModel = require("../../models/Pos/pos.receipt.model");
+const companyInfoModel = require("../../models/Settings/CompanyInfo/companyInfo.model");
 
 exports.createPosReceipt = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -205,4 +206,59 @@ exports.findAllReceiptForSalesPoint = asyncHandler(async (req, res, next) => {
     results: totalItems,
     data: receipt,
   });
+});
+
+exports.mergeReceipts = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+    req.body.employee = req.user.name;
+    req.body.companyId = req.companyId;
+
+    const nextCounterJournal = await counterModel.findOneAndUpdate(
+      { companyId, name: "Journal" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session },
+    );
+    const nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
+      { companyId, name: "Sales Invoice" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session },
+    );
+    const company = await companyInfoModel.findById(companyId);
+
+    const merge = await receiptService.mergeReceiptsService({
+      req,
+      companyId,
+      startDate: req.body.startDate,
+      endDate: req.body.endDate,
+      id: req.body.id,
+      session,
+      company,
+    });
+
+    const newSales = await receiptService.mergeEffectService({
+      receipts: merge.receipts,
+      date: merge.date,
+      counter: merge.counter,
+      salesPoints: merge.salesPoints,
+      session,
+      company,
+    });
+    await session.commitTransaction();
+
+    res.status(201).json({
+      status: "success",
+      data: newSales,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
 });

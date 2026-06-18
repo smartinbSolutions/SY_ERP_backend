@@ -10,6 +10,7 @@ const salesPointModel = require("../../models/salesPointModel");
 const {
   handleFundPaymentEntity,
 } = require("../Accounting/CurrentAssets/Payments/Payment.handlers");
+const { generateCounter } = require("../../utils/counterFormat");
 
 exports.buildTurkeyDate = () => {
   const now = new Date();
@@ -725,4 +726,192 @@ exports.findAllReceiptForSalesPointService = async ({ req, companyId }) => {
   const receipt = await mongooseQuery;
 
   return { totalItems, totalPages, receipt };
+};
+
+exports.mergeReceiptsService = async ({
+  req,
+  companyId,
+  startDate,
+  endDate,
+  id,
+  session,
+  company,
+}) => {
+  const salesPoints = await salesPointModel
+    .findOne({ _id: id, companyId })
+    .populate("salesPointCurrency")
+    .session(session);
+
+  const receipts = await receiptModel
+    .find({
+      createdAt: {
+        $gte: new Date(`${startDate}T00:00:00.000Z`),
+        $lte: new Date(`${endDate}T23:59:59.999Z`),
+      },
+      type: "pos",
+      salesPoint: id,
+      companyId,
+      merged: { $ne: true },
+    })
+    .session(session);
+
+  const { dateFormat, counterFormat } = company.prefix;
+  const counter = generateCounter({
+    dateFormat,
+    counterFormat,
+    date: new Date(),
+  });
+  function padZero(value) {
+    return value < 10 ? `0${value}` : value;
+  }
+  const ts = Date.now();
+  const date_ob = new Date(ts);
+
+  const date = `${date_ob.getFullYear()}-${padZero(
+    date_ob.getMonth() + 1,
+  )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
+    date_ob.getMinutes(),
+  )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
+
+  return {
+    receipts,
+    date,
+    counter,
+    salesPoints,
+  };
+};
+
+exports.mergeEffectService = async ({
+  receipts,
+  date,
+  counter,
+  salesPoints,
+  session,
+  company,
+}) => {
+  const cartItems = [];
+  const fish = [];
+  const taxSummaryMap = new Map();
+  const financialFundsMap = new Map();
+  let totalInMainCurrency = 0,
+    invoiceGrandTotal = 0,
+    invoiceSubTotal = 0,
+    invoiceTax = 0;
+
+  for (const receipt of receipts) {
+    for (const item of receipt.cartItems) {
+      cartItems.push({
+        qr: item.qr,
+        name: item.name,
+        sellingPrice: item.sellingPrice,
+        soldQuantity: item.soldQuantity,
+        orginalBuyingPrice: item.orginalBuyingPrice,
+        convertedBuyingPrice: item.convertedBuyingPrice || 0,
+        total: item.total,
+        totalWithoutTax: item.totalWithoutTax,
+        unit: item.unit,
+        tax: {
+          _id: item.tax._id,
+          tax: item.tax.tax,
+          name: item.tax.name,
+          salesAccountTax: item.tax.salesAccountTax,
+        },
+        discountAmount: item.discountAmount,
+        discountPercentege: item.discountPercentege,
+        taxValue: item.taxValue,
+      });
+
+      fish.push(receipt.counter);
+      receipt.merged = true;
+      await receipt.save();
+    }
+    totalInMainCurrency += receipt.totalInMainCurrency;
+    invoiceGrandTotal += receipt.invoiceGrandTotal;
+    invoiceSubTotal += receipt.invoiceSubTotal;
+    invoiceTax += receipt.invoiceTax;
+
+    if (receipt.taxSummary) {
+      for (const item of receipt.taxSummary) {
+        try {
+          if (taxSummaryMap.has(item.taxId)) {
+            const taxData = taxSummaryMap.get(item.taxId);
+            taxData.totalTaxValue += item.totalTaxValue || 0;
+            taxData.discountTaxValue += item.discountTaxValue || 0;
+          } else {
+            taxSummaryMap.set(item.taxId, {
+              taxId: item.taxId,
+              taxRate: item.taxRate,
+              totalTaxValue: item.totalTaxValue || 0,
+              discountTaxValue: item.discountTaxValue || 0,
+              salesAccountTax: item.salesAccountTax,
+            });
+          }
+        } catch (err) {
+          console.error("Error processing tax summary item:", err);
+        }
+      }
+    }
+    if (receipt.financialFund) {
+      for (const item of receipt.financialFund) {
+        try {
+          if (financialFundsMap.has(item.fundId)) {
+            const fundData = financialFundsMap.get(item.fundId);
+            fundData.allocatedAmount += item.allocatedAmount - item.change || 0;
+          } else {
+            financialFundsMap.set(item.fundId, {
+              id: item.fundId,
+              name: item.fundName,
+              currencyCode: item.currencyCode || 0,
+              exchangeRate: item.exchangeRate || 0,
+              currency: item.currency,
+              currencyID: item.currencyID,
+              allocatedAmount: item.allocatedAmount - item.change,
+            });
+          }
+        } catch (err) {
+          console.error("Error processing tax summary item:", err);
+        }
+      }
+    }
+  }
+
+  const newOrderData = {
+    invoicesItems: cartItems,
+    invoiceGrandTotal: invoiceGrandTotal,
+    orderDate: date,
+    type: "bills",
+    totalInMainCurrency: totalInMainCurrency,
+    counter: counter + nextCounter,
+    paymentsStatus: "paid",
+    invoiceName: `Post-Merged-${nextCounter}`,
+    currency: {
+      id: salesPoints.salesPointCurrency._id,
+      currencyCode: salesPoints.salesPointCurrency.currencyCode,
+      exchangeRate: salesPoints.salesPointCurrency.exchangeRate,
+      currencyAbbr: salesPoints.salesPointCurrency.currencyAbbr,
+      currencyName: salesPoints.salesPointCurrency.currencyName,
+    },
+    exchangeRate: 1,
+    receipts: fish,
+    financailFund: aggregatedFunds,
+    manuallInvoiceDiscountValue: 0,
+    manuallInvoiceDiscount: 0,
+    taxSummary: taxSummary,
+    invoiceSubTotal: invoiceSubTotal,
+    invoiceTax: invoiceTax,
+    discountType: "value",
+    companyId,
+    description: `This invoice was made from date ${startDate} To ${endDate}`,
+  };
+  if (cartItems.length === 0) {
+    return next(
+      new ApiError(
+        "No receipts found in the specified date range or all receipts have already been merged.",
+        400,
+      ),
+    );
+  }
+  const sales = await orderModel.create(newOrderData);
+
+  return sales[0];
 };
