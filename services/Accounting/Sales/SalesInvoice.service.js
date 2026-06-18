@@ -58,16 +58,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -299,7 +299,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session
+    session,
   );
 
   return newSalesInvoice;
@@ -327,7 +327,7 @@ exports.applySalesInventoryEffectsService = async ({
           {
             type: "out",
             name: item.name,
-            quantity: item.quantity,
+            quantity: Number(item.quantity || item.soldQuantity || 0),
             outPrice: item.orginalBuyingPrice,
             totalWithoutTax: item.totalWithoutTax,
             total: item.total,
@@ -338,7 +338,7 @@ exports.applySalesInventoryEffectsService = async ({
             companyId,
           },
         ],
-        { session }
+        { session },
       );
     } else {
       const product = productMap.get(item.id);
@@ -350,7 +350,7 @@ exports.applySalesInventoryEffectsService = async ({
       const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
       const stockRow = (product.stocks || []).find(
-        (s) => String(s.stockId) === String(item.stock._id)
+        (s) => String(s.stockId) === String(item.stock._id),
       );
 
       const oldQty = Number(stockRow?.productQuantity || 0);
@@ -358,7 +358,7 @@ exports.applySalesInventoryEffectsService = async ({
       if (soldQty > oldQty) {
         throw new ApiError(
           `Insufficient stock for product ${product.name}`,
-          400
+          400,
         );
       }
 
@@ -405,7 +405,7 @@ exports.applySalesInventoryEffectsService = async ({
       if (qtyToSell > 0) {
         throw new ApiError(
           `Insufficient stock for product ${product.name}`,
-          400
+          400,
         );
       }
 
@@ -441,7 +441,7 @@ exports.applySalesInventoryEffectsService = async ({
               actionType,
             },
           ],
-          { session }
+          { session },
         );
 
         await createProductMovement({
@@ -563,17 +563,17 @@ exports.debugAndCreateSalesDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -581,7 +581,7 @@ exports.debugAndCreateSalesDraftJournalService = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
 
   // ── Save using same service as purchase ───────────────────────
@@ -649,7 +649,7 @@ exports.updateSalesInvoiceDraftService = async ({
   const invoiceTax = Number(req.body.invoiceTax || 0);
   const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0
+    req.body.ManualInvoiceDiscountValue || 0,
   );
 
   const paid = "unpaid";
@@ -660,7 +660,7 @@ exports.updateSalesInvoiceDraftService = async ({
   console.log(req.body);
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.orderDate,
-    req.body.orderDate
+    req.body.orderDate,
   );
 
   const updatePayload = {
@@ -708,7 +708,7 @@ exports.updateSalesInvoiceDraftService = async ({
     {
       new: true,
       session,
-    }
+    },
   );
 
   await createInvoiceHistory(
@@ -719,7 +719,7 @@ exports.updateSalesInvoiceDraftService = async ({
     normalizedDate,
     "Draft Sales invoice updated",
     "sales",
-    session
+    session,
   );
 
   return invoice;
@@ -748,7 +748,7 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session }
+    { session },
   );
 
   return true;
@@ -771,7 +771,7 @@ exports.reverseSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0
+        0,
     );
 
   const reversalConfig = {
@@ -797,107 +797,127 @@ exports.reverseSalesInventoryEffectsService = async ({
   const bulkProductUpdates = [];
 
   for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
-
-    const product = productMap.get(item.id);
-
-    if (!product) {
-      throw new ApiError(`Product not found for item ${item.name}`, 404);
-    }
-
-    if (!item.stock?._id) {
-      throw new ApiError(`Stock is missing for item ${item.name}`, 400);
-    }
-
-    const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id)
-    );
-
-    if (!stockRow) {
-      throw new ApiError(`Stock row not found for product ${item.name}`, 400);
-    }
-    currentStockQty = Number(stockRow?.productQuantity || 0);
-
-    const reverseQty = Number(item.soldQuantity || 0);
-    bulkProductUpdates.push({
-      updateOne: {
-        filter: {
-          _id: item.id,
-          companyId,
-          "stocks.stockId": item.stock._id,
-        },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": reverseQty,
-          },
-        },
-      },
-    });
-  }
-
-  if (bulkProductUpdates.length > 0) {
-    await productModel.bulkWrite(bulkProductUpdates, { session });
-  }
-
-  for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
-    const product = productMap.get(item.id);
-
-    let reverseQty = Number(item.soldQuantity || 0);
-
-    for (const batchItem of item.batches) {
-      const batch = await prodcutBatchModel
-        .findById(batchItem.id)
-        .session(session);
-
-      if (!batch) {
-        throw new ApiError(`Batch not found ${batchItem.id}`, 404);
-      }
-
-      const qtyToRestore = Number(batchItem.quantity || 0);
-
-      if (qtyToRestore <= 0) continue;
-
-      batch.remaining = Number(batch.remaining || 0) + qtyToRestore;
-
-      batch.status = "active";
-      batch.reversedBy = reversedBy;
-      await batchLedgerModel.create(
+    if (item.type === "expense") continue;
+    else if (item.type === "unTracedproduct") {
+      await unTracedproductLogModel.create(
         [
           {
-            productId: item.id,
+            type: "out",
+            name: item.name,
+            quantity: item.quantity,
+            enterPrice: item.orginalBuyingPrice,
+            totalWithoutTax: item.totalWithoutTax,
+            total: item.total,
+            tax: { _id: item.tax, taxValue: item.taxValue },
+            sourceModule: currentMode.movementSource,
+            reference: purchaseInvoice._id,
+            referenceModel: "purchase",
             companyId,
-            stockId: item.stock?._id,
-            type: "in",
-            quantity: batchItem.quantity,
-            batchId: batch._id,
-            referenceType: "sales",
-            referenceId: salesInvoice._id,
-            movementDate: cancellationDate,
-            actionType: currentMode.actionType,
           },
         ],
-        { session }
+        { session },
+      );
+    } else if (item.type === "product") {
+      const product = productMap.get(item.id);
+
+      if (!product) {
+        throw new ApiError(`Product not found for item ${item.name}`, 404);
+      }
+
+      if (!item.stock?._id) {
+        throw new ApiError(`Stock is missing for item ${item.name}`, 400);
+      }
+
+      const stockRow = (product.stocks || []).find(
+        (s) => String(s.stockId) === String(item.stock._id),
       );
 
-      await batch.save({ session });
+      if (!stockRow) {
+        throw new ApiError(`Stock row not found for product ${item.name}`, 400);
+      }
+      currentStockQty = Number(stockRow?.productQuantity || 0);
 
-      await createProductMovement({
-        productId: item.id,
-        reference: salesInvoice._id,
-        newQuantity: currentStockQty + batchItem.quantity,
-        quantity: batchItem.quantity,
-        movementType: "in",
-        source: currentMode.movementSource,
-        companyId,
-        enterPrice: batch.buyingprice,
-        enterPriceMainCurrency: batch.buyingprice / item.exchangeRate,
-        stockId: item.stock?._id,
-        buyingPrice: item.orginalBuyingPrice,
-        exchangeRate: item.exchangeRate,
-        movementDate: cancellationDate,
-        session,
+      const reverseQty = Number(item.soldQuantity || 0);
+      bulkProductUpdates.push({
+        updateOne: {
+          filter: {
+            _id: item.id,
+            companyId,
+            "stocks.stockId": item.stock._id,
+          },
+          update: {
+            $inc: {
+              "stocks.$.productQuantity": reverseQty,
+            },
+          },
+        },
       });
+    }
+
+    if (bulkProductUpdates.length > 0) {
+      await productModel.bulkWrite(bulkProductUpdates, { session });
+    }
+
+    for (const item of invoicesItem) {
+      if (item.type === "unTracedproduct" || item.type === "expense") continue;
+      const product = productMap.get(item.id);
+
+      let reverseQty = Number(item.soldQuantity || 0);
+
+      for (const batchItem of item.batches) {
+        const batch = await prodcutBatchModel
+          .findById(batchItem.id)
+          .session(session);
+
+        if (!batch) {
+          throw new ApiError(`Batch not found ${batchItem.id}`, 404);
+        }
+
+        const qtyToRestore = Number(batchItem.quantity || 0);
+
+        if (qtyToRestore <= 0) continue;
+
+        batch.remaining = Number(batch.remaining || 0) + qtyToRestore;
+
+        batch.status = "active";
+        batch.reversedBy = reversedBy;
+        await batchLedgerModel.create(
+          [
+            {
+              productId: item.id,
+              companyId,
+              stockId: item.stock?._id,
+              type: "in",
+              quantity: batchItem.quantity,
+              batchId: batch._id,
+              referenceType: "sales",
+              referenceId: salesInvoice._id,
+              movementDate: cancellationDate,
+              actionType: currentMode.actionType,
+            },
+          ],
+          { session },
+        );
+
+        await batch.save({ session });
+
+        await createProductMovement({
+          productId: item.id,
+          reference: salesInvoice._id,
+          newQuantity: currentStockQty + batchItem.quantity,
+          quantity: batchItem.quantity,
+          movementType: "in",
+          source: currentMode.movementSource,
+          companyId,
+          enterPrice: batch.buyingprice,
+          enterPriceMainCurrency: batch.buyingprice / item.exchangeRate,
+          stockId: item.stock?._id,
+          buyingPrice: item.orginalBuyingPrice,
+          exchangeRate: item.exchangeRate,
+          movementDate: cancellationDate,
+          session,
+        });
+      }
     }
   }
 };
@@ -985,7 +1005,7 @@ exports.reverseSalesJournalEffectsService = async ({
   if (!salesInvoice?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on sales invoice",
-      400
+      400,
     );
   }
 
@@ -1043,18 +1063,18 @@ exports.reverseSalesJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
