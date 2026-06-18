@@ -1,7 +1,7 @@
 const currencyModel = require("../../models/Settings/currency.model");
 const currencyLogModel = require("../../models/Settings/currencyLog.model");
 // const productModel = require("../../models/Stocks/Products/product.model");
-const productModel = require("../../models/productModel");
+const productModel = require("../../models/Stocks/products/productModel");
 
 const ApiError = require("../../utils/apiError");
 
@@ -30,7 +30,7 @@ exports.createCurrencyService = async ({ companyId, body, session, user }) => {
         companyId,
       },
     ],
-    { session },
+    { session }
   );
 
   return currency;
@@ -68,14 +68,14 @@ exports.updateCurrencyService = async ({
     await currencyModel.updateMany(
       { companyId, is_primary: true },
       { is_primary: false },
-      { session },
+      { session }
     );
   }
 
   const updatedCurrency = await currencyModel.findOneAndUpdate(
     { _id: id, companyId },
     body,
-    { new: true, session },
+    { new: true, session }
   );
 
   if (newRate !== oldRate) {
@@ -90,7 +90,7 @@ exports.updateCurrencyService = async ({
           companyId,
         },
       ],
-      { session },
+      { session }
     );
   }
 

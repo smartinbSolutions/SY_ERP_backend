@@ -2,7 +2,7 @@ const customarModel = require("../../../models/Accounting/Sales/customarModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
 const paymentModel = require("../../../models/paymentModel");
-const productModel = require("../../../models/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const returnOrderModel = require("../../../models/Accounting/Sales/refund_sales.model");
 const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
@@ -130,16 +130,16 @@ exports.prepareRefundSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -450,7 +450,7 @@ exports.applySalesReturnCartItemEditService = async ({
     const index = salesInvoice.returnCartItem.findIndex((item) =>
       updatedItem.type !== "unTracedproduct"
         ? item.qr === updatedItem.qr
-        : item.name === updatedItem.name,
+        : item.name === updatedItem.name
     );
 
     if (index === -1) continue;
@@ -491,7 +491,7 @@ exports.applyRefundSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0,
+        0
     );
 
   let currentStockQty = 0;
@@ -512,7 +512,7 @@ exports.applyRefundSalesInventoryEffectsService = async ({
     }
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id),
+      (s) => String(s.stockId) === String(item.stock._id)
     );
 
     if (!stockRow) {
@@ -574,7 +574,7 @@ exports.applyRefundSalesInventoryEffectsService = async ({
             actionType: "create",
           },
         ],
-        { session },
+        { session }
       );
 
       await batch.save({ session });
@@ -613,7 +613,7 @@ exports.applyRefundSalesCustomerEffectsService = async ({
 
   const totalMain = Number(newRefundSalesInvoice.totalInMainCurrency || 0);
   const remainderMain = Number(
-    newRefundSalesInvoice.totalRemainderMainCurrency || 0,
+    newRefundSalesInvoice.totalRemainderMainCurrency || 0
   );
 
   customer.total = Number(customer.total || 0) - totalMain;
@@ -634,7 +634,7 @@ exports.applyRefundSalesCustomerEffectsService = async ({
     transactionDate:
       newRefundSalesInvoice.paymentDate || newRefundSalesInvoice.orderDate,
     amountTransactionCurrency: Number(
-      newRefundSalesInvoice.invoiceGrandTotal || 0,
+      newRefundSalesInvoice.invoiceGrandTotal || 0
     ),
     amountMainCurrency: totalMain,
     customerId: customer._id,

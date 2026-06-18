@@ -1,5 +1,5 @@
 const receipt_refundModel = require("../../models/Pos/pos.receipt_refund.model");
-const productModel = require("../../models/productModel");
+const productModel = require("../../models/Stocks/products/productModel");
 const ApiError = require("../../utils/apiError");
 const { createProductMovement } = require("../../utils/productMovement");
 const productBatchModel = require("../../models/Stocks/products/prodcutBatchModel");
@@ -93,13 +93,13 @@ exports.createPosReceiptRefundService = async ({
     }
 
     const matchingItem = receipt.returnCartItem.find(
-      (item) => String(item.id) === String(incomingItem.id),
+      (item) => String(item.id) === String(incomingItem.id)
     );
 
     if (!matchingItem) {
       throw new ApiError(
         `${incomingItem.name || "Item"} is not returnable`,
-        400,
+        400
       );
     }
 
@@ -107,29 +107,31 @@ exports.createPosReceiptRefundService = async ({
 
     if (refundQty > remainingQty) {
       throw new ApiError(
-        `${incomingItem.name || matchingItem.name} refund quantity exceeds returnable quantity`,
-        400,
+        `${
+          incomingItem.name || matchingItem.name
+        } refund quantity exceeds returnable quantity`,
+        400
       );
     }
 
     matchingItem.soldQuantity = remainingQty - refundQty;
     matchingItem.total = Math.max(
       0,
-      Number(matchingItem.total || 0) - Number(incomingItem.total || 0),
+      Number(matchingItem.total || 0) - Number(incomingItem.total || 0)
     );
     matchingItem.totalWithoutTax = Math.max(
       0,
       Number(matchingItem.totalWithoutTax || 0) -
-        Number(incomingItem.totalWithoutTax || 0),
+        Number(incomingItem.totalWithoutTax || 0)
     );
     matchingItem.taxValue = Math.max(
       0,
-      Number(matchingItem.taxValue || 0) - Number(incomingItem.taxValue || 0),
+      Number(matchingItem.taxValue || 0) - Number(incomingItem.taxValue || 0)
     );
   }
 
   receipt.isRefund = receipt.returnCartItem.every(
-    (item) => Number(item.soldQuantity || 0) <= 0,
+    (item) => Number(item.soldQuantity || 0) <= 0
   );
   receipt.markModified("returnCartItem");
 
@@ -235,7 +237,7 @@ exports.applyReciptRefundInventoryEffectService = async ({
     if (product.type === "Service") continue;
 
     const originalReceiptItem = receipt.cartItems.find(
-      (i) => String(i.id) === String(item.id),
+      (i) => String(i.id) === String(item.id)
     );
 
     if (!originalReceiptItem) {
@@ -245,12 +247,12 @@ exports.applyReciptRefundInventoryEffectService = async ({
     if (refundQty > Number(originalReceiptItem.soldQuantity || 0)) {
       throw new ApiError(
         `${product.name} refund quantity exceeds sold quantity`,
-        400,
+        400
       );
     }
 
     const stockData = product.stocks.find(
-      (s) => String(s.stockId) === String(receipt.stock),
+      (s) => String(s.stockId) === String(receipt.stock)
     );
 
     if (!stockData) {
@@ -264,7 +266,7 @@ exports.applyReciptRefundInventoryEffectService = async ({
         : (originalReceiptItem.batches || []).reduce((batches, batchItem) => {
             const restoredQty = batches.reduce(
               (sum, batch) => sum + Number(batch.quantity || 0),
-              0,
+              0
             );
             const remainingQty = refundQty - restoredQty;
 
@@ -272,7 +274,7 @@ exports.applyReciptRefundInventoryEffectService = async ({
 
             const quantity = Math.min(
               Number(batchItem.quantity || 0),
-              remainingQty,
+              remainingQty
             );
 
             if (quantity > 0) {
@@ -339,7 +341,7 @@ exports.applyReciptRefundInventoryEffectService = async ({
               actionType: "create",
             },
           ],
-          { session },
+          { session }
         );
       }
     } else {
@@ -396,12 +398,12 @@ exports.applyReciptRefundInventoryEffectService = async ({
             actionType: "create",
           },
         ],
-        { session },
+        { session }
       );
     }
 
     const receiptItem = newReceipt.recipt.cartItems.find(
-      (i) => String(i.id) === String(item.id),
+      (i) => String(i.id) === String(item.id)
     );
 
     if (receiptItem) {

@@ -1,7 +1,7 @@
 const taxModel = require("../../../models/Settings/Definition/tax.model");
 const ApiError = require("../../../utils/apiError");
 // const productModel = require("../../../models/Stocks/Products/product.model");
-const productModel = require("../../../models/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 
 exports.getTaxs = async ({ companyId }) => {
   const query = { companyId };

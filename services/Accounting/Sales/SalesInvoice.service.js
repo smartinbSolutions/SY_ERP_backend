@@ -5,7 +5,7 @@ const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const paymentModel = require("../../../models/paymentModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const productLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
-const productModel = require("../../../models/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
@@ -58,16 +58,16 @@ exports.prepareSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -299,7 +299,7 @@ exports.createSalesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Sales invoice draft created" : "Sales invoice created",
     "Sales",
-    session,
+    session
   );
 
   return newSalesInvoice;
@@ -338,7 +338,7 @@ exports.applySalesInventoryEffectsService = async ({
             companyId,
           },
         ],
-        { session },
+        { session }
       );
     } else {
       const product = productMap.get(item.id);
@@ -350,7 +350,7 @@ exports.applySalesInventoryEffectsService = async ({
       const soldQty = Number(item.quantity || item.soldQuantity || 0);
 
       const stockRow = (product.stocks || []).find(
-        (s) => String(s.stockId) === String(item.stock._id),
+        (s) => String(s.stockId) === String(item.stock._id)
       );
 
       const oldQty = Number(stockRow?.productQuantity || 0);
@@ -358,7 +358,7 @@ exports.applySalesInventoryEffectsService = async ({
       if (soldQty > oldQty) {
         throw new ApiError(
           `Insufficient stock for product ${product.name}`,
-          400,
+          400
         );
       }
 
@@ -405,7 +405,7 @@ exports.applySalesInventoryEffectsService = async ({
       if (qtyToSell > 0) {
         throw new ApiError(
           `Insufficient stock for product ${product.name}`,
-          400,
+          400
         );
       }
 
@@ -441,7 +441,7 @@ exports.applySalesInventoryEffectsService = async ({
               actionType,
             },
           ],
-          { session },
+          { session }
         );
 
         await createProductMovement({
@@ -563,17 +563,17 @@ exports.debugAndCreateSalesDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
@@ -581,7 +581,7 @@ exports.debugAndCreateSalesDraftJournalService = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session },
+    { new: true, upsert: true, session }
   );
 
   // ── Save using same service as purchase ───────────────────────
@@ -649,7 +649,7 @@ exports.updateSalesInvoiceDraftService = async ({
   const invoiceTax = Number(req.body.invoiceTax || 0);
   const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0,
+    req.body.ManualInvoiceDiscountValue || 0
   );
 
   const paid = "unpaid";
@@ -660,7 +660,7 @@ exports.updateSalesInvoiceDraftService = async ({
   console.log(req.body);
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.orderDate,
-    req.body.orderDate,
+    req.body.orderDate
   );
 
   const updatePayload = {
@@ -708,7 +708,7 @@ exports.updateSalesInvoiceDraftService = async ({
     {
       new: true,
       session,
-    },
+    }
   );
 
   await createInvoiceHistory(
@@ -719,7 +719,7 @@ exports.updateSalesInvoiceDraftService = async ({
     normalizedDate,
     "Draft Sales invoice updated",
     "sales",
-    session,
+    session
   );
 
   return invoice;
@@ -748,7 +748,7 @@ exports.deleteSalesInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session },
+    { session }
   );
 
   return true;
@@ -771,7 +771,7 @@ exports.reverseSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0,
+        0
     );
 
   const reversalConfig = {
@@ -810,7 +810,7 @@ exports.reverseSalesInventoryEffectsService = async ({
     }
 
     const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id),
+      (s) => String(s.stockId) === String(item.stock._id)
     );
 
     if (!stockRow) {
@@ -877,7 +877,7 @@ exports.reverseSalesInventoryEffectsService = async ({
             actionType: currentMode.actionType,
           },
         ],
-        { session },
+        { session }
       );
 
       await batch.save({ session });
@@ -985,7 +985,7 @@ exports.reverseSalesJournalEffectsService = async ({
   if (!salesInvoice?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on sales invoice",
-      400,
+      400
     );
   }
 
@@ -1043,18 +1043,18 @@ exports.reverseSalesJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 

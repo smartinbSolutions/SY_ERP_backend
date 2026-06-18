@@ -7,7 +7,7 @@ const multerStorage = multer.memoryStorage();
 const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const xlsx = require("xlsx");
-const productModel = require("../models/productModel");
+const productModel = require("../models/Stocks/products/productModel");
 const TaxSchema = require("../models/Settings/Definition/tax.model");
 const { default: slugify } = require("slugify");
 
@@ -120,7 +120,7 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
       { _id: req.body.parentCategory, companyId },
       {
         $push: { children: category._id },
-      },
+      }
     );
   }
 
@@ -174,7 +174,7 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
 
   if (!category) {
@@ -229,7 +229,7 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
   const parentCategory = await categoryModel.findOne({ parentCategory: id });
   if (parentCategory) {
     return next(
-      new ApiError(`can't delete this Category for this id ${id}`, 404),
+      new ApiError(`can't delete this Category for this id ${id}`, 404)
     );
   }
   const category = await categoryModel.findOneAndDelete({ _id: id, companyId });
@@ -298,7 +298,7 @@ exports.importCategory = asyncHandler(async (req, res, next) => {
           await parentCategory.save();
         } else {
           console.warn(
-            `Parent category with ID ${category.parentCategory} not found.`,
+            `Parent category with ID ${category.parentCategory} not found.`
           );
         }
       }

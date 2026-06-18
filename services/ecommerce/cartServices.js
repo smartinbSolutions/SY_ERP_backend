@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
-const productModel = require("../../models/productModel");
+const productModel = require("../../models/Stocks/products/productModel");
 const CouponModel = require("../../models/discountModel");
 const CartModel = require("../../models/ecommerce/cartModel");
 const { getParasutOneProduct } = require("../parasut/parasutServices");
@@ -56,13 +56,13 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
     product.ecommercePriceAftereDiscount > 0
       ? product.ecommercePriceAftereDiscount
       : product?.ecommercePriceMainCurrency > 0
-        ? product?.ecommercePriceMainCurrency
-        : product.ecommercePrice;
+      ? product?.ecommercePriceMainCurrency
+      : product.ecommercePrice;
 
   let cart = await CartModel.findOne(
     customarID != null && customarID != undefined
       ? { customar: customarID, companyId }
-      : { token },
+      : { token }
   ).populate("cartItems.product");
 
   // Fetch stock count from Parasut API
@@ -103,7 +103,7 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
     });
   } else {
     const productIndex = cart.cartItems.findIndex(
-      (item) => item.qr === product.qr,
+      (item) => item.qr === product.qr
     );
 
     if (productIndex > -1) {
@@ -149,7 +149,7 @@ exports.addProductToCart = asyncHandler(async (req, res, next) => {
     });
     cart.totalPriceAfterDiscount = calclatTotalCartPriceAfterDiscont(
       coupon,
-      cart,
+      cart
     );
   } else {
     cart.totalPriceAfterDiscount = cart.totalCartPrice;
@@ -179,7 +179,7 @@ exports.getLoggedUserCart = asyncHandler(async (req, res, next) => {
   const token = req.headers["x-anonymous-token"];
 
   const cart = await CartModel.findOne(
-    req.user ? { customar: req.user._id, companyId } : { token, companyId },
+    req.user ? { customar: req.user._id, companyId } : { token, companyId }
   ).populate({
     path: "cartItems.product",
     populate: { path: "tax" },
@@ -208,7 +208,7 @@ exports.removeSpecifcCartItem = asyncHandler(async (req, res, next) => {
   const cart = await CartModel.findOneAndUpdate(
     req.user ? { customar: customarID, companyId } : { token, companyId },
     { $pull: { cartItems: { product: req.params.itemId } } },
-    { new: true },
+    { new: true }
   );
 
   if (!cart) {
@@ -242,7 +242,7 @@ exports.clearCart = asyncHandler(async (req, res, next) => {
   }
   const token = req.headers["x-anonymous-token"];
   await CartModel.findOneAndDelete(
-    req.user ? { customar: req.user._id, companyId } : { token, companyId },
+    req.user ? { customar: req.user._id, companyId } : { token, companyId }
   );
 
   res.status(200).send();
@@ -263,21 +263,21 @@ exports.updateCartItemQuantity = asyncHandler(async (req, res, next) => {
   const customarID = req?.user?._id;
 
   const cart = await CartModel.findOne(
-    req.user ? { customar: customarID, companyId } : { token, companyId },
+    req.user ? { customar: customarID, companyId } : { token, companyId }
   );
   if (!cart) {
     return next(new ApiError(`There is no cart for this user or token`, 404));
   }
 
   const itemIndex = cart.cartItems.findIndex(
-    (item) => item.product.toString() === req.params.itemId,
+    (item) => item.product.toString() === req.params.itemId
   );
 
   if (itemIndex > -1) {
     cart.cartItems[itemIndex].quantity = quantity;
   } else {
     return next(
-      new ApiError(`No item found with ID: ${req.params.itemId}`, 404),
+      new ApiError(`No item found with ID: ${req.params.itemId}`, 404)
     );
   }
 

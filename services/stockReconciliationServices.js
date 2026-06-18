@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const productModel = require("../models/productModel");
+const productModel = require("../models/Stocks/products/productModel");
 const reconciliationModel = require("../models/stockReconciliationModel");
 const { createProductMovement } = require("../utils/productMovement");
 
@@ -150,7 +150,7 @@ exports.createStockReconciliation = asyncHandler(async (req, res, next) => {
             if (product) {
               const totalStockQuantity = product.stocks.reduce(
                 (total, stock) => total + stock.productQuantity,
-                0,
+                0
               );
               await createProductMovement(
                 item.productId, //productId
@@ -162,7 +162,7 @@ exports.createStockReconciliation = asyncHandler(async (req, res, next) => {
                 "movement", //type
                 "edit", //movementType
                 "reconcile", //source
-                companyId, //dbName
+                companyId //dbName
               );
             } else {
               console.warn(`Product with ID ${item.productId} not found.`);
@@ -236,7 +236,7 @@ exports.findReconciliationReport = asyncHandler(async (req, res, next) => {
     .sort({ createdAt: -1 });
   if (!reconciliation) {
     return next(
-      new ApiError(`No reconciliation record for this id ${id}`, 404),
+      new ApiError(`No reconciliation record for this id ${id}`, 404)
     );
   }
   res.status(200).json({ status: "true", data: reconciliation });
@@ -261,8 +261,8 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         `No reconciliation report found for id ${req.params.id}`,
-        404,
-      ),
+        404
+      )
     );
   }
 
@@ -270,12 +270,12 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res, next) => {
   const reconcileReport = await reconciliationModel.findOneAndUpdate(
     { _id: req.params.id, companyId },
     req.body,
-    { new: true },
+    { new: true }
   );
 
   if (!reconcileReport) {
     return next(
-      new ApiError(`No reconcileReport found for id ${req.params.id}`, 404),
+      new ApiError(`No reconcileReport found for id ${req.params.id}`, 404)
     );
   }
 
@@ -309,7 +309,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res, next) => {
 
       const totalStockQuantity = product.stocks.reduce(
         (total, stock) => total + stock.productQuantity,
-        0,
+        0
       );
 
       await createProductMovement(
@@ -322,7 +322,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res, next) => {
         "movement", //type
         "edit", //movementType
         "reconcile", //source
-        companyId, //dbName
+        companyId //dbName
       );
     }
   }

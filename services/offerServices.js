@@ -1,6 +1,6 @@
 const offerSchema = require("../models/offersModel");
 const { default: mongoose } = require("mongoose");
-const ProductModel = require("../models/productModel");
+const ProductModel = require("../models/Stocks/products/productModel");
 const cron = require("node-cron");
 const categorySchema = require("../models/CategoryModel");
 const asyncHandler = require("express-async-handler");
@@ -84,7 +84,7 @@ exports.createOffer = async (req, res) => {
       const allCategories = await getAllChildCategories(
         offerData.cat,
         companyId,
-        categorySchema,
+        categorySchema
       );
 
       const products = await ProductModel.find({
@@ -112,7 +112,7 @@ exports.createOffer = async (req, res) => {
         {
           haveGift: false,
           soldToWinGift: offerData.soldToWinGift,
-        },
+        }
       );
 
       offerData.applicableProducts = [offerData.oneProduct];
@@ -286,7 +286,7 @@ exports.updateOffer = async (req, res) => {
     const updatedOffer = await offerSchema.findOneAndUpdate(
       { _id: offerId, companyId },
       updateData,
-      { new: true, runValidators: true },
+      { new: true, runValidators: true }
     );
 
     if (!updatedOffer) {

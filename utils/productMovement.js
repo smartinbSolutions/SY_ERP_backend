@@ -1,4 +1,4 @@
-const ProductMovementSchema = require("../models/productMovementModel");
+const ProductMovementSchema = require("../models/Stocks/products/productMovementModel");
 const ApiError = require("./apiError");
 
 const createProductMovement = async ({
@@ -42,35 +42,34 @@ const createProductMovement = async ({
         source === "Sales Invoice"
           ? "Sales"
           : source === "Sales Invoice Cancellation"
-            ? "Sales"
-            : source === "Sales Invoice Reverse Update"
-              ? "Sales"
-              : source === "Purchase Invoice"
-                ? "PurchaseInvoices"
-                : source === "Stock reconciliation"
-                  ? "Reconciliation-v1"
-                  : source === "Stock Transfer"
-                    ? "StockTransfer"
-                    : source === "POS Receipt"
-                      ? "receipt"
-                      : source === "POS Receipt Cancellation"
-                        ? "receipt"
-                        : source === "Resturant Order"
-                          ? "MenuOrder"
-                          : source === "Refund POS Receipt"
-                            ? "receipt_refund"
-                            : source === "Manufacturing"
-                              ? "productionLog"
-                              : source === "Refund Purchase Invoice"
-                                ? "refundpurchaseinvoices"
-                                : source === "Refund Sales Invoice"
-                                  ? "refundSales"
-                                  : source === "Purchase Invoice Cancellation"
-                                    ? "PurchaseInvoices"
-                                    : source ===
-                                        "Purchase Invoice Reverse Update"
-                                      ? "PurchaseInvoices"
-                                      : null,
+          ? "Sales"
+          : source === "Sales Invoice Reverse Update"
+          ? "Sales"
+          : source === "Purchase Invoice"
+          ? "PurchaseInvoices"
+          : source === "Stock reconciliation"
+          ? "Reconciliation-v1"
+          : source === "Stock Transfer"
+          ? "StockTransfer"
+          : source === "POS Receipt"
+          ? "receipt"
+          : source === "POS Receipt Cancellation"
+          ? "receipt"
+          : source === "Resturant Order"
+          ? "MenuOrder"
+          : source === "Refund POS Receipt"
+          ? "receipt_refund"
+          : source === "Manufacturing"
+          ? "productionLog"
+          : source === "Refund Purchase Invoice"
+          ? "refundpurchaseinvoices"
+          : source === "Refund Sales Invoice"
+          ? "refundSales"
+          : source === "Purchase Invoice Cancellation"
+          ? "PurchaseInvoices"
+          : source === "Purchase Invoice Reverse Update"
+          ? "PurchaseInvoices"
+          : null,
       stockId,
       sellingPrice,
       buyingPrice,
@@ -86,7 +85,7 @@ const createProductMovement = async ({
     console.error("Error saving product movement:", error);
     throw new ApiError(
       `Error creating product movement: ${error.message}`,
-      500,
+      500
     );
   }
 };

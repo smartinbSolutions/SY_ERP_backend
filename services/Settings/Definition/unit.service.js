@@ -1,7 +1,7 @@
 const unitModel = require("../../../models/Settings/Definition/unit.model");
 const ApiError = require("../../../utils/apiError");
 // const productModel = require("../../../models/Stocks/Products/product.model");
-const productModel = require("../../../models/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 
 exports.getUnits = async ({ companyId }) => {
   const query = { companyId };
@@ -53,7 +53,7 @@ exports.deleteUnit = async ({ companyId, id, session }) => {
   if (unitUsed) {
     throw new ApiError(
       `Cannot delete unit because it is linked to product`,
-      404,
+      404
     );
   }
 

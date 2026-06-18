@@ -7,7 +7,7 @@ const deviceModel = require("../../models/maintenance/devicesModel");
 const caseHistoryModel = require("../../models/maintenance/caseHistoryModel");
 const reportsFinancialFundsSchema = require("../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const orderModel = require("../../models/Accounting/Sales/orderModel");
-const productModel = require("../../models/productModel");
+const productModel = require("../../models/Stocks/products/productModel");
 const stockSchema = require("../../models/stockModel");
 const FinancialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const { createInvoiceHistory } = require("../invoiceHistoryService");
@@ -36,7 +36,7 @@ exports.getManitenaceCase = asyncHandler(async (req, res, next) => {
       {
         $or: [{ counter: { $regex: req.query.keyword, $options: "i" } }],
       },
-      "_id",
+      "_id"
     );
     const users = await manitUserModel.find(
       {
@@ -45,7 +45,7 @@ exports.getManitenaceCase = asyncHandler(async (req, res, next) => {
           { userPhone: { $regex: req.query.keyword, $options: "i" } },
         ],
       },
-      "_id",
+      "_id"
     );
     // Get device IDs from the results
     deviceIds = devices.map((device) => device._id);
@@ -106,9 +106,9 @@ exports.updateManitenaceCase = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}`;
 
   const { id } = req.params;
@@ -118,7 +118,7 @@ exports.updateManitenaceCase = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
   if (!manitCase) {
     return next(new ApiError(`No Diveces with this id ${id}`));
@@ -158,7 +158,7 @@ exports.getOneManitenaceCase = asyncHandler(async (req, res, next) => {
   // sort the calling
   if (manitCase.customerCalling && manitCase.customerCalling.length > 0) {
     manitCase.customerCalling.sort(
-      (a, b) => new Date(b.date) - new Date(a.date),
+      (a, b) => new Date(b.date) - new Date(a.date)
     );
   }
 
@@ -199,9 +199,9 @@ exports.createManitenaceCase = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}`;
   const nextCounter =
     (await manitencesCaseModel.countDocuments({ companyId })) + 1;
@@ -272,7 +272,7 @@ exports.addProductInManitencesCase = asyncHandler(async (req, res, next) => {
       technicalDesc: req.body.technicalDesc,
       $set: { piecesAndCost: piecesAndCost, partsCurrency },
     },
-    { new: true },
+    { new: true }
   );
 
   function padZero(value) {
@@ -282,12 +282,12 @@ exports.addProductInManitencesCase = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}`;
 
-  (await caseHistoryModel.create({
+  await caseHistoryModel.create({
     devicesId: id,
     employeeName: req.user.name,
     date: formattedDate,
@@ -300,7 +300,7 @@ exports.addProductInManitencesCase = asyncHandler(async (req, res, next) => {
       status: "success",
       message: "Products added to manitences Case and stock updated",
       data: updatedDevice,
-    }));
+    });
 });
 exports.addCalling = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -316,9 +316,9 @@ exports.addCalling = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}`;
 
   const newCallingEntry = {
@@ -331,9 +331,9 @@ exports.addCalling = asyncHandler(async (req, res, next) => {
     {
       $push: { customerCalling: newCallingEntry },
     },
-    { new: true },
+    { new: true }
   );
-  (await caseHistoryModel.create({
+  await caseHistoryModel.create({
     devicesId: id,
     employeeName: req.user.name,
     date: formattedDate,
@@ -346,7 +346,7 @@ exports.addCalling = asyncHandler(async (req, res, next) => {
       status: "success",
       message: "Customer Calling has been added",
       data: updatedDevice,
-    }));
+    });
 });
 // @desc put convet to Sales Invoice
 // @route put /api/manitcase/convert/id
@@ -366,9 +366,9 @@ exports.convertToSales = asyncHandler(async (req, res, next) => {
   const ts = Date.now();
   const date_ob = new Date(ts);
   const formattedDate = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1,
+    date_ob.getMonth() + 1
   )}-${padZero(date_ob.getDate())} ${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}`;
 
   const { id } = req.params;
@@ -377,7 +377,7 @@ exports.convertToSales = asyncHandler(async (req, res, next) => {
     {
       manitencesStatus: "convertedToInvoice",
       paymentStatus: "paid",
-    },
+    }
   );
   let piecesAndCost = maintenance.piecesAndCost.map((item) => ({
     taxPrice: item.taxPrice,
@@ -395,7 +395,7 @@ exports.convertToSales = asyncHandler(async (req, res, next) => {
   }));
 
   const financialFund = await FinancialFundsModel.findById(
-    req.body.financialFundsId,
+    req.body.financialFundsId
   );
   let client;
   if (req.body.customer === false) {
@@ -464,10 +464,10 @@ exports.convertToSales = asyncHandler(async (req, res, next) => {
             item.quantity,
             "out",
             "sales",
-            companyId,
+            companyId
           );
         }
-      }),
+      })
     );
     // Batch update products
     const bulkProductOperations = piecesAndCost.map((item) => ({
@@ -540,7 +540,7 @@ exports.getOneManitenaceCaseForUser = asyncHandler(async (req, res, next) => {
     .populate({ path: "deviceId" });
   if (!manitCase) {
     return next(
-      new ApiError(`No manitences Case By this case Number ${caseNumber}`),
+      new ApiError(`No manitences Case By this case Number ${caseNumber}`)
     );
   }
 

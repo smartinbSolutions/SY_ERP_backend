@@ -1,7 +1,7 @@
 const { default: mongoose } = require("mongoose");
 const reviewModel = require("../../models/ecommerce/reviewModel");
 const asyncHandler = require("express-async-handler");
-const productModel = require("../../models/productModel");
+const productModel = require("../../models/Stocks/products/productModel");
 
 const ApiError = require("../../utils/apiError");
 
@@ -115,7 +115,7 @@ exports.createReview = asyncHandler(async (req, res, next) => {
 
     await productModel.findOneAndUpdate(
       { _id: req.body.product, companyId },
-      updateData,
+      updateData
     );
 
     res.status(200).json({ status: "success", data: review });
@@ -139,7 +139,7 @@ exports.updateReview = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
   if (!review) {
     return next(new ApiError(`No Brand found for id ${req.params.id}`, 404));

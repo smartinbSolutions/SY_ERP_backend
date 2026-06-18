@@ -4,7 +4,7 @@ const reconciliationModel = require("../../../models/Stocks/reconciliation/recon
 const reconciliationItemModel = require("../../../models/Stocks/reconciliation/reconciliationItemModel");
 const { getIo } = require("../../../utils/socket");
 const ApiError = require("../../../utils/apiError");
-const productModel = require("../../../models/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 const { createProductBatch } = require("../../productBatchServices");
 const { createProductMovement } = require("../../../utils/productMovement");
 const counterModel = require("../../../models/Settings/counterModel");
@@ -49,16 +49,16 @@ exports.createStockReconciliation = asyncHandler(async (req, res) => {
     const now = new Date();
     const pad = (v) => (v < 10 ? `0${v}` : v);
     date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-      now.getDate(),
+      now.getDate()
     )} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(
-      now.getSeconds(),
+      now.getSeconds()
     )}`;
   }
 
   const ReportCounter = await counterModel.findOneAndUpdate(
     { companyId, name: "stockReconciliation" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true },
+    { new: true, upsert: true }
   );
 
   try {
@@ -128,8 +128,8 @@ exports.upsertReconciliationItem = asyncHandler(async (req, res, next) => {
       return next(
         new ApiError(
           "This item is already reconciled and cannot be updated",
-          409,
-        ),
+          409
+        )
       );
     }
 
@@ -154,7 +154,7 @@ exports.upsertReconciliationItem = asyncHandler(async (req, res, next) => {
           companyId,
         },
       },
-      { new: true, upsert: true },
+      { new: true, upsert: true }
     );
 
     getIo().to(`report:${reconciliationId}`).emit("itemUpdated", item);
@@ -568,7 +568,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
           status: { $in: ["DRAFT", "CLOSED"] },
         },
         { status: "SUBMITTING" },
-        { new: true, session },
+        { new: true, session }
       );
       if (!reconciliation) {
         // In a transaction, throw to abort
@@ -581,7 +581,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
       const reconciliationItems = await reconciliationItemModel.find(
         { reconciliationId: id, companyId, reconciled: false },
         null,
-        { session },
+        { session }
       );
 
       // Optional: if no items, you can decide to close or revert.
@@ -600,7 +600,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
               "stocks.$.productQuantity": item.realCount,
             },
           },
-          { new: true, session },
+          { new: true, session }
         );
 
         // If stock entry not found, push it
@@ -616,7 +616,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
                 },
               },
             },
-            { session },
+            { session }
           );
         }
 
@@ -638,7 +638,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
             enterPrice: product?.buyingprice || 0,
             stockId: reconciliation.stockId,
           },
-          { session }, // <-- pass session
+          { session } // <-- pass session
         );
 
         // 6) Create batch only for positive adjustments (MUST use session inside)
@@ -655,7 +655,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
                 product?.costBuyingPrice || product?.buyingprice || 0,
               sourceType: "Stock Reconciliation",
             },
-            { session }, // <-- pass session
+            { session } // <-- pass session
           );
         }
 
@@ -670,7 +670,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
               // reconciledBy: req.user?._id
             },
           },
-          { session },
+          { session }
         );
       }
 
@@ -678,7 +678,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
       await reconciliationModel.updateOne(
         { _id: id, companyId },
         { $set: { status: "CLOSED" } },
-        { session },
+        { session }
       );
     });
 

@@ -6,7 +6,7 @@ const FinancialFund = require("../models/Accounting/CurrentAssets/financialFunds
 const SalesInvoice = require("../models/Accounting/Sales/orderModel");
 const PurchaseInvoice = require("../models/Accounting/Purchase/purchaseinvoicesModel");
 const Expense = require("../models/Accounting/Expenses/expensesModel");
-const Product = require("../models/productModel");
+const Product = require("../models/Stocks/products/productModel");
 const PaymentHistory = require("../models/paymentHistoryModel");
 
 const GROUP_1 = "group-1";
@@ -234,7 +234,7 @@ const getActiveParties = async ({ PartyModel, partyMatch, nameField }) => {
     .lean();
 
   const activePartyIds = new Set(
-    activeParties.map((party) => String(party._id)),
+    activeParties.map((party) => String(party._id))
   );
 
   const partyNamesById = activeParties.reduce((acc, party) => {
@@ -844,7 +844,7 @@ const refreshSnapshot = async ({ companyId, group, payload }) => {
       payload,
       generatedAt: payload.generatedAt,
     },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
   ).lean();
 };
 

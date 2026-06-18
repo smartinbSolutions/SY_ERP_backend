@@ -1,6 +1,6 @@
 const { default: mongoose } = require("mongoose");
 const ecommerceOrderModel = require("../models/ecommerce/ecommerceOrderModel");
-const productModel = require("../models/productModel");
+const productModel = require("../models/Stocks/products/productModel");
 const asyncHandler = require("express-async-handler");
 const productQuestionsModel = require("../models/ecommerce/productQuestionsModel");
 
@@ -22,7 +22,7 @@ exports.getNotices = asyncHandler(async (req, res) => {
     .filter((item) => {
       const totalQuantity = item.stocks.reduce(
         (sum, stock) => sum + stock.productQuantity,
-        0,
+        0
       );
       return totalQuantity <= item.alarm;
     })
@@ -32,7 +32,7 @@ exports.getNotices = asyncHandler(async (req, res) => {
       id: item._id,
       totalQuantity: item.stocks.reduce(
         (sum, stock) => sum + stock.productQuantity,
-        0,
+        0
       ),
       message: item.name.substring(0, 10) + "...",
       type: "product",
@@ -61,7 +61,7 @@ exports.getNotices = asyncHandler(async (req, res) => {
   // Generate order notices
   const orderNotices = orders
     .filter((orderItem) =>
-      orderItem.cartItems.every((item) => item.orderStatus === "requested"),
+      orderItem.cartItems.every((item) => item.orderStatus === "requested")
     )
     .map((orderItem) => ({
       id: orderItem._id,

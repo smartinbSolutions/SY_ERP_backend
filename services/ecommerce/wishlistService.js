@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const UserModel = require("../../models/ecommerce/E_user_Modal");
-const productModel = require("../../models/productModel");
+const productModel = require("../../models/Stocks/products/productModel");
 
 // @desc    Add product to wishlist
 // @route   POST /api/wishlist
@@ -30,7 +30,7 @@ exports.addProductToWishlist = asyncHandler(async (req, res, next) => {
     const user = await UserModel.findOneAndUpdate(
       { _id: req.user._id, companyId },
       { $addToSet: { wishlist: req.body.productId } },
-      { new: true },
+      { new: true }
     );
 
     if (!user) {
@@ -81,7 +81,7 @@ exports.removeProductFromWishlist = asyncHandler(async (req, res, next) => {
       {
         $pull: { wishlist: req.params.productId },
       },
-      { new: true },
+      { new: true }
     );
 
     if (!user) {

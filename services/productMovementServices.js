@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
-const ProductMovement = require("../models/productMovementModel");
+const ProductMovement = require("../models/Stocks/products/productMovementModel");
 const { default: mongoose } = require("mongoose");
-const productModel = require("../models/productModel");
+const productModel = require("../models/Stocks/products/productModel");
 
 // Get all products movement
 exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
@@ -303,7 +303,7 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
   else if (idType === "category") {
     const products = await productModel.find(
       { category: id, companyId },
-      { _id: 1, name: 1 },
+      { _id: 1, name: 1 }
     );
 
     const ids = products.map((p) => p._id);

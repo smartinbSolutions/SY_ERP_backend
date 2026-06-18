@@ -1,4 +1,4 @@
-const productModel = require("../../../models/productModel");
+const productModel = require("../../../models/Stocks/products/productModel");
 const brandModel = require("../../../models/Settings/Definition/brand.model");
 const ApiError = require("../../../utils/apiError");
 // const productModel = require("../../../models/Stocks/Products/product.model");
