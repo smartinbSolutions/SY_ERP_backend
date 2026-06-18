@@ -672,8 +672,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
   const invoiceCurrency = newPurchaseInvoice?.currency;
   const exchangeRate = Number(newPurchaseInvoice?.exchangeRate || 1);
 
-  const isTrackedInventoryItem = (item) =>
-    item.type !== "unTracedproduct" && item.type !== "expense";
+  const isTrackedInventoryItem = (item) => item.type !== "expense";
 
   const getTotalStockQuantity = (product) =>
     (product.stocks || []).reduce(
@@ -807,44 +806,65 @@ exports.applyPurchaseInventoryEffectsService = async ({
   }
 
   for (const item of inventoryItems) {
-    const product = productMap.get(item.id);
-    if (!product) continue;
+    if (item.type === "unTracedproduct") {
+      await unTracedproductLogModel.create(
+        [
+          {
+            type: "in",
+            name: item.name,
+            quantity: item.quantity,
+            enterPrice: item.orginalBuyingPrice,
+            totalWithoutTax: item.totalWithoutTax,
+            total: item.total,
+            tax: { _id: item.tax, taxValue: item.taxValue },
+            sourceModule: "Purchase Invoice",
+            reference: newPurchaseInvoice._id,
+            referenceModel: "purchase",
+            companyId,
+          },
+        ],
+        { session },
+      );
+    } else {
+      const product = productMap.get(item.id);
+      if (!product) continue;
 
-    const totalStockQuantity = getTotalStockQuantity(product);
+      const totalStockQuantity = getTotalStockQuantity(product);
 
-    const { enteredBuyingPriceMainCurrency, movementExchangerate } =
-      getMovementPricing(item);
+      const { enteredBuyingPriceMainCurrency, movementExchangerate } =
+        getMovementPricing(item);
 
-    await createProductMovement({
-      productId: item.id,
-      reference: newPurchaseInvoice._id,
-      newQuantity: totalStockQuantity + Number(item.quantity || 0),
-      quantity: item.quantity,
-      movementType: "in",
-      source: "Purchase Invoice",
-      companyId,
-      enterPrice: getOriginalBuyingPrice(item),
-      enterPriceMainCurrency: enteredBuyingPriceMainCurrency,
-      stockId: item.stock?._id,
-      buyingPrice: getOriginalBuyingPrice(item),
-      exchangeRate: movementExchangerate,
-      movementDate: date,
-      session,
-    });
+      await createProductMovement({
+        productId: item.id,
+        reference: newPurchaseInvoice._id,
+        newQuantity: totalStockQuantity + Number(item.quantity || 0),
+        quantity: item.quantity,
+        movementType: "in",
+        source: "Purchase Invoice",
+        companyId,
+        enterPrice: getOriginalBuyingPrice(item),
+        enterPriceMainCurrency: enteredBuyingPriceMainCurrency,
+        stockId: item.stock?._id,
+        buyingPrice: getOriginalBuyingPrice(item),
+        exchangeRate: movementExchangerate,
+        movementDate: date,
+        session,
+      });
 
-    await createProductBatch({
-      productId: item.id,
-      companyId,
-      stockId: item.stock?._id,
-      quantity: item.quantity,
-      buyingprice: item.orginalBuyingPrice,
-      sourceId: newPurchaseInvoice._id,
-      sourceType: "purchase",
-      originId: newPurchaseInvoice._id,
-      originType: "purchase",
-      batchDate: date,
-      session,
-    });
+      await createProductBatch({
+        productId: item.id,
+        companyId,
+        stockId: item.stock?._id,
+        quantity: item.quantity,
+        buyingprice: item.orginalBuyingPrice,
+        sourceId: newPurchaseInvoice._id,
+        sourceType: "purchase",
+        originId: newPurchaseInvoice._id,
+        originType: "purchase",
+        batchDate: date,
+        session,
+      });
+    }
   }
 };
 
@@ -861,8 +881,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
 }) => {
   const invoiceExchangeRate = Number(purchaseInvoice?.exchangeRate || 1);
 
-  const isTrackedInventoryItem = (item) =>
-    item.type !== "unTracedproduct" && item.type !== "expense";
+  const isTrackedInventoryItem = (item) => item.type !== "expense";
 
   const getOriginalBuyingPrice = (item) => Number(item.orginalBuyingPrice || 0);
 
@@ -905,88 +924,110 @@ exports.reversePurchaseInventoryEffectsService = async ({
   const bulkProductUpdates = [];
 
   for (const item of inventoryItems) {
-    const product = productMap.get(item.id);
-    if (!product) {
-      throw new ApiError(`Product not found for item ${item.name}`, 404);
-    }
+    if (item.type === "product") {
+      const product = productMap.get(item.id);
+      if (!product) {
+        throw new ApiError(`Product not found for item ${item.name}`, 404);
+      }
 
-    if (!item.stock?._id) {
-      throw new ApiError(`Stock is missing for item ${item.name}`, 400);
-    }
+      if (!item.stock?._id) {
+        throw new ApiError(`Stock is missing for item ${item.name}`, 400);
+      }
 
-    const stockRow = (product.stocks || []).find(
-      (stock) => String(stock.stockId) === String(item.stock._id),
-    );
-
-    if (!stockRow) {
-      throw new ApiError(
-        `Stock row not found for product ${item.name} in selected stock`,
-        400,
+      const stockRow = (product.stocks || []).find(
+        (stock) => String(stock.stockId) === String(item.stock._id),
       );
-    }
 
-    const reverseQty = Number(item.quantity || 0);
-    const currentStockQty = Number(stockRow.productQuantity || 0);
+      if (!stockRow) {
+        throw new ApiError(
+          `Stock row not found for product ${item.name} in selected stock`,
+          400,
+        );
+      }
 
-    if (currentStockQty < reverseQty) {
-      throw new ApiError(
-        `Cannot reverse invoice. Product "${item.name}" does not have enough stock to reverse.`,
-        400,
-      );
-    }
+      const reverseQty = Number(item.quantity || 0);
+      const currentStockQty = Number(stockRow.productQuantity || 0);
 
-    const batch = await prodcutBatchModel
-      .findOne({
-        productId: item.id,
-        companyId,
-        stockId: item.stock._id,
-        sourceId: purchaseInvoice._id,
-        sourceType: "purchase",
-        status: "active",
-      })
-      .session(session);
+      if (currentStockQty < reverseQty) {
+        throw new ApiError(
+          `Cannot reverse invoice. Product "${item.name}" does not have enough stock to reverse.`,
+          400,
+        );
+      }
 
-    if (!batch) {
-      throw new ApiError(
-        `Active purchase batch not found for product "${item.name}"`,
-        404,
-      );
-    }
-
-    if (Number(batch.remaining || 0) < reverseQty) {
-      throw new ApiError(
-        `Cannot reverse invoice. Batch for product "${item.name}" has already been used.`,
-        400,
-      );
-    }
-
-    const currentAvgCost = Number(product.costBuyingPrice || 0);
-    const cancelledCost = getOriginalBuyingPrice(item);
-    const remainingQtyAfterReverse = currentStockQty - reverseQty;
-
-    const reversedAvgCost =
-      remainingQtyAfterReverse > 0
-        ? (currentStockQty * currentAvgCost - reverseQty * cancelledCost) /
-          remainingQtyAfterReverse
-        : 0;
-
-    bulkProductUpdates.push({
-      updateOne: {
-        filter: {
-          _id: item.id,
+      const batch = await prodcutBatchModel
+        .findOne({
+          productId: item.id,
           companyId,
-          "stocks.stockId": item.stock._id,
-        },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": -reverseQty,
+          stockId: item.stock._id,
+          sourceId: purchaseInvoice._id,
+          sourceType: "purchase",
+          status: "active",
+        })
+        .session(session);
+
+      if (!batch) {
+        throw new ApiError(
+          `Active purchase batch not found for product "${item.name}"`,
+          404,
+        );
+      }
+
+      if (Number(batch.remaining || 0) < reverseQty) {
+        throw new ApiError(
+          `Cannot reverse invoice. Batch for product "${item.name}" has already been used.`,
+          400,
+        );
+      }
+
+      const currentAvgCost = Number(product.costBuyingPrice || 0);
+      const cancelledCost = getOriginalBuyingPrice(item);
+      const remainingQtyAfterReverse = currentStockQty - reverseQty;
+
+      const reversedAvgCost =
+        remainingQtyAfterReverse > 0
+          ? (currentStockQty * currentAvgCost - reverseQty * cancelledCost) /
+            remainingQtyAfterReverse
+          : 0;
+
+      bulkProductUpdates.push({
+        updateOne: {
+          filter: {
+            _id: item.id,
+            companyId,
+            "stocks.stockId": item.stock._id,
           },
-          $set: {
-            costBuyingPrice: reversedAvgCost < 0 ? 0 : reversedAvgCost,
+          update: {
+            $inc: {
+              "stocks.$.productQuantity": -reverseQty,
+            },
+            $set: {
+              costBuyingPrice: reversedAvgCost < 0 ? 0 : reversedAvgCost,
+            },
           },
         },
-      },
-    });
+      });
+    } else if (item.type === "") {
+    } else if (item.type === "unTracedproduct") {
+      await unTracedproductLogModel.create(
+        [
+          {
+            type: "out",
+            name: item.name,
+            quantity: item.quantity,
+            outPrice: item.orginalBuyingPrice,
+            totalWithoutTax: item.totalWithoutTax,
+            total: item.total,
+            tax: { _id: item.tax, taxValue: item.taxValue },
+            sourceModule: currentMode.movementSource,
+            reference: purchaseInvoice._id,
+            referenceModel: "purchase",
+            companyId,
+          },
+        ],
+        { session },
+      );
+    }
   }
 
   if (bulkProductUpdates.length > 0) {
@@ -1087,23 +1128,6 @@ exports.applyPurchaseSupplierEffectsService = async ({
   }
 
   const totalMain = Number(totalPurchasePriceMainCurrency || 0);
-
-  for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct") {
-      await unTracedproductLogModel.create(
-        [
-          {
-            name: item.name,
-            buyingPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
-            type: "purchase",
-            quantity: item.quantity,
-            companyId,
-          },
-        ],
-        { session },
-      );
-    }
-  }
 
   await createPaymentHistoryV2({
     companyId,

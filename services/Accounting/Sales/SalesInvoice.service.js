@@ -319,161 +319,182 @@ exports.applySalesInventoryEffectsService = async ({
   for (let index = 0; index < invoicesItem.length; index++) {
     const item = invoicesItem[index];
 
-    if (
-      item.type === "unTracedproduct" ||
-      item.type === "expense" ||
-      item.type === "Service"
-    ) {
+    if (item.type === "expense" || item.type === "Service") {
       continue;
-    }
-
-    const product = productMap.get(item.id);
-
-    if (!product || !item.stock?._id) {
-      continue;
-    }
-
-    const soldQty = Number(item.quantity || item.soldQuantity || 0);
-
-    const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id),
-    );
-
-    const oldQty = Number(stockRow?.productQuantity || 0);
-
-    if (soldQty > oldQty) {
-      throw new ApiError(`Insufficient stock for product ${product.name}`, 400);
-    }
-
-    let qtyToSell = soldQty;
-    const fifoMovements = [];
-    const itemBatches = [];
-
-    const batches = await prodcutBatchModel
-      .find({
-        productId: item.id,
-        companyId,
-        stockId: item.stock._id,
-        remaining: { $gt: 0 },
-      })
-      .sort({ createdAt: 1 })
-      .session(session);
-
-    for (const batch of batches) {
-      if (qtyToSell <= 0) break;
-
-      const available = Number(batch.remaining || 0);
-      if (available <= 0) continue;
-
-      const usedQty = Math.min(available, qtyToSell);
-
-      batch.remaining = Math.max(0, batch.remaining - usedQty);
-
-      await batch.save({ session });
-
-      itemBatches.push({
-        id: batch._id.toString(),
-        quantity: usedQty,
-      });
-
-      fifoMovements.push({
-        quantity: usedQty,
-        costBuyingPrice: batch.buyingprice,
-        batchId: batch._id,
-      });
-
-      qtyToSell -= usedQty;
-    }
-
-    if (qtyToSell > 0) {
-      throw new ApiError(`Insufficient stock for product ${product.name}`, 400);
-    }
-
-    // 🔥 IMPORTANT: NO .find() → USE INDEX (each line is unique)
-    const invoiceItem = newSalesInvoice.invoicesItems[index];
-    const returnCartItem = newSalesInvoice.returnCartItem?.[index];
-
-    if (invoiceItem) {
-      invoiceItem.batches = itemBatches;
-    }
-
-    if (returnCartItem) {
-      returnCartItem.batches = itemBatches;
-    }
-
-    let soldTotalCost = 0;
-
-    for (const fm of fifoMovements) {
-      soldTotalCost += fm.quantity * fm.costBuyingPrice;
-
-      await batchLedgerModel.create(
+    } else if (item.type === "unTracedproduct") {
+      await unTracedproductLogModel.create(
         [
           {
-            productId: item.id,
-            companyId,
-            stockId: item.stock._id,
             type: "out",
-            quantity: fm.quantity,
-            batchId: fm.batchId,
-            referenceType: "sales",
-            referenceId: newSalesInvoice._id,
-            movementDate: date,
-            actionType,
+            name: item.name,
+            quantity: item.quantity,
+            outPrice: item.orginalBuyingPrice,
+            totalWithoutTax: item.totalWithoutTax,
+            total: item.total,
+            tax: { _id: item.tax, taxValue: item.taxValue },
+            sourceModule: currentMode.movementSource,
+            reference: purchaseInvoice._id,
+            referenceModel: "purchase",
+            companyId,
           },
         ],
         { session },
       );
+    } else {
+      const product = productMap.get(item.id);
 
-      await createProductMovement({
-        productId: item.id,
-        reference: newSalesInvoice._id,
-        newQuantity: oldQty - fm.quantity,
-        quantity: fm.quantity,
-        movementType: "out",
-        source: "Sales Invoice",
-        companyId,
-        outPrice: fm.costBuyingPrice,
-        stockId: item.stock._id,
-        sellingPrice: item.sellingPrice,
-        exchangeRate: item.exchangeRate,
-        movementDate: date,
-        session,
+      if (!product || !item.stock?._id) {
+        continue;
+      }
+
+      const soldQty = Number(item.quantity || item.soldQuantity || 0);
+
+      const stockRow = (product.stocks || []).find(
+        (s) => String(s.stockId) === String(item.stock._id),
+      );
+
+      const oldQty = Number(stockRow?.productQuantity || 0);
+
+      if (soldQty > oldQty) {
+        throw new ApiError(
+          `Insufficient stock for product ${product.name}`,
+          400,
+        );
+      }
+
+      let qtyToSell = soldQty;
+      const fifoMovements = [];
+      const itemBatches = [];
+
+      const batches = await prodcutBatchModel
+        .find({
+          productId: item.id,
+          companyId,
+          stockId: item.stock._id,
+          remaining: { $gt: 0 },
+        })
+        .sort({ createdAt: 1 })
+        .session(session);
+
+      for (const batch of batches) {
+        if (qtyToSell <= 0) break;
+
+        const available = Number(batch.remaining || 0);
+        if (available <= 0) continue;
+
+        const usedQty = Math.min(available, qtyToSell);
+
+        batch.remaining = Math.max(0, batch.remaining - usedQty);
+
+        await batch.save({ session });
+
+        itemBatches.push({
+          id: batch._id.toString(),
+          quantity: usedQty,
+        });
+
+        fifoMovements.push({
+          quantity: usedQty,
+          costBuyingPrice: batch.buyingprice,
+          batchId: batch._id,
+        });
+
+        qtyToSell -= usedQty;
+      }
+
+      if (qtyToSell > 0) {
+        throw new ApiError(
+          `Insufficient stock for product ${product.name}`,
+          400,
+        );
+      }
+
+      // 🔥 IMPORTANT: NO .find() → USE INDEX (each line is unique)
+      const invoiceItem = newSalesInvoice.invoicesItems[index];
+      const returnCartItem = newSalesInvoice.returnCartItem?.[index];
+
+      if (invoiceItem) {
+        invoiceItem.batches = itemBatches;
+      }
+
+      if (returnCartItem) {
+        returnCartItem.batches = itemBatches;
+      }
+
+      let soldTotalCost = 0;
+
+      for (const fm of fifoMovements) {
+        soldTotalCost += fm.quantity * fm.costBuyingPrice;
+
+        await batchLedgerModel.create(
+          [
+            {
+              productId: item.id,
+              companyId,
+              stockId: item.stock._id,
+              type: "out",
+              quantity: fm.quantity,
+              batchId: fm.batchId,
+              referenceType: "sales",
+              referenceId: newSalesInvoice._id,
+              movementDate: date,
+              actionType,
+            },
+          ],
+          { session },
+        );
+
+        await createProductMovement({
+          productId: item.id,
+          reference: newSalesInvoice._id,
+          newQuantity: oldQty - fm.quantity,
+          quantity: fm.quantity,
+          movementType: "out",
+          source: "Sales Invoice",
+          companyId,
+          outPrice: fm.costBuyingPrice,
+          stockId: item.stock._id,
+          sellingPrice: item.sellingPrice,
+          exchangeRate: item.exchangeRate,
+          movementDate: date,
+          session,
+        });
+      }
+
+      const oldAvgCost = Number(product.costBuyingPrice || 0);
+      const remainingQty = oldQty - soldQty;
+
+      let newAvgCost = 0;
+
+      if (remainingQty > 0) {
+        newAvgCost = (oldQty * oldAvgCost - soldTotalCost) / remainingQty;
+      }
+
+      if (!Number.isFinite(newAvgCost)) {
+        newAvgCost = 0;
+      }
+
+      bulkOperations.push({
+        updateOne: {
+          filter: {
+            _id: item.id,
+            companyId,
+            "stocks.stockId": item.stock._id,
+          },
+          update: {
+            $inc: {
+              "stocks.$.productQuantity": -soldQty,
+              soldByMonth: soldQty,
+              soldByWeek: soldQty,
+              sold: soldQty,
+            },
+            $set: {
+              costBuyingPrice: newAvgCost,
+            },
+          },
+        },
       });
     }
-
-    const oldAvgCost = Number(product.costBuyingPrice || 0);
-    const remainingQty = oldQty - soldQty;
-
-    let newAvgCost = 0;
-
-    if (remainingQty > 0) {
-      newAvgCost = (oldQty * oldAvgCost - soldTotalCost) / remainingQty;
-    }
-
-    if (!Number.isFinite(newAvgCost)) {
-      newAvgCost = 0;
-    }
-
-    bulkOperations.push({
-      updateOne: {
-        filter: {
-          _id: item.id,
-          companyId,
-          "stocks.stockId": item.stock._id,
-        },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": -soldQty,
-            soldByMonth: soldQty,
-            soldByWeek: soldQty,
-            sold: soldQty,
-          },
-          $set: {
-            costBuyingPrice: newAvgCost,
-          },
-        },
-      },
-    });
   }
 
   await newSalesInvoice.save({ session });
