@@ -5,7 +5,7 @@ const listService = require("../../services/Tasks/list.service");
 // ===============================
 exports.createList = async (req, res) => {
   try {
-    const { companyId } = req.query;
+    const companyId = req.companyId;
     const { workspaceId } = req.params;
 
     const data = await listService.createList(
@@ -66,7 +66,7 @@ exports.getLists = async (req, res) => {
 exports.getList = async (req, res) => {
   try {
     const { listId } = req.params;
-    const { companyId } = req.query;
+    const companyId = req.companyId;
 
     const data = await listService.getListById(listId, req.user._id, companyId);
 
@@ -88,7 +88,7 @@ exports.getList = async (req, res) => {
 exports.updateList = async (req, res) => {
   try {
     const { listId } = req.params;
-    const { companyId } = req.query;
+    const companyId = req.companyId;
 
     const data = await listService.updateList(
       listId,
@@ -116,7 +116,7 @@ exports.updateList = async (req, res) => {
 exports.deleteList = async (req, res) => {
   try {
     const { listId } = req.params;
-    const { companyId } = req.query;
+    const companyId = req.companyId;
 
     await listService.deleteList(listId, req.user._id, companyId);
 
@@ -138,7 +138,7 @@ exports.deleteList = async (req, res) => {
 exports.addMember = async (req, res) => {
   try {
     const { listId } = req.params;
-    const { companyId } = req.query;
+    const companyId = req.companyId;
 
     const data = await listService.addMember(
       listId,

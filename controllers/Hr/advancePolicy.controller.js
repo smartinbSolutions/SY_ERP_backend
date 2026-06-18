@@ -5,7 +5,8 @@ const service = require("../../services/Hr/Advance/advancePolicyService");
 
 // ================= GET ALL =================
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {
-  const { companyId, keyword } = req.query;
+  const companyId = req.companyId;
+  const { keyword } = req.query;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -33,7 +34,7 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
 
 // ================= GET ONE =================
 exports.getOnePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -54,7 +55,7 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
 
 // ================= CREATE =================
 exports.createPolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { policyName, code, types, approvalFlow } = req.body;
 
   if (!companyId) {
@@ -83,7 +84,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
 
 // ================= UPDATE =================
 exports.updatePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -104,7 +105,7 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
 
 // ================= DELETE =================
 exports.deletePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

@@ -4,7 +4,8 @@ const ApiError = require("../../utils/apiError");
 const positionsModel = require("../../models/Hr/positionsModel");
 
 exports.getAllPositions = asyncHandler(async (req, res, next) => {
-  const { companyId, branchId, departmentId } = req.query;
+  const { branchId, departmentId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });

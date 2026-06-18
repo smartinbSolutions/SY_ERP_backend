@@ -75,7 +75,7 @@ exports.getAllAdvanceTypes = asyncHandler(async (req, res, next) => {
 
 // ================= GET ONE =================
 exports.getOneAdvanceType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId  = req.companyId;
   const { id } = req.params;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
@@ -91,7 +91,7 @@ exports.getOneAdvanceType = asyncHandler(async (req, res, next) => {
 
 // ================= UPDATE =================
 exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId  = req.companyId;
   const { id } = req.params;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
@@ -131,7 +131,7 @@ exports.updateAdvanceType = asyncHandler(async (req, res, next) => {
 
 // ================= DELETE =================
 exports.deleteAdvanceType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId  = req.companyId;
   const { id } = req.params;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));

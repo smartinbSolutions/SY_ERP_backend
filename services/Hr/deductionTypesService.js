@@ -47,7 +47,7 @@ exports.getAllDeductionTypes = asyncHandler(async (req, res, next) => {
    GET ONE
 ===================================================== */
 exports.getOneDeductionType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -74,7 +74,7 @@ exports.getOneDeductionType = asyncHandler(async (req, res, next) => {
    CREATE
 ===================================================== */
 exports.createDeductionType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -104,7 +104,7 @@ exports.createDeductionType = asyncHandler(async (req, res, next) => {
    UPDATE
 ===================================================== */
 exports.updateDeductionType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -141,7 +141,7 @@ exports.updateDeductionType = asyncHandler(async (req, res, next) => {
    DELETE
 ===================================================== */
 exports.deleteDeductionType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

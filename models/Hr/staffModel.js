@@ -114,7 +114,18 @@ const StaffSchema = new mongoose.Schema(
       default: true,
     },
 
-    salary: Number,
+    salary: {
+      amount: Number,
+
+      payType: {
+        type: String,
+        enum: ["hourly", "weekly", "biweekly", "monthly"],
+        default: "monthly",
+      },
+
+      hourlyRate: Number,
+      lastRateCalculatedAt: Date,
+    },
 
     currency: {
       type: mongoose.Schema.Types.ObjectId,

@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const overtimeTypesModel = require("../../../models/Hr/Overtime/overtimeTypesModel");
 
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -43,7 +43,7 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
 });
 
 exports.getOnePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -70,7 +70,7 @@ exports.getOnePolicy = asyncHandler(async (req, res, next) => {
 });
 
 exports.createPolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { policyName, code, approvalFlow, types } = req.body;
 
   if (!companyId) {
@@ -120,7 +120,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
 });
 
 exports.updatePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -158,7 +158,7 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
 });
 
 exports.deletePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

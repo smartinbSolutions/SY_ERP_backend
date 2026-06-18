@@ -5,47 +5,48 @@ const leavesModel = require("../../../models/Hr/Leaves/leavesModel");
 
 // @desc    Get all leave policies
 // @route   GET /api/leaves-policy
-exports.getAllLeavePolicies = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  exports.getAllLeavePolicies = asyncHandler(async (req, res, next) => {
 
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
+    const companyId = req.companyId;
 
-  const query = { companyId };
+    if (!companyId) {
+      return next(new ApiError("companyId is required", 400));
+    }
 
-  // Search by policy name
-  if (req.query.keyword) {
-    query.policyName = { $regex: req.query.keyword, $options: "i" };
-  }
+    const query = { companyId };
 
-  // Pagination
-  const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
-  const skip = (page - 1) * limit;
+    // Search by policy name
+    if (req.query.keyword) {
+      query.policyName = { $regex: req.query.keyword, $options: "i" };
+    }
 
-  const total = await leavesPolicyModel.countDocuments(query);
+    // Pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
 
-  const policies = await leavesPolicyModel
-    .find(query)
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
+    const total = await leavesPolicyModel.countDocuments(query);
 
-  res.status(200).json({
-    status: "success",
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-    results: policies.length,
-    data: policies,
+    const policies = await leavesPolicyModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: "success",
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      results: policies.length,
+      data: policies,
+    });
   });
-});
 
 // @desc    Get single leave policy
 // @route   GET /api/leaves-policy/:id
 exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -58,8 +59,8 @@ exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
       companyId,
     })
     .populate({
-      path: "approvalFlow",      
-      select: "name steps createdBy", 
+      path: "approvalFlow",
+      select: "name steps createdBy",
     });
 
   if (!policy) {
@@ -74,7 +75,7 @@ exports.getOneLeavePolicy = asyncHandler(async (req, res, next) => {
 // @desc    Create leave policy
 // @route   POST /api/leaves-policy
 exports.createLeavePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -119,7 +120,7 @@ exports.createLeavePolicy = asyncHandler(async (req, res, next) => {
 // @desc    Update leave policy
 // @route   PUT /api/leaves-policy/:id
 exports.updateLeavePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -145,7 +146,7 @@ exports.updateLeavePolicy = asyncHandler(async (req, res, next) => {
 // @desc    Delete leave policy
 // @route   DELETE /api/leaves-policy/:id
 exports.deleteLeavePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

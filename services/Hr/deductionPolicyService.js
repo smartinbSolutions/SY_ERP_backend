@@ -7,7 +7,7 @@ const mongoose = require("mongoose");
 // @desc    Get all deduction policies
 // @route   GET /api/deduction-policies
 exports.getAllPolicies = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -48,7 +48,7 @@ exports.getAllPolicies = asyncHandler(async (req, res, next) => {
 // @desc    Get single deduction policy
 // @route   GET /api/deduction-policies/:id
 exports.getOnePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -84,7 +84,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { companyId } = req.query;
+    const companyId = req.companyId;
     const { policyName, code, approvalFlow, types } = req.body;
 
     // 🔴 validations
@@ -155,7 +155,7 @@ exports.createPolicy = asyncHandler(async (req, res, next) => {
 // @desc    Update deduction policy
 // @route   PATCH /api/deduction-policies/:id
 exports.updatePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -195,7 +195,7 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
 // @desc    Delete deduction policy
 // @route   DELETE /api/deduction-policies/:id
 exports.deletePolicy = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

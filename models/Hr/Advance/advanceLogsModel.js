@@ -78,8 +78,7 @@ const advanceLogSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // ⚠️ IMPORTANT FIX (engine expects it)
-    shouldDeduct: {
+     shouldDeduct: {
       type: Boolean,
       default: true,
     },

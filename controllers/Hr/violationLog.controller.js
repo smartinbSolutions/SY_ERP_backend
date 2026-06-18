@@ -12,7 +12,8 @@ const {
    GET ALL
 ===================================================== */
 exports.getAllViolationLogs = asyncHandler(async (req, res, next) => {
-  const { companyId, userId, violationType, page, limit } = req.query;
+  const { userId, violationType, page, limit } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -36,7 +37,8 @@ exports.getAllViolationLogs = asyncHandler(async (req, res, next) => {
    GET TOTALS
 ===================================================== */
 exports.getViolationTotals = asyncHandler(async (req, res, next) => {
-  const { userId, companyId, from, to } = req.query;
+  const { userId, from, to } = req.query;
+  const companyId = req.companyId;
 
   if (!userId || !companyId || !from || !to) {
     return next(new ApiError("Missing required params", 400));
@@ -62,7 +64,7 @@ exports.getViolationTotals = asyncHandler(async (req, res, next) => {
    DELETE
 ===================================================== */
 exports.deleteViolationLog = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

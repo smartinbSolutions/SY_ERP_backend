@@ -4,7 +4,7 @@ const asyncHandler = require("express-async-handler");
 
 // services/Hr/staffFilesService.js
 exports.createStaffFile = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { staffId, fileTypeId, expiryDate } = req.body;
 
   if (!companyId) {
@@ -83,7 +83,7 @@ exports.getAllStaffFiles = asyncHandler(async (req, res, next) => {
    GET ONE STAFF FILE
 ===================================================== */
 exports.getOneStaffFile = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -105,7 +105,7 @@ exports.getOneStaffFile = asyncHandler(async (req, res, next) => {
    UPDATE STAFF FILE
 ===================================================== */
 exports.updateStaffFile = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -144,7 +144,7 @@ exports.updateStaffFile = asyncHandler(async (req, res, next) => {
    DELETE STAFF FILE
 ===================================================== */
 exports.deleteStaffFile = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

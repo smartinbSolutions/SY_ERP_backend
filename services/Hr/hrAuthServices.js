@@ -263,6 +263,8 @@ exports.protectStaffOrERP = asyncHandler(async (req, res, next) => {
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    req.companyId = decoded.companyId;
+    req.decoded = decoded;
   } catch (err) {
     return next(new ApiError("Invalid token", 401));
   }
@@ -288,7 +290,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const staff = await staffModel.findOne({ email });
   if (!staff) {
     return next(
-      new ApiError(`There is no staff with this email address ${email}`, 404)
+      new ApiError(`There is no staff with this email address ${email}`, 404),
     );
   }
 
@@ -324,8 +326,8 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         "There was an error sending the email. Try again later!",
-        500
-      )
+        500,
+      ),
     );
   }
 });
@@ -352,7 +354,7 @@ exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
 
   const isResetCodeValid = await bcrypt.compare(
     resetCode,
-    staff.passwordResetCode
+    staff.passwordResetCode,
   );
 
   if (!isResetCodeValid) {
@@ -384,8 +386,8 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     return next(
       new ApiError(
         `There is no staff with this email address ${req.body.email}`,
-        404
-      )
+        404,
+      ),
     );
   }
   if (!staff.resetCodeVerified) {

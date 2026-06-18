@@ -4,8 +4,8 @@ const {
   createCurrency,
   getCurrency,
   deleteCurrency,
-  updataCurrency,
-} = require("../services/currencyService");
+  updateCurrency,
+} = require("../services/Settings/currency.service");
 
 const authService = require("../services/authService");
 

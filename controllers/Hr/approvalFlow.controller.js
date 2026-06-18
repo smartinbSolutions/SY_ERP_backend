@@ -4,7 +4,7 @@ const approvalFlowService = require("../../services/Hr/approvalFlowService");
 
 // ===== Create Approval Flow =====
 exports.createApprovalFlow = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { name, module, steps } = req.body;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
@@ -28,7 +28,8 @@ exports.createApprovalFlow = asyncHandler(async (req, res, next) => {
 
 // ===== Get All Approval Flows =====
 exports.getAllApprovalFlows = asyncHandler(async (req, res, next) => {
-  const { companyId, module, keyword } = req.query;
+  const companyId = req.companyId;
+  const { module, keyword } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
 
@@ -54,7 +55,7 @@ exports.getAllApprovalFlows = asyncHandler(async (req, res, next) => {
 
 // ===== Get Single Approval Flow =====
 exports.getOneApprovalFlow = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
@@ -75,7 +76,7 @@ exports.getOneApprovalFlow = asyncHandler(async (req, res, next) => {
 
 // ===== Update Approval Flow =====
 exports.updateApprovalFlow = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
   const updates = req.body;
 
@@ -98,7 +99,7 @@ exports.updateApprovalFlow = asyncHandler(async (req, res, next) => {
 
 // ===== Delete Approval Flow =====
 exports.deleteApprovalFlow = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));

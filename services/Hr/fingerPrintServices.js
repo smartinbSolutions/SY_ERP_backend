@@ -58,7 +58,7 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -107,7 +107,7 @@ exports.getLoggedUserFingerPrint = asyncHandler(async (req, res, next) => {
 
 exports.getLoggedUserFingerPrintsByDays = asyncHandler(
   async (req, res, next) => {
-    const { companyId } = req.query;
+    const companyId = req.companyId;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
@@ -186,6 +186,8 @@ exports.getLoggedUserFingerPrintsByDays = asyncHandler(
 exports.getTodayFingerPrint = asyncHandler(async (req, res, next) => {
   console.log("triggerd");
   const companyId = req.companyId;
+  console.log("aa", req);
+
   function padZero(value) {
     return value < 10 ? `0${value}` : value;
   }
@@ -273,11 +275,15 @@ exports.createFingerPrint = asyncHandler(async (req, res, next) => {
 });
 
 exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
+  console.log("========== CREATE FINGERPRINT ==========");
   console.log("BODY RECEIVED:", req.body);
+  console.log("USER:", req.user);
+  console.log("COMPANY ID:", req.companyId);
 
   const companyId = req.companyId;
 
   if (!companyId) {
+    console.log("❌ companyId missing");
     return res.status(400).json({
       message: "companyId is required",
     });
@@ -286,6 +292,8 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   // ================================
   // 1. STAFF + GROUP + LOCATION
   // ================================
+  console.log("🔍 Searching staff...");
+
   const staff = await Staff.findOne({
     email: req.user.email,
     companyId,
@@ -296,7 +304,10 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
     },
   });
 
+  console.log("STAFF FOUND:", staff?._id);
+
   if (!staff) {
+    console.log("❌ User is not a staff member");
     return res.status(400).json({
       status: false,
       message: "User is not a staff member",
@@ -306,12 +317,18 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   const group = staff.groupId;
   const location = group?.locationId;
 
+  console.log("GROUP:", group?._id);
+  console.log("LOCATION:", location);
+
   // ================================
-  // 2. LOCATION CHECK (NEW)
+  // 2. LOCATION CHECK
   // ================================
   const { latitude, longitude } = req.body;
 
+  console.log("USER LOCATION:", latitude, longitude);
+
   if (!location || !latitude || !longitude) {
+    console.log("❌ Missing location data");
     return res.status(400).json({
       status: false,
       message: "Location data is required",
@@ -322,6 +339,7 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
 
   const getDistanceMeters = (lat1, lon1, lat2, lon2) => {
     const R = 6371000;
+
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
 
@@ -343,7 +361,12 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
 
   const radius = location.radius || 150;
 
+  console.log("DISTANCE:", distance);
+  console.log("ALLOWED RADIUS:", radius);
+
   if (distance > radius) {
+    console.log("❌ User outside allowed area");
+
     return res.status(400).json({
       status: false,
       message: "You are outside the allowed location",
@@ -352,11 +375,15 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
     });
   }
 
+  console.log("✅ Location validation passed");
+
   // ================================
   // 3. TIMEZONE
   // ================================
-  const timezone = location?.timezone || "UTC";
+  const timezone = location?.timezone;
   const now = new Date();
+
+  console.log("TIMEZONE:", timezone);
 
   const formatterDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
@@ -376,12 +403,14 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   const date = formatterDate.format(now);
   const time = formatterTime.format(now);
 
+  console.log("DATE:", date);
+  console.log("TIME:", time);
+
   // ================================
   // 4. BUILD DATA
   // ================================
   req.body.date = date;
   req.body.Time = time;
-  req.body.timezone = timezone;
   req.body.timestamp = now;
 
   req.body.companyId = companyId;
@@ -389,12 +418,20 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   req.body.name = staff.fullName;
   req.body.email = staff.email;
 
+  console.log("FINAL PAYLOAD:", req.body);
+
   // ================================
   // 5. CREATE FINGERPRINT
   // ================================
+  console.log("📝 Creating fingerprint...");
+
   const fp = await fingerprintModel.create(req.body);
 
+  console.log("✅ Fingerprint created:", fp._id);
+
   if (!group?.fixedAttendance) {
+    console.log("No fixedAttendance found");
+
     return res.status(200).json({
       status: "success",
       data: fp,
@@ -411,13 +448,25 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   const graceIn = group.fixedAttendance.earlyIn || 0;
   const graceOut = group.fixedAttendance.earlyOut || 0;
 
+  console.log("ATTENDANCE SETTINGS:", {
+    actual,
+    start,
+    end,
+    graceIn,
+    graceOut,
+  });
+
   // ================================
   // 7. CHECK-IN
   // ================================
   if (fp.type === "Check-in") {
+    console.log("CHECK-IN DETECTED");
+
     const allowedLateLimit = start + graceIn;
 
     if (actual > allowedLateLimit) {
+      console.log("⚠️ Late arrival:", actual - start, "minutes");
+
       await createViolationAndProcess({
         userId: staff._id,
         companyId,
@@ -426,6 +475,8 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
         minutesLate: actual - start,
         relatedAttendanceId: fp._id,
       });
+
+      console.log("✅ Late violation created");
     }
   }
 
@@ -433,9 +484,13 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   // 8. CHECK-OUT
   // ================================
   if (fp.type === "Check-out") {
+    console.log("CHECK-OUT DETECTED");
+
     const allowedEarlyLeaveLimit = end - graceOut;
 
     if (actual < allowedEarlyLeaveLimit) {
+      console.log("⚠️ Early leave:", end - actual, "minutes");
+
       await createViolationAndProcess({
         userId: staff._id,
         companyId,
@@ -444,8 +499,12 @@ exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
         minutesLate: end - actual,
         relatedAttendanceId: fp._id,
       });
+
+      console.log("✅ Early leave violation created");
     }
   }
+
+  console.log("========== SUCCESS ==========");
 
   return res.status(200).json({
     status: "success",

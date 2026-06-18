@@ -10,12 +10,15 @@ const {
 
 const leavesPolicyRoute = express.Router();
 
-leavesPolicyRoute.route("/").get(getAllLeavePolicies).post(createLeavePolicy);
+leavesPolicyRoute
+  .route("/")
+  .get(authService.protect, getAllLeavePolicies)
+  .post(authService.protect, createLeavePolicy);
 
 leavesPolicyRoute
   .route("/:id")
-  .get(getOneLeavePolicy)
-  .put(updateLeavePolicy)
-  .delete(deleteLeavePolicy);
+  .get(authService.protect, getOneLeavePolicy)
+  .put(authService.protect, updateLeavePolicy)
+  .delete(authService.protect, deleteLeavePolicy);
 
 module.exports = leavesPolicyRoute;

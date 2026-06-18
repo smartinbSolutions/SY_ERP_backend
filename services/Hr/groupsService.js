@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const groupsModel = require("../../models/Hr/groupsModel");
+const { calculateHourlyRate } = require("./Payroll/payrollService");
+const staffModel = require("../../models/Hr/staffModel");
 
 exports.getAllGroups = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -75,22 +77,60 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
+
   const { id } = req.params;
-  req.body.companyId = companyId;
+
   if (!id) {
     return next(new ApiError(`No Groups for this ID: ${id}`, 404));
   }
-  const groups = await groupsModel.findOneAndUpdate(
+
+  req.body.companyId = companyId;
+  console.log("req", req.body);
+
+  const group = await groupsModel.findOneAndUpdate(
     { _id: id, companyId },
     req.body,
     {
       new: true,
+      runValidators: true,
     },
   );
 
-  res.status(200).json({ status: "success", data: groups });
+  if (!group) {
+    return next(new ApiError("Group not found", 404));
+  }
+
+  // هل تم تعديل شيء يؤثر على hourlyRate؟
+  const shouldRecalculate =
+    req.body.attendanceType !== undefined ||
+    req.body.offDays !== undefined ||
+    req.body.fixedAttendance !== undefined ||
+    req.body.flexibleAttendance !== undefined ||
+    req.body.remoteAttendance !== undefined;
+
+  if (shouldRecalculate) {
+    const staffs = await staffModel.find({
+      groupId: group._id,
+      companyId,
+    });
+
+    for (const staff of staffs) {
+      const hourlyRate = calculateHourlyRate(staff, group);
+
+      staff.salary.hourlyRate = hourlyRate;
+
+      await staff.save();
+    }
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: group,
+  });
 });
 
 exports.deleteGroups = asyncHandler(async (req, res, next) => {

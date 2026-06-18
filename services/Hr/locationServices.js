@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const locationModel = require("../../models/Hr/locationModel");
+const tzlookup = require("tz-lookup");
 
 exports.getAllLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -66,12 +67,39 @@ exports.getOneLocations = asyncHandler(async (req, res, next) => {
 
 exports.createLocations = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
+
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
+  const { latitude, longitude } = req.body;
+
+  if (!latitude || !longitude) {
+    return res.status(400).json({
+      message: "latitude and longitude are required",
+    });
+  }
+
+  // 🌍 AUTO DETECT TIMEZONE
+  let timezone = null;
+
+  try {
+    timezone = tzlookup(Number(latitude), Number(longitude));
+  } catch (err) {
+    console.log("Timezone detection failed:", err.message);
+    timezone = "UTC";
+  }
+
+  // 🧠 attach data
   req.body.companyId = companyId;
-  const locations = await locationModel.create(req.body);
-  res.status(200).json({ status: "success", data: locations });
+  req.body.timezone = timezone;
+
+  const location = await locationModel.create(req.body);
+
+  res.status(200).json({
+    status: "success",
+    data: location,
+  });
 });
 
 exports.updateLocations = asyncHandler(async (req, res, next) => {

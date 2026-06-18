@@ -52,7 +52,7 @@ exports.getAllOvertimeTypes = asyncHandler(async (req, res, next) => {
 // @desc    Get single overtime type
 // @route   GET /api/overtime-types/:id
 exports.getOneOvertimeType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -82,7 +82,7 @@ exports.getOneOvertimeType = asyncHandler(async (req, res, next) => {
 // @desc    Create overtime type
 // @route   POST /api/overtime-types
 exports.createOvertimeType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -98,7 +98,7 @@ exports.createOvertimeType = asyncHandler(async (req, res, next) => {
     leaveMultiplier,
     requiresAttachment,
     applicableDayType,
-    approvalFlow
+    approvalFlow,
   } = req.body;
 
   const overtimeType = await OvertimeType.create({
@@ -124,7 +124,7 @@ exports.createOvertimeType = asyncHandler(async (req, res, next) => {
 // @desc    Update overtime type
 // @route   PATCH /api/overtime-types/:id
 exports.updateOvertimeType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -176,7 +176,7 @@ exports.updateOvertimeType = asyncHandler(async (req, res, next) => {
 // @desc    Delete overtime type
 // @route   DELETE /api/overtime-types/:id
 exports.deleteOvertimeType = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

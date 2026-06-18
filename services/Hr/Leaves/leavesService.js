@@ -53,7 +53,7 @@ exports.getAllLeaves = asyncHandler(async (req, res, next) => {
 // @desc    Get single leave
 // @route   GET /api/leaves/:id
 exports.getOneLeave = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -75,7 +75,7 @@ exports.getOneLeave = asyncHandler(async (req, res, next) => {
 // @desc    Create leave
 // @route   POST /api/leaves
 exports.createLeave = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
@@ -95,7 +95,7 @@ exports.createLeave = asyncHandler(async (req, res, next) => {
 // @desc    Update leave
 // @route   PUT /api/leaves/:id
 exports.updateLeave = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {
@@ -121,7 +121,7 @@ exports.updateLeave = asyncHandler(async (req, res, next) => {
 // @desc    Delete leave
 // @route   DELETE /api/leaves/:id
 exports.deleteLeave = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
   const { id } = req.params;
 
   if (!companyId) {

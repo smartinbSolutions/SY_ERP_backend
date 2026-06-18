@@ -11,6 +11,9 @@ const bcrypt = require("bcrypt");
 const generatePassword = require("../../utils/tools/generatePassword");
 const sendEmail = require("../../utils/sendEmail");
 const fs = require("fs");
+const groupsModel = require("../../models/Hr/groupsModel");
+const { calculateHourlyRate } = require("./Payroll/payrollService");
+const safeParse = require("../../utils/tools/safeParse");
 
 const multerFilter = (req, file, cb) => {
   const allowed = /jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|txt/;
@@ -199,68 +202,128 @@ exports.getStaff = asyncHandler(async (req, res) => {
 
 /* ===================== CREATE STAFF ===================== */
 exports.createStaff = asyncHandler(async (req, res) => {
+  console.log("\n================= CREATE STAFF START =================");
+
   const companyId = req.companyId;
+  console.log("1. companyId:", companyId);
 
   if (!companyId) {
+    console.log("❌ Missing companyId");
     return res.status(400).json({ message: "companyId is required" });
   }
 
   req.body.companyId = companyId;
+  console.log("2. body after companyId:", req.body);
 
   const email = req.body.email?.trim().toLowerCase();
+  console.log("3. email:", email);
 
   if (!email) {
+    console.log("❌ Missing email");
     return res.status(400).json({ message: "email is required" });
   }
 
   req.body.email = email;
 
-  // 🔥 GLOBAL CHECK
   const existingStaff = await StaffsModel.findOne({ email });
+  console.log("4. existingStaff:", !!existingStaff);
 
   if (existingStaff) {
+    console.log("❌ Email already exists");
     return res.status(400).json({
       message: "Email already exists in system",
     });
   }
 
   const employeePass = generatePassword();
+  console.log("5. generated password:", employeePass);
 
-  if (email) {
+  try {
     await sendEmail({
       email,
       subject: "New Account Password",
       message: `Hello ${req.body.fullName}, your password is: ${employeePass}`,
     });
+    console.log("6. email sent");
+  } catch (err) {
+    console.log("❌ email error:", err);
   }
 
   req.body.password = await bcrypt.hash(employeePass, 12);
+  console.log("7. password hashed");
 
+  // customAttributes
   if (typeof req.body.customAttributes === "string") {
     try {
       req.body.customAttributes = JSON.parse(req.body.customAttributes);
-    } catch {
+      console.log("8. customAttributes parsed");
+    } catch (e) {
+      console.log("❌ customAttributes parse error:", e.message);
       return res.status(400).json({
         message: "Invalid customAttributes JSON",
       });
     }
   }
 
+  // 🔥 IMPORTANT: log full incoming body BEFORE create
+  console.log("\n================ BODY BEFORE CREATE ================");
+  console.log(JSON.stringify(req.body, null, 2));
+
+  req.body.salary = safeParse(req.body.salary, {
+    amount: 0,
+    payType: "monthly",
+  });
+
   const staff = await StaffsModel.create(req.body);
 
-  if (req.body.staffFilesMeta && req.savedFiles?.length) {
-    const filesMeta = JSON.parse(req.body.staffFilesMeta);
+  console.log("\n9. staff created:", staff._id);
+  console.log("10. staff.salary:", staff.salary);
 
-    const staffFilesDocs = req.savedFiles.map((file, index) => ({
-      staffId: staff._id,
-      fileTypeId: filesMeta[index]?.fileTypeId,
-      expiryDate: filesMeta[index]?.expiryDate || null,
-      companyId,
-      ...file,
-    }));
+  const group = await groupsModel.findById(staff.groupId);
 
-    await staffFilesModel.insertMany(staffFilesDocs);
+  console.log("\n11. group found:", !!group);
+  console.log("12. group data:", group);
+
+  if (group) {
+    console.log("\n13. calculating hourly rate...");
+
+    try {
+      const hourlyRate = calculateHourlyRate(staff, group);
+      console.log("14. hourlyRate result:", hourlyRate);
+
+      staff.salary.hourlyRate = hourlyRate;
+
+      await staff.save();
+      console.log("15. staff updated with hourlyRate");
+    } catch (err) {
+      console.log("❌ calculateHourlyRate error:", err);
+    }
   }
+
+  if (req.body.staffFilesMeta && req.savedFiles?.length) {
+    try {
+      const filesMeta = JSON.parse(req.body.staffFilesMeta);
+      console.log("16. staffFilesMeta parsed");
+
+      const staffFilesDocs = req.savedFiles.map((file, index) => ({
+        staffId: staff._id,
+        fileTypeId: filesMeta[index]?.fileTypeId,
+        expiryDate: filesMeta[index]?.expiryDate || null,
+        companyId,
+        ...file,
+      }));
+
+      console.log("17. inserting files:", staffFilesDocs.length);
+
+      await staffFilesModel.insertMany(staffFilesDocs);
+
+      console.log("18. files inserted");
+    } catch (err) {
+      console.log("❌ files error:", err);
+    }
+  }
+
+  console.log("\n================= CREATE STAFF END =================\n");
 
   res.status(201).json({
     status: "success",
@@ -301,12 +364,15 @@ exports.getOneStaff = asyncHandler(async (req, res, next) => {
 /* ===================== UPDATE STAFF ===================== */
 exports.updateStaff = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
+
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
-  // 🔧 CHANGE 5: protect JSON.parse for tags
-  if (req.body.tags) {
+  // tags
+  if (req.body.tags && typeof req.body.tags === "string") {
     try {
       req.body.tags = JSON.parse(req.body.tags);
     } catch {
@@ -315,27 +381,59 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
       });
     }
   }
+
+  // customAttributes
   if (
     req.body.customAttributes &&
     typeof req.body.customAttributes === "string"
   ) {
     try {
       req.body.customAttributes = JSON.parse(req.body.customAttributes);
-    } catch (err) {
+    } catch {
       return res.status(400).json({
         message: "Invalid customAttributes JSON",
       });
     }
   }
 
+  // salary comes from FormData as string
+  if (req.body.salary && typeof req.body.salary === "string") {
+    try {
+      req.body.salary = JSON.parse(req.body.salary);
+    } catch {
+      return res.status(400).json({
+        message: "Invalid salary JSON",
+      });
+    }
+  }
+
   const staff = await StaffsModel.findOneAndUpdate(
-    { _id: req.params.id, companyId },
+    {
+      _id: req.params.id,
+      companyId,
+    },
     req.body,
-    { new: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   );
 
   if (!staff) {
     return next(new ApiError("Staff not found", 404));
+  }
+
+  // Recalculate hourlyRate only if salary or group changed
+  if (req.body.salary || req.body.groupId) {
+    const group = await groupsModel.findById(staff.groupId);
+
+    if (group) {
+      const hourlyRate = calculateHourlyRate(staff, group);
+
+      staff.salary.hourlyRate = hourlyRate;
+
+      await staff.save();
+    }
   }
 
   res.status(200).json({
