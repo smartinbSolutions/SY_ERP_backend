@@ -22,6 +22,7 @@ const { ExpressValidator } = require("express-validator");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const counterModel = require("../../../models/Settings/counterModel");
+const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -319,7 +320,7 @@ exports.applySalesInventoryEffectsService = async ({
   for (let index = 0; index < invoicesItem.length; index++) {
     const item = invoicesItem[index];
 
-    if (item.type === "expense" || item.type === "Service") {
+    if (item.type === "expense") {
       continue;
     } else if (item.type === "unTracedproduct") {
       await unTracedproductLogModel.create(
@@ -328,19 +329,35 @@ exports.applySalesInventoryEffectsService = async ({
             type: "out",
             name: item.name,
             quantity: Number(item.quantity || item.soldQuantity || 0),
-            outPrice: item.orginalBuyingPrice,
+            outPrice: item.sellingPrice,
             totalWithoutTax: item.totalWithoutTax,
             total: item.total,
             tax: { _id: item.tax, taxValue: item.taxValue },
-            sourceModule: currentMode.movementSource,
-            reference: purchaseInvoice._id,
-            referenceModel: "purchase",
+            sourceModule: "Sales Invoice",
+            reference: newSalesInvoice._id,
+            referenceModel: "sales",
             companyId,
           },
         ],
         { session },
       );
-    } else {
+    } else if (item.type === "Service") {
+      await createProductMovement({
+        productId: item.id,
+        reference: newSalesInvoice._id,
+        newQuantity: 0,
+        quantity: item.soldQuantity,
+        movementType: "in",
+        source: "Sales Invoice",
+        companyId,
+        outPrice: item.sellingPrice,
+        stockId: null,
+        buyingPrice: item.orginalBuyingPrice || 0,
+        exchangeRate: item.exchangeRate,
+        movementDate: new Date(),
+        session,
+      });
+    } else if (item.type === "product") {
       const product = productMap.get(item.id);
 
       if (!product || !item.stock?._id) {
@@ -804,19 +821,35 @@ exports.reverseSalesInventoryEffectsService = async ({
           {
             type: "out",
             name: item.name,
-            quantity: item.quantity,
-            enterPrice: item.orginalBuyingPrice,
+            quantity: item.soldQuantity,
+            enterPrice: item.sellingPrice,
             totalWithoutTax: item.totalWithoutTax,
             total: item.total,
             tax: { _id: item.tax, taxValue: item.taxValue },
             sourceModule: currentMode.movementSource,
-            reference: purchaseInvoice._id,
-            referenceModel: "purchase",
+            reference: salesInvoice._id,
+            referenceModel: "sales",
             companyId,
           },
         ],
         { session },
       );
+    } else if (item.type === "Service") {
+      await createProductMovement({
+        productId: item.id,
+        reference: salesInvoice._id,
+        newQuantity: 0,
+        quantity: item.soldQuantity,
+        movementType: "in",
+        source: currentMode.movementSource,
+        companyId,
+        enterPrice: item.orginalBuyingPrice || 0,
+        stockId: null,
+        buyingPrice: item.orginalBuyingPrice || 0,
+        exchangeRate: item.exchangeRate,
+        movementDate: new Date(),
+        session,
+      });
     } else if (item.type === "product") {
       const product = productMap.get(item.id);
 
@@ -859,7 +892,12 @@ exports.reverseSalesInventoryEffectsService = async ({
     }
 
     for (const item of invoicesItem) {
-      if (item.type === "unTracedproduct" || item.type === "expense") continue;
+      if (
+        item.type === "unTracedproduct" ||
+        item.type === "expense" ||
+        item.type === "Service"
+      )
+        continue;
       const product = productMap.get(item.id);
 
       let reverseQty = Number(item.soldQuantity || 0);

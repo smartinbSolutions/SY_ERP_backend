@@ -11,6 +11,7 @@ const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
+const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
 
 exports.findAllSalesRefundsService = async ({ req, companyId }) => {
   const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
@@ -130,16 +131,16 @@ exports.prepareRefundSalesInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -450,7 +451,7 @@ exports.applySalesReturnCartItemEditService = async ({
     const index = salesInvoice.returnCartItem.findIndex((item) =>
       updatedItem.type !== "unTracedproduct"
         ? item.qr === updatedItem.qr
-        : item.name === updatedItem.name
+        : item.name === updatedItem.name,
     );
 
     if (index === -1) continue;
@@ -491,7 +492,7 @@ exports.applyRefundSalesInventoryEffectsService = async ({
       item?.draftCostBuyingPrice ??
         item?.oldCostBuyingPrice ??
         item?.orginalBuyingPrice ??
-        0
+        0,
     );
 
   let currentStockQty = 0;
@@ -499,44 +500,79 @@ exports.applyRefundSalesInventoryEffectsService = async ({
   const bulkProductUpdates = [];
 
   for (const item of invoicesItem) {
-    if (item.type === "unTracedproduct" || item.type === "expense") continue;
+    if (item.type === "expense") continue;
+    else if (item.type === "unTracedproduct") {
+      await unTracedproductLogModel.create(
+        [
+          {
+            type: "out",
+            name: item.name,
+            quantity: item.soldQuantity,
+            enterPrice: item.sellingPrice,
+            totalWithoutTax: item.totalWithoutTax,
+            total: item.total,
+            tax: { _id: item.tax, taxValue: item.taxValue },
+            sourceModule: "Refund Sales Invoice",
+            reference: newRefundSalesInvoice._id,
+            referenceModel: "refundSales",
+            companyId,
+          },
+        ],
+        { session },
+      );
+    } else if (item.type === "Service") {
+      await createProductMovement({
+        productId: item.id,
+        reference: newRefundSalesInvoice._id,
+        newQuantity: 0,
+        quantity: item.soldQuantity,
+        movementType: "in",
+        source: "Refund Sales Invoice",
+        companyId,
+        enterPrice: item.orginalBuyingPrice,
+        stockId: item.stock?._id,
+        buyingPrice: item.orginalBuyingPrice,
+        exchangeRate: item.exchangeRate,
+        movementDate: new Date(),
+        session,
+      });
+    } else if (item.type === "product") {
+      const product = productMap.get(item.id);
 
-    const product = productMap.get(item.id);
+      if (!product) {
+        throw new ApiError(`Product not found for item ${item.name}`, 404);
+      }
 
-    if (!product) {
-      throw new ApiError(`Product not found for item ${item.name}`, 404);
-    }
+      if (!item.stock?._id) {
+        throw new ApiError(`Stock is missing for item ${item.name}`, 400);
+      }
 
-    if (!item.stock?._id) {
-      throw new ApiError(`Stock is missing for item ${item.name}`, 400);
-    }
+      const stockRow = (product.stocks || []).find(
+        (s) => String(s.stockId) === String(item.stock._id),
+      );
 
-    const stockRow = (product.stocks || []).find(
-      (s) => String(s.stockId) === String(item.stock._id)
-    );
+      if (!stockRow) {
+        throw new ApiError(`Stock row not found for product ${item.name}`, 400);
+      }
+      currentStockQty = Number(stockRow?.productQuantity || 0);
 
-    if (!stockRow) {
-      throw new ApiError(`Stock row not found for product ${item.name}`, 400);
-    }
-    currentStockQty = Number(stockRow?.productQuantity || 0);
-
-    const reverseQty = Number(item.soldQuantity || 0);
-    bulkProductUpdates.push({
-      updateOne: {
-        filter: {
-          _id: item.id,
-          companyId,
-          "stocks.stockId": item.stock._id,
-        },
-        update: {
-          $inc: {
-            "stocks.$.productQuantity": reverseQty,
+      const reverseQty = Number(item.soldQuantity || 0);
+      bulkProductUpdates.push({
+        updateOne: {
+          filter: {
+            _id: item.id,
+            companyId,
+            "stocks.stockId": item.stock._id,
+          },
+          update: {
+            $inc: {
+              "stocks.$.productQuantity": reverseQty,
+            },
           },
         },
-      },
-    });
+      });
+    }
   }
-
   if (bulkProductUpdates.length > 0) {
     await productModel.bulkWrite(bulkProductUpdates, { session });
   }
@@ -574,7 +610,7 @@ exports.applyRefundSalesInventoryEffectsService = async ({
             actionType: "create",
           },
         ],
-        { session }
+        { session },
       );
 
       await batch.save({ session });
@@ -613,7 +649,7 @@ exports.applyRefundSalesCustomerEffectsService = async ({
 
   const totalMain = Number(newRefundSalesInvoice.totalInMainCurrency || 0);
   const remainderMain = Number(
-    newRefundSalesInvoice.totalRemainderMainCurrency || 0
+    newRefundSalesInvoice.totalRemainderMainCurrency || 0,
   );
 
   customer.total = Number(customer.total || 0) - totalMain;
@@ -634,7 +670,7 @@ exports.applyRefundSalesCustomerEffectsService = async ({
     transactionDate:
       newRefundSalesInvoice.paymentDate || newRefundSalesInvoice.orderDate,
     amountTransactionCurrency: Number(
-      newRefundSalesInvoice.invoiceGrandTotal || 0
+      newRefundSalesInvoice.invoiceGrandTotal || 0,
     ),
     amountMainCurrency: totalMain,
     customerId: customer._id,

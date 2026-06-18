@@ -44,7 +44,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -206,7 +206,7 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
   if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
     throw new ApiError(
       "invoiceIds is required and must be a non-empty array",
-      400
+      400,
     );
   }
 
@@ -222,7 +222,7 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
   if (!purchaseInvoices.length) {
     throw new ApiError(
       "No posted purchase invoices found for the provided ids",
-      404
+      404,
     );
   }
 
@@ -332,15 +332,15 @@ exports.prepareRefundPurchaseInvoiceDataService = async ({
   futureDateOb2.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb2.getHours())}:${padZero(
-    futureDateOb2.getMinutes()
+    futureDateOb2.getMinutes(),
   )}:${padZero(futureDateOb2.getSeconds())}.${padZero(
-    futureDateOb2.getMilliseconds()
+    futureDateOb2.getMilliseconds(),
   )}`;
 
   const futureFormatDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
-    futureDateOb.getMilliseconds()
+    futureDateOb.getMilliseconds(),
   )}`;
 
   if (req.body.paymentDate) {
@@ -437,17 +437,17 @@ exports.prepareRefundPurchaseInvoiceDataService = async ({
 
     refundedQuantity: Number(item.refundedQuantity || 0),
     remainingQuantityBeforeRefund: Number(
-      item.remainingQuantityBeforeRefund || 0
+      item.remainingQuantityBeforeRefund || 0,
     ),
     remainingQuantityAfterRefund: Number(
-      item.remainingQuantityAfterRefund || 0
+      item.remainingQuantityAfterRefund || 0,
     ),
 
     selectedBatchId: item.selectedBatchId || null,
     selectedBatchStockId: item.selectedBatchStockId || null,
     selectedBatchDate: item.selectedBatchDate || null,
     selectedBatchRemainingAtRefund: Number(
-      item.selectedBatchRemainingAtRefund || 0
+      item.selectedBatchRemainingAtRefund || 0,
     ),
   }));
 
@@ -471,7 +471,7 @@ exports.prepareRefundPurchaseInvoiceDataService = async ({
       (item) =>
         item.type !== "unTracedproduct" &&
         item.type !== "expense" &&
-        item.type !== "Service"
+        item.type !== "Service",
     )
     .map((item) => item.id);
 
@@ -483,7 +483,7 @@ exports.prepareRefundPurchaseInvoiceDataService = async ({
     .session(session);
 
   const productMap = new Map(
-    products.map((product) => [product._id.toString(), product])
+    products.map((product) => [product._id.toString(), product]),
   );
 
   return {
@@ -563,7 +563,7 @@ exports.createRefundPurchaseInvoiceRecordService = async ({
         financailFund: financailFund || {},
         paymentInFundCurrency: paymentInFundCurrency || "",
         totalPurchasePriceMainCurrency: Number(
-          totalPurchasePriceMainCurrency || 0
+          totalPurchasePriceMainCurrency || 0,
         ),
 
         date: req.body.date || formattedDate,
@@ -585,7 +585,7 @@ exports.createRefundPurchaseInvoiceRecordService = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   return createdInvoices[0];
@@ -603,10 +603,10 @@ exports.applyRefundPurchaseSupplierEffectsService = async ({
   }
 
   const totalMain = Number(
-    newRefundPurchaseInvoice.totalPurchasePriceMainCurrency || 0
+    newRefundPurchaseInvoice.totalPurchasePriceMainCurrency || 0,
   );
   const remainderMain = Number(
-    newRefundPurchaseInvoice.totalRemainderMainCurrency || 0
+    newRefundPurchaseInvoice.totalRemainderMainCurrency || 0,
   );
 
   supplier.total = Number(supplier.total || 0) - totalMain;
@@ -626,7 +626,7 @@ exports.applyRefundPurchaseSupplierEffectsService = async ({
     entryType: "invoice",
     transactionDate: newRefundPurchaseInvoice.date,
     amountTransactionCurrency: Number(
-      newRefundPurchaseInvoice.invoiceGrandTotal || 0
+      newRefundPurchaseInvoice.invoiceGrandTotal || 0,
     ),
     amountMainCurrency: totalMain,
     supplierId: supplier._id,
@@ -649,8 +649,24 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
   const bulkProductUpdates = [];
 
   for (const item of invoicesItems) {
-    if (item.type === "expense" || item.type === "Service") {
+    if (item.type === "expense") {
       continue;
+    } else if (item.type === "Service") {
+      await createProductMovement({
+        productId: item.id,
+        reference: newRefundPurchaseInvoice._id,
+        newQuantity: 0,
+        quantity: item.soldQuantity,
+        movementType: "out",
+        source: "Refund Purchase Invoice",
+        companyId,
+        enterPrice: item.orginalBuyingPrice || item.convertedBuyingPrice || 0,
+        stockId: item.selectedBatchStockId || null,
+        buyingPrice: item.orginalBuyingPrice || item.convertedBuyingPrice || 0,
+        exchangeRate: item.exchangeRate,
+        movementDate: new Date(),
+        session,
+      });
     } else if (item.type === "unTracedproduct") {
       await unTracedproductLogModel.create(
         [
@@ -658,17 +674,17 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
             type: "out",
             name: item.name,
             quantity: item.refundedQuantity,
-            outPrice: item.orginalBuyingPrice,
+            outPrice: item.orginalBuyingPrice || item.convertedBuyingPrice,
             totalWithoutTax: item.totalWithoutTax,
             total: item.total,
             tax: { _id: item.tax, taxValue: item.taxValue },
             sourceModule: "Refund Purchase Invoice",
             reference: newRefundPurchaseInvoice._id,
-            referenceModel: "purchase",
+            referenceModel: "refundpurchaseinvoices",
             companyId,
           },
         ],
-        { session }
+        { session },
       );
     } else {
       const product = productMap.get(String(item.id));
@@ -679,14 +695,14 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
       if (!item.selectedBatchId) {
         throw new ApiError(
           `Selected batch is required for product "${item.name}"`,
-          400
+          400,
         );
       }
 
       if (!item.selectedBatchStockId) {
         throw new ApiError(
           `Selected batch stock is required for product "${item.name}"`,
-          400
+          400,
         );
       }
 
@@ -694,7 +710,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
       if (!Number.isFinite(refundedQuantity) || refundedQuantity <= 0) {
         throw new ApiError(
           `Refunded quantity is invalid for product "${item.name}"`,
-          400
+          400,
         );
       }
 
@@ -708,7 +724,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
       if (!selectedBatch) {
         throw new ApiError(
           `Selected batch not found for product "${item.name}"`,
-          404
+          404,
         );
       }
 
@@ -718,7 +734,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
       ) {
         throw new ApiError(
           `Selected batch stock mismatch for product "${item.name}"`,
-          400
+          400,
         );
       }
 
@@ -726,18 +742,18 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
       if (batchRemaining < refundedQuantity) {
         throw new ApiError(
           `Batch remaining is not enough for product "${item.name}"`,
-          400
+          400,
         );
       }
 
       const stockRow = (product.stocks || []).find(
-        (stock) => String(stock.stockId) === String(item.selectedBatchStockId)
+        (stock) => String(stock.stockId) === String(item.selectedBatchStockId),
       );
 
       if (!stockRow) {
         throw new ApiError(
           `Stock row not found for product "${item.name}"`,
-          400
+          400,
         );
       }
 
@@ -745,7 +761,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
       if (currentStockQty < refundedQuantity) {
         throw new ApiError(
           `Insufficient stock for product "${item.name}"`,
-          400
+          400,
         );
       }
 
@@ -766,7 +782,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
             movementDate: new Date(newRefundPurchaseInvoice.date),
           },
         ],
-        { session }
+        { session },
       );
 
       await createProductMovement({
@@ -852,7 +868,7 @@ exports.applyRefundPurchaseFinancialEffectsService = async ({
   const paymentInFundCurrency = Number(req.body.paymentInFundCurrency || 0);
   const paymentInMainCurrency = Number(req.body.paymentInMainCurrency || 0);
   const paymentInInvoiceCurrency = Number(
-    req.body.paymentInInvoiceCurrency || 0
+    req.body.paymentInInvoiceCurrency || 0,
   );
   const counter = Number(req.body.counter || 0);
   const exchangeRate = Number(req.body.exchangeRate || 1);
@@ -918,7 +934,7 @@ exports.applyRefundPurchaseFinancialEffectsService = async ({
         ],
       },
     ],
-    { session }
+    { session },
   );
 
   const payment = createdPayments[0];
@@ -956,7 +972,7 @@ exports.applyRefundPurchaseFinancialEffectsService = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   const reports = createdReports[0];
