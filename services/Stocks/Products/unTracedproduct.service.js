@@ -19,7 +19,6 @@ exports.getUnTracedproductLogService = async ({ companyId, req }) => {
       $lte: end,
     };
   }
-  console.log(req.query.keyword);
 
   if (req.query.keyword !== null) {
     query.$or = [

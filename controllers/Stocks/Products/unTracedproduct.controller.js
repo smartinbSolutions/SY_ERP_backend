@@ -13,7 +13,6 @@ exports.getUnTracedproductLog = asyncHandler(async (req, res) => {
     companyId,
     req,
   });
-  console.log(data);
   res.status(200).json({
     totalPages,
     results,
