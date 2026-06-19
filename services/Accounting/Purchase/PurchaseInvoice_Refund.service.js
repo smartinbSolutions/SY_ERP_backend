@@ -682,6 +682,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
             reference: newRefundPurchaseInvoice._id,
             referenceModel: "refundpurchaseinvoices",
             companyId,
+            date: newRefundPurchaseInvoice.date,
           },
         ],
         { session },

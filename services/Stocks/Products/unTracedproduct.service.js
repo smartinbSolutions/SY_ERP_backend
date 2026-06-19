@@ -19,9 +19,18 @@ exports.getUnTracedproductLogService = async ({ companyId, req }) => {
       $lte: end,
     };
   }
-  //   if (req.query.keyword) {
-  //     query.$or = [{ name: { $regex: req.query.keyword, $options: "i" } }];
-  //   }
+  console.log(req.query.keyword);
+
+  if (req.query.keyword !== null) {
+    query.$or = [
+      {
+        name: {
+          $regex: req.query.keyword,
+          $options: "i",
+        },
+      },
+    ];
+  }
   const totalItems = await unTracedproductLogModel.countDocuments(query);
   const totalPages = Math.ceil(totalItems / pageSize);
   const UnTracedproductLog = await unTracedproductLogModel
@@ -29,7 +38,6 @@ exports.getUnTracedproductLogService = async ({ companyId, req }) => {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageSize);
-  console.log(UnTracedproductLog);
 
   return {
     totalPages: totalPages,

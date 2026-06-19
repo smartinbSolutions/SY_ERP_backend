@@ -72,7 +72,7 @@ const UnTracedproductLogSchema = new mongoose.Schema(
     },
     reference: { type: mongoose.Schema.ObjectId, refPath: "referenceModel" },
     referenceModel: { type: String },
-
+    date: Date,
     companyId: {
       type: String,
       required: true,

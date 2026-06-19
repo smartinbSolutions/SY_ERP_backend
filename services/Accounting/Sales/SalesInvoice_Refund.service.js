@@ -520,6 +520,7 @@ exports.applyRefundSalesInventoryEffectsService = async ({
             reference: newRefundSalesInvoice._id,
             referenceModel: "refundSales",
             companyId,
+            date: newRefundSalesInvoice.orderDate,
           },
         ],
         { session },
