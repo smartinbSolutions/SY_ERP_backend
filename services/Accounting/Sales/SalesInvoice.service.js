@@ -4,7 +4,6 @@ const journalEntryModel = require("../../../models/journalEntryModel");
 const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const paymentModel = require("../../../models/paymentModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
-const productLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 const productModel = require("../../../models/Stocks/products/productModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const ApiError = require("../../../utils/apiError");
