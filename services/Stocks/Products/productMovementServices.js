@@ -3,21 +3,30 @@ const ProductMovement = require("../../../models/Stocks/products/productMovement
 const { default: mongoose } = require("mongoose");
 const productModel = require("../../../models/Stocks/products/productModel");
 
-// Get all products movement
-exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
-  const pageSize = parseInt(req.query.limit) || 0;
-  const page = parseInt(req.query.page) || 1;
+exports.getAllMovements = async ({
+  companyId,
+  keyword,
+  stockId,
+  productId,
+  startDate,
+  endDate,
+  pageSize,
+  page,
+}) => {
   const skip = (page - 1) * pageSize;
 
-  // Build the common filter stages
+  const matchStage = { companyId };
+  if (stockId) matchStage.stockId = new mongoose.Types.ObjectId(stockId);
+  if (productId) matchStage.productId = new mongoose.Types.ObjectId(productId);
+  if (startDate && endDate) {
+    matchStage.movementDate = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate),
+    };
+  }
+
   const filterStages = [
-    { $match: { type: "movement", companyId } },
+    { $match: matchStage },
     {
       $lookup: {
         from: "products",
@@ -27,102 +36,107 @@ exports.getAllProductsMovements = asyncHandler(async (req, res, next) => {
       },
     },
     { $unwind: "$productId" },
+    { $match: { "productId.type": { $ne: "Service" } } },
+    {
+      $lookup: {
+        from: "stocks",
+        localField: "stockId",
+        foreignField: "_id",
+        as: "stockId",
+      },
+    },
+    {
+      $unwind: {
+        path: "$stockId",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
   ];
 
-  // Add keyword filter if present
-  if (req.query.keyword) {
+  if (keyword) {
     filterStages.push({
       $match: {
         $or: [
-          { movementType: { $regex: req.query.keyword, $options: "i" } },
-          { source: { $regex: req.query.keyword, $options: "i" } },
-          { "productId.name": { $regex: req.query.keyword, $options: "i" } },
+          { movementType: { $regex: keyword, $options: "i" } },
+          { source: { $regex: keyword, $options: "i" } },
+          { "productId.name": { $regex: keyword, $options: "i" } },
         ],
       },
     });
   }
 
-  try {
-    // Fetch paginated movements
-    const movements = await ProductMovement.aggregate([
+  const [movements, countResult, statsResult] = await Promise.all([
+    ProductMovement.aggregate([
       ...filterStages,
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: pageSize },
-    ]);
-
-    // Count total matching documents
-    const countResult = await ProductMovement.aggregate([
+    ]),
+    ProductMovement.aggregate([...filterStages, { $count: "total" }]),
+    ProductMovement.aggregate([
       ...filterStages,
-      { $count: "total" },
-    ]);
-    const totalItems = countResult.length > 0 ? countResult[0].total : 0;
-    const totalPages = pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1;
+      {
+        $group: {
+          _id: null,
+          totalIn: {
+            $sum: { $cond: [{ $eq: ["$movementType", "in"] }, "$quantity", 0] },
+          },
+          totalOut: {
+            $sum: {
+              $cond: [{ $eq: ["$movementType", "out"] }, "$quantity", 0],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
 
-    res.status(200).json({
-      status: "true",
-      Pages: totalPages,
-      results: movements.length,
-      data: movements,
-    });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: `Error getting product movements: ${error.message}` });
-  }
-});
+  const totalItems = countResult[0]?.total || 0;
+  const totalPages = pageSize > 0 ? Math.ceil(totalItems / pageSize) : 1;
+  const totalIn = statsResult[0]?.totalIn || 0;
+  const totalOut = statsResult[0]?.totalOut || 0;
 
-// Get product movement by ID
-exports.getProductMovementByID = asyncHandler(async (req, res, next) => {
-  const { id } = req.params;
-  const companyId = req.companyId;
+  return {
+    movements,
+    totalPages,
+    totalItems,
+    stats: {
+      totalMovements: totalItems,
+      totalIn,
+      totalOut,
+      netBalance: totalIn - totalOut,
+    },
+  };
+};
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
-  const pageSize = req.query.limit || 10;
-  const page = parseInt(req.query.page) || 1;
+exports.getOneMovement = async ({
+  companyId,
+  productId,
+  movementType,
+  startDate,
+  endDate,
+  pageSize,
+  page,
+}) => {
   const skip = (page - 1) * pageSize;
 
-  const query = { productId: id || "", companyId };
-  const totalItems = await ProductMovement.countDocuments(query);
-  const totalPages = Math.ceil(totalItems / pageSize);
-  if (req.query.movementType) {
-    query.movementType = req.query.movementType;
+  const query = { productId, companyId };
+  if (movementType) query.movementType = movementType;
+  if (startDate && endDate) {
+    query.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
   }
 
-  if (req.query.startDate && req.query.endDate) {
-    const startDate = new Date(req.query.startDate);
-    const endDate = new Date(req.query.endDate);
-
-    if (!isNaN(startDate) && !isNaN(endDate)) {
-      query.createdAt = {
-        $gte: startDate,
-        $lte: endDate,
-      };
-    } else {
-      return res
-        .status(400)
-        .json({ status: "false", message: "Invalid date range" });
-    }
-  }
-
-  let movements = [];
-  if (id) {
-    movements = await ProductMovement.find(query)
+  const [movements, totalItems] = await Promise.all([
+    ProductMovement.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(pageSize);
-  }
+      .limit(pageSize),
+    ProductMovement.countDocuments(query),
+  ]);
 
-  res.status(200).json({
-    status: "true",
-    Pages: totalPages,
-    results: movements.length,
-    data: movements,
-  });
-});
+  const totalPages = Math.ceil(totalItems / pageSize);
+  return { movements, totalPages, totalItems };
+};
 
 exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;

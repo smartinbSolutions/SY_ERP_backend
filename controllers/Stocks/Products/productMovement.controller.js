@@ -1,20 +1,35 @@
 const asyncHandler = require("express-async-handler");
-const service = require("../services/productMovementService");
+const {
+  getAllMovements,
+  getOneMovement,
+} = require("../../../services/Stocks/Products/productMovementServices");
 
 exports.getAllProductsMovements = asyncHandler(async (req, res) => {
   const { companyId } = req;
   if (!companyId)
     return res.status(400).json({ message: "companyId is required" });
 
-  const { keyword, stockId, productId } = req.query;
+  const { keyword, stockId, productId, startDate, endDate } = req.query;
   const pageSize = parseInt(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
 
-  const { movements, totalPages } = await service.getAllMovements({
+  if (
+    startDate &&
+    endDate &&
+    (isNaN(new Date(startDate)) || isNaN(new Date(endDate)))
+  ) {
+    return res
+      .status(400)
+      .json({ status: "false", message: "Invalid date range" });
+  }
+
+  const { movements, totalPages, stats, totalItems } = await getAllMovements({
     companyId,
     keyword,
     stockId,
     productId,
+    startDate,
+    endDate,
     pageSize,
     page,
   });
@@ -22,7 +37,8 @@ exports.getAllProductsMovements = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: "true",
     Pages: totalPages,
-    results: movements.length,
+    results: totalItems,
+    stats,
     data: movements,
   });
 });
@@ -47,7 +63,7 @@ exports.getProductMovementByID = asyncHandler(async (req, res) => {
       .json({ status: "false", message: "Invalid date range" });
   }
 
-  const { movements, totalPages } = await service.getOneMovement({
+  const { movements, totalPages } = await getOneMovement({
     companyId,
     productId: id,
     movementType,

@@ -2,13 +2,15 @@ const express = require("express");
 
 const authService = require("../../../services/authService");
 const {
-  getAllProductsMovements,
-  getProductMovementByID,
   getHighestProductMovment,
   getSalesReports,
   getProductCostLedger,
   getProductMovementReport,
 } = require("../../../services/Stocks/Products/productMovementServices");
+const {
+  getAllProductsMovements,
+  getProductMovementByID,
+} = require("../../../controllers/Stocks/Products/productMovement.controller");
 
 const productMovementsRoute = express.Router();
 
