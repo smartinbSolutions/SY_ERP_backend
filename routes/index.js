@@ -39,7 +39,6 @@ const shippingCompaniesRoute = require("./shippingCompaniesRoute");
 const ecommercePaymentMethodRoute = require("./ecommerce/ecommercePaymentMethodRoute");
 const purchaseRequestRouter = require("./purchaseRequestRoute");
 const journalEntryRoute = require("./Accounting/JournalEntries/JournalEntries.route");
-const unTracedproductLogRout = require("./unTracedproductLogRout");
 const TagRoute = require("./Settings/Definition/tag.route");
 const SalesPointRout = require("./salesPointRoute");
 const linkPanelRoute = require("./LinkPanelRout");
@@ -126,6 +125,7 @@ const PosReceiptRefundRoute = require("./Pos/pos.receipt_refund.route");
 const roleRouter = require("./Settings/role.route");
 const DashboardStatsRoute = require("./dashboardStatsRoute");
 const permissionsRouter = require("./Settings/permissions.route");
+const unTracedproductLogRoute = require("./Stocks/Products/unTracedproductLog.route");
 
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);
@@ -173,7 +173,7 @@ const mountRoutes = (app) => {
   app.use("/api/reconciliation", reconciliationRoute);
   app.use("/api/purchaserequest", purchaseRequestRouter);
   app.use("/api/shippingCompany", shippingCompaniesRoute);
-  app.use("/api/untracedproductlog", unTracedproductLogRout);
+  app.use("/api/v1/untraced-product-log", unTracedproductLogRoute);
   app.use("/api/salespoint", SalesPointRout);
   app.use("/api/linkpanel", linkPanelRoute);
   app.use("/api/notices", noticesRouter);

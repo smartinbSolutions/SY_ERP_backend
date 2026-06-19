@@ -13,7 +13,7 @@ const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerMod
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
-const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
+const unTracedproductLogModel = require("../../../models/Stocks/products/unTracedproductLogModel");
 
 function padZero(value) {
   return value < 10 ? `0${value}` : value;
@@ -669,8 +669,12 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
           {
             type: "out",
             name: item.name,
-            quantity: item.refundedQuantity,
-            outPrice: item.orginalBuyingPrice || item.convertedBuyingPrice,
+            quantity: item.quantity || 1,
+            outPrice: item.convertedBuyingPrice || item.orginalBuyingPrice,
+            outPriceMainCurrency:
+              item.orginalBuyingPrice ||
+              item.convertedBuyingPrice /
+                newRefundPurchaseInvoice.currency.exchangeRate,
             totalWithoutTax: item.totalWithoutTax,
             total: item.total,
             tax: { _id: item.tax, taxValue: item.taxValue },

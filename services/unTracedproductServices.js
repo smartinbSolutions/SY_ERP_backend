@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/apiError");
 const mongoose = require("mongoose");
-const UnTracedproductLogModel = require("../models/unTracedproductLogModel");
+const UnTracedproductLogModel = require("../models/Stocks/products/unTracedproductLogModel");
 const { Search } = require("../utils/search");
 
 //@desc Get list of UnTracedproductLog

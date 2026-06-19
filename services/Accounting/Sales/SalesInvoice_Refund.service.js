@@ -11,7 +11,7 @@ const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
-const unTracedproductLogModel = require("../../../models/unTracedproductLogModel");
+const unTracedproductLogModel = require("../../../models/Stocks/products/unTracedproductLogModel");
 
 exports.findAllSalesRefundsService = async ({ req, companyId }) => {
   const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
@@ -511,6 +511,8 @@ exports.applyRefundSalesInventoryEffectsService = async ({
             name: item.name,
             quantity: item.soldQuantity,
             enterPrice: item.sellingPrice,
+            enterPriceMainCurrency:
+              item.sellingPrice / newRefundSalesInvoice.currency.exchangeRate,
             totalWithoutTax: item.totalWithoutTax,
             total: item.total,
             tax: { _id: item.tax, taxValue: item.taxValue },

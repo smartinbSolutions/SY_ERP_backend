@@ -30,6 +30,16 @@ const UnTracedproductLogSchema = new mongoose.Schema(
       default: 0,
     },
 
+    enterPriceMainCurrency: {
+      type: Number,
+      default: 0,
+    },
+
+    outPriceMainCurrency: {
+      type: Number,
+      default: 0,
+    },
+
     totalWithoutTax: {
       type: Number,
       default: 0,
