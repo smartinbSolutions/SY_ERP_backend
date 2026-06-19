@@ -30,6 +30,7 @@ const orderSchema = new mongoose.Schema(
         profitRatio: Number,
         convertedBuyingPrice: Number,
         sellingPrice: Number,
+        orginalSellingPrice: Number,
         unit: String,
         tax: {
           _id: String,

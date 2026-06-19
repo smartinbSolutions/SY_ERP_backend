@@ -8,6 +8,8 @@ const productModel = require("../../../models/Stocks/products/productModel");
 const { createProductBatch } = require("../../productBatchServices");
 const { createProductMovement } = require("../../../utils/productMovement");
 const counterModel = require("../../../models/Settings/counterModel");
+const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
+const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
 
 // Create a new reconciliation report
 exports.createStockReconciliation = asyncHandler(async (req, res) => {
@@ -448,106 +450,6 @@ exports.getOneItemForReconciliation = asyncHandler(async (req, res) => {
   res.status(200).json({ status: "true", item });
 });
 
-// exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
-//   const companyId = req.companyId;
-//   const { id } = req.params;
-
-//   if (!companyId) {
-//     return res.status(400).json({ message: "companyId is required" });
-//   }
-
-//   const reconciliation = await reconciliationModel.findOneAndUpdate(
-//     { _id: id, companyId, status: "DRAFT" },
-//     { status: "SUBMITTING" },
-//     { new: true }
-//   );
-
-//   if (!reconciliation) {
-//     return res.status(404).json({ message: "Reconciliation not found" });
-//   }
-
-//   const reconciliationItems = await reconciliationItemModel.find({
-//     reconciliationId: id,
-//     companyId,
-//     reconciled: false,
-//   });
-//   try {
-//     for (const item of reconciliationItems) {
-//       const updatedProduct = await productModel.findOneAndUpdate(
-//         {
-//           _id: item.productId,
-//           companyId,
-//           "stocks.stockId": reconciliation.stockId,
-//         },
-//         {
-//           $set: {
-//             "stocks.$.stockName": reconciliation.stockName,
-//             "stocks.$.productQuantity": item.realCount,
-//           },
-//         },
-//         { new: true }
-//       );
-
-//       if (!updatedProduct) {
-//         await productModel.findOneAndUpdate(
-//           {
-//             _id: item.productId,
-//             companyId,
-//           },
-//           {
-//             $push: {
-//               stocks: {
-//                 stockId: reconciliation.stockId,
-//                 stockName: reconciliation.stockName,
-//                 productQuantity: item.realCount,
-//               },
-//             },
-//           }
-//         );
-//       }
-
-//       const product = await productModel.findById(item.productId);
-
-//       await createProductMovement({
-//         productId: item.productId,
-//         reference: id,
-//         newQuantity: item.realCount,
-//         quantity: item.difference,
-//         movementType: item.difference > 0 ? "in" : "out",
-//         source: "Stock reconciliation",
-//         companyId,
-//         enterPrice: product?.buyingprice || 0,
-//         stockId: reconciliation.stockId,
-//       });
-//       if (item.difference > 0) {
-//         await createProductBatch({
-//           productId: item.productId,
-//           companyId,
-//           stockId: reconciliation.stockId,
-//           quantity: item.difference,
-//           buyingprice: product?.buyingprice || 0,
-//           sourceId: id,
-//           costBuyingPrice:
-//             product?.costBuyingPrice || product?.buyingprice || 0,
-//           referenceType: "Stock Reconciliation",
-//         });
-//       }
-//     }
-//     await reconciliationModel.findByIdAndUpdate(id, {
-//       status: "CLOSED",
-//     });
-//   } catch (e) {
-//     await reconciliationModel.findByIdAndUpdate(id, {
-//       status: "DRAFT",
-//     });
-//     throw e;
-//   }
-//   res.status(200).json({
-//     status: "success",
-//     message: "Reconciliation completed successfully",
-//   });
-// });
-
 exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
   const { id } = req.params;
@@ -560,7 +462,7 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
 
   try {
     await session.withTransaction(async () => {
-      // 1) Move report to SUBMITTING (must be DRAFT)
+      // 1) Move report to SUBMITTING (must be DRAFT or CLOSED)
       const reconciliation = await reconciliationModel.findOneAndUpdate(
         {
           _id: id,
@@ -571,7 +473,6 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
         { new: true, session }
       );
       if (!reconciliation) {
-        // In a transaction, throw to abort
         const err = new Error("Reconciliation not found");
         err.statusCode = 404;
         throw err;
@@ -584,9 +485,13 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
         { session }
       );
 
-      // Optional: if no items, you can decide to close or revert.
-      // For now, it will simply close with no movements.
       for (const item of reconciliationItems) {
+        const product = await productModel
+          .findById(item.productId, null, { session })
+          .populate("currency");
+
+        const exchangeRate = product?.currency?.exchangeRate || 1;
+
         // 3) Update product stock quantity in the selected stock
         const updatedProduct = await productModel.findOneAndUpdate(
           {
@@ -603,7 +508,6 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
           { new: true, session }
         );
 
-        // If stock entry not found, push it
         if (!updatedProduct) {
           await productModel.findOneAndUpdate(
             { _id: item.productId, companyId },
@@ -620,56 +524,125 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
           );
         }
 
-        // 4) Load product for pricing (same session)
-        const product = await productModel.findById(item.productId, null, {
-          session,
-        });
+        if (item.difference > 0) {
+          // ── POSITIVE: stock found, create movement + batch ──
+          const enterPrice = product?.buyingprice || 0;
+          const enterPriceMainCurrency = enterPrice / exchangeRate;
 
-        // 5) Create movement (MUST use session inside)
-        await createProductMovement(
-          {
+          await createProductMovement({
             productId: item.productId,
             reference: id,
             newQuantity: item.realCount,
             quantity: item.difference,
-            movementType: item.difference > 0 ? "in" : "out",
+            movementType: "in",
             source: "Stock reconciliation",
             companyId,
-            enterPrice: product?.buyingprice || 0,
+            enterPrice,
+            enterPriceMainCurrency,
             stockId: reconciliation.stockId,
-          },
-          { session } // <-- pass session
-        );
+            exchangeRate,
+            session,
+          });
 
-        // 6) Create batch only for positive adjustments (MUST use session inside)
-        if (item.difference > 0) {
-          await createProductBatch(
-            {
+          await createProductBatch({
+            productId: item.productId,
+            companyId,
+            stockId: reconciliation.stockId,
+            quantity: item.difference,
+            buyingprice: enterPrice,
+            sourceId: id,
+            sourceType: "Stock Reconciliation",
+            session,
+          });
+        } else if (item.difference < 0) {
+          // ── NEGATIVE: stock missing, consume FIFO batches ──
+          let qtyToRemove = Math.abs(item.difference);
+
+          const batches = await prodcutBatchModel
+            .find({
               productId: item.productId,
               companyId,
               stockId: reconciliation.stockId,
-              quantity: item.difference,
-              buyingprice: product?.buyingprice || 0,
-              sourceId: id,
-              costBuyingPrice:
-                product?.costBuyingPrice || product?.buyingprice || 0,
-              sourceType: "Stock Reconciliation",
-            },
-            { session } // <-- pass session
-          );
+              remaining: { $gt: 0 },
+            })
+            .sort({ createdAt: 1 })
+            .session(session);
+
+          for (const batch of batches) {
+            if (qtyToRemove <= 0) break;
+
+            const available = Number(batch.remaining || 0);
+            if (available <= 0) continue;
+
+            const usedQty = Math.min(available, qtyToRemove);
+
+            batch.remaining = Math.max(0, batch.remaining - usedQty);
+            await batch.save({ session });
+
+            await batchLedgerModel.create(
+              [
+                {
+                  productId: item.productId,
+                  companyId,
+                  stockId: reconciliation.stockId,
+                  type: "out",
+                  quantity: usedQty,
+                  batchId: batch._id,
+                  referenceType: "reconciliation",
+                  referenceId: id,
+                  movementDate: new Date(),
+                },
+              ],
+              { session }
+            );
+
+            const outPrice = batch.buyingprice || 0;
+            const outPriceMainCurrrency = outPrice / exchangeRate;
+
+            await createProductMovement({
+              productId: item.productId,
+              reference: id,
+              newQuantity: item.realCount,
+              quantity: usedQty,
+              movementType: "out",
+              source: "Stock reconciliation",
+              companyId,
+              outPrice,
+              outPriceMainCurrrency,
+              stockId: reconciliation.stockId,
+              exchangeRate,
+              session,
+            });
+
+            qtyToRemove -= usedQty;
+          }
+
+          // No batches left to cover the shortfall — still log the movement
+          if (qtyToRemove > 0) {
+            const outPrice = product?.buyingprice || 0;
+            const outPriceMainCurrrency = outPrice / exchangeRate;
+
+            await createProductMovement({
+              productId: item.productId,
+              reference: id,
+              newQuantity: item.realCount,
+              quantity: qtyToRemove,
+              movementType: "out",
+              source: "Stock reconciliation",
+              companyId,
+              outPrice,
+              outPriceMainCurrrency,
+              stockId: reconciliation.stockId,
+              exchangeRate,
+              session,
+            });
+          }
         }
 
         // 7) Mark item as reconciled AFTER effects succeeded
         await reconciliationItemModel.updateOne(
           { _id: item._id, companyId, reconciled: false },
-          {
-            $set: {
-              reconciled: true,
-              // optional but recommended for audit:
-              reconciledAt: new Date(),
-              // reconciledBy: req.user?._id
-            },
-          },
+          { $set: { reconciled: true, reconciledAt: new Date() } },
           { session }
         );
       }
@@ -682,14 +655,11 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
       );
     });
 
-    // If we reach here, transaction committed
     return res.status(200).json({
       status: "success",
       message: "Reconciliation completed successfully",
     });
   } catch (e) {
-    // No need to manually set DRAFT here; transaction aborts all changes automatically.
-    // But if you want a fallback outside transaction for non-transaction errors, you can.
     const statusCode = e.statusCode || 500;
     return res.status(statusCode).json({
       status: "error",

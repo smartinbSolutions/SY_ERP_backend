@@ -7,8 +7,8 @@ const {
 const BatchLedger = express.Router();
 
 BatchLedger.use(
-  authService.checkPlanFeatures("inventory"),
   authService.protect,
+  authService.checkPlanFeatures("inventory")
 );
 
 BatchLedger.route("/:id").get(findAllBatchLedgerForProduct);

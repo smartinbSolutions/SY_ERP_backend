@@ -19,7 +19,6 @@ const productRout = require("./Stocks/Products/productRout");
 const PurchaseInvoices = require("./Accounting/Purchase/purchaseInvoices.route");
 const RefundPurchaseInvoices = require("./Accounting/Purchase/refundPurchaseInvoices.route");
 const RoleDashboardRoute = require("./roleDashboardRoute");
-const StockReconciliationRoute = require("./stockReconciliationRoute");
 const taxRout = require("./Settings/Definition/tax.route");
 const unitRout = require("./Settings/Definition/unit.route");
 const authRoute = require("./authRoute");
@@ -159,7 +158,6 @@ const mountRoutes = (app) => {
   app.use("/api/expenseCategories", expenseCategoriesRoute);
   app.use("/api/v1/companyinfo", companyInfoRoute);
   app.use("/api/companyinfo", companyInfoRoute);
-  app.use("/api/stockreconciliation", StockReconciliationRoute);
   app.use("/api/stockreconciliation-v1", ReconciliationRoute);
   app.use("/api/v1/receipt-pos", PosReceiptRoute);
   app.use("/api/v1/pos-receipt-Refund", PosReceiptRefundRoute);
