@@ -79,10 +79,12 @@ exports.findAllSalesRefundsService = async ({ req, companyId }) => {
 exports.findOneSalesRefundService = async ({ req, companyId }) => {
   const { id } = req.params;
 
-  const salesRefunds = await returnOrderModel.findOne({
-    _id: id,
-    companyId,
-  });
+  const salesRefunds = await returnOrderModel
+    .findOne({
+      _id: id,
+      companyId,
+    })
+    .populate({ path: "employee", select: "name email" });
 
   if (!salesRefunds) {
     throw new ApiError(`No refund sales invoice for this id ${id}`, 404);
@@ -102,7 +104,7 @@ exports.findOneSalesRefundService = async ({ req, companyId }) => {
       invoiceId: id,
       companyId,
     })
-    .populate({ path: "employeeId", select: "name email" })
+    .populate({ path: "employee", select: "name email" })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageSize);
