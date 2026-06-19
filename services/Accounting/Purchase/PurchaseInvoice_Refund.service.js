@@ -236,11 +236,7 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
     for (let index = 0; index < invoiceItems.length; index++) {
       const item = invoiceItems[index];
 
-      if (
-        item.type === "expense" ||
-        item.type === "Service" ||
-        item.type === "unTracedproduct"
-      ) {
+      if (item.type === "expense" || item.type === "unTracedproduct") {
         continue;
       }
 
@@ -276,7 +272,7 @@ exports.findRefundablePurchaseItemsByInvoicesService = async ({
         productId: item.id || "",
         productName: item.name || "",
         qr: item.qr || "",
-        type: item.type || "product",
+        type: item.type,
 
         unit: item.unit || "",
         tax: item.tax || null,
@@ -686,7 +682,7 @@ exports.applyRefundPurchaseInventoryEffectsService = async ({
         ],
         { session },
       );
-    } else {
+    } else if (item.type === "product") {
       const product = productMap.get(String(item.id));
       if (!product) {
         throw new ApiError(`Product not found for item ${item.name}`, 404);
