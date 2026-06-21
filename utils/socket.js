@@ -15,7 +15,7 @@ function initSocket(server) {
     socket.on("joinSalePoint", (salePointId) => {
       socket.join(salePointId);
       console.log(
-        `👤 Socket ${socket.id} joined SalePoint room: ${salePointId}`
+        `👤 Socket ${socket.id} joined SalePoint room: ${salePointId}`,
       );
     });
 
@@ -28,6 +28,13 @@ function initSocket(server) {
     socket.on("disconnect", () => {
       console.log(`❌ Client disconnected: ${socket.id}`);
     });
+
+    socket.on("joinPayroll", (periodId) => {
+      const room = `payroll:${periodId}`;
+      socket.join(room);
+      console.log(`📊 Joined Payroll Room: ${room}`);
+    });
+    
   });
 
   return io;

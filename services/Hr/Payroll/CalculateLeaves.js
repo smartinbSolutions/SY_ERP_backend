@@ -1,72 +1,78 @@
 const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
-/**
- * Filter leaves inside payroll period
- */
-function filterLeavesByPeriod(leaves, period) {
-  const start = new Date(period.startDate);
-  const end = new Date(period.endDate);
-
-  return (leaves || []).filter((leave) => {
-    const leaveStart = new Date(leave.startDate);
-    const leaveEnd = new Date(leave.endDate);
-
-    return leaveEnd >= start && leaveStart <= end;
-  });
-}
-
 exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
   try {
-    console.log(`\n========== LEAVES START (${employee._id}) ==========\n`);
-
-    const filteredLeaves = filterLeavesByPeriod(leaves, period);
-
-    console.log(
-      `Found ${filteredLeaves.length} leave logs inside payroll period`,
-    );
+    console.log("===== LEAVE ENGINE START =====");
+    console.log("Employee ID:", employee?._id);
+    console.log("Hourly Rate:", employee?.hourlyRate);
 
     const createdLines = [];
     let totalDeduction = 0;
 
-    const dailyRate = (employee.salary || 0) / 30;
+    const group = employee.groupId || {};
 
-    for (const leave of filteredLeaves) {
+    const {
+      attendanceType,
+      fixedAttendance = {},
+      flexibleAttendance = {},
+    } = group;
+
+    // shift hours (same logic as attendance engine)
+    const shiftHours =
+      attendanceType === "fixed"
+        ? calcShiftHours(fixedAttendance?.startTime, fixedAttendance?.endTime)
+        : flexibleAttendance?.requiredHoursPerDay || 8;
+
+    // IMPORTANT: use hourlyRate (not dailyRate)
+    const hourlyRate =
+      employee.salary.hourlyRate ;
+
+    console.log("Calculated shiftHours:", shiftHours);
+    console.log("Using hourlyRate:", hourlyRate);
+
+    for (const leave of leaves) {
+      console.log("\n--- Leave ---", leave._id);
+
       const totalDays = leave.totalDays || 0;
 
-      // 👇 أهم تغيير هنا: نعتمد على نسبة الدفع
       const payPercentage =
         leave.appliedPayPercentage ?? leave.payPercentage ?? 0;
 
-      const leaveType = leave.leaveType;
+      console.log("totalDays:", totalDays);
+      console.log("payPercentage:", payPercentage);
 
-      console.log(`Checking leave type=${leaveType} | pay=${payPercentage}%`);
+      // 🔥 NEW CORE LOGIC (hour-based)
+      const leaveHours = totalDays * shiftHours;
 
-      const unpaidRatio = (100 - payPercentage) / 100;
-      const amount = totalDays * dailyRate * unpaidRatio;
+      const unpaidHours = leaveHours * (1 - payPercentage / 100);
 
-      if (amount <= 0) {
-        console.log("No deduction (fully paid leave)");
+      console.log("leaveHours:", leaveHours);
+      console.log("unpaidHours:", unpaidHours);
+
+      if (unpaidHours <= 0) {
+        console.log("SKIPPED: fully paid leave");
         continue;
       }
 
-      console.log(
-        `Creating leave line -> days=${totalDays}, rate=${dailyRate}, amount=${amount}`,
-      );
+      const amount = unpaidHours * hourlyRate;
+
+      console.log("final amount:", amount);
 
       const linePayload = {
         payrollPeriodId: period._id,
-        payrollEmployeeId: payroll._id,
+        payrollEmployeeId: payroll._id, // FIXED (important)
         employeeId: employee._id,
 
         category: "deduction",
         type: "leave_deduction",
-        label: `leave_${leaveType}`,
+        label: `leave_${leave.leaveType}`,
 
-        quantity: totalDays,
-        unit: "day",
-        rate: dailyRate,
+        quantity: unpaidHours,
+        unit: "hour",
+        rate: hourlyRate,
 
         amount,
+        Originalamount: amount,
 
         sourceType: "leave_request",
         sourceId: leave._id,
@@ -80,20 +86,29 @@ exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
       const createdLine = await PayrollEmployeeLine.create(linePayload);
 
       createdLines.push(createdLine);
-
       totalDeduction += amount;
-
-      console.log("✓ Line created successfully");
     }
-
-    console.log(
-      `Finished leaves processing. Total deduction = ${totalDeduction}`,
-    );
 
     return {
       success: true,
-      amount: totalDeduction,
-      linesCount: createdLines.length,
+
+      result: {
+        quantity: createdLines.reduce(
+          (sum, line) => sum + (line.quantity || 0),
+          0,
+        ),
+
+        rate: hourlyRate,
+        amount: totalDeduction,
+
+        breakdown: createdLines.map((line) => ({
+          leaveId: line.sourceId,
+          hours: line.quantity,
+          rate: line.rate,
+          amount: line.amount,
+        })),
+      },
+
       linePayload: createdLines,
     };
   } catch (err) {
@@ -125,3 +140,13 @@ exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
     };
   }
 };
+
+/* helper */
+function calcShiftHours(start, end) {
+  if (!start || !end) return 8;
+
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+
+  return (eh * 60 + em - (sh * 60 + sm)) / 60;
+}

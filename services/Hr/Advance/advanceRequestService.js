@@ -6,6 +6,7 @@ const { default: mongoose } = require("mongoose");
 const { handleApproval } = require("../approvalService");
 const NotificationModel = require("../../../models/Hr/NotificationModel");
 const staffModel = require("../../../models/Hr/staffModel");
+const payrollPeriodModel = require("../../../models/Hr/payrollPeriodModel");
 
 // ================= CREATE =================
 exports.createAdvanceRequest = async (data) => {

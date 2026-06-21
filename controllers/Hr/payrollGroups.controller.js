@@ -2,100 +2,93 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const payrollGroupService = require("../../services/Hr/payrollGroupService");
 
-// ===== Create Payroll Group =====
+// ================= CREATE =================
 exports.createPayrollGroup = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
-  if (!companyId) return next(new ApiError("companyId is required", 400));
-
-  try {
-    const group = await payrollGroupService.createPayrollGroup({
-      ...req.body,
-      companyId,
-    });
-
-    res.status(201).json({
-      status: "success",
-      data: group,
-    });
-  } 
-  catch (err) {
-    return next(new ApiError(err.message, 400));
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
   }
+
+  const group = await payrollGroupService.createPayrollGroup({
+    ...req.body,
+    companyId,
+  });
+
+  res.status(201).json({
+    status: "success",
+    data: group,
+  });
 });
 
-// ===== Get All Payroll Groups =====
+// ================= GET ALL =================
 exports.getPayrollGroups = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
-  if (!companyId) return next(new ApiError("companyId is required", 400));
-
-  try {
-    const groups = await payrollGroupService.getPayrollGroups(companyId);
-
-    res.status(200).json({
-      status: "success",
-      results: groups.length,
-      data: groups,
-    });
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
   }
-   catch (err) {
-    return next(new ApiError(err.message, 400));
-  }
+
+  const groups = await payrollGroupService.getPayrollGroups(companyId);
+
+  res.status(200).json({
+    status: "success",
+    results: groups.length,
+    data: groups,
+  });
 });
 
-// ===== Get Single Payroll Group =====
+// ================= GET ONE =================
 exports.getPayrollGroupById = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
   const { id } = req.params;
 
-  try {
-    const group = await payrollGroupService.getPayrollGroupById(id);
-    if (!group) return next(new ApiError("Payroll group not found", 404));
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
 
-    res.status(200).json({
-      status: "success",
-      data: group,
-    });
-  }
-   catch (err) {
-    return next(new ApiError(err.message, 404));
-  }
+  const group = await payrollGroupService.getPayrollGroupById(companyId, id);
+
+  res.status(200).json({
+    status: "success",
+    data: group,
+  });
 });
 
-// ===== Update Payroll Group =====
+// ================= UPDATE =================
 exports.updatePayrollGroup = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
   const { id } = req.params;
 
-  try {
-    const updated = await payrollGroupService.updatePayrollGroup(id, req.body);
-
-    if (!updated) return next(new ApiError("Payroll group not found", 404));
-
-    res.status(200).json({
-      status: "success",
-      data: updated,
-    });
-  } 
-  catch (err) {
-    return next(new ApiError(err.message, 400));
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
   }
+
+  const updated = await payrollGroupService.updatePayrollGroup(
+    companyId,
+    id,
+    req.body,
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: updated,
+  });
 });
 
-// ===== Delete Payroll Group =====
+// ================= DELETE =================
 exports.deletePayrollGroup = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
   const { id } = req.params;
 
-  try {
-    const result = await payrollGroupService.deletePayrollGroup(id);
-
-    if (!result) return next(new ApiError("Payroll group not found", 404));
-
-    res.status(200).json({
-      status: "success",
-      message: "Payroll group deleted successfully",
-    });
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
   }
-   catch (err) {
-    return next(new ApiError(err.message, 404));
-  }
+
+  await payrollGroupService.deletePayrollGroup(companyId, id);
+
+  res.status(200).json({
+    status: "success",
+    message: "Payroll group deleted successfully",
+  });
 });

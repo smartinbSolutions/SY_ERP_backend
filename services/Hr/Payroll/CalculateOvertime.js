@@ -1,112 +1,47 @@
 const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
 
-/**
- * 1. فلترة الأوفر تايم ضمن الفترة
- */
-function filterOvertimeByPeriod(overtime, period) {
-  const start = new Date(period.startDate);
-  const end = new Date(period.endDate);
-
-  return (overtime || []).filter((o) => {
-    const d = new Date(o.approvedAt);
-    return d >= start && d <= end;
-  });
-}
-
-/**
- * 2. تجميع حسب النوع
- */
-function groupByType(overtime) {
-  const map = new Map();
-
-  for (const item of overtime) {
-    const key = item.overtimeType?.toString?.() || "unknown";
-
-    if (!map.has(key)) {
-      map.set(key, []);
-    }
-
-    map.get(key).push(item);
-  }
-
-  return map;
-}
-
-/**
- * 3. حساب الأوفر تايم
- * ⚠️ حالياً نفترض 2 ساعات لكل request (placeholder business rule)
- */
-function computeOvertime(overtime, employee) {
-  const HOURLY_RATE = (employee.salary || 0) / 160;
-
-  const HOURS_PER_REQUEST = 2; // ⚠️ لازم تربطها لاحقاً بـ overtimeType
-
-  const groups = groupByType(overtime);
-
-  const breakdown = [];
-  let totalHours = 0;
-  let totalAmount = 0;
-
-  for (const [type, items] of groups.entries()) {
-    const hours = items.length * HOURS_PER_REQUEST;
-    const amount = hours * HOURLY_RATE;
-
-    totalHours += hours;
-    totalAmount += amount;
-
-    breakdown.push({
-      overtimeType: type,
-      requests: items.length,
-      hours,
-      rate: HOURLY_RATE,
-      amount,
-    });
-  }
-
-  return {
-    breakdown,
-    totalHours,
-    hourlyRate: HOURLY_RATE,
-    amount: totalAmount,
-  };
-}
-
-/**
- * 4. MAIN FUNCTION
- */
 exports.CalculateOvertime = async ({
   employee,
-  overtime,
+  overtime = [],
   period,
   payroll,
 }) => {
   try {
-    // =========================
-    // 1. FILTER
-    // =========================
-    const filtered = filterOvertimeByPeriod(overtime || [], period);
-
-    // =========================
-    // 2. CALCULATION
-    // =========================
-    const result = computeOvertime(filtered, employee);
-
-    // إذا ما في أوفر تايم
-    if (!filtered.length) {
+    if (!overtime.length) {
       return {
         success: true,
-        result: {
-          totalHours: 0,
-          amount: 0,
-          breakdown: [],
-        },
+        result: { totalHours: 0, amount: 0 },
         linePayload: null,
       };
     }
 
-    // =========================
-    // 3. LINE PAYLOAD (ONE LINE PER EMPLOYEE)
-    // =========================
+    const hourlyRate = employee.salary.hourlyRate || 0;
+
+    let totalHours = 0;
+    let totalAmount = 0;
+
+    const breakdown = overtime.map((item) => {
+      const hours = item.calculation?.hours || 0;
+
+      const multiplier =
+        item.calculation?.appliedRateMultiplier ||
+        item.ruleSnapshot?.rateMultiplier ||
+        1;
+
+      const pay = hours * hourlyRate * multiplier;
+
+      totalHours += hours;
+      totalAmount += pay;
+
+      return {
+        overtimeId: item._id,
+        hours,
+        hourlyRate,
+        multiplier,
+        amount: pay,
+      };
+    });
+
     const linePayload = {
       payrollPeriodId: period._id,
       payrollEmployeeId: payroll._id,
@@ -114,31 +49,42 @@ exports.CalculateOvertime = async ({
 
       category: "earning",
       type: "overtime",
-      label: "overtime",
+      label: "Overtime",
 
-      quantity: result.totalHours,
+      quantity: totalHours,
       unit: "hour",
-      rate: result.hourlyRate,
+      rate: hourlyRate,
 
-      amount: result.amount,
+      Originalamount: totalAmount,
+      amount: totalAmount,
 
       sourceType: "overtime_request",
+
+      isManual: false,
       isSystemGenerated: true,
+
+      metadata: {
+        breakdown,
+      },
 
       status: "success",
     };
 
     const createdLine = await PayrollEmployeeLine.create(linePayload);
 
-    return {
-      success: true,
-      result,
-      linePayload: createdLine,
-    };
+  return {
+  success: true,
+
+  result: {
+    quantity: totalHours,
+    rate: hourlyRate,
+    amount: totalAmount,
+    breakdown,
+  },
+
+  linePayload: createdLine,
+};
   } catch (err) {
-    // =========================
-    // 4. FAILURE LINE
-    // =========================
     const failureLine = {
       payrollPeriodId: period._id,
       payrollEmployeeId: payroll._id,
@@ -149,20 +95,19 @@ exports.CalculateOvertime = async ({
       label: "overtime_failed",
 
       amount: 0,
-
-      status: "failed",
-      errorMessage: err.message,
+      sourceType: "manual",
 
       isSystemGenerated: true,
+      status: "failed",
+      errorMessage: err.message,
     };
 
-    const createdFailure = await PayrollEmployeeLine.create(failureLine);
+    await PayrollEmployeeLine.create(failureLine);
 
     return {
       success: false,
-      result: null,
-      linePayload: createdFailure,
       error: err.message,
+      linePayload: failureLine,
     };
   }
 };

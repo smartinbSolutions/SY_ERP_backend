@@ -4,7 +4,7 @@ const payrollPeriodService = require("../../services/Hr/payrollPeriodService");
 
 // ===== Create Payroll Period =====
 exports.createPayrollPeriod = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) return next(new ApiError("companyId is required", 400));
 
@@ -23,27 +23,50 @@ exports.createPayrollPeriod = asyncHandler(async (req, res, next) => {
   }
 });
 
+exports.getSuggestedPayrollPeriod = async (req, res) => {
+  const data = await payrollPeriodService.getSuggestedPayrollPeriod(
+    req.params.groupId,
+  );
+
+  res.json({
+    success: true,
+    data,
+  });
+};
+
 // ===== Get All Payroll Periods =====
 exports.getPayrollPeriods = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.query;
+  const companyId = req.companyId;
+  const { payrollGroupId } = req.query;
 
-  if (!companyId) return next(new ApiError("companyId is required", 400));
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
 
   try {
-    const periods = await payrollPeriodService.getPayrollPeriods({
+    const result = await payrollPeriodService.getPayrollPeriods({
       companyId,
+      payrollGroupId,
+      page,
+      limit,
     });
 
     res.status(200).json({
       status: "success",
-      results: periods.length,
-      data: periods,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+      results: result.periods.length,
+      totalItems: result.total,
+      data: result.periods,
     });
   } catch (err) {
     return next(new ApiError(err.message, 400));
   }
 });
-
 // ===== Get Single Payroll Period =====
 exports.getPayrollPeriodById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -101,23 +124,6 @@ exports.deletePayrollPeriod = asyncHandler(async (req, res, next) => {
   }
 });
 
-// ===== Generate Payroll 🔥 =====
-exports.generatePayroll = asyncHandler(async (req, res, next) => {
-  const { id } = req.params;
-
-  try {
-    const payrolls = await payrollPeriodService.generatePayrollForPeriod(id);
-
-    res.status(200).json({
-      status: "success",
-      results: payrolls.length,
-      data: payrolls,
-    });
-  } catch (err) {
-    return next(new ApiError(err.message, 400));
-  }
-});
-
 exports.getPayrollPeriodStaff = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
@@ -140,14 +146,45 @@ exports.generateSalaryPayroll = asyncHandler(async (req, res, next) => {
 
   try {
     const result = await payrollPeriodService.generateSalaryPayroll(id);
-    // console.log(result);
-    // const attendanceObj = Object.fromEntries(result.context.attendanceMap);
+
     res.status(200).json({
       status: "success",
       data: result,
-      // attendanceMap: attendanceObj,
     });
   } catch (err) {
     return next(new ApiError(err.message, 400));
   }
 });
+
+exports.getPayrollReview = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    const result = await payrollPeriodService.getPayrollReview(id);
+
+    res.status(200).json({
+      status: "success",
+      data: result,
+    });
+  } catch (err) {
+    return next(new ApiError(err.message, 400));
+  }
+});
+
+exports.approvePayrollPeriod = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const period = await payrollPeriodService.approvePayrollPeriod(id);
+
+    res.json({
+      success: true,
+      data: period,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};

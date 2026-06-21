@@ -115,6 +115,7 @@ exports.CalculateAdvances = async ({ employee, advances, period, payroll }) => {
 
         rate: installmentAmount,
         amount: installmentAmount,
+        Originalamount: installmentAmount,
 
         sourceType: "advance",
         sourceId: advance._id,
@@ -133,12 +134,15 @@ exports.CalculateAdvances = async ({ employee, advances, period, payroll }) => {
     console.log("Total deduction:", totalDeduction);
     console.log("Lines:", createdLines.length);
 
-    return {
-      success: true,
-      amount: totalDeduction,
-      linesCount: createdLines.length,
-      lines: createdLines,
-    };
+   return {
+  success: true,
+
+  result: {
+    amount: totalDeduction,
+    linesCount: createdLines.length,
+    lines: createdLines,
+  },
+};
   } catch (err) {
     console.log("ADVANCE ENGINE ERROR:", err.message);
 

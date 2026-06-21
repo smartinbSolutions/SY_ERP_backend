@@ -26,10 +26,13 @@ const payrollPeriodSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["open", "closed", "processing"],
-      default: "open",
+      enum: ["draft", "processing", "review", "approved", "paid"],
+      default: "draft",
     },
-
+    generatePayslips: {
+      type: Boolean,
+      default: false,
+    },
     notes: {
       type: String,
       trim: true,

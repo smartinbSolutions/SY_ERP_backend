@@ -126,6 +126,8 @@ const roleRouter = require("./Settings/role.route");
 const DashboardStatsRoute = require("./dashboardStatsRoute");
 const permissionsRouter = require("./Settings/permissions.route");
 const unTracedproductLogRoute = require("./Stocks/Products/unTracedproductLog.route");
+const payrollEmployeeLineRoute = require("./Hr/payrollEmployeeLineRoute");
+
 
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);
@@ -233,6 +235,7 @@ const mountRoutes = (app) => {
   app.use("/api/deduction-types", deductionTypesRoute);
   app.use("/api/payroll-periods", payrollPeriodRoute);
   app.use("/api/payroll-groups", payrollGroupsRoute);
+  app.use("/api/payroll-lines", payrollEmployeeLineRoute);
 
   app.use("/api/action-execution", actionExecutionRoute);
   app.use("/api/violation-logs", violationLogRoute);

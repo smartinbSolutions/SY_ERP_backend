@@ -1,9 +1,12 @@
+const actionExecutionLogModel = require("../../../models/Hr/actionExecutionLogModel");
 const advanceLogsModel = require("../../../models/Hr/Advance/advanceLogsModel");
 const fingerprintModel = require("../../../models/Hr/fingerprintModel");
 const leavesLogsModel = require("../../../models/Hr/Leaves/leavesLogsModel");
 const overtimeLogsModel = require("../../../models/Hr/Overtime/overtimeLogsModel");
 const payrollPeriodModel = require("../../../models/Hr/payrollPeriodModel");
 const staffModel = require("../../../models/Hr/staffModel");
+const EmployeePayrollState = require("../../../models/Hr/EmployeePayrollStateSchema");
+const mongoose = require("mongoose");
 
 const buildPayrollContext = async (periodId) => {
   // 1. get period information
@@ -11,12 +14,30 @@ const buildPayrollContext = async (periodId) => {
   if (!period) throw new Error("Payroll period not found");
 
   // 2. get staff that active in the same (payrollGroupId)
-  const employees = await staffModel.find({
-    payrollGroupId: period.payrollGroupId,
-    companyId: period.companyId,
-    isActive: true,
-  });
+  let employees = await staffModel
+    .find({
+      payrollGroupId: period.payrollGroupId,
+      companyId: period.companyId,
+      isActive: true,
+    })
+    .populate({
+      path: "groupId",
+    });
 
+  if (period.status === "processing") {
+    const completedStates = await EmployeePayrollState.find({
+      payrollPeriodId: periodId,
+      status: "calculated",
+    }).select("employeeId");
+
+    const completedEmployeeIds = new Set(
+      completedStates.map((s) => s.employeeId.toString()),
+    );
+
+    employees = employees.filter(
+      (emp) => !completedEmployeeIds.has(emp._id.toString()),
+    );
+  }
   const employeeIds = employees.map((e) => e._id);
 
   // 3. get all data from DB (Attendence + Logs Layer)
@@ -26,11 +47,8 @@ const buildPayrollContext = async (periodId) => {
       getLeaveData(employeeIds, period),
       getOvertimeData(employeeIds, period),
       getAdvanceData(employeeIds, period),
-      // getDeductionData(employeeIds, period),
+      getDeductionData(employeeIds, period),
     ]);
-
-  console.log("========= LEAVE MAP =========");
-  console.dir(leaveMap, { depth: null });
 
   return {
     period,
@@ -44,8 +62,6 @@ const buildPayrollContext = async (periodId) => {
     deductionMap,
   };
 };
-
-const mongoose = require("mongoose");
 
 const getAttendanceData = async (employeeIds, period) => {
   const normalizedEmployeeIds = (employeeIds || [])
@@ -121,8 +137,6 @@ const getLeaveData = async (employeeIds, period) => {
 
         startDate: { $lte: period.endDate },
         endDate: { $gte: period.startDate },
-
-        // لو بدك فقط الموافق عليها
         // approved: true,
       },
     },
@@ -172,8 +186,7 @@ const getLeaveData = async (employeeIds, period) => {
       },
     },
   ]);
-  console.log("RAW LEAVE AGGREGATE");
-  console.dir(result, { depth: null });
+
   return result?.[0]?.leaveMap || {};
 };
 
@@ -187,8 +200,7 @@ const getOvertimeData = async (employeeIds, period) => {
           $gte: period.startDate,
           $lte: period.endDate,
         },
-
-        // approved: true, // إذا عندك فلترة اعتماد
+        // approved: true,
       },
     },
 
@@ -198,11 +210,14 @@ const getOvertimeData = async (employeeIds, period) => {
         records: {
           $push: {
             _id: "$_id",
-            userId: "$userId",
+
             overtimeType: "$overtimeType",
-            hours: "$hours",
-            rateMultiplier: "$rateMultiplier",
+
             approvedAt: "$approvedAt",
+
+            calculation: "$calculation",
+
+            ruleSnapshot: "$ruleSnapshot",
           },
         },
       },
@@ -239,17 +254,22 @@ const getOvertimeData = async (employeeIds, period) => {
   return result?.[0]?.overtimeMap || {};
 };
 
-//more study on this...
 const getAdvanceData = async (employeeIds, period) => {
   const result = await advanceLogsModel.aggregate([
     {
       $match: {
         userId: { $in: employeeIds },
+        approvedAt: {
+          $gte: period.startDate,
+          $lte: period.endDate,
+        },
+      },
+    },
 
-        // السلف قبل نهاية الفترة
-        approvedAt: { $lte: period.endDate },
-
-        // approved: true (إذا موجودة عندك)
+    // 🔥 DEBUG: after match
+    {
+      $addFields: {
+        __debug: "matched",
       },
     },
 
@@ -259,12 +279,19 @@ const getAdvanceData = async (employeeIds, period) => {
         records: {
           $push: {
             _id: "$_id",
+
             userId: "$userId",
+            advanceRequestId: "$advanceRequestId",
             advanceTypeId: "$advanceTypeId",
-            approvedAmount: "$approvedAmount",
-            installments: "$installments",
-            installmentAmount: "$installmentAmount",
+
+            approvedAmount: "$calculation.approvedAmount",
+            installments: "$calculation.installments",
+            installmentAmount: "$calculation.installmentAmount",
+
+            firstDeductionDate: "$repayment.firstDeductionDate",
+
             approvedAt: "$approvedAt",
+            shouldDeduct: "$shouldDeduct",
           },
         },
       },
@@ -298,48 +325,86 @@ const getAdvanceData = async (employeeIds, period) => {
     },
   ]);
 
-  return result?.[0]?.advanceMap || {};
+  const output = result?.[0]?.advanceMap || {};
+
+  return output;
 };
 
-// const getDeductionData = async (employeeIds, period) => {
+const getDeductionData = async (employeeIds, period) => {
+  const result = await actionExecutionLogModel.aggregate([
+    {
+      $match: {
+        userId: { $in: employeeIds },
 
-//   return await deductionLog.find({
-//     userId: { $in: employeeIds },
-//     approvedAt: {
-//       $lte: period.endDate,
-//     },
-//   });
-// };
+        actionType: "deduction",
 
-//map employees for index data  style
-const mapByEmployee = (records, key) => {
-  const map = new Map();
+        executedAt: {
+          $gte: period.startDate,
+          $lte: period.endDate,
+        },
 
-  let skipped = 0;
-  let processed = 0;
+        status: "done",
+      },
+    },
 
-  for (const record of records) {
-    const startLoop = process.hrtime.bigint(); // high precision (ns)
+    {
+      $group: {
+        _id: "$userId",
+        records: {
+          $push: {
+            _id: "$_id",
 
-    const id = record[key]?.toString();
-    if (!id) {
-      skipped++;
-      continue;
-    }
+            violationType: "$violationType",
+            occurrenceCount: "$occurrenceCount",
 
-    if (!map.has(id)) {
-      map.set(id, []);
-    }
+            actionType: "$actionType",
 
-    map.get(id).push(record);
+            deduction: "$deduction",
 
-    processed++;
+            sourceRuleId: "$sourceRuleId",
 
-    const endLoop = process.hrtime.bigint();
-    const diffMs = Number(endLoop - startLoop) / 1e6;
-  }
+            periodStart: "$periodStart",
+            periodEnd: "$periodEnd",
 
-  return map;
+            executedAt: "$executedAt",
+
+            status: "$status",
+          },
+        },
+      },
+    },
+
+    {
+      $project: {
+        _id: 0,
+        userId: { $toString: "$_id" },
+        records: 1,
+      },
+    },
+
+    {
+      $group: {
+        _id: null,
+        data: {
+          $push: {
+            k: "$userId",
+            v: "$records",
+          },
+        },
+      },
+    },
+
+    {
+      $project: {
+        _id: 0,
+        deductionMap: {
+          $arrayToObject: "$data",
+        },
+      },
+    },
+  ]);
+
+  return result?.[0]?.deductionMap || {};
 };
 
 module.exports = buildPayrollContext;

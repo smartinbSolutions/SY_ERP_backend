@@ -32,16 +32,23 @@ const payrollEmployeeLineSchema = new mongoose.Schema(
         "base_salary",
         "leave_deduction",
         "fixed_allowance",
+        "attendance_summary",
         "overtime",
         "bonus",
         "lateness_deduction",
         "absence_deduction",
         "early_leave_deduction",
         "loan_installment",
+        "advance_installment",
         "penalty",
         "manual_adjustment",
       ],
       required: true,
+    },
+
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     label: {
@@ -61,8 +68,8 @@ const payrollEmployeeLineSchema = new mongoose.Schema(
 
     unit: {
       type: String,
-      enum: ["hour", "minute", "day", "fixed"],
-      default: null,
+      enum: ["hour", "minute", "day", "fixed", "installment"],
+      required: false,
     },
 
     rate: {
@@ -75,9 +82,19 @@ const payrollEmployeeLineSchema = new mongoose.Schema(
       default: null,
     },
 
+    Originalamount: {
+      type: Number,
+      required: true,
+    },
+
     amount: {
       type: Number,
       required: true,
+    },
+
+    affectsNetSalary: {
+      type: Boolean,
+      default: true,
     },
 
     sourceType: {
@@ -87,6 +104,7 @@ const payrollEmployeeLineSchema = new mongoose.Schema(
         "overtime_request",
         "leave_request",
         "loan",
+        "advance",
         "bonus",
         "penalty",
         "manual",
