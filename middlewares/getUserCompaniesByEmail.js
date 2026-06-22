@@ -24,9 +24,7 @@ const getUserCompaniesByEmail = async (req, res, next) => {
     }
 
     if (password) {
-      console.log(user);
       const passwordMatch = await bcrypt.compare(password, user.password);
-      console.log(password);
 
       if (!passwordMatch) {
         return next(new ApiError("Invalid password", 401));
