@@ -206,18 +206,13 @@ exports.checkCompanyEditable = async (req, res, next) => {
 };
 
 // @desc      Forgot password
-// @route     POST /api/auth/forgotpasswordpos
+// @route     POST /api/auth/forgotpassword
 // @access    Public
-exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
   // 1) Get user by email
   const { email } = req.body;
-  const user = await usersModel.findOne({ email, companyId });
+  const user = await usersModel.findOne({ email });
+
   if (!user) {
     return next(
       new ApiError(`There is no user with this email address ${email}`, 404),
@@ -232,18 +227,229 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
   user.passwordResetCode = hashedResetCode;
   //10 min
   user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-
-  user.resetCodeVerified = false;
+  user.passwordResetVerified = false;
   await user.save();
 
   // 3) Send password reset code via email
-  const message = `Forgot your password? Submit this reset password code: ${resetCode}\n If you didn't forget your password, please ignore this email!`;
-
   try {
     await sendEmail({
       email: user.email,
-      subject: "Your Password Reset Code (valid for 10 min)",
-      message,
+      subject: "🔐 Your Password Reset Code (valid for 10 min)",
+      message: `
+
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
+
+
+<table width="560" cellpadding="0" cellspacing="0"
+style="
+background:#ffffff;
+border-radius:14px;
+overflow:hidden;
+box-shadow:0 5px 20px rgba(0,0,0,0.08);
+">
+
+
+<!-- Header -->
+
+<tr>
+<td style="
+background:#2563eb;
+padding:35px;
+text-align:center;
+">
+
+<div style="
+font-size:38px;
+margin-bottom:10px;
+">
+🔐
+</div>
+
+<h1 style="
+margin:0;
+color:white;
+font-size:24px;
+">
+SmartERP
+</h1>
+
+<p style="
+margin:8px 0 0;
+color:#dbeafe;
+font-size:14px;
+">
+Password Recovery
+</p>
+
+
+</td>
+</tr>
+
+
+
+
+<!-- Body -->
+
+<tr>
+<td style="padding:40px;">
+
+
+<p style="
+margin:0 0 15px;
+font-size:16px;
+color:#334155;
+">
+Hello <strong>${user.name}</strong> 👋
+</p>
+
+
+<p style="
+margin:0 0 25px;
+font-size:14px;
+line-height:1.7;
+color:#64748b;
+">
+We received a request to reset your SmartERP account password.
+Use the verification code below to continue.
+</p>
+
+
+
+
+<!-- OTP BOX -->
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td style="
+background:#f1f5ff;
+border-radius:12px;
+padding:25px;
+text-align:center;
+border:1px solid #dbeafe;
+">
+
+
+<p style="
+margin:0 0 12px;
+font-size:12px;
+color:#64748b;
+text-transform:uppercase;
+letter-spacing:1.5px;
+">
+Verification Code
+</p>
+
+
+<p style="
+margin:0;
+font-size:36px;
+font-weight:700;
+letter-spacing:8px;
+color:#2563eb;
+">
+${resetCode}
+</p>
+
+
+</td>
+</tr>
+</table>
+
+
+
+
+<!-- Timer -->
+
+<div style="
+margin-top:25px;
+background:#fff7ed;
+padding:15px;
+border-radius:8px;
+text-align:center;
+">
+
+<p style="
+margin:0;
+font-size:13px;
+color:#c2410c;
+">
+⏱ This code will expire in <strong>10 minutes</strong>.
+</p>
+
+</div>
+
+
+
+
+
+<!-- Security -->
+
+<p style="
+margin-top:30px;
+font-size:13px;
+color:#94a3b8;
+line-height:1.6;
+">
+
+If you didn't request this password reset, you can safely ignore this email.
+Your account remains secure.
+
+</p>
+
+
+</td>
+</tr>
+
+
+
+
+<!-- Footer -->
+
+<tr>
+<td style="
+background:#f8fafc;
+padding:22px;
+text-align:center;
+border-top:1px solid #e5e7eb;
+">
+
+<p style="
+margin:0;
+font-size:12px;
+color:#94a3b8;
+">
+
+This is an automated message — please do not reply.
+
+<br/>
+
+© ${new Date().getFullYear()} SmartERP · noreply@smartinb.com
+
+</p>
+
+</td>
+</tr>
+
+
+
+</table>
+
+
+</td>
+</tr>
+</table>
+
+
+</body>
+</html>
+
+`,
     });
 
     res.status(200).json({
@@ -268,18 +474,13 @@ exports.forgotPasswordPos = asyncHandler(async (req, res, next) => {
 // @desc      Verify reset password code
 // @route     POST /api/auth/verifyresetcodepos
 // @access    Public
-exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
+  const { resetCode, email } = req.body;
 
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
-
-  const { resetCode } = req.body;
-
-  const user = await usersModel.find({
+  const user = await usersModel.findOne({
     passwordResetExpires: { $gt: Date.now() },
-    companyId,
+    passwordResetVerified: false,
+    email,
   });
   if (!user) {
     return next(new ApiError("Reset code is invalid or has expired", 400));
@@ -293,7 +494,7 @@ exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Reset code is invalid or has expired", 400));
   }
   // 4) Mark reset code as verified
-  user.resetCodeVerified = true;
+  user.passwordResetVerified = true;
   await user.save();
 
   res.status(200).json({
@@ -304,16 +505,10 @@ exports.verifyPasswordResetCodePos = asyncHandler(async (req, res, next) => {
 // @desc      Reset password
 // @route     POST /api/auth/resetpasswordpos
 // @access    Public
-exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
-
-  if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
-  }
+exports.resetPassword = asyncHandler(async (req, res, next) => {
   // 1) Get user based on email
   const user = await usersModel.findOne({
     email: req.body.email,
-    companyId,
   });
   if (!user) {
     return next(
@@ -323,8 +518,9 @@ exports.resetPasswordPos = asyncHandler(async (req, res, next) => {
       ),
     );
   }
+
   // Check if user verify the reset code
-  if (!user.resetCodeVerified) {
+  if (!user.passwordResetVerified) {
     return next(new ApiError("reset code not verified", 400));
   }
   const hashedResetCode = await bcrypt.hash(req.body.newPassword, 10);
@@ -492,151 +688,147 @@ exports.ecommerceProtect = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// @desc      Request password reset
+// @desc      Request password reset Ecommer
 // @route     POST /api/auth/forgotPassword
 // @access    Public
-exports.forgotPassword = asyncHandler(async (req, res, next) => {
-  const dbName = req.query.databaseName;
-  const db = mongoose.connection.useDb(dbName);
-  const UserModel = db.model("Users", E_user_Schema);
+// exports.forgotPassword = asyncHandler(async (req, res, next) => {
+//   // 1) Get user by email
+//   const { email } = req.body;
+//   const user = await usersModel.findOne({ email });
+//   if (!user) {
+//     return next(
+//       new ApiError(`There is no user with this email address ${email}`, 404),
+//     );
+//   }
 
-  // 1) Get user by email
-  const { email } = req.body;
-  const user = await UserModel.findOne({ email });
-  if (!user) {
-    return next(
-      new ApiError(`There is no user with this email address ${email}`, 404),
-    );
-  }
+//   // 2) Generate a reset token
+//   bcrypt.genSalt(10, (err, salt) => {
+//     if (err) {
+//       return next(new ApiError("Error generating reset token", 500));
+//     }
+//     bcrypt.hash(email, salt, async (err, hashedEmail) => {
+//       if (err) {
+//         return next(new ApiError("Error generating reset token", 500));
+//       }
 
-  // 2) Generate a reset token
-  bcrypt.genSalt(10, (err, salt) => {
-    if (err) {
-      return next(new ApiError("Error generating reset token", 500));
-    }
-    bcrypt.hash(email, salt, async (err, hashedEmail) => {
-      if (err) {
-        return next(new ApiError("Error generating reset token", 500));
-      }
+//       // Encode the hashed token to Base64 URL-safe format
+//       let resetToken = Buffer.from(hashedEmail).toString("base64");
+//       resetToken = resetToken
+//         .replace(/\+/g, "-")
+//         .replace(/\//g, "_")
+//         .replace(/=+$/, "");
 
-      // Encode the hashed token to Base64 URL-safe format
-      let resetToken = Buffer.from(hashedEmail).toString("base64");
-      resetToken = resetToken
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
+//       // Save the hashed token to the database
+//       user.passwordResetToken = resetToken;
+//       // Token expires in 10 minutes
+//       user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+//       await user.save();
+//       // 3) Send password reset email with the link containing the token
+//       const resetURL = `${process.env.STORE_BASE_URL}/resetPassword/${resetToken}`;
+//       const message = `Forgot your password? Click on the link below to reset your password:\n${resetURL}\nIf you didn't ask for password rest, please ignore this email!`;
+//       try {
+//         await sendEmail({
+//           email: user.email,
+//           subject: "Your Password Reset Link (valid for 10 min)",
+//           message,
+//         });
 
-      // Save the hashed token to the database
-      user.passwordResetToken = resetToken;
-      // Token expires in 10 minutes
-      user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-      await user.save();
-      // 3) Send password reset email with the link containing the token
-      const resetURL = `${process.env.STORE_BASE_URL}/resetPassword/${resetToken}`;
-      const message = `Forgot your password? Click on the link below to reset your password:\n${resetURL}\nIf you didn't ask for password rest, please ignore this email!`;
-      try {
-        await sendEmail({
-          email: user.email,
-          subject: "Your Password Reset Link (valid for 10 min)",
-          message,
-        });
-
-        res.status(200).json({
-          status: "Success",
-          message: "Reset link sent to your email",
-          token: resetToken,
-        });
-      } catch (err) {
-        console.error(err);
-        return next(
-          new ApiError(
-            "There was an error sending the email. Try again later!",
-            500,
-          ),
-        );
-      }
-    });
-  });
-});
+//         res.status(200).json({
+//           status: "Success",
+//           message: "Reset link sent to your email",
+//           token: resetToken,
+//         });
+//       } catch (err) {
+//         console.error(err);
+//         return next(
+//           new ApiError(
+//             "There was an error sending the email. Try again later!",
+//             500,
+//           ),
+//         );
+//       }
+//     });
+//   });
+// });
 
 // @desc      Verify reset password code
 // @route     POST /api/auth/verifyResetCode
 // @access    Public
-exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
-  const dbName = req.query.databaseName;
-  const db = mongoose.connection.useDb(dbName);
-  const UserModel = db.model("Users", E_user_Schema);
+// exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
+//   const dbName = req.query.databaseName;
+//   const db = mongoose.connection.useDb(dbName);
+//   const UserModel = db.model("Users", E_user_Schema);
 
-  // 1) Get user based on reset code
-  const { resetCode } = req.body; // Assuming resetCode is a string
+//   // 1) Get user based on reset code
+//   const { resetCode } = req.body; // Assuming resetCode is a string
 
-  // 2) Get user from database
-  const user = await UserModel.findOne({
-    passwordResetExpires: { $gt: Date.now() },
-  });
+//   // 2) Get user from database
+//   const user = await UserModel.findOne({
+//     passwordResetExpires: { $gt: Date.now() },
+//   });
 
-  if (!user) {
-    return next(new ApiError("Reset code is invalid or has expired", 400));
-  }
+//   if (!user) {
+//     return next(new ApiError("Reset code is invalid or has expired", 400));
+//   }
 
-  // 3) Compare the reset code with the hashed code stored in the database
-  const isResetCodeValid = await bcrypt.compare(
-    resetCode,
-    user.passwordResetCode,
-  );
+//   // 3) Compare the reset code with the hashed code stored in the database
+//   const isResetCodeValid = await bcrypt.compare(
+//     resetCode,
+//     user.passwordResetCode,
+//   );
 
-  if (!isResetCodeValid) {
-    return next(new ApiError("Reset code is invalid or has expired", 400));
-  }
+//   if (!isResetCodeValid) {
+//     return next(new ApiError("Reset code is invalid or has expired", 400));
+//   }
 
-  // 4) Mark reset code as verified
-  user.resetCodeVerified = true;
-  await user.save();
+//   // 4) Mark reset code as verified
+//   user.resetCodeVerified = true;
+//   await user.save();
 
-  res.status(200).json({
-    status: "Success",
-  });
-});
+//   res.status(200).json({
+//     status: "Success",
+//   });
+// });
 
-// @desc      Reset password
-// @route     POST /api/auth/resetPassword
-// @access    Public
-exports.resetPassword = asyncHandler(async (req, res, next) => {
-  const dbName = req.query.databaseName;
-  const db = mongoose.connection.useDb(dbName);
-  const UserModel = db.model("Users", E_user_Schema);
+// // @desc      Reset password
+// // @route     POST /api/auth/resetPassword
+// // @access    Public
+// exports.resetPassword = asyncHandler(async (req, res, next) => {
+//   const dbName = req.query.databaseName;
+//   const db = mongoose.connection.useDb(dbName);
+//   const UserModel = db.model("Users", E_user_Schema);
 
-  // Get the reset token from the request parameters
-  const resetToken = req.query.token;
+//   // Get the reset token from the request parameters
+//   const resetToken = req.query.token;
 
-  // Find a user with the matching reset token and valid expiration time
-  const user = await UserModel.findOne({
-    passwordResetToken: resetToken,
-    passwordResetExpires: { $gt: Date.now() },
-  });
+//   // Find a user with the matching reset token and valid expiration time
+//   const user = await UserModel.findOne({
+//     passwordResetToken: resetToken,
+//     passwordResetExpires: { $gt: Date.now() },
+//   });
 
-  if (!user) {
-    return next(new ApiError("Reset token is invalid or has expired", 400));
-  }
-  const newPassword = req.body.newPassword;
+//   if (!user) {
+//     return next(new ApiError("Reset token is invalid or has expired", 400));
+//   }
+//   const newPassword = req.body.newPassword;
 
-  if (!newPassword) {
-    return next(new ApiError("New password is required", 400));
-  }
+//   if (!newPassword) {
+//     return next(new ApiError("New password is required", 400));
+//   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-  user.password = hashedPassword;
+//   const hashedPassword = await bcrypt.hash(newPassword, 10);
+//   user.password = hashedPassword;
 
-  user.passwordResetToken = undefined;
-  user.passwordResetExpires = undefined;
+//   user.passwordResetToken = undefined;
+//   user.passwordResetExpires = undefined;
 
-  await user.save();
+//   await user.save();
 
-  res.status(200).json({
-    status: "Success",
-    message: "Password reset successful",
-  });
-});
+//   res.status(200).json({
+//     status: "Success",
+//     message: "Password reset successful",
+//   });
+// });
 
 exports.googleLogin = asyncHandler(async (req, res, next) => {
   const dbName = req.query.databaseName;

@@ -53,7 +53,8 @@ const flattenUserForCompany = (user, settings = null) => {
   const userObject = user.toObject ? user.toObject() : user;
   const settingsObject = settings?.toObject ? settings.toObject() : settings;
   const companyData = (userObject.companies || []).find(
-    (company) => String(company.companyId) === String(settingsObject?.companyId)
+    (company) =>
+      String(company.companyId) === String(settingsObject?.companyId),
   );
   const selectedRole = companyData?.roleId || null;
   const active = settingsObject?.active ?? companyData?.active ?? true;
@@ -211,7 +212,7 @@ exports.getUsers = async ({
     flattenUserForCompany(u, {
       ...(settingsMap.get(String(u._id)) || {}),
       companyId,
-    })
+    }),
   );
 
   return { pages: totalPages, results: totalItems, data };
@@ -257,7 +258,7 @@ exports.createUser = async ({ companyId, body }) => {
             ],
           },
         ],
-        { session }
+        { session },
       );
       userDoc = created[0];
 
@@ -270,11 +271,11 @@ exports.createUser = async ({ companyId, body }) => {
             status: "active",
           },
         ],
-        { session }
+        { session },
       );
     } else {
       const existingCompany = findUser.companies?.some(
-        (companyEntry) => String(companyEntry.companyId) === String(companyId)
+        (companyEntry) => String(companyEntry.companyId) === String(companyId),
       );
 
       if (existingCompany) {
@@ -292,7 +293,7 @@ exports.createUser = async ({ companyId, body }) => {
             },
           },
         },
-        { new: true, session }
+        { new: true, session },
       );
 
       await userCompanySettingsModel.updateOne(
@@ -305,7 +306,7 @@ exports.createUser = async ({ companyId, body }) => {
             status: "active",
           },
         },
-        { upsert: true, session }
+        { upsert: true, session },
       );
     }
 
@@ -315,19 +316,222 @@ exports.createUser = async ({ companyId, body }) => {
     if (userPass) {
       await sendEmail({
         email: body.email,
-        subject: "Your Account Password Details",
+        subject: "🎉 Welcome to SmartERP - Your Account Details",
         message: `
-Dear ${body.name},
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
 
-A temporary password has been generated for your account.
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
 
-Temporary Password:
+<table width="560" cellpadding="0" cellspacing="0"
+style="
+background:#ffffff;
+border-radius:12px;
+overflow:hidden;
+box-shadow:0 4px 18px rgba(0,0,0,0.08);
+">
+
+
+<!-- Header -->
+<tr>
+<td style="
+background:linear-gradient(135deg,#2563eb,#1e40af);
+padding:35px 40px;
+text-align:center;
+">
+
+<h1 style="
+margin:0;
+color:#fff;
+font-size:26px;
+font-weight:700;
+">
+SmartERP
+</h1>
+
+<p style="
+margin:8px 0 0;
+color:#dbeafe;
+font-size:14px;
+">
+Your Business Management System
+</p>
+
+</td>
+</tr>
+
+
+
+<!-- Content -->
+<tr>
+<td style="padding:40px;">
+
+
+<p style="
+margin:0 0 12px;
+font-size:16px;
+color:#333;
+">
+Hello <strong>${body.name}</strong> 👋
+</p>
+
+
+<p style="
+margin:0 0 25px;
+font-size:14px;
+color:#555;
+line-height:1.7;
+">
+Your SmartERP account has been successfully created.
+A temporary password has been generated for you.
+</p>
+
+
+
+<!-- Password Box -->
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td style="
+background:#eff6ff;
+border:1px dashed #2563eb;
+border-radius:10px;
+padding:25px;
+text-align:center;
+">
+
+<p style="
+margin:0 0 10px;
+font-size:12px;
+color:#64748b;
+text-transform:uppercase;
+letter-spacing:1px;
+">
+Temporary Password
+</p>
+
+
+<p style="
+margin:0;
+font-size:28px;
+font-weight:700;
+color:#2563eb;
+letter-spacing:4px;
+">
 ${userPass}
+</p>
 
-Please change your password immediately after logging in.
 
-This is an automated message (noreply@smartinb.com).
-        `,
+</td>
+</tr>
+</table>
+
+
+
+
+<!-- Warning -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:25px;">
+<tr>
+<td style="
+background:#fff7ed;
+border-left:4px solid #f97316;
+padding:15px;
+border-radius:6px;
+">
+
+<p style="
+margin:0;
+font-size:13px;
+color:#9a3412;
+line-height:1.6;
+">
+⚠️ For your security, please login and change this password immediately.
+</p>
+
+</td>
+</tr>
+</table>
+
+
+
+
+<!-- Button -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:30px;">
+<tr>
+<td align="center">
+
+<a href="#"
+style="
+display:inline-block;
+background:#2563eb;
+color:#fff;
+text-decoration:none;
+padding:12px 30px;
+border-radius:8px;
+font-size:14px;
+font-weight:600;
+">
+Login To SmartERP
+</a>
+
+</td>
+</tr>
+</table>
+
+
+
+</td>
+</tr>
+
+
+
+<!-- Footer -->
+
+<tr>
+<td style="
+background:#f8fafc;
+padding:22px 40px;
+text-align:center;
+border-top:1px solid #eee;
+">
+
+
+<p style="
+margin:0;
+font-size:12px;
+color:#94a3b8;
+line-height:1.6;
+">
+
+This is an automated message — please do not reply.
+
+<br/>
+
+© ${new Date().getFullYear()} SmartERP · noreply@smartinb.com
+
+</p>
+
+
+</td>
+</tr>
+
+
+</table>
+
+
+</td>
+</tr>
+</table>
+
+
+</body>
+</html>
+`,
       });
     }
 
@@ -354,7 +558,7 @@ exports.getUser = async ({ companyId, id }) => {
   }
 
   const companyData = (user.companies || []).find(
-    (c) => String(c.companyId) === String(companyId)
+    (c) => String(c.companyId) === String(companyId),
   );
 
   if (!companyData?.roleId) {
@@ -364,7 +568,7 @@ exports.getUser = async ({ companyId, id }) => {
   const settings = await userCompanySettingsModel
     .findOne({ companyId: String(companyId), userId: user._id })
     .select(
-      "salesPoint selectedQuickActions stocks status active tagIds expenseTagIds purchaseTagIds salesTagIds"
+      "salesPoint selectedQuickActions stocks status active tagIds expenseTagIds purchaseTagIds salesTagIds",
     )
     .populate("tagIds expenseTagIds purchaseTagIds salesTagIds")
     .populate("stocks.stockId", "name _id")
@@ -403,7 +607,7 @@ exports.updateUser = async ({ companyId, body, id }) => {
       .findOneAndUpdate(
         { _id: id, "companies.companyId": String(companyId) },
         { $set: userSet },
-        { new: true, session }
+        { new: true, session },
       )
       .populate({ path: "companies.roleId", select: "name _id channels" });
     if (!user) throw new Error("User not found");
@@ -422,7 +626,7 @@ exports.updateUser = async ({ companyId, body, id }) => {
           ...settingsPayload,
         },
       },
-      { upsert: true, new: true, session }
+      { upsert: true, new: true, session },
     );
 
     await session.commitTransaction();
@@ -440,7 +644,7 @@ exports.deleteUser = async ({ id, companyId }) => {
   const settings = await userCompanySettingsModel.findOneAndUpdate(
     { userId: id, companyId },
     [{ $set: { active: { $not: "$active" } } }],
-    { new: true }
+    { new: true },
   );
 
   if (!settings) {
@@ -459,7 +663,7 @@ exports.updateUserPassword = async ({ companyId, id, body }) => {
     },
     {
       new: true,
-    }
+    },
   );
 
   if (!user) {
@@ -477,7 +681,7 @@ exports.reSendPassword = async ({ body, email }) => {
     const user = await usersModel.findOneAndUpdate(
       { email },
       { password: hashedPassword },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
