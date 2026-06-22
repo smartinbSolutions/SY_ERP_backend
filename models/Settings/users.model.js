@@ -73,9 +73,9 @@ const userSchema = new mongoose.Schema(
     },
 
     passwordChangedAt: Date,
-    passwordResetCode: { type: String, select: false },
-    passwordResetExpires: { type: Date, select: false },
-    passwordResetVerified: { type: Boolean, select: false },
+    passwordResetCode: { type: String },
+    passwordResetExpires: { type: Date },
+    passwordResetVerified: { type: Boolean },
 
     image: String,
     AdditionalInfo: String,
@@ -84,21 +84,13 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true, transform: transformUser },
-    toObject: { virtuals: true, transform: transformUser },
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   },
 );
 
 // Prevent duplicate company per user
 userSchema.index({ email: 1, "companies.companyId": 1 }, { unique: true });
-
-function transformUser(doc, ret) {
-  delete ret.password;
-  delete ret.passwordResetCode;
-  delete ret.passwordResetExpires;
-  delete ret.passwordResetVerified;
-  return ret;
-}
 
 // Attach image URL safely
 userSchema.post("init", attachImageURL);

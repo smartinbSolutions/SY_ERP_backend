@@ -2,6 +2,7 @@ const unitModel = require("../../../models/Settings/Definition/unit.model");
 const ApiError = require("../../../utils/apiError");
 // const productModel = require("../../../models/Stocks/Products/product.model");
 const productModel = require("../../../models/Stocks/products/productModel");
+const { default: slugify } = require("slugify");
 
 exports.getUnits = async ({ companyId }) => {
   const query = { companyId };
@@ -23,6 +24,7 @@ exports.getUnit = async ({ companyId, id }) => {
 
 exports.createUnit = async ({ companyId, data, session }) => {
   data.companyId = companyId;
+  data.slug = slugify(data.name);
   const unit = await unitModel.create([data], { session });
   return { data: unit[0] };
 };
@@ -53,7 +55,7 @@ exports.deleteUnit = async ({ companyId, id, session }) => {
   if (unitUsed) {
     throw new ApiError(
       `Cannot delete unit because it is linked to product`,
-      404
+      404,
     );
   }
 

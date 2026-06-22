@@ -1,3 +1,4 @@
+const { default: slugify } = require("slugify");
 const tagModel = require("../../../models/Settings/Definition/tag.model");
 const ApiError = require("../../../utils/apiError");
 
@@ -21,6 +22,7 @@ exports.getTag = async ({ companyId, id }) => {
 
 exports.createTag = async ({ companyId, data, session }) => {
   data.companyId = companyId;
+  data.slug = slugify(data.name);
   const tag = await tagModel.create([data], { session });
   return { data: tag[0] };
 };
