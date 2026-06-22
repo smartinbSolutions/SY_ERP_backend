@@ -10,7 +10,7 @@ const {
   deleteLine,
   getByPayrollEmployee,
   getSummary,
-} = require("../../controllers/Hr/payrollEmployeeLine.controller");
+} = require("../../controllers/Hr/payrollEmployeeLine.Controller");
 
 const payrollEmployeeLineRoute = express.Router();
 
@@ -21,7 +21,7 @@ payrollEmployeeLineRoute
   .post(
     authService.protect,
     authService.allowedTo("payroll.create"),
-    createLine,
+    createLine
   );
 
 // ================= BULK CREATE =================
@@ -30,7 +30,7 @@ payrollEmployeeLineRoute
   .post(
     authService.protect,
     authService.allowedTo("payroll.create"),
-    createManyLines,
+    createManyLines
   );
 
 // ================= BY ID =================
@@ -40,12 +40,12 @@ payrollEmployeeLineRoute
   .patch(
     authService.protect,
     authService.allowedTo("payroll.update"),
-    updateLine,
+    updateLine
   )
   .delete(
     authService.protect,
     authService.allowedTo("payroll.delete"),
-    deleteLine,
+    deleteLine
   );
 
 // ================= BY PAYROLL EMPLOYEE =================
@@ -54,7 +54,7 @@ payrollEmployeeLineRoute
   .get(
     authService.protect,
     authService.allowedTo("payroll.read"),
-    getByPayrollEmployee,
+    getByPayrollEmployee
   );
 
 // ================= SUMMARY BY PERIOD =================
