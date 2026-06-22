@@ -221,6 +221,23 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
   });
 });
 
+const BUYING_SOURCES = [
+  "Purchase Invoice",
+  "Purchase Invoice Cancellation",
+  "Purchase Invoice Reverse Update",
+  "Refund Purchase Invoice",
+];
+
+const SELLING_SOURCES = [
+  "Sales Invoice",
+  "Sales Invoice Cancellation",
+  "Sales Invoice Reverse Update",
+  "Refund Sales Invoice",
+  "POS Receipt",
+  "POS Receipt Cancellation",
+  "Refund POS Receipt",
+];
+
 exports.getSalesReports = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
   const idType = req.query.type || "product";
@@ -233,170 +250,150 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
 
   let matchStage = { companyId };
 
-  // Date filter
   if (startDate && endDate) {
-    matchStage.createdAt = {
+    matchStage.movementDate = {
       $gte: new Date(startDate + "T00:00:00.000Z"),
       $lte: new Date(endDate + "T23:59:59.999Z"),
     };
   }
 
-  let groupStage = {};
-  let projectStage = {};
-
   if (idType === "product") {
     matchStage.productId = new mongoose.Types.ObjectId(id);
-
-    const product = await productModel.findById(id).lean();
-    const productName = product?.name || "";
-    const costBuyingPrice = product?.costBuyingPrice || "";
-
-    groupStage = {
-      _id: "$productId",
-
-      // Total buying value = price × quantity
-      totalBuying: {
-        $sum: {
-          $cond: [
-            { $eq: ["$movementType", "in"] },
-            {
-              $multiply: [
-                { $toDouble: { $ifNull: ["$buyingPrice", 0] } },
-                { $toDouble: { $ifNull: ["$quantity", 0] } },
-              ],
-            },
-            0,
-          ],
-        },
-      },
-
-      // Total selling value
-      totalSelling: {
-        $sum: {
-          $cond: [
-            { $eq: ["$movementType", "out"] },
-            {
-              $multiply: [
-                { $toDouble: { $ifNull: ["$sellingPrice", 0] } },
-                { $toDouble: { $ifNull: ["$quantity", 0] } },
-              ],
-            },
-            0,
-          ],
-        },
-      },
-      // Total quantities in/out
-      totalQuantityIn: {
-        $sum: {
-          $cond: [{ $eq: ["$movementType", "in"] }, "$quantity", 0],
-        },
-      },
-      totalQuantityOut: {
-        $sum: {
-          $cond: [{ $eq: ["$movementType", "out"] }, "$quantity", 0],
-        },
-      },
-    };
-
-    projectStage = {
-      _id: 0,
-      productId: "$_id",
-      productName: productName,
-
-      totalBuying: 1,
-      totalSelling: 1,
-      totalQuantityIn: 1,
-      totalQuantityOut: 1,
-
-      // ⭐ NEW: average buying price
-      averageBuying: costBuyingPrice,
-    };
-  }
-
-  // Category Mode
-  else if (idType === "category") {
+  } else if (idType === "category") {
     const products = await productModel.find(
       { category: id, companyId },
       { _id: 1, name: 1 }
     );
-
     const ids = products.map((p) => p._id);
-
     if (ids.length === 0) {
-      return res.status(200).json({
-        status: "success",
-        data: [],
-      });
+      return res.status(200).json({ status: "success", data: [] });
     }
-
     matchStage.productId = { $in: ids };
+  }
 
-    groupStage = {
-      _id: "$productId",
+  const groupStage = {
+    _id: "$productId",
 
-      totalBuying: {
-        $sum: {
-          $cond: [
-            { $eq: ["$movementType", "in"] },
-            {
-              $multiply: [
-                { $toDouble: { $ifNull: ["$buyingPrice", 0] } },
-                { $toDouble: { $ifNull: ["$quantity", 0] } },
-              ],
-            },
-            0,
-          ],
-        },
-      },
-
-      // Total selling value
-      totalSelling: {
-        $sum: {
-          $cond: [
-            { $eq: ["$movementType", "out"] },
-            {
-              $multiply: [
-                { $toDouble: { $ifNull: ["$sellingPrice", 0] } },
-                { $toDouble: { $ifNull: ["$quantity", 0] } },
-              ],
-            },
-            0,
-          ],
-        },
-      },
-
-      totalQuantityIn: {
-        $sum: {
-          $cond: [{ $eq: ["$movementType", "in"] }, "$quantity", 0],
-        },
-      },
-
-      totalQuantityOut: {
-        $sum: {
-          $cond: [{ $eq: ["$movementType", "out"] }, "$quantity", 0],
-        },
-      },
-    };
-
-    projectStage = {
-      _id: 0,
-      productId: "$_id",
-      productName: "$product.name",
-      totalBuying: 1,
-      totalSelling: 1,
-      totalQuantityIn: 1,
-      totalQuantityOut: 1,
-
-      // ⭐ NEW: average buying price
-      averageBuying: {
+    // ── BUYING BUCKET ──
+    netBoughtQty: {
+      $sum: {
         $cond: [
-          { $eq: ["$totalQuantityIn", 0] },
+          { $in: ["$source", BUYING_SOURCES] },
+          {
+            $cond: [
+              { $eq: ["$movementType", "in"] },
+              "$quantity",
+              { $multiply: ["$quantity", -1] },
+            ],
+          },
           0,
-          { $divide: ["$totalBuying", "$totalQuantityIn"] },
         ],
       },
-    };
-  }
+    },
+
+    netBoughtValueMain: {
+      $sum: {
+        $cond: [
+          { $in: ["$source", BUYING_SOURCES] },
+          {
+            $cond: [
+              { $eq: ["$movementType", "in"] },
+              {
+                $multiply: [
+                  "$enterPriceMainCurrency",
+                  { $toDouble: { $ifNull: ["$quantity", 0] } },
+                ],
+              },
+              {
+                $multiply: [
+                  "$enterPriceMainCurrency",
+                  { $toDouble: { $ifNull: ["$quantity", 0] } },
+                  -1,
+                ],
+              },
+            ],
+          },
+          0,
+        ],
+      },
+    },
+
+    // ── SELLING BUCKET ──
+    netSoldQty: {
+      $sum: {
+        $cond: [
+          { $in: ["$source", SELLING_SOURCES] },
+          {
+            $cond: [
+              { $eq: ["$movementType", "out"] },
+              "$quantity",
+              { $multiply: ["$quantity", -1] },
+            ],
+          },
+          0,
+        ],
+      },
+    },
+
+    netSoldValueMain: {
+      $sum: {
+        $cond: [
+          { $in: ["$source", SELLING_SOURCES] },
+          {
+            $cond: [
+              { $eq: ["$movementType", "out"] },
+              {
+                $multiply: [
+                  {
+                    $divide: [
+                      { $toDouble: { $ifNull: ["$sellingPrice", 0] } },
+                      {
+                        $cond: [
+                          { $eq: ["$exchangeRate", 0] },
+                          1,
+                          "$exchangeRate",
+                        ],
+                      },
+                    ],
+                  },
+                  { $toDouble: { $ifNull: ["$quantity", 0] } },
+                ],
+              },
+              {
+                $multiply: [
+                  {
+                    $divide: [
+                      { $toDouble: { $ifNull: ["$sellingPrice", 0] } },
+                      {
+                        $cond: [
+                          { $eq: ["$exchangeRate", 0] },
+                          1,
+                          "$exchangeRate",
+                        ],
+                      },
+                    ],
+                  },
+                  { $toDouble: { $ifNull: ["$quantity", 0] } },
+                  -1,
+                ],
+              },
+            ],
+          },
+          0,
+        ],
+      },
+    },
+  };
+
+  const projectStage = {
+    _id: 0,
+    productId: "$_id",
+    productName: "$product.name",
+    netBoughtQty: 1,
+    netBoughtValueMain: 1,
+    netSoldQty: 1,
+    netSoldValueMain: 1,
+  };
 
   const movement = await ProductMovement.aggregate([
     { $match: matchStage },
@@ -409,7 +406,12 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
         as: "product",
       },
     },
-    { $unwind: "$product" },
+    {
+      $unwind: {
+        path: "$product",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
     { $project: projectStage },
   ]);
 
@@ -419,124 +421,6 @@ exports.getSalesReports = asyncHandler(async (req, res) => {
   });
 });
 
-// exports.getProductCostLedger = asyncHandler(async (req, res) => {
-//   const { companyId, startDate, endDate, page = 1, limit = 20 } = req.query;
-//   const { id } = req.params;
-
-//   if (!companyId) {
-//     return res.status(400).json({ message: "companyId is required" });
-//   }
-
-//   const currentPage = Number(page);
-//   const pageLimit = Number(limit);
-//   const skip = (currentPage - 1) * pageLimit;
-
-//   let filters = {
-//     companyId,
-//     productId: id,
-//   };
-
-//   if (startDate && endDate) {
-//     filters.createdAt = {
-//       $gte: new Date(startDate + "T00:00:00.000Z"),
-//       $lte: new Date(endDate + "T23:59:59.999Z"),
-//     };
-//   }
-
-//   const movements = await ProductMovement.find(filters)
-//     .sort({ createdAt: -1 })
-//     .populate("productId", "name")
-//     .populate("reference", "counter")
-//     .populate("stockId", "name")
-//     .lean();
-
-//   const movementsForCalc = [...movements].reverse();
-
-//   let qty = 0;
-//   let avgCost = 0;
-//   let value = 0;
-
-//   const calculatedMap = new Map();
-
-//   for (const mv of movementsForCalc) {
-//     if (mv.movementType === "in") {
-//       const newQty = Number(mv.quantity) || 0;
-//       const newPrice = Number(mv.enterPrice) || 0;
-
-//       if (qty + newQty > 0) {
-//         avgCost = (qty * avgCost + newQty * newPrice) / (qty + newQty);
-//       }
-
-//       qty += newQty;
-//       value = qty * avgCost;
-//     }
-
-//     if (mv.movementType === "out") {
-//       const outQty = Number(mv.quantity) || 0;
-//       const soldAvgCost = mv.outPrice;
-//       avgCost = (qty * avgCost - outQty * soldAvgCost) / (qty - outQty);
-
-//       if (outQty > qty) {
-//         throw new Error("Not enough stock");
-//       }
-
-//       qty -= outQty;
-//       value = qty * avgCost;
-//     }
-
-//     calculatedMap.set(mv._id.toString(), {
-//       qtyAfter: qty,
-//       avgCostAfter: Number(avgCost),
-//       valueAfter: Number(value),
-//       avgCostAfterMainCurrency: Number(avgCost / mv.exchangeRate),
-//       valueAfterMainCurrency: Number(value / mv.exchangeRate),
-//     });
-//   }
-
-//   const calculated = movements.map((mv) => {
-//     const calc = calculatedMap.get(mv._id.toString());
-
-//     return {
-//       name: mv.productId.name,
-//       movementId: mv._id,
-//       movementType: mv.movementType,
-//       newQuantity: calc.qtyAfter,
-//       avgCostAfter: calc.avgCostAfter,
-//       valueAfter: calc.valueAfter,
-//       avgCostAfterMainCurrency: calc.avgCostAfterMainCurrency,
-//       valueAfterMainCurrency: calc.valueAfterMainCurrency,
-//       enterPrice: Number(mv.enterPrice),
-//       date: mv.createdAt,
-//       source: mv.source,
-//       quantity: mv.quantity,
-//       reference: mv.reference,
-//       source: mv.source,
-//       outPrice: mv.outPrice,
-//       sellingPrice: mv.sellingPrice,
-//       exchangeRate: mv.exchangeRate,
-//       stockId: mv.stockId,
-//     };
-//   });
-
-//   // 🔹 Pagination
-//   const paginatedMovements = calculated.slice(skip, skip + pageLimit);
-
-//   res.json({
-//     status: "success",
-//     data: {
-//       finalQty: qty,
-//       finalAvgCost: Number(avgCost),
-//       finalValue: Number(value),
-//       movements: paginatedMovements,
-//       pagination: {
-//         page: currentPage,
-//         limit: pageLimit,
-//         total: calculated.length,
-//         totalPages: Math.ceil(calculated.length / pageLimit),
-//       },
-//     },
-//   });
-// });
 exports.getProductCostLedger = asyncHandler(async (req, res) => {
   const { startDate, endDate, page = 1, limit = 20 } = req.query;
   const { id } = req.params;
