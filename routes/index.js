@@ -24,7 +24,7 @@ const unitRout = require("./Settings/Definition/unit.route");
 const authRoute = require("./authRoute");
 const customarRoute = require("./customarRoute");
 const supplierRoute = require("./supplierRoute");
-const stockRout = require("./stokRoute");
+const stockRout = require("./Stocks/stokRoute");
 const footerRout = require("./ecommerce/footerRout");
 const offersRouter = require("./offersRoute");
 const paytrRouter = require("./ecommerce/paytrRoute");
@@ -127,7 +127,6 @@ const DashboardStatsRoute = require("./dashboardStatsRoute");
 const permissionsRouter = require("./Settings/permissions.route");
 const unTracedproductLogRoute = require("./Stocks/Products/unTracedproductLog.route");
 const payrollEmployeeLineRoute = require("./Hr/payrollEmployeeLineRoute");
-
 
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);

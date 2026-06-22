@@ -146,21 +146,21 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
   }
 
   const pageSize = parseInt(req.query.limit) || 10;
-  const sort = req.query.sort;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
+  const sort = req.query.sort || "desc";
+  const movement = req.query.movement || "both"; // "in" | "out" | "both"
+  const metric = "quantity";
 
-  const match = { companyId };
+  const ACTIVITY_SOURCES = ["Purchase Invoice", "Sales Invoice", "POS Receipt"];
+
+  const match = { companyId, source: { $in: ACTIVITY_SOURCES } };
 
   if (req.query.startDate && req.query.endDate) {
     const startDate = new Date(req.query.startDate);
     const endDate = new Date(req.query.endDate);
-
     if (!isNaN(startDate) && !isNaN(endDate)) {
-      match.createdAt = {
-        $gte: startDate,
-        $lte: endDate,
-      };
+      match.movementDate = { $gte: startDate, $lte: endDate };
     } else {
       return res
         .status(400)
@@ -168,49 +168,69 @@ exports.getHighestProductMovment = asyncHandler(async (req, res, next) => {
     }
   }
 
-  let sortOption = { totalMovements: -1 };
-
-  if (sort === "asc") {
-    sortOption = { totalMovements: 1 };
-  } else if (sort === "desc") {
-    sortOption = { totalMovements: -1 };
+  if (movement === "in") {
+    match.movementType = "in";
+  } else if (movement === "out") {
+    match.movementType = "out";
   }
 
-  // Aggregation pipeline
-  const movements = await ProductMovement.aggregate([
-    { $match: match },
-    {
-      $group: {
-        _id: "$productId",
-        totalMovements: { $sum: 1 },
-      },
-    },
-    {
-      $lookup: {
-        from: "products",
-        localField: "_id",
-        foreignField: "_id",
-        as: "productInfo",
-      },
-    },
-    { $unwind: "$productInfo" },
-    { $sort: sortOption },
-    { $skip: skip },
-    { $limit: pageSize },
-  ]);
+  const metricField =
+    metric === "quantity" ? { $sum: "$quantity" } : { $sum: 1 };
 
-  const totalItems = await ProductMovement.aggregate([
-    { $match: match },
-    { $group: { _id: "$productId" } },
-    { $count: "count" },
+  const sortOption = { activityScore: sort === "asc" ? 1 : -1 };
+
+  const [movements, totalItems] = await Promise.all([
+    ProductMovement.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: "$productId",
+          activityScore: metricField,
+          totalIn: {
+            $sum: {
+              $cond: [{ $eq: ["$movementType", "in"] }, "$quantity", 0],
+            },
+          },
+          totalOut: {
+            $sum: {
+              $cond: [{ $eq: ["$movementType", "out"] }, "$quantity", 0],
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "productInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$productInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      { $sort: sortOption },
+      { $skip: skip },
+      { $limit: pageSize },
+    ]),
+    ProductMovement.aggregate([
+      { $match: match },
+      { $group: { _id: "$productId" } },
+      { $count: "count" },
+    ]),
   ]);
 
   res.status(200).json({
     status: true,
     data: movements.map((m) => ({
       productId: m._id,
-      productName: m.productInfo.name,
-      totalMovements: m.totalMovements,
+      productName: m.productInfo?.name || "",
+      activityScore: m.activityScore,
+      totalIn: m.totalIn,
+      totalOut: m.totalOut,
     })),
     pagination: {
       totalItems: totalItems[0]?.count || 0,

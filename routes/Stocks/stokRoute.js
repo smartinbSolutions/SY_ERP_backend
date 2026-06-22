@@ -1,6 +1,6 @@
 const express = require("express");
 
-const authService = require("../services/authService");
+const authService = require("../../services/authService");
 const {
   getStocks,
   createStock,
@@ -13,7 +13,7 @@ const {
   getTransferForStock,
   getAllStatementStock,
   getStocksProducts,
-} = require("../services/stockService");
+} = require("../../services/Stocks/stockService");
 
 const stockRout = express.Router();
 
@@ -25,7 +25,7 @@ stockRout
   .post(
     authService.allowedTo("stock.create"),
     authService.checkCompanyEditable,
-    createStock,
+    createStock
   );
 stockRout
   .route("/transfer")
@@ -33,7 +33,7 @@ stockRout
   .put(
     authService.allowedTo("stock_transfers.create"),
     authService.checkCompanyEditable,
-    transformQuantity,
+    transformQuantity
   );
 stockRout
   .route("/stock-report")
@@ -53,12 +53,12 @@ stockRout
   .put(
     authService.allowedTo("stock.update"),
     authService.checkCompanyEditable,
-    updateStock,
+    updateStock
   )
   .delete(
     authService.allowedTo("stock.delete"),
     authService.checkCompanyEditable,
-    deleteStock,
+    deleteStock
   );
 
 module.exports = stockRout;

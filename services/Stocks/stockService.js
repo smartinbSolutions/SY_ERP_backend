@@ -1,16 +1,16 @@
 const asyncHandler = require("express-async-handler");
 
-const { createProductMovement } = require("../utils/productMovement");
-const StockModel = require("../models/stockModel");
+const { createProductMovement } = require("../../utils/productMovement");
+const StockModel = require("../../models/stockModel");
 const { default: slugify } = require("slugify");
-const ApiError = require("../utils/apiError");
-const productModel = require("../models/Stocks/products/productModel");
-const stockTransferModel = require("../models/stockTransfer");
-const productMovementModel = require("../models/Stocks/products/productMovementModel");
-const ShortageModel = require("../models/ShortageModel");
+const ApiError = require("../../utils/apiError");
+const productModel = require("../../models/Stocks/products/productModel");
+const stockTransferModel = require("../../models/stockTransfer");
+const productMovementModel = require("../../models/Stocks/products/productMovementModel");
+const ShortageModel = require("../../models/ShortageModel");
 const { default: mongoose } = require("mongoose");
-const { createProductBatch } = require("./productBatchServices");
-const prodcutBatchModel = require("../models/Stocks/products/prodcutBatchModel");
+const { createProductBatch } = require("../productBatchServices");
+const prodcutBatchModel = require("../../models/Stocks/products/prodcutBatchModel");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;

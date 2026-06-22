@@ -22,7 +22,7 @@ productMovementsRoute
   .route("/")
   .get(authService.allowedTo("stock.movements.read"), getAllProductsMovements);
 productMovementsRoute
-  .route("/highest-movenet")
+  .route("/highest-movment")
   .get(authService.allowedTo("stock.movements.read"), getHighestProductMovment);
 productMovementsRoute
   .route("/salse_reports/:id")
