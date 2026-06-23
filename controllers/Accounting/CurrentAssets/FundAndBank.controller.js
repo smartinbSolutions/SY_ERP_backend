@@ -138,10 +138,10 @@ exports.deleteFundAndBank = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    await deleteFundAndBankService({ req, companyId });
+    await deleteFundAndBankService({ req, companyId, session });
 
     await session.commitTransaction();
-    res.status(201).json({
+    res.status(200).json({
       status: "success",
       message: "Financial fund Deleted",
     });

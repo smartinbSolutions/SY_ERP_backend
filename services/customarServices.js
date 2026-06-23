@@ -26,7 +26,7 @@ exports.createCustomar = asyncHandler(async (req, res, next) => {
   const customar = await customersModel.create(req.body);
   const openingBalanceAmount = Number(req.body.TotalUnpaid || 0);
   const absoluteOpeningBalanceAmount = Math.abs(openingBalanceAmount);
-  if (req.body.TotalUnpaid !== null) {
+  if (req.body.TotalUnpaid !== null && req.body.TotalUnpaid != 0) {
     const openingBalance = await createPaymentHistoryV2({
       companyId,
       entryType: "opening_balance",
@@ -42,8 +42,8 @@ exports.createCustomar = asyncHandler(async (req, res, next) => {
       transactionCurrency: req.body.currencyCode || "",
     });
     customar.openingBalanceId = openingBalance._id;
-    await customar.save();
   }
+  await customar.save();
 
   res
     .status(201)
@@ -188,7 +188,6 @@ exports.updateCustomerPassword = asyncHandler(async (req, res, next) => {
 //@rol:who has rol can Delete the Customar
 exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-
   const companyId = req.companyId;
 
   if (!companyId) {
@@ -200,10 +199,7 @@ exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   });
 
   if (paymentHistory.length > 0) {
-    return next(
-      new ApiError(`you have a payment for this customer ${id}`),
-      400,
-    );
+    return next(new ApiError(`PAYMENT_EXIST`), 400);
   }
 
   const customar = await customersModel.findOneAndDelete({
@@ -212,7 +208,7 @@ exports.deleteCustomar = asyncHandler(async (req, res, next) => {
   });
 
   if (!customar) {
-    return next(new ApiError(`There is no customer with this id ${id}`, 404));
+    return next(new ApiError(`NOT_FOUND`, 404));
   } else {
     res.status(200).json({ status: "true", message: "Customer Deleted" });
   }

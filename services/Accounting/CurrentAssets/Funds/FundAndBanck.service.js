@@ -256,21 +256,25 @@ exports.deleteFundAndBankService = async ({ req, companyId, session }) => {
       companyId,
     })
     .session(session);
-  let fundAndBank;
-  if (ReportsFinancialFunds <= 0) {
-    fundAndBank = await financialFundsModel
-      .findOneAndDelete({
-        _id: id,
-        companyId,
-      })
-      .session(session);
-    if (!fundAndBank) {
-      throw new ApiError(`No fund and bank for this id ${id}`, 404);
-    }
-    return true;
-  } else {
-    return false;
+  if (ReportsFinancialFunds > 0) {
+    throw new ApiError(
+      "Cannot delete this financial fund because it has related reports.",
+      400,
+    );
   }
+
+  const fundAndBank = await financialFundsModel
+    .findOneAndDelete({
+      _id: id,
+      companyId,
+    })
+    .session(session);
+
+  if (!fundAndBank) {
+    throw new ApiError(`No fund and bank for this id ${id}`, 404);
+  }
+
+  return true;
 };
 
 exports.findSpecificFundReportsService = async ({

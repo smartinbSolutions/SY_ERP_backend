@@ -21,23 +21,24 @@ exports.createSupplier = asyncHandler(async (req, res, next) => {
 
   const openingBalanceAmount = Number(req.body.TotalUnpaid || 0);
   const absoluteOpeningBalanceAmount = Math.abs(openingBalanceAmount);
+  if (req.body.TotalUnpaid !== null && req.body.TotalUnpaid != 0) {
+    const openingBalanceHistory = await createPaymentHistoryV2({
+      companyId,
+      entryType: "opening_balance",
+      transactionDate: req.body.date || new Date().toISOString(),
+      amountTransactionCurrency: absoluteOpeningBalanceAmount,
+      amountMainCurrency: absoluteOpeningBalanceAmount,
+      supplierId: supplier._id,
+      sourceModule: "opening_balance",
+      actionType: "create",
+      balanceEffectType:
+        req.body.havebalans === "debit" ? "Deposit" : "Withdrawal",
+      description: "Opening balance",
+      transactionCurrency: req.body.currencyCode || "",
+    });
+    supplier.openingBalanceId = openingBalanceHistory._id;
+  }
 
-  const openingBalanceHistory = await createPaymentHistoryV2({
-    companyId,
-    entryType: "opening_balance",
-    transactionDate: req.body.date || new Date().toISOString(),
-    amountTransactionCurrency: absoluteOpeningBalanceAmount,
-    amountMainCurrency: absoluteOpeningBalanceAmount,
-    supplierId: supplier._id,
-    sourceModule: "opening_balance",
-    actionType: "create",
-    balanceEffectType:
-      req.body.havebalans === "debit" ? "Deposit" : "Withdrawal",
-    description: "Opening balance",
-    transactionCurrency: req.body.currencyCode || "",
-  });
-
-  supplier.openingBalanceId = openingBalanceHistory._id;
   await supplier.save();
 
   res
@@ -175,7 +176,7 @@ exports.updataSupplier = asyncHandler(async (req, res, next) => {
 });
 
 //Delete One Supplier(Put it in archives)
-//@rol:who has rol can Delete the Supplier
+//@rol: who has rol can Delete the Supplier
 exports.deleteSupplier = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const companyId = req.companyId;
@@ -189,19 +190,15 @@ exports.deleteSupplier = asyncHandler(async (req, res, next) => {
   });
 
   if (paymentHistory.length > 0) {
-    return next(
-      new ApiError(`you have a payment for this supplier ${id}`),
-      400,
-    );
+    return next(new ApiError(`PAYMENT_EXIST`), 400);
   }
-  const supplier = await supplierModel.findByIdAndUpdate(
-    { _id: id, companyId },
-    { archives: "true" },
-    { new: true },
-  );
+  const supplier = await supplierModel.findByIdAndDelete({
+    _id: id,
+    companyId,
+  });
 
   if (!supplier) {
-    return next(new ApiError(`There is no supplier with this id ${id}`, 404));
+    return next(new ApiError(`NOT_FOUND`, 404));
   } else {
     res.status(200).json({ status: "true", message: "Supplier Deleted" });
   }
