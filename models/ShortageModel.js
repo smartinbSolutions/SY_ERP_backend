@@ -14,8 +14,12 @@ const ShortageSchema = new mongoose.Schema(
     },
     notes: String,
     date: String,
+    user: { type: mongoose.Schema.ObjectId, ref: "user" },
+    sours: { type: String },
+    refId: { type: String },
+    stock: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 ShortageSchema.index({ companyId: 1, status: 1, productId: 1 });
 

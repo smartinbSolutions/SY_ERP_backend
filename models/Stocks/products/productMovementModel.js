@@ -33,6 +33,7 @@ const ProductMovementSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Create",
+        "Update",
         "Purchase Invoice",
         "Purchase Invoice Cancellation",
         "Sales Invoice",

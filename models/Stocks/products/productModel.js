@@ -165,9 +165,8 @@ const productSchema = new mongoose.Schema(
        SYSTEM FIELDS
     ========================== */
     archives: {
-      type: String,
-      enum: ["true", "false"],
-      default: "false",
+      type: Boolean,
+      default: false,
     },
     sync: { type: Boolean, default: false },
     companyId: {
@@ -180,7 +179,7 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 /* =========================
