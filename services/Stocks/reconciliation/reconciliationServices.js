@@ -550,7 +550,9 @@ exports.updataOneReconciliationReport = asyncHandler(async (req, res) => {
             stockId: reconciliation.stockId,
             quantity: item.difference,
             buyingprice: enterPrice,
+            exchangeRate,
             sourceId: id,
+
             sourceType: "Stock Reconciliation",
             session,
           });

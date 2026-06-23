@@ -71,7 +71,7 @@ const buildSettingUpdate = (body) => {
       if (Object.prototype.hasOwnProperty.call(body, field)) {
         update[field] = body[field];
       }
-    },
+    }
   );
 
   return update;
@@ -93,7 +93,7 @@ const ensureCompanySetting = async ({ companyId, session }) => {
       upsert: true,
       setDefaultsOnInsert: true,
       session,
-    },
+    }
   );
 
   return setting;
@@ -180,7 +180,7 @@ const resolveDemoPlan = (body) => {
     selectedModules.length > 0 ? selectedModules : [demoFeatureKeys[0]];
   const priceMonthly = customModules.reduce(
     (total, module) => total + (pricingConfig.featurePrices[module] || 0),
-    0,
+    0
   );
 
   return {
@@ -222,7 +222,7 @@ const createDemoSubscription = async ({ body, companyId, session }) => {
       upsert: true,
       setDefaultsOnInsert: true,
       session,
-    },
+    }
   );
 
   const [subscription] = await subscriptionModel.create(
@@ -238,13 +238,13 @@ const createDemoSubscription = async ({ body, companyId, session }) => {
         isTrial: true,
       },
     ],
-    { session },
+    { session }
   );
 
   await companyInfoModel.findByIdAndUpdate(
     companyId,
     { currentSubscription: subscription._id },
-    { session },
+    { session }
   );
 
   return subscription;
@@ -339,7 +339,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
           ...pickDefined(body, companySettingFields),
         },
       ],
-      { session },
+      { session }
     );
 
     const linkAccount = [
@@ -561,7 +561,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     body.companies = {
@@ -608,7 +608,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
             },
           },
         },
-        { session },
+        { session }
       );
     }
 
@@ -622,7 +622,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     await thirdPartyAuthModel.create(
@@ -635,7 +635,7 @@ exports.createCompanyInfo = async ({ body, session: externalSession }) => {
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     const paymentMethods = [
@@ -758,7 +758,7 @@ exports.updateCompanySetting = async ({ session, companyId, body }) => {
       upsert: true,
       setDefaultsOnInsert: true,
       session,
-    },
+    }
   );
 
   return companySetting;
@@ -774,7 +774,7 @@ exports.updateCompanyInfo = async ({ session, companyId, body }) => {
         ? await companyInfoModel.findByIdAndUpdate(
             companyId,
             { $set: infoUpdate },
-            { new: true, session },
+            { new: true, session }
           )
         : await companyInfoModel.findById(companyId).session(session);
 
@@ -795,7 +795,7 @@ exports.updateCompanyInfo = async ({ session, companyId, body }) => {
           upsert: true,
           setDefaultsOnInsert: true,
           session,
-        },
+        }
       );
     }
 
@@ -844,7 +844,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
     if (!companyInfo) {
       throw new ApiError(
         `There is no company info with this id ${companyId} or rollover already done`,
-        409,
+        409
       );
     }
     const baseName = companyInfo.companyName;
@@ -855,7 +855,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
         rollOver: true,
         closedAt: endDate,
       },
-      { new: true, session },
+      { new: true, session }
     );
     const newCompanyInfo = await CompanyInfnoModel.create(
       [
@@ -873,7 +873,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           rollOver: false,
         },
       ],
-      { session },
+      { session }
     );
     const companySetting = await companySettingModel.create(
       [
@@ -887,7 +887,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           facebookUrl: companyInfo.facebookUrl,
         },
       ],
-      { session },
+      { session }
     );
     const companyPlan = await companyPlanModel.create(
       [
@@ -903,7 +903,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           isActive: companySubscription.planId.isActive,
         },
       ],
-      { session },
+      { session }
     );
 
     const { dateFormat, counterFormat } = companyInfo.prefix;
@@ -964,7 +964,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
       {
         arrayFilters: [{ "c.companyId": companyId }],
         session,
-      },
+      }
     );
 
     const employees = await usersModel
@@ -1085,7 +1085,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           creditor: isBalanceSheet ? sums.creditor : 0,
           currency: currencyMap.get(account.currency?.toString()) || null,
         };
-      }),
+      })
     );
 
     const insertedAccounts = await accountingTreeModel.insertMany(newAccounts, {
@@ -1102,7 +1102,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
     const newLinkedPanel = linkedPanel
       .map((link) => {
         const newAccountId = accountIdMap.get(
-          link.accountData?.toString() || link.accountId?.toString(),
+          link.accountData?.toString() || link.accountId?.toString()
         );
 
         return {
@@ -1154,7 +1154,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           linkAccount:
             accountIdMap.get(supplier.linkAccount?.toString()) || null,
         };
-      }),
+      })
     );
 
     const createSuppliers = await suppliersModel.insertMany(newSuppliers, {
@@ -1196,7 +1196,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           fundBalance: fundBalance,
           linkAccount: accountIdMap.get(fund.linkAccount?.toString()) || null,
         };
-      }),
+      })
     );
 
     const createFunds = await financialFundsModel.insertMany(newFunds, {
@@ -1239,7 +1239,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
           linkAccount:
             accountIdMap.get(customer.linkAccount?.toString()) || null,
         };
-      }),
+      })
     );
 
     const createCustomers = await customarModel.insertMany(newCustomers, {
@@ -1429,7 +1429,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
       ) {
         throw new ApiError(
           `Opening balance journal not balanced (Debit: ${chackDateBalanceDebtor}, Credit: ${chackDateBalanceCreditor}), `,
-          405,
+          405
         );
       }
 
@@ -1474,15 +1474,15 @@ exports.rolloverService = async ({ companyId, session, body }) => {
               counter: counter + 1,
               journalDebit: openingJournalAccounts.reduce(
                 (sum, acc) => sum + acc.MainDebit,
-                0,
+                0
               ),
               journalCredit: openingJournalAccounts.reduce(
                 (sum, acc) => sum + acc.MainCredit,
-                0,
+                0
               ),
             },
           ],
-          { session },
+          { session }
         );
       }
     }
@@ -1503,7 +1503,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
             companyId: newCompanyId,
           },
         ],
-        { session },
+        { session }
       );
     }
 
@@ -1520,7 +1520,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
         "",
         "",
         customer.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
-        "Opening balance",
+        "Opening balance"
       );
     }
 
@@ -1537,7 +1537,7 @@ exports.rolloverService = async ({ companyId, session, body }) => {
         "",
         "",
         supplier.TotalUnpaid > 0 ? "Deposit" : "Withdrawal",
-        "Opening balance",
+        "Opening balance"
       );
     }
 
@@ -1832,7 +1832,7 @@ exports.openingInventoryRolloverService = async ({
         },
       },
     ],
-    { session },
+    { session }
   );
 
   const items = [];
@@ -1843,12 +1843,12 @@ exports.openingInventoryRolloverService = async ({
   for (const stock of stocks) {
     for (const oldProduct of products) {
       const newProduct = newProducts.find(
-        (p) => p.originalProductId?.toString() === oldProduct._id.toString(),
+        (p) => p.originalProductId?.toString() === oldProduct._id.toString()
       );
       if (!newProduct) continue;
 
       const stockEntry = oldProduct.stocks?.find(
-        (s) => s.stockName === stock.name,
+        (s) => s.stockName === stock.name
       );
 
       const quantity = stockEntry?.productQuantity || 0;
@@ -1939,7 +1939,7 @@ exports.openingInventoryRolloverService = async ({
     await productModel.updateOne(
       { _id: productId },
       { $set: { stocks: stocksData } },
-      { session },
+      { session }
     );
   }
 
@@ -1952,7 +1952,7 @@ exports.openingInventoryRolloverService = async ({
         totalValueMainCurrency: totalValue * mainCurrency.exchangeRate,
       },
     },
-    { session },
+    { session }
   );
 
   return openingInventory;

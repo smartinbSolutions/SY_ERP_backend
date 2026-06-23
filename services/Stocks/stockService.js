@@ -11,6 +11,7 @@ const ShortageModel = require("../../models/ShortageModel");
 const { default: mongoose } = require("mongoose");
 const { createProductBatch } = require("../productBatchServices");
 const prodcutBatchModel = require("../../models/Stocks/products/prodcutBatchModel");
+const batchLedgerModel = require("../../models/Stocks/products/batchLedgerModel");
 
 exports.createStock = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -228,7 +229,6 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
       .json({ message: "products must be a non-empty array" });
   }
 
-  // Validate quantities
   for (const p of products) {
     const q = Number(p?.productQuantity);
     if (!p?.productId) {
@@ -247,7 +247,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
 
   try {
     await session.withTransaction(async () => {
-      // Fetch stocks
+      // 1) Fetch both stocks
       const stocks = await StockModel.find({
         _id: { $in: [fromStockId, toStockId] },
         companyId,
@@ -264,13 +264,12 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
         throw Object.assign(new Error("Stock not found"), { statusCode: 404 });
       }
 
-      // Generate transfer counter
+      // 2) Create transfer record
       const nextCounterForTransfer =
         (await stockTransferModel
           .countDocuments({ companyId })
           .session(session)) + 1;
 
-      // Create transfer record
       const transferStock = await stockTransferModel.create(
         [
           {
@@ -285,13 +284,13 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
       const transferDoc = transferStock[0];
       const transferId = transferDoc._id;
 
-      // Prepare bulk ops
       const bulkOps = [];
 
       for (const p of products) {
         const productId = p.productId;
         const quantity = Number(p.productQuantity);
 
+        // 3) Fetch product
         const productDoc = await productModel
           .findOne({ _id: productId, companyId })
           .session(session);
@@ -306,11 +305,11 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           ? productDoc.stocks
           : [];
 
-        // Ensure from stock exists in product
-        const fromStockExists = stocksArr.some(
+        // 4) Validate fromStock exists and has enough quantity
+        const fromEntry = stocksArr.find(
           (st) => st?.stockId?.toString() === String(fromStockId)
         );
-        if (!fromStockExists) {
+        if (!fromEntry) {
           throw Object.assign(
             new Error(
               `Stock ID ${fromStockId} not found in product ${productId}`
@@ -318,11 +317,6 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
             { statusCode: 400 }
           );
         }
-
-        // Prevent negative quantity in fromStock
-        const fromEntry = stocksArr.find(
-          (st) => st?.stockId?.toString() === String(fromStockId)
-        );
         const fromQty = Number(fromEntry?.productQuantity) || 0;
         if (fromQty < quantity) {
           throw Object.assign(
@@ -333,7 +327,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           );
         }
 
-        // Bulk: decrement fromStock
+        // 5) Bulk ops — decrement fromStock
         bulkOps.push({
           updateOne: {
             filter: {
@@ -345,7 +339,7 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           },
         });
 
-        // Bulk: increment toStock or push if missing
+        // 6) Bulk ops — increment toStock or push if missing
         const toStockExists = stocksArr.some(
           (st) => st?.stockId?.toString() === String(toStockId)
         );
@@ -378,27 +372,12 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           });
         }
 
-        // Total across all stocks (transfer doesn't change total)
         const totalProductQuantity = stocksArr.reduce((sum, st) => {
           const qty = Number(st?.productQuantity);
           return sum + (Number.isFinite(qty) ? qty : 0);
         }, 0);
 
-        // OUT movement (fromStock)
-        await createProductMovement({
-          productId,
-          reference: transferId,
-          newQuantity: totalProductQuantity,
-          quantity,
-          movementType: "out",
-          source: "Stock Transfer",
-          companyId,
-          desc: `${fromStock.name} -> ${toStock.name}`,
-          stockId: fromStockId,
-          outPrice: p.buyingPrice,
-        });
-
-        // FIFO batches: remove from source batches
+        // 7) FIFO — consume source batches
         let qtyToOut = quantity;
         const fifoMovements = [];
 
@@ -417,21 +396,54 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
 
           const remaining = Number(batch.remaining) || 0;
           const usedQty = Math.min(remaining, qtyToOut);
-
           if (usedQty <= 0) continue;
 
           batch.remaining = remaining - usedQty;
           await batch.save({ session });
-
           qtyToOut -= usedQty;
 
           fifoMovements.push({
             quantity: usedQty,
             buyingprice: batch.buyingprice,
-            costBuyingPrice: batch.costBuyingPrice,
             exchangeRate: batch.exchangeRate,
             sourceBatchId: batch._id,
           });
+
+          // 8) OUT movement per batch consumed (price from batch, not from request)
+          await createProductMovement({
+            productId,
+            reference: transferId,
+            newQuantity: totalProductQuantity,
+            quantity: usedQty,
+            movementType: "out",
+            source: "Stock Transfer",
+            companyId,
+            desc: `${fromStock.name} -> ${toStock.name}`,
+            stockId: fromStockId,
+            outPrice: batch.buyingprice,
+            outPriceMainCurrrency:
+              batch.buyingprice / (batch.exchangeRate || 1),
+            exchangeRate: batch.exchangeRate,
+            session,
+          });
+
+          // 9) BatchLedger OUT entry per batch consumed
+          await batchLedgerModel.create(
+            [
+              {
+                batchId: batch._id,
+                productId,
+                companyId,
+                stockId: fromStockId,
+                type: "out",
+                quantity: usedQty,
+                referenceType: "stock_transfer",
+                referenceId: transferId,
+                movementDate: new Date(),
+              },
+            ],
+            { session }
+          );
         }
 
         if (qtyToOut > 0) {
@@ -440,86 +452,47 @@ exports.transformQuantity = asyncHandler(async (req, res) => {
           });
         }
 
-        // IN movement (toStock)
-        await createProductMovement({
-          productId,
-          reference: transferId,
-          newQuantity: totalProductQuantity,
-          quantity,
-          movementType: "in",
-          source: "Stock Transfer",
-          companyId,
-          desc: `${fromStock.name} -> ${toStock.name}`,
-          stockId: toStockId,
-          enterPrice: p.buyingPrice,
-        });
+        // 10) IN movement + new batch per FIFO source batch
+        // Price is preserved exactly from the source batch — transfer doesn't change cost basis
+        for (const fm of fifoMovements) {
+          await createProductMovement({
+            productId,
+            reference: transferId,
+            newQuantity: totalProductQuantity,
+            quantity: fm.quantity,
+            movementType: "in",
+            source: "Stock Transfer",
+            companyId,
+            desc: `${fromStock.name} -> ${toStock.name}`,
+            stockId: toStockId,
+            enterPrice: fm.buyingprice,
+            enterPriceMainCurrency: fm.buyingprice / (fm.exchangeRate || 1),
+            exchangeRate: fm.exchangeRate,
+            session,
+          });
 
-        // ✅ Create ONE destination batch only (weighted average from FIFO consumption)
-        let totalMovedQty = 0;
-        let totalBuyingValue = 0;
-        let totalCostValue = 0;
-        let totalExchangeValue = 0;
-
-        for (const m of fifoMovements) {
-          const q = Number(m.quantity) || 0;
-          totalMovedQty += q;
-
-          const bp = Number(m.buyingprice) || 0;
-          const cbp = Number(m.costBuyingPrice) || 0;
-          const ex = Number(m.exchangeRate) || 0;
-
-          totalBuyingValue = bp;
-          totalCostValue = cbp;
-          totalExchangeValue = ex;
-        }
-
-        if (totalMovedQty <= 0) {
-          throw Object.assign(new Error("No FIFO movements were created"), {
-            statusCode: 400,
+          await createProductBatch({
+            productId,
+            companyId,
+            stockId: toStockId,
+            quantity: fm.quantity,
+            buyingprice: fm.buyingprice,
+            sourceId: transferId,
+            sourceType: "stock_transfer",
+            originId: fm.sourceBatchId,
+            originType: "batch",
+            parentBatchId: fm.sourceBatchId,
+            session,
           });
         }
-
-        // Optional strict check (use tolerance if you have decimals)
-        if (Math.abs(totalMovedQty - quantity) > 1e-9) {
-          throw Object.assign(
-            new Error(
-              `FIFO moved qty mismatch. Moved=${totalMovedQty}, Requested=${quantity}`
-            ),
-            { statusCode: 400 }
-          );
-        }
-
-        const avgBuyingPrice = totalBuyingValue;
-        const avgCostBuyingPrice = totalCostValue;
-        const avgExchangeRate = totalExchangeValue;
-
-        await createProductBatch({
-          productId,
-          companyId,
-          stockId: toStockId,
-          quantity: totalMovedQty,
-          buyingprice: avgBuyingPrice,
-          costBuyingPrice: avgCostBuyingPrice,
-          exchangeRate: avgExchangeRate,
-          sourceId: transferId,
-          sourceType: "stock_transfer",
-          meta: {
-            fromStockId,
-            toStockId,
-            fifoSources: fifoMovements.map((x) => ({
-              batchId: x.sourceBatchId,
-              quantity: x.quantity,
-            })),
-          },
-        });
       }
 
-      // Execute bulk updates
+      // 11) Execute all bulk product quantity updates
       if (bulkOps.length) {
         await productModel.bulkWrite(bulkOps, { session });
       }
 
-      // Update shortages if selected
+      // 12) Mark shortages as done if provided
       if (Array.isArray(selectedId) && selectedId.length > 0) {
         await ShortageModel.updateMany(
           { _id: { $in: selectedId }, companyId },

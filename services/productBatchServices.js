@@ -12,6 +12,7 @@ exports.createProductBatch = async function createProductBatch({
   sourceId,
   sourceType,
   batchDate,
+  exchangeRate,
   session,
 
   // optional lineage fields
@@ -28,6 +29,7 @@ exports.createProductBatch = async function createProductBatch({
     quantity,
     remaining: quantity,
     buyingprice,
+    exchangeRate,
 
     // direct creator of this batch row
     sourceId,

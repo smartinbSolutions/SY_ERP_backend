@@ -103,12 +103,12 @@ const ProductBatchSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 ProductBatchSchema.index(
   { productId: 1, companyId: 1, stockId: 1, batchDate: 1 },
-  { name: "fifo_index" },
+  { name: "fifo_index" }
 );
 
 module.exports = mongoose.model("ProductBatch", ProductBatchSchema);

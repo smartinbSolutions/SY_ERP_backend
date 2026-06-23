@@ -56,7 +56,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed."),
+        new ApiError("Invalid file type. Only images and PDFs are allowed.")
       );
     }
   },
@@ -272,16 +272,16 @@ exports.preparePurchaseInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes(),
+    futureDateOb.getMinutes()
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3,
+    3
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes(),
+    date_ob.getMinutes()
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -513,7 +513,7 @@ exports.createPurchaseInvoiceRecordService = async ({
     await ShortageModel.updateMany(
       { _id: { $in: selectedId }, companyId },
       { status: "done" },
-      { session },
+      { session }
     );
   }
   await createInvoiceHistory(
@@ -526,7 +526,7 @@ exports.createPurchaseInvoiceRecordService = async ({
       ? "Purchase invoice draft created"
       : "Purchase invoice created",
     "purchase",
-    session,
+    session
   );
 
   return newPurchaseInvoice;
@@ -643,7 +643,7 @@ exports.upsertPurchaseInvoiceRecordService = async ({
       [invoicePayload],
       {
         session,
-      },
+      }
     );
     invoiceDoc = createdInvoice[0];
   } else if (mode === "update") {
@@ -677,7 +677,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
   const getTotalStockQuantity = (product) =>
     (product.stocks || []).reduce(
       (total, stock) => total + Number(stock.productQuantity || 0),
-      0,
+      0
     );
 
   const getOriginalBuyingPrice = (item) => {
@@ -828,7 +828,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
             date: newRefundPurchaseInvoice.date,
           },
         ],
-        { session },
+        { session }
       );
     } else if (item.type === "Service") {
       await createProductMovement({
@@ -883,6 +883,7 @@ exports.applyPurchaseInventoryEffectsService = async ({
         sourceId: newPurchaseInvoice._id,
         sourceType: "purchase",
         originId: newPurchaseInvoice._id,
+        exchangeRate: movementExchangerate,
         originType: "purchase",
         batchDate: date,
         session,
@@ -958,13 +959,13 @@ exports.reversePurchaseInventoryEffectsService = async ({
       }
 
       const stockRow = (product.stocks || []).find(
-        (stock) => String(stock.stockId) === String(item.stock._id),
+        (stock) => String(stock.stockId) === String(item.stock._id)
       );
 
       if (!stockRow) {
         throw new ApiError(
           `Stock row not found for product ${item.name} in selected stock`,
-          400,
+          400
         );
       }
 
@@ -974,7 +975,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
       if (currentStockQty < reverseQty) {
         throw new ApiError(
           `Cannot reverse invoice. Product "${item.name}" does not have enough stock to reverse.`,
-          400,
+          400
         );
       }
 
@@ -992,14 +993,14 @@ exports.reversePurchaseInventoryEffectsService = async ({
       if (!batch) {
         throw new ApiError(
           `Active purchase batch not found for product "${item.name}"`,
-          404,
+          404
         );
       }
 
       if (Number(batch.remaining || 0) < reverseQty) {
         throw new ApiError(
           `Cannot reverse invoice. Batch for product "${item.name}" has already been used.`,
-          400,
+          400
         );
       }
 
@@ -1070,7 +1071,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
             date: purchaseInvoice.date,
           },
         ],
-        { session },
+        { session }
       );
     }
   }
@@ -1084,7 +1085,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
     if (!product) continue;
 
     const stockRow = (product.stocks || []).find(
-      (stock) => String(stock.stockId) === String(item.stock._id),
+      (stock) => String(stock.stockId) === String(item.stock._id)
     );
 
     const reverseQty = Number(item.quantity || 0);
@@ -1104,7 +1105,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
     if (!batch) {
       throw new ApiError(
         `Active purchase batch not found for product "${item.name}"`,
-        404,
+        404
       );
     }
 
@@ -1134,7 +1135,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
           movementDate: cancellationDate,
         },
       ],
-      { session },
+      { session }
     );
 
     await createProductMovement({
@@ -1284,17 +1285,17 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
 
   const totalDebit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
   const totalCredit = journalAccounts.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
@@ -1302,7 +1303,7 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session },
+    { new: true, upsert: true, session }
   );
 
   // ── Save using new service ─────────────────────────────────────
@@ -1339,7 +1340,7 @@ exports.reversePurchaseJournalEffectsService = async ({
   if (!purchaseInvoice?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on purchase invoice",
-      400,
+      400
     );
   }
 
@@ -1399,17 +1400,17 @@ exports.reversePurchaseJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0,
+    0
   );
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0,
+    0
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400,
+      400
     );
   }
 
@@ -1439,7 +1440,7 @@ exports.reversePurchaseJournalEffectsService = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session },
+    { new: true, upsert: true, session }
   );
 
   const createdReversalJournal = await createJournalEntryService({
@@ -1505,7 +1506,7 @@ exports.updatePurchaseInvoiceDraftService = async ({
     const oldFilePath = path.join(
       process.cwd(),
       "uploads",
-      existingInvoice.file,
+      existingInvoice.file
     );
 
     if (fs.existsSync(oldFilePath)) {
@@ -1522,7 +1523,7 @@ exports.updatePurchaseInvoiceDraftService = async ({
   const invoiceTax = Number(req.body.invoiceTax || 0);
   const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0,
+    req.body.ManualInvoiceDiscountValue || 0
   );
 
   const paid = "unpaid";
@@ -1533,7 +1534,7 @@ exports.updatePurchaseInvoiceDraftService = async ({
 
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.date,
-    req.body.date,
+    req.body.date
   );
 
   const updatePayload = {
@@ -1580,7 +1581,7 @@ exports.updatePurchaseInvoiceDraftService = async ({
     {
       new: true,
       session,
-    },
+    }
   );
 
   await createInvoiceHistory(
@@ -1591,7 +1592,7 @@ exports.updatePurchaseInvoiceDraftService = async ({
     normalizedDate,
     "Draft purchase invoice updated",
     "purchase",
-    session,
+    session
   );
 
   return invoice;
@@ -1619,7 +1620,7 @@ exports.deletePurchaseInvoiceDraftService = async ({
       companyId,
       isDraft: true,
     },
-    { session },
+    { session }
   );
 
   await createInvoiceHistory(
@@ -1630,7 +1631,7 @@ exports.deletePurchaseInvoiceDraftService = async ({
     new Date().toISOString(),
     "Draft purchase invoice deleted",
     "purchase",
-    session,
+    session
   );
 
   return true;

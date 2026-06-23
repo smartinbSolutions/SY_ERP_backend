@@ -22,8 +22,6 @@ const createProductMovement = async ({
   session,
 }) => {
   try {
-    console.log(source);
-
     const movementPayload = {
       productId,
       reference,
