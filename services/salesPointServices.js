@@ -1,5 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const salsePointModel = require("../models/salesPointModel");
+const receiptSchema = require("../models/Pos/pos.receipt.model");
+const mongoose = require("mongoose");
 
 exports.createSalesPoint = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -78,6 +80,44 @@ exports.openAndCloseSalePoint = asyncHandler(async (req, res, next) => {
   //   margeOrderFish(dbName, id);
   // }
   res.status(200).json({ status: "success", data: open });
+});
+
+exports.deleteSalePoint = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  req.body.companyId = companyId;
+
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid Sales Point ID format" });
+  }
+  const objectId = new mongoose.Types.ObjectId(id);
+
+  const receiptCount = await receiptSchema.countDocuments({
+    companyId,
+    salesPoint: objectId,
+  });
+
+  if (receiptCount > 0) {
+    return res.status(400).json({
+      message: "EXISTING_RECEIPTS",
+    });
+  }
+
+  const sales = await salsePointModel.findOneAndDelete({
+    _id: objectId,
+    companyId,
+  });
+
+  if (!sales) {
+    return res.status(404).json({ message: "Sales point not found" });
+  }
+
+  res.status(200).json({ status: "success" });
 });
 
 // const margeOrderFish = asyncHandler(async (databaseName, id) => {

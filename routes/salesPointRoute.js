@@ -7,6 +7,7 @@ const {
 
   openAndCloseSalePoint,
   updateSalePoint,
+  deleteSalePoint,
 } = require("../services/salesPointServices");
 
 const SalesPointRout = express.Router();
@@ -26,6 +27,11 @@ SalesPointRout.route("/:id")
     authService.allowedTo("pos.point.update"),
     authService.checkCompanyEditable,
     updateSalePoint,
+  )
+  .delete(
+    // authService.allowedTo("pos.point.delete"),
+    // authService.checkCompanyEditable,
+    deleteSalePoint,
   );
 SalesPointRout.route("/openandclose/:id").put(
   authService.allowedTo("pos.point.update"),
