@@ -1,94 +1,61 @@
 const mongoose = require("mongoose");
 
+// ── Reusable sub-schemas ──────────────────────────────────────────────────────
+
+const cartItemFields = {
+  type: { type: String, default: "product" },
+  id: String,
+  qr: String,
+  name: String,
+  category: String,
+  orginalBuyingPrice: Number,
+  profitRatio: Number,
+  convertedBuyingPrice: Number,
+  buyingpriceMainCurrence: Number,
+  sellingPrice: Number,
+  unit: String,
+  tax: {
+    _id: String,
+    tax: Number,
+    salesAccountTax: String,
+    name: String,
+  },
+  taxValue: Number,
+  soldQuantity: Number,
+  totalWithoutTax: Number,
+  total: Number,
+  exchangeRate: Number,
+  discountType: String,
+  discountPercentege: Number,
+  discountAmount: Number,
+  discount: Number,
+  note: String,
+  showNote: Boolean,
+  showDiscount: Boolean,
+  batches: [{ id: String, quantity: Number, _id: false }],
+  _id: false,
+};
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+
 const receiptSchema = new mongoose.Schema(
   {
+    // ── Identity
+    invoiceName: String,
+    status: {
+      type: String,
+      enum: ["active", "cancelled", "partially_refunded", "fully_refunded"],
+      default: "active",
+    },
+    counter: { type: String, default: 0 },
+    date: String,
+    description: String,
     employee: String,
-    financialFund: [
-      {
-        currency: String,
-        currencyID: String,
-        exchangeRate: String,
-        currencyCode: String,
-        fundName: String,
-        fundId: String,
-        allocatedAmount: Number,
-        accountId: String,
-        change: { type: Number, default: 0 },
-        _id: false,
-      },
-    ],
-    archives: { type: Boolean, default: false },
+    companyId: { type: String, required: true, index: true },
+    salesPoint: { type: mongoose.Schema.ObjectId, ref: "salesPoints" },
+    stock: { type: mongoose.Schema.ObjectId, ref: "Stock" },
 
-    cartItems: [
-      {
-        type: { type: String, default: "product" },
-        id: String,
-        qr: String,
-        name: String,
-        category: String,
-        orginalBuyingPrice: Number,
-        profitRatio: Number,
-        convertedBuyingPrice: Number,
-        sellingPrice: Number,
-        unit: String,
-        tax: {
-          _id: String,
-          tax: Number,
-          salesAccountTax: String,
-          name: String,
-        },
-        taxValue: Number,
-        soldQuantity: Number,
-        totalWithoutTax: Number,
-        total: Number,
-        note: String,
-        exchangeRate: Number,
-        discountType: String,
-        discountPercentege: Number,
-        discountAmount: Number,
-        discount: Number,
-        showNote: Boolean,
-        showDiscount: Boolean,
-        buyingpriceMainCurrence: Number,
-        batches: [{ id: String, quantity: Number, _id: false }],
-        _id: false,
-      },
-    ],
-    returnCartItem: [
-      {
-        type: { type: String, default: "product" },
-        id: String,
-        qr: String,
-        name: String,
-        category: String,
-        orginalBuyingPrice: Number,
-        profitRatio: Number,
-        convertedBuyingPrice: Number,
-        sellingPrice: Number,
-        unit: String,
-        tax: {
-          _id: String,
-          tax: Number,
-          salesAccountTax: String,
-          name: String,
-        },
-        taxValue: Number,
-        soldQuantity: Number,
-        totalWithoutTax: Number,
-        total: Number,
-        note: String,
-        exchangeRate: Number,
-        discountType: String,
-        discountPercentege: Number,
-        discountAmount: Number,
-        discount: Number,
-        showNote: Boolean,
-        showDiscount: Boolean,
-        buyingpriceMainCurrence: Number,
-        batches: [{ id: String, quantity: Number, _id: false }],
-        _id: false,
-      },
-    ],
+    // ── Customer
     customer: {
       id: String,
       name: String,
@@ -102,6 +69,36 @@ const receiptSchema = new mongoose.Schema(
       city: String,
       _id: false,
     },
+
+    // ── Currency
+    currency: {
+      _id: String,
+      currencyCode: String,
+      currencyName: String,
+      exchangeRate: String,
+    },
+    exchangeRate: Number,
+
+    // ── Cart
+    cartItems: [cartItemFields],
+    returnCartItem: [cartItemFields],
+
+    // ── Totals
+    invoiceSubTotal: Number,
+    invoiceGrandTotal: Number,
+    invoiceTax: Number,
+    totalInMainCurrency: Number,
+    paymentInFundCurrency: Number,
+    change: { type: Number, default: 0 },
+
+    // ── Discounts
+    manuallInvoiceDiscount: Number,
+    manuallInvoiceDiscountValue: Number,
+    invoiceDiscount: Number,
+    ManualInvoiceDiscountValue: Number,
+    InvoiceDiscountType: String,
+
+    // ── Tax summary
     taxSummary: [
       {
         taxId: String,
@@ -112,54 +109,36 @@ const receiptSchema = new mongoose.Schema(
         _id: false,
       },
     ],
-    currency: {
-      id: String,
-      currencyCode: String,
-      currencyName: String,
-      exchangeRate: String,
-      _id: false,
-    },
-    isRefund: { type: Boolean, default: false },
-    paymentsStatus: { type: String, default: "paid" },
-    exchangeRate: Number,
-    invoiceName: String,
-    totalInMainCurrency: Number,
-    manuallInvoiceDiscount: Number,
-    manuallInvoiceDiscountValue: Number,
-    invoiceDiscount: Number,
-    ManualInvoiceDiscountValue: Number,
-    paymentInFundCurrency: Number,
-    invoiceGrandTotal: Number,
-    InvoiceDiscountType: String,
-    invoiceSubTotal: Number,
-    invoiceTax: Number,
-    date: String,
-    description: String,
-    type: { type: String, default: "pos" },
-    salesPoint: { type: mongoose.Schema.ObjectId, ref: "salesPoints" },
-    counter: {
-      type: String,
-      default: 0,
-    },
-    stock: { type: mongoose.Schema.ObjectId, ref: "Stock" },
-    sync: { type: Boolean, default: false },
-    companyId: {
-      type: String,
-      required: true,
-      index: true,
-    },
-    merged: { type: Boolean, default: false },
-    change: { type: Number, default: 0 },
-    tags: [
+
+    // ── Payment
+    financialFund: [
       {
-        id: String,
-        name: String,
+        currency: String,
+        currencyID: String,
+        exchangeRate: String,
+        currencyCode: String,
+        fundName: String,
+        fundId: String,
+        accountId: String,
+        allocatedAmount: Number,
+        change: { type: Number, default: 0 },
         _id: false,
       },
     ],
-  },
+    paymentsStatus: { type: String, default: "paid" },
 
-  { timestamps: true },
+    // ── Misc
+    journalized: { type: Boolean, default: false },
+    journalizedAt: { type: Date, default: null },
+    journalRef: {
+      type: mongoose.Schema.ObjectId,
+      ref: "JournalEntry",
+      default: null,
+    },
+    tags: [{ id: String, name: String, _id: false }],
+    sync: { type: Boolean, default: false },
+  },
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("receipt", receiptSchema);

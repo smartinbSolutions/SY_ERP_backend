@@ -17,15 +17,10 @@ exports.createPosReceipt = asyncHandler(async (req, res, next) => {
     req.body.employee = req.user.name;
     req.body.companyId = req.companyId;
 
-    const nextCounterPayment = await counterModel.findOneAndUpdate(
-      { companyId, name: "Payment" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
-    );
     const nextCounterRecipt = await counterModel.findOneAndUpdate(
       { companyId, name: "Pos Receipt" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
 
     const dateTurkey = await receiptService.buildTurkeyDate();
@@ -113,6 +108,7 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
+
   const session = await mongoose.startSession();
 
   try {
@@ -126,9 +122,9 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Receipt not found", 404));
     }
 
-    if (receipt.type === "cancel" || receipt.isRefund === true) {
+    if (receipt.status === "cancelled" || receipt.status === "fully_refunded") {
       return next(
-        new ApiError("Receipt is already cancelled or refunded", 400),
+        new ApiError("Receipt is already cancelled or refunded", 400)
       );
     }
 
@@ -153,14 +149,12 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
       createdBy: req.user.id,
     });
 
-    receipt.type = "cancel";
+    receipt.status = "cancelled";
     await receipt.save({ session });
 
     await session.commitTransaction();
 
-    res.status(201).json({
-      status: "success",
-    });
+    res.status(201).json({ status: "success" });
   } catch (error) {
     await session.abortTransaction();
     next(error);
@@ -222,12 +216,12 @@ exports.mergeReceipts = asyncHandler(async (req, res, next) => {
     const nextCounterJournal = await counterModel.findOneAndUpdate(
       { companyId, name: "Journal" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
     const nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Sales Invoice" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
+      { new: true, upsert: true, session }
     );
     const company = await companyInfoModel.findById(companyId);
 

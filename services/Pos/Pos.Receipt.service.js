@@ -161,6 +161,23 @@ exports.applyReciptInventoryEffectService = async ({
 }) => {
   const { cartItems = [], stock: stockID } = req.body;
 
+  const receiptCurrency = newReceipt?.currency;
+
+  const getOriginalSellingPrice = (item) => {
+    console.log(item);
+    const itemCurrencyId =
+      typeof item?.currency === "object" ? item?.currency?._id : item?.currency;
+
+    const isSameCurrency =
+      String(itemCurrencyId) === String(receiptCurrency?.id);
+
+    if (isSameCurrency) {
+      return Number(item?.sellingPrice || 0);
+    }
+
+    return Number(item?.orginalSellingPrice || 0);
+  };
+
   if (!stockID) {
     throw new ApiError("Stock is required", 400);
   }
@@ -170,7 +187,10 @@ exports.applyReciptInventoryEffectService = async ({
   for (const item of cartItems) {
     const soldQty = Number(item.soldQuantity || 0);
 
-    if (soldQty <= 0) continue;
+    if (soldQty <= 0) {
+      console.log(`[ITEM] Skipping — soldQty <= 0`);
+      continue;
+    }
 
     const product = await productModel.findById(item.id).session(session);
 
@@ -178,7 +198,10 @@ exports.applyReciptInventoryEffectService = async ({
       throw new ApiError("Product not found", 404);
     }
 
-    if (product.type === "Service") continue;
+    if (product.type === "Service") {
+      console.log(`[ITEM] Skipping — Service type`);
+      continue;
+    }
 
     const stockData = product.stocks.find(
       (s) => String(s.stockId) === String(stockID)
@@ -195,7 +218,6 @@ exports.applyReciptInventoryEffectService = async ({
     }
 
     let qtyToSell = soldQty;
-
     const fifoMovements = [];
     const itemBatches = [];
 
@@ -213,29 +235,21 @@ exports.applyReciptInventoryEffectService = async ({
       if (qtyToSell <= 0) break;
 
       const availableQty = Number(batch.remaining || 0);
-
       if (availableQty <= 0) continue;
 
       const usedQty = Math.min(availableQty, qtyToSell);
-
       batch.remaining = availableQty - usedQty;
-
-      // if (batch.remaining === 0) {
-      //   batch.status = "reversed";
-      // }
 
       await batch.save({ session });
 
       qtyToSell -= usedQty;
 
-      itemBatches.push({
-        id: batch._id.toString(),
-        quantity: usedQty,
-      });
+      itemBatches.push({ id: batch._id.toString(), quantity: usedQty });
 
       fifoMovements.push({
         quantity: usedQty,
-        costBuyingPrice: Number(batch.costBuyingPrice || 0),
+        buyingprice: Number(batch.buyingprice || 0),
+        exchangeRate: Number(batch.exchangeRate || 1),
         batchId: batch._id,
       });
 
@@ -268,6 +282,10 @@ exports.applyReciptInventoryEffectService = async ({
 
     if (receiptItem) {
       receiptItem.batches = itemBatches;
+    } else {
+      console.warn(
+        `[RECEIPT] Could not find receipt cartItem for id: ${item.id}`
+      );
     }
 
     let remainingQty = 0;
@@ -284,15 +302,20 @@ exports.applyReciptInventoryEffectService = async ({
 
     for (const batch of remainingBatches) {
       const qty = Number(batch.remaining || 0);
-      const cost = Number(batch.costBuyingPrice || 0);
-
+      const cost =
+        Number(batch.buyingprice || 0) / Number(batch.exchangeRate || 1);
       remainingQty += qty;
       remainingCost += qty * cost;
     }
 
     const newAvgCost = remainingQty > 0 ? remainingCost / remainingQty : 0;
+    console.log(
+      `[AVG COST] remainingQty: ${remainingQty}, remainingCost: ${remainingCost}, newAvgCost: ${newAvgCost}`
+    );
 
     for (const movement of fifoMovements) {
+      const outPriceMainCurrency = movement.buyingprice / movement.exchangeRate;
+
       await createProductMovement({
         session,
         productId: product._id,
@@ -301,12 +324,12 @@ exports.applyReciptInventoryEffectService = async ({
         movementType: "out",
         source: "POS Receipt",
         companyId,
-        outPrice: item.orginalBuyingPrice,
+        outPrice: movement.buyingprice,
+        outPriceMainCurrrency: outPriceMainCurrency,
         stockId: stockID,
-        sellingPrice: Number(item.sellingPrice || 0),
-        exchangeRate: Number(item.exchangeRate || 1),
+        sellingPrice: getOriginalSellingPrice(item),
+        exchangeRate: movement.exchangeRate,
         batchId: movement.batchId,
-        outPriceMainCurrrency: item.buyingpriceMainCurrence,
       });
     }
 
@@ -343,6 +366,7 @@ exports.applyReciptInventoryEffectService = async ({
   }
 
   await newReceipt.recipt.save({ session });
+  console.log(`[RECEIPT INVENTORY] Done ✓`);
 
   return true;
 };
