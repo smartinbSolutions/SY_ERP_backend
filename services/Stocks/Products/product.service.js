@@ -254,11 +254,13 @@ exports.createProductService = async ({ req, companyId, session }) => {
   if (req.body.customAttributes) {
     productData.customAttributes = safeParse(req.body.customAttributes);
   }
-  req.body.counter = await counterModel.findOneAndUpdate(
+  const counter = await counterModel.findOneAndUpdate(
     { companyId, name: "Product" },
     { $inc: { seq: 1 } },
     { new: true, upsert: true, session },
   );
+
+  productData.counter = counter.seq;
   const [product] = await productModel.create([productData], { session });
 
   await product.populate("currency");
