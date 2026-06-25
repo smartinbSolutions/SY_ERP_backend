@@ -1,39 +1,31 @@
 const express = require("express");
+const authService = require("../../../services/authService");
 const {
-  createCashQuotation,
+  createQuotation,
   getAllQuotations,
-  getQuotationById,
   updateQuotation,
-  archiveQuotation,
-} = require("../services/quotationServices");
-const authService = require("../services/authService");
+  getOneQuotation,
+} = require("../../../controllers/Accounting/Sales/quotation.controller");
 
 const quotationRouter = express.Router();
+
 quotationRouter.use(
   authService.protect,
   authService.checkPlanFeatures("accounting"),
 );
 
-// Create a new quotation / Get all quotations
 quotationRouter
   .route("/")
   .post(
     authService.allowedTo("sales.quotation.create"),
     authService.checkCompanyEditable,
-    createCashQuotation,
+    createQuotation,
   )
   .get(authService.allowedTo("sales.quotation.read"), getAllQuotations);
-quotationRouter
-  .route("/archive/:id")
-  .put(
-    authService.allowedTo("sales.quotation.update.status"),
-    authService.checkCompanyEditable,
-    archiveQuotation,
-  );
-// Get / update / delete a specific quotation by ID
+
 quotationRouter
   .route("/:id")
-  .get(authService.allowedTo("sales.quotation.read"), getQuotationById)
+  .get(authService.allowedTo("sales.quotation.read"), getOneQuotation)
   .put(
     authService.allowedTo("sales.quotation.update.draft"),
     authService.checkCompanyEditable,
