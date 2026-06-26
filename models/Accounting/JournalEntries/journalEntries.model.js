@@ -85,7 +85,7 @@ const journalEntrySchema = new mongoose.Schema(
 );
 
 journalEntrySchema.index({ companyId: 1, createdAt: -1 });
-journalEntrySchema.index({ companyId: 1, journalDateISO: 1 });
+journalEntrySchema.index({ companyId: 1, journalDate: 1 });
 
 const setfilesURL = (doc) => {
   if (doc.filesArray && Array.isArray(doc.filesArray)) {
