@@ -210,6 +210,207 @@ exports.checkCompanyEditable = async (req, res, next) => {
   next();
 };
 
+exports.switchCompany = asyncHandler(async (req, res, next) => {
+  const { companyId, userId } = req.body;
+
+  if (!companyId) {
+    return res.status(400).json({
+      message: "Company id is required",
+    });
+  }
+
+  const user = await usersModel.findById(userId).populate({
+    path: "companies.roleId",
+    populate: { path: "permissions" },
+  });
+
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found",
+    });
+  }
+
+  const selectedCompany = user.companies.find(
+    (item) => item.companyId.toString() === companyId,
+  );
+
+  if (!selectedCompany) {
+    return res.status(403).json({
+      message: "You don't have access to this company",
+    });
+  }
+  const role = selectedCompany.roleId;
+
+  if (!role.channels.includes("dashboard")) {
+    return next(new ApiError("No dashboard access", 403));
+  }
+
+  const companyPlan = await companyPlanModel
+    .findOne({ companyId: companyId })
+    .lean();
+
+  console.log(selectedCompany);
+
+  const token = createToken({
+    userId: user._id,
+    email: user.email,
+    roleId: role._id,
+    channels: role.channels,
+    companyId: companyId,
+    authSource: "erp",
+  });
+  const currency = await currencyModel.findOne({
+    is_primary: true,
+    companyId: companyId,
+  });
+  const company = await companyInfoModel.findById({ _id: companyId }).lean();
+
+  res.status(200).json({
+    status: true,
+    data: user,
+    role,
+    token,
+    company,
+    companyPlan,
+    currency,
+  });
+});
+//Permissions
+//Verify user permissions
+exports.allowedTo = (...allowedPermissions) =>
+  asyncHandler(async (req, res, next) => {
+    const userId = req.user?._id;
+    const companyId = normalizeCompanyId(
+      req.companyId || req.body.companyId || req.companyId,
+    );
+    const requiredPermissions = allowedPermissions.flat().filter(Boolean);
+
+    if (!userId) {
+      return next(new ApiError("Unauthorized", 401));
+    }
+
+    if (!companyId) {
+      return next(new ApiError("companyId is required", 400));
+    }
+
+    if (requiredPermissions.length === 0) {
+      return next();
+    }
+
+    const user = await usersModel.findById(userId).populate({
+      path: "companies.roleId",
+      populate: { path: "permissions" },
+    });
+
+    if (!user) {
+      return next(new ApiError(`No user by this id ${userId}`, 404));
+    }
+
+    const companyData = user.companies.find(
+      (company) => String(company.companyId) === String(companyId),
+    );
+
+    if (!companyData) {
+      return next(new ApiError("User not in this company", 403));
+    }
+
+    if (!companyData.active) {
+      return next(new ApiError("Company access disabled", 403));
+    }
+
+    const role = companyData.roleId;
+
+    if (!role) {
+      return next(new ApiError("Role not assigned", 403));
+    }
+
+    if (role.status === "inactive" || role.active === false) {
+      return next(new ApiError("Role is inactive", 403));
+    }
+
+    const permissionValues = new Set([
+      role.name,
+      ...(role.permissions || []).flatMap((permission) => [
+        permission.key,
+        permission.title,
+      ]),
+    ]);
+
+    const hasAccess = requiredPermissions.some((permission) =>
+      permissionValues.has(permission),
+    );
+
+    if (!hasAccess) {
+      return next(new ApiError("Access denied", 403));
+    }
+
+    next();
+  });
+
+exports.checkPlanFeatures = (...allowedFeatures) =>
+  asyncHandler(async (req, res, next) => {
+    const companyId = normalizeCompanyId(
+      req.companyId || req.query.companyId || req.body.companyId,
+    );
+
+    let token;
+
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return next(new ApiError("Not login", 401));
+    }
+
+    if (!companyId) {
+      return next(new ApiError("companyId is required", 400));
+    }
+
+    const requiredFeatures = allowedFeatures.flat().filter(Boolean);
+
+    if (!requiredFeatures.length) {
+      return next();
+    }
+
+    const companySubscription = await companySubscriptionModel
+      .findOne({ companyId: companyId })
+      .lean()
+      .populate("planId");
+
+    if (!companySubscription) {
+      return next(new ApiError("Company plan not found", 404));
+    }
+
+    if (!companySubscription.isActive) {
+      return next(new ApiError("Company plan is inactive", 403));
+    }
+
+    const features = companySubscription.planId?.features || {};
+
+    const notAllowed = requiredFeatures.filter(
+      (feature) => features[feature] !== true,
+    );
+
+    if (notAllowed.length) {
+      return next(
+        new ApiError(
+          `The following features are not enabled in your plan: ${notAllowed.join(
+            ", ",
+          )}`,
+          403,
+        ),
+      );
+    }
+
+    req.companyPlan = companySubscription;
+
+    next();
+  });
+
 // @desc      Forgot password
 // @route     POST /api/auth/forgotpassword
 // @access    Public
@@ -693,148 +894,6 @@ exports.ecommerceProtect = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// @desc      Request password reset Ecommer
-// @route     POST /api/auth/forgotPassword
-// @access    Public
-// exports.forgotPassword = asyncHandler(async (req, res, next) => {
-//   // 1) Get user by email
-//   const { email } = req.body;
-//   const user = await usersModel.findOne({ email });
-//   if (!user) {
-//     return next(
-//       new ApiError(`There is no user with this email address ${email}`, 404),
-//     );
-//   }
-
-//   // 2) Generate a reset token
-//   bcrypt.genSalt(10, (err, salt) => {
-//     if (err) {
-//       return next(new ApiError("Error generating reset token", 500));
-//     }
-//     bcrypt.hash(email, salt, async (err, hashedEmail) => {
-//       if (err) {
-//         return next(new ApiError("Error generating reset token", 500));
-//       }
-
-//       // Encode the hashed token to Base64 URL-safe format
-//       let resetToken = Buffer.from(hashedEmail).toString("base64");
-//       resetToken = resetToken
-//         .replace(/\+/g, "-")
-//         .replace(/\//g, "_")
-//         .replace(/=+$/, "");
-
-//       // Save the hashed token to the database
-//       user.passwordResetToken = resetToken;
-//       // Token expires in 10 minutes
-//       user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-//       await user.save();
-//       // 3) Send password reset email with the link containing the token
-//       const resetURL = `${process.env.STORE_BASE_URL}/resetPassword/${resetToken}`;
-//       const message = `Forgot your password? Click on the link below to reset your password:\n${resetURL}\nIf you didn't ask for password rest, please ignore this email!`;
-//       try {
-//         await sendEmail({
-//           email: user.email,
-//           subject: "Your Password Reset Link (valid for 10 min)",
-//           message,
-//         });
-
-//         res.status(200).json({
-//           status: "Success",
-//           message: "Reset link sent to your email",
-//           token: resetToken,
-//         });
-//       } catch (err) {
-//         console.error(err);
-//         return next(
-//           new ApiError(
-//             "There was an error sending the email. Try again later!",
-//             500,
-//           ),
-//         );
-//       }
-//     });
-//   });
-// });
-
-// @desc      Verify reset password code
-// @route     POST /api/auth/verifyResetCode
-// @access    Public
-// exports.verifyPasswordResetCode = asyncHandler(async (req, res, next) => {
-//   const dbName = req.query.databaseName;
-//   const db = mongoose.connection.useDb(dbName);
-//   const UserModel = db.model("Users", E_user_Schema);
-
-//   // 1) Get user based on reset code
-//   const { resetCode } = req.body; // Assuming resetCode is a string
-
-//   // 2) Get user from database
-//   const user = await UserModel.findOne({
-//     passwordResetExpires: { $gt: Date.now() },
-//   });
-
-//   if (!user) {
-//     return next(new ApiError("Reset code is invalid or has expired", 400));
-//   }
-
-//   // 3) Compare the reset code with the hashed code stored in the database
-//   const isResetCodeValid = await bcrypt.compare(
-//     resetCode,
-//     user.passwordResetCode,
-//   );
-
-//   if (!isResetCodeValid) {
-//     return next(new ApiError("Reset code is invalid or has expired", 400));
-//   }
-
-//   // 4) Mark reset code as verified
-//   user.resetCodeVerified = true;
-//   await user.save();
-
-//   res.status(200).json({
-//     status: "Success",
-//   });
-// });
-
-// // @desc      Reset password
-// // @route     POST /api/auth/resetPassword
-// // @access    Public
-// exports.resetPassword = asyncHandler(async (req, res, next) => {
-//   const dbName = req.query.databaseName;
-//   const db = mongoose.connection.useDb(dbName);
-//   const UserModel = db.model("Users", E_user_Schema);
-
-//   // Get the reset token from the request parameters
-//   const resetToken = req.query.token;
-
-//   // Find a user with the matching reset token and valid expiration time
-//   const user = await UserModel.findOne({
-//     passwordResetToken: resetToken,
-//     passwordResetExpires: { $gt: Date.now() },
-//   });
-
-//   if (!user) {
-//     return next(new ApiError("Reset token is invalid or has expired", 400));
-//   }
-//   const newPassword = req.body.newPassword;
-
-//   if (!newPassword) {
-//     return next(new ApiError("New password is required", 400));
-//   }
-
-//   const hashedPassword = await bcrypt.hash(newPassword, 10);
-//   user.password = hashedPassword;
-
-//   user.passwordResetToken = undefined;
-//   user.passwordResetExpires = undefined;
-
-//   await user.save();
-
-//   res.status(200).json({
-//     status: "Success",
-//     message: "Password reset successful",
-//   });
-// });
-
 exports.googleLogin = asyncHandler(async (req, res, next) => {
   const dbName = req.query.databaseName;
   const db = mongoose.connection.useDb(dbName);
@@ -915,138 +974,3 @@ exports.facebookLogin = asyncHandler(async (req, res, next) => {
     res.status(400).json({ error: "login failed" });
   }
 });
-//Permissions
-//Verify user permissions
-exports.allowedTo = (...allowedPermissions) =>
-  asyncHandler(async (req, res, next) => {
-    const userId = req.user?._id;
-    const companyId = normalizeCompanyId(
-      req.companyId || req.body.companyId || req.companyId,
-    );
-    const requiredPermissions = allowedPermissions.flat().filter(Boolean);
-
-    if (!userId) {
-      return next(new ApiError("Unauthorized", 401));
-    }
-
-    if (!companyId) {
-      return next(new ApiError("companyId is required", 400));
-    }
-
-    if (requiredPermissions.length === 0) {
-      return next();
-    }
-
-    const user = await usersModel.findById(userId).populate({
-      path: "companies.roleId",
-      populate: { path: "permissions" },
-    });
-
-    if (!user) {
-      return next(new ApiError(`No user by this id ${userId}`, 404));
-    }
-
-    const companyData = user.companies.find(
-      (company) => String(company.companyId) === String(companyId),
-    );
-
-    if (!companyData) {
-      return next(new ApiError("User not in this company", 403));
-    }
-
-    if (!companyData.active) {
-      return next(new ApiError("Company access disabled", 403));
-    }
-
-    const role = companyData.roleId;
-
-    if (!role) {
-      return next(new ApiError("Role not assigned", 403));
-    }
-
-    if (role.status === "inactive" || role.active === false) {
-      return next(new ApiError("Role is inactive", 403));
-    }
-
-    const permissionValues = new Set([
-      role.name,
-      ...(role.permissions || []).flatMap((permission) => [
-        permission.key,
-        permission.title,
-      ]),
-    ]);
-
-    const hasAccess = requiredPermissions.some((permission) =>
-      permissionValues.has(permission),
-    );
-
-    if (!hasAccess) {
-      return next(new ApiError("Access denied", 403));
-    }
-
-    next();
-  });
-
-exports.checkPlanFeatures = (...allowedFeatures) =>
-  asyncHandler(async (req, res, next) => {
-    const companyId = normalizeCompanyId(
-      req.companyId || req.query.companyId || req.body.companyId,
-    );
-
-    let token;
-
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
-    }
-
-    if (!token) {
-      return next(new ApiError("Not login", 401));
-    }
-
-    if (!companyId) {
-      return next(new ApiError("companyId is required", 400));
-    }
-
-    const requiredFeatures = allowedFeatures.flat().filter(Boolean);
-
-    if (!requiredFeatures.length) {
-      return next();
-    }
-
-    const companySubscription = await companySubscriptionModel
-      .findOne({ companyId: companyId })
-      .lean()
-      .populate("planId");
-
-    if (!companySubscription) {
-      return next(new ApiError("Company plan not found", 404));
-    }
-
-    if (!companySubscription.isActive) {
-      return next(new ApiError("Company plan is inactive", 403));
-    }
-
-    const features = companySubscription.planId?.features || {};
-
-    const notAllowed = requiredFeatures.filter(
-      (feature) => features[feature] !== true,
-    );
-
-    if (notAllowed.length) {
-      return next(
-        new ApiError(
-          `The following features are not enabled in your plan: ${notAllowed.join(
-            ", ",
-          )}`,
-          403,
-        ),
-      );
-    }
-
-    req.companyPlan = companySubscription;
-
-    next();
-  });

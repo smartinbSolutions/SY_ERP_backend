@@ -11,6 +11,8 @@ const {
   EcommerceLogin,
   googleLogin,
   facebookLogin,
+  switchCompany,
+  protect,
 } = require("../services/authService");
 const {
   getUserCompaniesByEmail,
@@ -20,6 +22,7 @@ const router = express.Router();
 
 router.post("/check", getUserCompaniesByEmail);
 router.post("/login", upload.none(), login);
+router.post("/switch", upload.none(), switchCompany);
 router.post("/forgot-passwords", upload.none(), forgotPassword);
 router.post("/verify-reset-code", verifyPasswordResetCode);
 router.put("/reset-password", upload.none(), resetPassword);
