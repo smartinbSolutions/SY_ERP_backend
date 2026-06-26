@@ -1,6 +1,6 @@
 const customarModel = require("../../../models/Accounting/Sales/customarModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
-const journalEntryModel = require("../../../models/journalEntryModel");
+const journalEntryModel = require("../../../models/Accounting/JournalEntries/journalEntries.model");
 const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const paymentModel = require("../../../models/paymentModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");

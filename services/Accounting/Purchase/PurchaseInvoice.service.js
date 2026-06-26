@@ -22,7 +22,7 @@ const unTracedproductLogModel = require("../../../models/Stocks/products/unTrace
 const ShortageModel = require("../../../models/ShortageModel");
 const prodcutBatchModel = require("../../../models/Stocks/products/prodcutBatchModel");
 const batchLedgerModel = require("../../../models/Stocks/products/batchLedgerModel");
-const journalEntryModel = require("../../../models/journalEntryModel");
+const journalEntryModel = require("../../../models/Accounting/JournalEntries/journalEntries.model");
 const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const {

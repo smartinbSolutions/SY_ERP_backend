@@ -1,5 +1,5 @@
 const accountingTreeModel = require("../../models/accountingTreeModel");
-const journalEntryModel = require("../../models/journalEntryModel");
+const journalEntryModel = require("../../models/Accounting/JournalEntries/journalEntries.model");
 const asyncHandler = require("express-async-handler");
 
 // exports.getClosingReports = asyncHandler(async (req, res) => {

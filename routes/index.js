@@ -17,7 +17,6 @@ const rawMaterialMovementRoute = require("./rawMatrialMovementRoute");
 const productMovementsRoute = require("./Stocks/Products/productMovementRoute");
 const PurchaseInvoices = require("./Accounting/Purchase/purchaseInvoices.route");
 const RefundPurchaseInvoices = require("./Accounting/Purchase/refundPurchaseInvoices.route");
-const RoleDashboardRoute = require("./roleDashboardRoute");
 const taxRout = require("./Settings/Definition/tax.route");
 const unitRout = require("./Settings/Definition/unit.route");
 const authRoute = require("./authRoute");
@@ -136,7 +135,6 @@ const mountRoutes = (app) => {
   app.use("/api/category", categoryRout);
   app.use("/api/customars", customarRoute);
   app.use("/api/suppliers", supplierRoute);
-  app.use("/api/roledashboard", RoleDashboardRoute);
   app.use("/api/v1/roles", roleRouter);
   app.use("/api/discount", discountRoute);
   app.use("/api/v1/unit", unitRout);

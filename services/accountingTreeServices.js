@@ -4,7 +4,7 @@ const AccountingTree = require("../models/accountingTreeModel");
 const ApiError = require("../utils/apiError");
 const xlsx = require("xlsx");
 const currencySchema = require("../models/Settings/currency.model");
-const journalEntryModel = require("../models/journalEntryModel");
+const journalEntryModel = require("../models/Accounting/JournalEntries/journalEntries.model");
 
 exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;

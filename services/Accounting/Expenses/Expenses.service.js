@@ -1,7 +1,7 @@
 const expensesModel = require("../../../models/Accounting/Expenses/expensesModel");
 const financialFundsModel = require("../../../models/Accounting/CurrentAssets/financialFundsModel");
 const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
-const journalEntryModel = require("../../../models/journalEntryModel");
+const journalEntryModel = require("../../../models/Accounting/JournalEntries/journalEntries.model");
 const paymentModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const purchaseinvoicesModel = require("../../../models/Accounting/Purchase/purchaseinvoicesModel");
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
@@ -43,7 +43,7 @@ const upload = multer({
       callback(null, true);
     } else {
       callback(
-        new ApiError("Invalid file type. Only images and PDFs are allowed.")
+        new ApiError("Invalid file type. Only images and PDFs are allowed."),
       );
     }
   },
@@ -85,15 +85,15 @@ exports.prepareExpensesDataService = async ({
   const futureDateOb = new Date(ts);
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   // mutate req.body dates to ISO format
@@ -180,7 +180,7 @@ exports.createExpensesInvoiceRecordService = async ({
 
   const paymentTransactionDate = addSeconds(
     req.body.paymentDate || req.body.date || formattedDate,
-    5
+    5,
   );
 
   // ── Invoice totals ─────────────────────────────────────────────
@@ -272,7 +272,7 @@ exports.createExpensesInvoiceRecordService = async ({
     req.body.date || formattedDate,
     invoiceDraft ? "Expense invoice draft created" : "Expense invoice created",
     "expense",
-    session
+    session,
   );
 
   return newExpenseInvoice;
@@ -509,7 +509,7 @@ exports.reverseExpenseJournalEffectsService = async ({
   if (!expense?.journalCounter) {
     throw new ApiError(
       "journal link reference is missing on expense invoice",
-      400
+      400,
     );
   }
 
@@ -571,18 +571,18 @@ exports.reverseExpenseJournalEffectsService = async ({
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
-    0
+    0,
   );
 
   const totalCredit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainCredit || 0),
-    0
+    0,
   );
 
   if (Number(totalDebit.toFixed(6)) !== Number(totalCredit.toFixed(6))) {
     throw new ApiError(
       `reversal journal is not balanced. debit=${totalDebit}, credit=${totalCredit}`,
-      400
+      400,
     );
   }
 
@@ -610,7 +610,7 @@ exports.reverseExpenseJournalEffectsService = async ({
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
 
   const createdReversalJournal = await createJournalEntryService({
@@ -777,7 +777,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
       [invoicePayload],
       {
         session,
-      }
+      },
     );
     invoiceDoc = createdInvoice[0];
   } else if (mode === "update") {
@@ -837,7 +837,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           ],
         },
       ],
-      { session }
+      { session },
     );
 
     await createPaymentHistoryV2({
@@ -873,7 +873,7 @@ exports.upsertExpenseInvoiceRecordService = async ({
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     invoiceDoc.payments.push({
@@ -911,16 +911,16 @@ exports.prepareExpenseInvoiceDataService = async ({
   futureDateOb.setSeconds(futureDateOb.getSeconds() + 1);
 
   const futureFormattedDate = `${padZero(futureDateOb.getHours())}:${padZero(
-    futureDateOb.getMinutes()
+    futureDateOb.getMinutes(),
   )}:${padZero(futureDateOb.getSeconds())}.${padZero(
     futureDateOb.getMilliseconds(),
-    3
+    3,
   )}`;
 
   const date_ob = new Date(ts);
 
   const formattedDate = `${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${padZero(date_ob.getMilliseconds(), 3)}`;
 
   req.body.paymentDate = `${req.body.paymentDate}T${futureFormattedDate}Z`;
@@ -1001,7 +1001,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   // A payment can have multiple allocations; reverse only the one
   // that targets this expense, not the whole payment.
   const allocation = findExpensePayment.allocations.find(
-    (a) => String(a.documentId) === String(expense._id) && !a.cancelled
+    (a) => String(a.documentId) === String(expense._id) && !a.cancelled,
   );
 
   if (!allocation) {
@@ -1015,7 +1015,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   // For a primary fund (rate 1) this equals the USD allocation.
   // For a non-primary fund it converts the primary slice back to fund.
   const fundExchangeRate = Number(
-    findFinancialFund.fundCurrency?.exchangeRate || 1
+    findFinancialFund.fundCurrency?.exchangeRate || 1,
   );
   const amountInFundCurrency =
     Number(allocation.allocatedAmountMainCurrency) * fundExchangeRate;
@@ -1048,7 +1048,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   // ── 6. Mark the allocation as cancelled (don't delete) ─────────────
@@ -1058,7 +1058,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
   allocation.cancelledAt = cancellationDate;
 
   const hasActiveAllocations = findExpensePayment.allocations.some(
-    (a) => !a.cancelled
+    (a) => !a.cancelled,
   );
 
   if (!hasActiveAllocations) {
@@ -1072,7 +1072,7 @@ exports.reverseExpenseNoSupplierEffectsService = async ({
 
   // ── 7. Update the expense ──────────────────────────────────────────
   expense.payments = (expense.payments || []).filter(
-    (p) => String(p.paymentID) !== String(findExpensePayment._id)
+    (p) => String(p.paymentID) !== String(findExpensePayment._id),
   );
   expense.paymentStatus = "unpaid";
   expense.status = "cancelled";
@@ -1133,7 +1133,7 @@ exports.getExpenseAndPurchaseForSupplierService = async ({
 
   // Merge both arrays and sort by date if needed
   const combinedData = [...formattedExpenses, ...formattedPurchases].sort(
-    (a, b) => new Date(b.date) - new Date(a.date)
+    (a, b) => new Date(b.date) - new Date(a.date),
   );
 
   // Paginate the combined result

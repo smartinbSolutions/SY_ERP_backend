@@ -1,5 +1,5 @@
 const paymentsModel = require("../../../../models/Accounting/CurrentAssets/payments.model");
-const journalEntryModel = require("../../../../models/journalEntryModel");
+const journalEntryModel = require("../../../../models/Accounting/JournalEntries/journalEntries.model");
 const counterModel = require("../../../../models/Settings/counterModel");
 const { createPaymentHistoryV2 } = require("../../../paymentHistoryService");
 const {

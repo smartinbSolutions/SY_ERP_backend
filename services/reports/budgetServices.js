@@ -2,7 +2,7 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../utils/apiError");
 const budgetModel = require("../../models/reports/budgetModel");
 const accountingTreeModel = require("../../models/accountingTreeModel");
-const journalEntryModel = require("../../models/journalEntryModel");
+const journalEntryModel = require("../../models/Accounting/JournalEntries/journalEntries.model");
 
 exports.createbudgetReport = asyncHandler(async (req, res) => {
   const companyId = req.companyId;

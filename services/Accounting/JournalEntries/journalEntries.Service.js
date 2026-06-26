@@ -1,5 +1,5 @@
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
-const journalEntriesModel = require("../../../models/journalEntryModel");
+const journalEntriesModel = require("../../../models/Accounting/JournalEntries/journalEntries.model");
 const accountingTreeModel = require("../../../models/accountingTreeModel");
 const expensesModel = require("../../../models/Accounting/Expenses/expensesModel");
 const orderModel = require("../../../models/Accounting/Sales/orderModel");

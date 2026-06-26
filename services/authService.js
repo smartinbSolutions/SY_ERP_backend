@@ -16,6 +16,7 @@ const companyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.mod
 const userCompanySettingsModel = require("../models/Settings/user_company_settings.model");
 const companyPlanModel = require("../models/Settings/CompanyInfo/companyPlan.model");
 const companySubscriptionModel = require("../models/Settings/CompanyInfo/companySubscription.model");
+const currencyModel = require("../models/Settings/currency.model");
 
 const normalizeCompanyId = (value) => {
   if (!value) return value;
@@ -94,7 +95,7 @@ exports.login = asyncHandler(async (req, res, next) => {
   const companyPlan = await companyPlanModel
     .findOne({ companyId: companyId })
     .lean();
-
+  const company = await companyInfoModel.findById({ _id: companyId }).lean();
   const token = createToken({
     userId: user._id,
     email: user.email,
@@ -103,14 +104,18 @@ exports.login = asyncHandler(async (req, res, next) => {
     companyId,
     authSource: "erp",
   });
-
+  const currency = await currencyModel.findOne({
+    is_primary: true,
+    companyId: companyId,
+  });
   res.status(200).json({
     status: true,
     data: userData,
     role,
     token,
-    company: companyId,
+    company,
     companyPlan,
+    currency,
   });
 });
 

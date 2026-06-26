@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const financialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");
 const accountingTreeModel = require("../../models/accountingTreeModel");
-const journalEntryModel = require("../../models/journalEntryModel");
+const journalEntryModel = require("../../models/Accounting/JournalEntries/journalEntries.model");
 
 exports.CashFlowReports = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.query;

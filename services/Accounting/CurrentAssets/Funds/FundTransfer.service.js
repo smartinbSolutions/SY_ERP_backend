@@ -1,7 +1,7 @@
 const financialFundsModel = require("../../../../models/Accounting/CurrentAssets/financialFundsModel");
 const FundTransferModel = require("../../../../models/Accounting/CurrentAssets/fundTransfer.model");
 const reportsFinancialFunds = require("../../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const journalEntryModel = require("../../../../models/journalEntryModel");
+const journalEntryModel = require("../../../../models/Accounting/JournalEntries/journalEntries.model");
 const counterModel = require("../../../../models/Settings/counterModel");
 
 const ApiError = require("../../../../utils/apiError");
