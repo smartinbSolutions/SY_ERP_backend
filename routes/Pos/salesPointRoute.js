@@ -1,5 +1,5 @@
 const express = require("express");
-const authService = require("../services/authService");
+const authService = require("../../services/authService");
 const {
   createSalesPoint,
   getSalesPoint,
@@ -8,7 +8,7 @@ const {
   openAndCloseSalePoint,
   updateSalePoint,
   deleteSalePoint,
-} = require("../services/salesPointServices");
+} = require("../../services/Pos/salesPointServices");
 
 const SalesPointRout = express.Router();
 
@@ -19,24 +19,24 @@ SalesPointRout.route("/")
   .post(
     authService.allowedTo("pos.point.create"),
     authService.checkCompanyEditable,
-    createSalesPoint,
+    createSalesPoint
   );
 SalesPointRout.route("/:id")
   .get(authService.allowedTo("pos.point.read"), getOneSalePoint)
   .put(
     authService.allowedTo("pos.point.update"),
     authService.checkCompanyEditable,
-    updateSalePoint,
+    updateSalePoint
   )
   .delete(
     // authService.allowedTo("pos.point.delete"),
     // authService.checkCompanyEditable,
-    deleteSalePoint,
+    deleteSalePoint
   );
 SalesPointRout.route("/openandclose/:id").put(
   authService.allowedTo("pos.point.update"),
   authService.checkCompanyEditable,
-  openAndCloseSalePoint,
+  openAndCloseSalePoint
 );
 
 module.exports = SalesPointRout;

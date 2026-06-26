@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const receipt_refundModel = require("../../models/Pos/pos.receipt_refund.model");
 const productModel = require("../../models/Stocks/products/productModel");
 const ApiError = require("../../utils/apiError");
@@ -9,41 +10,108 @@ const {
 } = require("../Accounting/CurrentAssets/Payments/Payment.handlers");
 
 exports.findAllPosReceiptsRefundService = async ({ req, companyId }) => {
-  const pageSize = req.query.limit || 10;
+  const pageSize = Number(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
-  let query = { companyId };
+
+  // ── Build match stage ──────────────────────────────────────────────────
+  let matchStage = { companyId };
 
   if (req.query.salesPointID) {
-    query.salesPoint = req.query.salesPointID;
+    matchStage.salesPoint = mongoose.Types.ObjectId.createFromHexString(
+      req.query.salesPointID
+    );
   }
 
+  if (req.query.fundId) {
+    matchStage["financialFund.fundId"] = req.query.fundId;
+  }
+
+  if (req.query.startDate || req.query.endDate) {
+    matchStage.createdAt = {};
+    if (req.query.startDate) {
+      matchStage.createdAt.$gte = new Date(req.query.startDate);
+    }
+    if (req.query.endDate) {
+      const end = new Date(req.query.endDate);
+      end.setHours(23, 59, 59, 999);
+      matchStage.createdAt.$lte = end;
+    }
+  }
+
+  let query = matchStage;
   if (req.query.keyword) {
     query = {
       $and: [
-        query,
-        {
-          $or: [{ counter: req.query.keyword }],
-        },
+        matchStage,
+        { receiptCounter: { $regex: req.query.keyword, $options: "i" } },
       ],
     };
   }
-  let mongooseQuery = receipt_refundModel
-    .find(query)
-    .populate({ path: "salesPoint" });
-  mongooseQuery = mongooseQuery.sort({ createdAt: -1 });
+  // ── Run paginated + stats in parallel ──────────────────────────────────
+  const [totalItems, refund, statsAgg] = await Promise.all([
+    receipt_refundModel.countDocuments(query),
 
-  const totalItems = await receipt_refundModel.countDocuments(query);
+    receipt_refundModel
+      .find(query)
+      .populate({ path: "salesPoint" })
+      .populate({ path: "receipt" })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize),
 
-  const totalPages = Math.ceil(totalItems / pageSize);
-  mongooseQuery = mongooseQuery.skip(skip).limit(pageSize);
+    receipt_refundModel.aggregate([
+      { $match: query },
+      { $unwind: { path: "$financialFund", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: {
+            fundId: "$financialFund.fundId",
+            fundName: "$financialFund.fundName",
+            currencyCode: "$financialFund.currencyCode",
+          },
+          count: { $sum: 1 },
+          totalAmount: {
+            $sum: { $toDouble: "$financialFund.allocatedAmount" },
+          },
+          totalInvoiceAmount: { $sum: "$invoiceGrandTotal" },
+          totalMainCurrency: { $sum: "$totalInMainCurrency" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          fundId: "$_id.fundId",
+          fundName: "$_id.fundName",
+          currencyCode: "$_id.currencyCode",
+          count: 1,
+          totalAmount: 1,
+          totalInvoiceAmount: 1,
+          totalMainCurrency: 1,
+        },
+      },
+    ]),
+  ]);
 
-  const refund = await mongooseQuery;
+  // ── Overall totals from fund stats ─────────────────────────────────────
+  const totalStats = statsAgg.reduce(
+    (acc, f) => {
+      acc.count += f.count;
+      acc.totalInvoiceAmount += f.totalInvoiceAmount;
+      acc.totalMainCurrency += f.totalMainCurrency;
+      return acc;
+    },
+    { count: 0, totalInvoiceAmount: 0, totalMainCurrency: 0 }
+  );
 
   return {
     totalItems,
-    totalPages,
+    totalPages: Math.ceil(totalItems / pageSize),
     refund,
+    stats: {
+      total: totalStats,
+      byFund: statsAgg,
+    },
   };
 };
 
@@ -51,7 +119,8 @@ exports.findOnePosReceiptRefundService = async ({ req, companyId }) => {
   const { id } = req.params;
   const refund = await receipt_refundModel
     .findOne({ _id: id, companyId })
-    .populate({ path: "salesPoint" });
+    .populate({ path: "salesPoint" })
+    .populate("receipt");
   if (!refund) {
     throw new ApiError(`No receipt refund for this id ${id}`, 404);
   }
@@ -81,10 +150,7 @@ exports.createPosReceiptRefundService = async ({
     throw new ApiError("Original POS receipt not found", 404);
   }
 
-  if (!Array.isArray(receipt.returnCartItem)) {
-    receipt.returnCartItem = [];
-  }
-
+  // ── Validate refund quantities against returnCartItem ──────────────────
   for (const incomingItem of cartItems) {
     const refundQty = Number(incomingItem.soldQuantity || 0);
 
@@ -92,7 +158,7 @@ exports.createPosReceiptRefundService = async ({
       throw new ApiError("Refund quantity must be greater than zero", 400);
     }
 
-    const matchingItem = receipt.returnCartItem.find(
+    const matchingItem = (receipt.returnCartItem || []).find(
       (item) => String(item.id) === String(incomingItem.id)
     );
 
@@ -113,30 +179,15 @@ exports.createPosReceiptRefundService = async ({
         400
       );
     }
-
-    matchingItem.soldQuantity = remainingQty - refundQty;
-    matchingItem.total = Math.max(
-      0,
-      Number(matchingItem.total || 0) - Number(incomingItem.total || 0)
-    );
-    matchingItem.totalWithoutTax = Math.max(
-      0,
-      Number(matchingItem.totalWithoutTax || 0) -
-        Number(incomingItem.totalWithoutTax || 0)
-    );
-    matchingItem.taxValue = Math.max(
-      0,
-      Number(matchingItem.taxValue || 0) - Number(incomingItem.taxValue || 0)
-    );
   }
 
-  receipt.isRefund = receipt.returnCartItem.every(
-    (item) => Number(item.soldQuantity || 0) <= 0
-  );
-  receipt.markModified("returnCartItem");
-
+  // ── Build refund receipt ───────────────────────────────────────────────
   req.body.companyId = companyId;
   req.body.date = dateTurkey;
+  req.body.salesPoint = receipt.salesPoint;
+  req.body.stock = receipt.stock;
+  req.body.counter =
+    Number(req.body.counter || 0) + Number(nextCounterRecipt.seq || 0);
 
   const financialFund = req.body.financialFund || req.body.financailFund;
   if (financialFund) {
@@ -145,20 +196,13 @@ exports.createPosReceiptRefundService = async ({
       : [financialFund];
   }
 
-  req.body.counter =
-    Number(req.body.counter || 0) + Number(nextCounterRecipt.seq || 0);
-  req.body.salesPoint = receipt.salesPoint;
-  req.body.receipt = receipt.counter;
-  req.body.stock = receipt.stock;
+  // ── Create ─────────────────────────────────────────────────────────────
   const createReciptRefund = await receipt_refundModel.create([req.body], {
     session,
   });
 
-  await receipt.save({ session });
-
   return {
     recipt: createReciptRefund[0],
-    isFullyRefunded: receipt.isRefund,
   };
 };
 
@@ -213,27 +257,64 @@ exports.applyReciptRefundInventoryEffectService = async ({
 }) => {
   const { cartItems = [] } = req.body;
 
-  if (!receipt) {
-    throw new ApiError("Original POS receipt not found", 404);
-  }
-
-  if (!receipt.stock) {
+  if (!receipt) throw new ApiError("Original POS receipt not found", 404);
+  if (!receipt.stock)
     throw new ApiError("Original POS receipt stock is required", 400);
-  }
 
+  const stockId = receipt.stock;
   const bulkProductUpdates = [];
 
+  // ── Shared helper: restore one batch slice ───────────────────────────────
+  const restoreBatchSlice = async (batch, qtyToRestore, item) => {
+    batch.remaining = Number(batch.remaining || 0) + qtyToRestore;
+    await batch.save({ session });
+
+    await createProductMovement({
+      session,
+      productId: item.id,
+      reference: newReceipt.recipt._id,
+      quantity: qtyToRestore,
+      movementType: "in",
+      source: "Refund POS Receipt",
+      companyId,
+      enterPrice: Number(batch.buyingprice || 0),
+      enterPriceMainCurrency:
+        Number(batch.buyingprice || 0) / Number(batch.exchangeRate || 1),
+      stockId,
+      sellingPrice: Number(item.sellingPrice || 0),
+      buyingPrice: Number(batch.buyingprice || 0),
+      exchangeRate: Number(batch.exchangeRate || 1),
+      batchId: batch._id,
+    });
+
+    await batchLedgerModel.create(
+      [
+        {
+          productId: item.id,
+          companyId,
+          stockId,
+          type: "in",
+          quantity: qtyToRestore,
+          batchId: batch._id,
+          referenceType: "Receipt Refund",
+          referenceId: newReceipt.recipt._id,
+          movementDate: dateTurkey,
+          actionType: "create",
+        },
+      ],
+      { session }
+    );
+
+    return { id: batch._id.toString(), quantity: qtyToRestore };
+  };
+
+  // ── Main loop ────────────────────────────────────────────────────────────
   for (const item of cartItems) {
     const refundQty = Number(item.soldQuantity || 0);
-
     if (refundQty <= 0) continue;
 
     const product = await productModel.findById(item.id).session(session);
-
-    if (!product) {
-      throw new ApiError("Product not found", 404);
-    }
-
+    if (!product) throw new ApiError("Product not found", 404);
     if (product.type === "Service") continue;
 
     const originalReceiptItem = receipt.cartItems.find(
@@ -252,191 +333,85 @@ exports.applyReciptRefundInventoryEffectService = async ({
     }
 
     const stockData = product.stocks.find(
-      (s) => String(s.stockId) === String(receipt.stock)
+      (s) => String(s.stockId) === String(stockId)
     );
 
-    if (!stockData) {
-      throw new ApiError(`${product.name} stock not found`, 404);
-    }
+    if (!stockData) throw new ApiError(`${product.name} stock not found`, 404);
 
-    const itemBatches = [];
+    // ── Resolve which batches to restore ────────────────────────────────
     const refundBatches =
       item.batches?.length > 0
         ? item.batches
-        : (originalReceiptItem.batches || []).reduce((batches, batchItem) => {
-            const restoredQty = batches.reduce(
-              (sum, batch) => sum + Number(batch.quantity || 0),
+        : (originalReceiptItem.batches || []).reduce((acc, batchItem) => {
+            const restoredSoFar = acc.reduce(
+              (sum, b) => sum + Number(b.quantity || 0),
               0
             );
-            const remainingQty = refundQty - restoredQty;
-
-            if (remainingQty <= 0) return batches;
-
-            const quantity = Math.min(
-              Number(batchItem.quantity || 0),
-              remainingQty
-            );
-
-            if (quantity > 0) {
-              batches.push({
-                id: batchItem.id,
-                quantity,
-              });
-            }
-
-            return batches;
+            const remaining = refundQty - restoredSoFar;
+            if (remaining <= 0) return acc;
+            const qty = Math.min(Number(batchItem.quantity || 0), remaining);
+            if (qty > 0) acc.push({ id: batchItem.id, quantity: qty });
+            return acc;
           }, []);
 
+    const itemBatches = [];
+
     if (refundBatches.length > 0) {
+      // ── Restore original FIFO batches ──────────────────────────────
       for (const batchItem of refundBatches) {
+        const qtyToRestore = Number(batchItem.quantity || 0);
+        if (qtyToRestore <= 0) continue;
+
         const batch = await productBatchModel
           .findById(batchItem.id)
           .session(session);
 
-        if (!batch) {
-          throw new ApiError(`Batch not found ${batchItem.id}`, 404);
-        }
+        if (!batch) throw new ApiError(`Batch not found ${batchItem.id}`, 404);
 
-        const qtyToRestore = Number(batchItem.quantity || 0);
-
-        if (qtyToRestore <= 0) continue;
-
-        batch.remaining = Number(batch.remaining || 0) + qtyToRestore;
-
-        await batch.save({ session });
-
-        itemBatches.push({
-          id: batch._id.toString(),
-          quantity: qtyToRestore,
-        });
-
-        await createProductMovement({
-          session,
-          productId: product._id,
-          reference: newReceipt.recipt._id,
-          quantity: qtyToRestore,
-          movementType: "in",
-          source: "Refund POS Receipt",
-          companyId,
-          enterPrice: Number(item.orginalBuyingPrice || 0),
-          enterPriceMainCurrency: item.buyingpriceMainCurrence,
-          stockId: receipt.stock,
-          sellingPrice: Number(item.sellingPrice || 0),
-          exchangeRate: Number(item.exchangeRate || 1),
-          batchId: batch._id,
-        });
-
-        await batchLedgerModel.create(
-          [
-            {
-              productId: item.id,
-              companyId,
-              stockId: receipt.stock,
-              type: "in",
-              quantity: qtyToRestore,
-              batchId: batch._id,
-              referenceType: "Receipt Refund",
-              referenceId: newReceipt.recipt._id,
-              movementDate: dateTurkey,
-              actionType: "create",
-            },
-          ],
-          { session }
-        );
+        itemBatches.push(await restoreBatchSlice(batch, qtyToRestore, item));
       }
     } else {
+      // ── Fallback: latest batch ─────────────────────────────────────
       const latestBatch = await productBatchModel
-        .findOne({
-          productId: item.id,
-          companyId,
-          stockId: receipt.stock,
-        })
+        .findOne({ productId: item.id, companyId, stockId })
         .sort({ createdAt: -1 })
         .session(session);
 
-      if (!latestBatch) {
+      if (!latestBatch)
         throw new ApiError(`No batch found for ${product.name}`, 404);
-      }
 
-      latestBatch.remaining = Number(latestBatch.remaining || 0) + refundQty;
-
-      await latestBatch.save({ session });
-
-      itemBatches.push({
-        id: latestBatch._id.toString(),
-        quantity: refundQty,
-      });
-
-      await createProductMovement({
-        session,
-        productId: product._id,
-        reference: newReceipt.recipt._id,
-        quantity: refundQty,
-        movementType: "in",
-        source: "Refund POS Receipt",
-        companyId,
-        enterPrice: Number(item.orginalBuyingPrice || 0),
-        enterPriceMainCurrency: item.buyingpriceMainCurrence,
-        stockId: receipt.stock,
-        sellingPrice: Number(item.sellingPrice || 0),
-        exchangeRate: Number(item.exchangeRate || 1),
-        batchId: latestBatch._id,
-      });
-
-      await batchLedgerModel.create(
-        [
-          {
-            productId: item.id,
-            companyId,
-            stockId: receipt.stock,
-            type: "in",
-            quantity: refundQty,
-            batchId: latestBatch._id,
-            referenceType: "Receipt Refund",
-            referenceId: newReceipt.recipt._id,
-            movementDate: dateTurkey,
-            actionType: "create",
-          },
-        ],
-        { session }
-      );
+      itemBatches.push(await restoreBatchSlice(latestBatch, refundQty, item));
     }
 
+    // ── Attach batches to refund receipt ────────────────────────────────
     const receiptItem = newReceipt.recipt.cartItems.find(
       (i) => String(i.id) === String(item.id)
     );
+    if (receiptItem) receiptItem.batches = itemBatches;
 
-    if (receiptItem) {
-      receiptItem.batches = itemBatches;
-    }
-
+    // ── Recompute avg cost (mirror normal service) ───────────────────────
     const remainingBatches = await productBatchModel
-      .find({
-        productId: item.id,
-        companyId,
-        stockId: receipt.stock,
-        remaining: { $gt: 0 },
-      })
+      .find({ productId: item.id, companyId, stockId, remaining: { $gt: 0 } })
       .session(session);
 
     let remainingQty = 0;
     let remainingCost = 0;
 
-    for (const batch of remainingBatches) {
-      const qty = Number(batch.remaining || 0);
-      const cost = Number(batch.costBuyingPrice || 0);
-
+    for (const b of remainingBatches) {
+      const qty = Number(b.remaining || 0);
+      const cost = Number(b.buyingprice || 0) / Number(b.exchangeRate || 1);
       remainingQty += qty;
       remainingCost += qty * cost;
     }
-    const newAvgCost = remainingQty > 0 ? remainingCost / remainingQty : 0;
+
+    const newAvgCost =
+      remainingQty > 0 && Number.isFinite(remainingCost / remainingQty)
+        ? remainingCost / remainingQty
+        : 0;
 
     bulkProductUpdates.push({
       updateOne: {
-        filter: {
-          _id: item.id,
-          "stocks.stockId": receipt.stock,
-        },
+        filter: { _id: item.id, "stocks.stockId": stockId },
         update: {
           $inc: {
             "stocks.$.productQuantity": refundQty,
@@ -444,18 +419,14 @@ exports.applyReciptRefundInventoryEffectService = async ({
             soldByMonth: -refundQty,
             soldByWeek: -refundQty,
           },
-          $set: {
-            costBuyingPrice: newAvgCost,
-          },
+          $set: { costBuyingPrice: newAvgCost },
         },
       },
     });
   }
 
   if (bulkProductUpdates.length > 0) {
-    await productModel.bulkWrite(bulkProductUpdates, {
-      session,
-    });
+    await productModel.bulkWrite(bulkProductUpdates, { session });
   }
 
   await newReceipt.recipt.save({ session });

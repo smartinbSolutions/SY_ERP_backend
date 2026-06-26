@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const salsePointModel = require("../models/salesPointModel");
-const receiptSchema = require("../models/Pos/pos.receipt.model");
+const salsePointModel = require("../../models/Pos/salesPointModel");
+const receiptSchema = require("../../models/Pos/pos.receipt.model");
 const mongoose = require("mongoose");
 
 exports.createSalesPoint = asyncHandler(async (req, res, next) => {
@@ -56,7 +56,7 @@ exports.updateSalePoint = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
   res.status(200).json({ status: "success", data: sales });
 });
@@ -73,7 +73,7 @@ exports.openAndCloseSalePoint = asyncHandler(async (req, res, next) => {
     { _id: id, companyId },
     {
       isOpen: req.body.isOpen,
-    },
+    }
   );
 
   // if (req.body.isOpen === false) {

@@ -104,7 +104,8 @@ const receiptRefundSchema = new mongoose.Schema(
       type: String,
       default: 0,
     },
-    receipt: String,
+    receipt: { type: mongoose.Schema.ObjectId, ref: "receipt" },
+    receiptCounter: { type: String },
     stock: { type: mongoose.Schema.ObjectId, ref: "Stock" },
     sync: { type: Boolean, default: false },
     companyId: {
@@ -115,7 +116,7 @@ const receiptRefundSchema = new mongoose.Schema(
     merged: { type: Boolean, default: false },
   },
 
-  { timestamps: true },
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("receipt_refund", receiptRefundSchema);

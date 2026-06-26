@@ -1,6 +1,6 @@
 const financialFundsModel = require("../../../../models/Accounting/CurrentAssets/financialFundsModel");
 const reportsFinancialFunds = require("../../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
-const salesPointModel = require("../../../../models/salesPointModel");
+const salesPointModel = require("../../../../models/Pos/salesPointModel");
 const counterModel = require("../../../../models/Settings/counterModel");
 const ApiError = require("../../../../utils/apiError");
 const {
@@ -77,7 +77,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
           companyId,
         },
       ],
-      { session },
+      { session }
     );
 
     // ── 2b. Journal entry ──────────────────────────────────────────
@@ -86,7 +86,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
       const nextCounterJournal = await counterModel.findOneAndUpdate(
         { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
+        { new: true, upsert: true, session }
       );
 
       await createJournalEntryService({
@@ -144,7 +144,7 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
   const fund = await financialFundsModel.findOneAndUpdate(
     { _id: fundId, companyId },
     { $inc: { fundBalance: delta } },
-    { new: true, session },
+    { new: true, session }
   );
 
   if (!fund) throw new Error("Fund not found");
@@ -167,14 +167,14 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
         companyId,
       },
     ],
-    { session },
+    { session }
   );
 
   // ── 3. Save the journal ─────────────────────────────────────────
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session },
+    { new: true, upsert: true, session }
   );
   console.log("nextCounterJournal", nextCounterJournal);
   await createJournalEntryService({
@@ -236,7 +236,7 @@ exports.updateFundAndBankService = async ({ req, companyId, session }) => {
         companyId,
       },
       req.body,
-      { new: true },
+      { new: true }
     )
     .session(session);
 
@@ -259,7 +259,7 @@ exports.deleteFundAndBankService = async ({ req, companyId, session }) => {
   if (ReportsFinancialFunds > 0) {
     throw new ApiError(
       "Cannot delete this financial fund because it has related reports.",
-      400,
+      400
     );
   }
 
@@ -360,7 +360,7 @@ exports.getFundAndBankForSalesPointService = async ({
           path: "fundCurrency",
           select: "_id currencyCode currencyName exchangeRate",
         });
-    }),
+    })
   );
 
   return funds;

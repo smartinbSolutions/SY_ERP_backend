@@ -6,7 +6,7 @@ const productBatchModel = require("../../models/Stocks/products/prodcutBatchMode
 const { createProductMovement } = require("../../utils/productMovement");
 const { default: mongoose } = require("mongoose");
 const batchLedgerModel = require("../../models/Stocks/products/batchLedgerModel");
-const salesPointModel = require("../../models/salesPointModel");
+const salesPointModel = require("../../models/Pos/salesPointModel");
 const {
   handleFundPaymentEntity,
 } = require("../Accounting/CurrentAssets/Payments/Payment.handlers");
@@ -309,9 +309,6 @@ exports.applyReciptInventoryEffectService = async ({
     }
 
     const newAvgCost = remainingQty > 0 ? remainingCost / remainingQty : 0;
-    console.log(
-      `[AVG COST] remainingQty: ${remainingQty}, remainingCost: ${remainingCost}, newAvgCost: ${newAvgCost}`
-    );
 
     for (const movement of fifoMovements) {
       const outPriceMainCurrency = movement.buyingprice / movement.exchangeRate;
@@ -366,7 +363,6 @@ exports.applyReciptInventoryEffectService = async ({
   }
 
   await newReceipt.recipt.save({ session });
-  console.log(`[RECEIPT INVENTORY] Done ✓`);
 
   return true;
 };
@@ -486,9 +482,7 @@ exports.reverseReceiptInventoryEffectsService = async ({
   session,
   reversedBy,
   cancellationDate,
-  mode = "cancel",
   stockId,
-  dateTurkey,
 }) => {
   const { cartItems = [] } = receipt;
 
@@ -499,9 +493,7 @@ exports.reverseReceiptInventoryEffectsService = async ({
 
     const product = await productModel.findById(item.id).session(session);
 
-    if (!product || product.type === "Service") {
-      continue;
-    }
+    if (!product || product.type === "Service") continue;
 
     const stockData = product.stocks.find(
       (s) => String(s.stockId) === String(stockId)
@@ -514,10 +506,6 @@ exports.reverseReceiptInventoryEffectsService = async ({
       );
     }
 
-    const currentQty = Number(stockData.productQuantity || 0);
-
-    let restoredTotalCost = 0;
-
     if (!item.batches || item.batches.length === 0) {
       throw new ApiError(
         `No batch data found for product ${product.name}`,
@@ -525,9 +513,9 @@ exports.reverseReceiptInventoryEffectsService = async ({
       );
     }
 
+    // ── Restore each batch ───────────────────────────────────────
     for (const batchItem of item.batches) {
       const restoreQty = Number(batchItem.quantity || 0);
-
       if (restoreQty <= 0) continue;
 
       const batch = await productBatchModel
@@ -541,11 +529,9 @@ exports.reverseReceiptInventoryEffectsService = async ({
         );
       }
 
-      batch.remaining = Number(batch.remaining || 0) + Number(restoreQty);
-
+      batch.remaining = Number(batch.remaining || 0) + restoreQty;
       batch.status = "active";
       batch.reversedBy = reversedBy;
-
       await batch.save({ session });
 
       await batchLedgerModel.create(
@@ -553,7 +539,7 @@ exports.reverseReceiptInventoryEffectsService = async ({
           {
             productId: item.id,
             companyId,
-            stockId: stockId,
+            stockId,
             type: "in",
             quantity: restoreQty,
             batchId: batch._id,
@@ -574,23 +560,23 @@ exports.reverseReceiptInventoryEffectsService = async ({
         movementType: "in",
         source: "POS Receipt Cancellation",
         companyId,
-        enterPrice: Number(item.orginalBuyingPrice || 0),
-        enterPriceMainCurrency: item.buyingpriceMainCurrence,
-        stockId: stockId,
-        buyingPrice: Number(item.orginalBuyingPrice || 0),
-        exchangeRate: item.exchangeRate,
+        enterPrice: Number(batch.buyingprice || 0),
+        enterPriceMainCurrency:
+          Number(batch.buyingprice || 0) / Number(batch.exchangeRate || 1),
+        stockId,
+        buyingPrice: Number(batch.buyingprice || 0),
+        exchangeRate: Number(batch.exchangeRate || 1),
         batchId: batch._id,
         movementDate: cancellationDate,
       });
-
-      restoredTotalCost += restoreQty * Number(batch.costBuyingPrice || 0);
     }
 
+    // ── Recompute average cost (mirror normal service) ───────────
     const remainingBatches = await productBatchModel
       .find({
         productId: item.id,
         companyId,
-        stockId: stockId,
+        stockId,
         remaining: { $gt: 0 },
       })
       .session(session);
@@ -600,22 +586,17 @@ exports.reverseReceiptInventoryEffectsService = async ({
 
     for (const b of remainingBatches) {
       const qty = Number(b.remaining || 0);
-      const cost = Number(b.costBuyingPrice || 0);
-
+      const cost = Number(b.buyingprice || 0) / Number(b.exchangeRate || 1);
       remainingQty += qty;
       remainingCost += qty * cost;
     }
 
-    let newAvgCost = 0;
+    const newAvgCost =
+      remainingQty > 0 && Number.isFinite(remainingCost / remainingQty)
+        ? remainingCost / remainingQty
+        : 0;
 
-    if (remainingQty > 0) {
-      newAvgCost = remainingCost / remainingQty;
-    }
-
-    if (!Number.isFinite(newAvgCost)) {
-      newAvgCost = 0;
-    }
-
+    // ── Update product ───────────────────────────────────────────
     await productModel.updateOne(
       {
         _id: item.id,
