@@ -545,7 +545,10 @@ exports.deleteAccountingTree = asyncHandler(async (req, res, next) => {
     accountingTree[0].debtor === 0 &&
     accountingTree[0].creditor === 0
   ) {
-    const deleteAccountTree = await AccountingTree.deleteOne({ code: id });
+    const deleteAccountTree = await AccountingTree.deleteOne({
+      code: id,
+      companyId,
+    });
   } else if (accountingTree.length > 1) {
     return next(new ApiError(`this Account ${id} have Children`));
   } else if (accountingTree.debtor !== 0 || accountingTree.creditor !== 0) {
