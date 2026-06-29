@@ -374,12 +374,15 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
   const pageSize = Number(req.query.limit) || 10;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
+
+  // ── Build query ────────────────────────────────────────────────────────
   let query = { companyId };
 
   if (req.query.salesPointID) {
-    query.salesPoint = req.query.salesPointID;
+    query.salesPoint = mongoose.Types.ObjectId.createFromHexString(
+      req.query.salesPointID
+    );
   }
-
   if (req.query.keyword) {
     query = {
       $and: [
@@ -393,6 +396,7 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
       ],
     };
   }
+
   if (filters?.startDate || filters?.endDate) {
     query.date = {};
     if (filters?.startDate) {
@@ -402,12 +406,17 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
       query.date.$lte = filters.endDate.slice(0, 10) + "T23:59:59.999Z";
     }
   }
+
   if (filters.employee) {
     query.employee = filters.employee;
   }
+
   if (filters.salesPoint) {
-    query.salesPoint = filters.salesPoint;
+    query.salesPoint = mongoose.Types.ObjectId.createFromHexString(
+      filters.salesPoint
+    );
   }
+
   if (startDate && endDate) {
     query.createdAt = {
       $gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
@@ -424,29 +433,49 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
   if (filters?.tags?.length) {
     query["tags.name"] = { $in: filters.tags.map((tag) => tag.name) };
   }
-  let mongooseQuery = receiptModel.find(query);
-  mongooseQuery = mongooseQuery.sort({ createdAt: -1 });
-  const totalItems = await receiptModel.countDocuments(query);
 
-  // Calculate total pages
-  const totalPages = Math.ceil(totalItems / pageSize);
+  // ── Run paginated + stats in parallel ──────────────────────────────────
+  const [totalItems, receipt, statsAgg] = await Promise.all([
+    receiptModel.countDocuments(query),
 
-  // Apply pagination
-  mongooseQuery = mongooseQuery
-    .skip(skip)
-    .limit(pageSize)
-    .populate({ path: "employee" })
-    .populate({ path: "salesPoint" });
+    receiptModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .populate({ path: "salesPoint" }),
 
-  const receipt = await mongooseQuery;
+    receiptModel.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          total: { $sum: "$invoiceGrandTotal" },
+        },
+      },
+    ]),
+  ]);
+
+  // ── Build stats ────────────────────────────────────────────────────────
+  const stats = statsAgg.reduce(
+    (acc, s) => {
+      const key = s._id || "active";
+      acc[key] = { count: s.count, total: s.total };
+      acc.totalCount += s.count;
+      acc.grandTotal += s.total;
+      return acc;
+    },
+    { totalCount: 0, grandTotal: 0 }
+  );
 
   return {
-    totalPages,
+    totalPages: Math.ceil(totalItems / pageSize),
     totalItems,
     receipt,
+    stats,
   };
 };
-
 exports.findOneReceiptService = async ({ req, companyId }) => {
   const { id } = req.params;
   let query = { companyId };

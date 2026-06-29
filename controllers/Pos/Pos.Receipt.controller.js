@@ -68,17 +68,15 @@ exports.findAllReceipt = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  const { totalItems, totalPages, receipt } =
-    await receiptService.findAllReceiptService({
-      req,
-      companyId,
-    });
+  const { totalItems, totalPages, receipt, stats } =
+    await receiptService.findAllReceiptService({ req, companyId });
 
   res.status(200).json({
     status: "true",
     Pages: totalPages,
     results: totalItems,
     data: receipt,
+    stats,
   });
 });
 

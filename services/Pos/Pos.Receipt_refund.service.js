@@ -119,7 +119,7 @@ exports.findOnePosReceiptRefundService = async ({ req, companyId }) => {
   const { id } = req.params;
   const refund = await receipt_refundModel
     .findOne({ _id: id, companyId })
-    .populate({ path: "salesPoint" })
+    .populate({ path: "salesPoint", populate: { path: "salesPointCurrency" } })
     .populate("receipt");
   if (!refund) {
     throw new ApiError(`No receipt refund for this id ${id}`, 404);

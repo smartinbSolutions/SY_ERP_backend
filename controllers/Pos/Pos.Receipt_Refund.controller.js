@@ -59,7 +59,6 @@ exports.createPosReceiptRefund = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  console.log(req.body);
   const session = await mongoose.startSession();
   try {
     session.startTransaction();

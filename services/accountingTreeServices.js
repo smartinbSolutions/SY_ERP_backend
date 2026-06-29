@@ -89,7 +89,7 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
           totalDebit: item.totalDebit,
           totalCredit: item.totalCredit,
         },
-      ]),
+      ])
     );
 
     const accountsWithBalance = accounts.map((account) => {
@@ -157,7 +157,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     if (duplicateCodes.length) {
       console.error(
         "Duplicate account codes found in AccountingTree:",
-        duplicateCodes,
+        duplicateCodes
       );
     }
 
@@ -201,7 +201,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
             $sum: { $ifNull: ["$journalAccounts.MainCredit", 0] },
           },
         },
-      },
+      }
     );
 
     const journalSums = await journalEntryModel.aggregate(pipeline);
@@ -290,7 +290,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
 
       if (parentNode) {
         const alreadyInParent = parentNode.children.some(
-          (child) => String(child._id) === idStr,
+          (child) => String(child._id) === idStr
         );
 
         if (!alreadyInParent) {
@@ -500,7 +500,7 @@ exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    },
+    }
   );
 
   res.status(200).json({ status: "success", data: updateTree });
@@ -527,39 +527,36 @@ exports.deleteAccountingTree = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  req.body.companyId = companyId;
 
   const { id } = req.params;
+  const { code } = req.body;
 
   const accountingTree = await AccountingTree.find({
     companyId,
-    $or: [{ code: id }, { parentCode: id }],
+    $or: [{ code }, { parentCode: code }],
   });
 
-  if (!accountingTree) {
-    return next(new ApiError(`not fund the account Tree for this code ${id}`));
+  if (accountingTree.length === 0) {
+    return next(new ApiError(`Account not found for code ${code}`));
   }
 
-  if (
-    accountingTree.length === 1 &&
-    accountingTree[0].debtor === 0 &&
-    accountingTree[0].creditor === 0
-  ) {
-    const deleteAccountTree = await AccountingTree.deleteOne({
-      code: id,
-      companyId,
-    });
-  } else if (accountingTree.length > 1) {
-    return next(new ApiError(`this Account ${id} have Children`));
-  } else if (accountingTree.debtor !== 0 || accountingTree.creditor !== 0) {
-    return next(new ApiError(`this Account ${id} have Finincial operations`));
-  } else {
-    return next(new ApiError(`this Account ${id} have not been found`));
+  if (accountingTree.length > 1) {
+    return next(new ApiError(`Account ${code} has children`));
   }
-  res.status(200).json({
-    status: "true",
-    meesage: "deleted",
+
+  // Check if this account is used in any journal entry
+  const journalUsage = await journalEntryModel.findOne({
+    companyId,
+    "journalAccounts.id": id,
   });
+
+  if (journalUsage) {
+    return next(new ApiError(`Account ${code} has financial operations`));
+  }
+
+  await AccountingTree.deleteOne({ _id: id, code, companyId });
+
+  res.status(200).json({ status: "true", message: "deleted" });
 });
 
 exports.importAccountingTree = asyncHandler(async (req, res, next) => {
@@ -597,7 +594,7 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
       csvData
         .map((item) => item.currency)
         .filter(Boolean)
-        .map((currencyName) => String(currencyName).trim()),
+        .map((currencyName) => String(currencyName).trim())
     ),
   ];
 
@@ -663,7 +660,7 @@ exports.changeBalance = asyncHandler(async (req, res, next) => {
     {
       $inc: { debtor: req.body.debtor || 0, creditor: req.body.creditor || 0 },
     },
-    { new: true },
+    { new: true }
   );
 
   res
@@ -754,14 +751,14 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
   const round4 = (n) => Math.round((Number(n) || 0) * 10000) / 10000;
 
   const totalDebit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0),
+    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0)
   );
 
   const totalCredit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0),
+    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0)
   );
   const totalBalance = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0),
+    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0)
   );
   const diff = round4(totalDebit - totalCredit);
 
