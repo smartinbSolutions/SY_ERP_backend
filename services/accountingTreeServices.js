@@ -89,7 +89,7 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
           totalDebit: item.totalDebit,
           totalCredit: item.totalCredit,
         },
-      ])
+      ]),
     );
 
     const accountsWithBalance = accounts.map((account) => {
@@ -157,7 +157,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
     if (duplicateCodes.length) {
       console.error(
         "Duplicate account codes found in AccountingTree:",
-        duplicateCodes
+        duplicateCodes,
       );
     }
 
@@ -201,7 +201,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
             $sum: { $ifNull: ["$journalAccounts.MainCredit", 0] },
           },
         },
-      }
+      },
     );
 
     const journalSums = await journalEntryModel.aggregate(pipeline);
@@ -290,7 +290,7 @@ exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {
 
       if (parentNode) {
         const alreadyInParent = parentNode.children.some(
-          (child) => String(child._id) === idStr
+          (child) => String(child._id) === idStr,
         );
 
         if (!alreadyInParent) {
@@ -500,7 +500,7 @@ exports.updateAccountingTree = asyncHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
-    }
+    },
   );
 
   res.status(200).json({ status: "success", data: updateTree });
@@ -566,10 +566,10 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "companyId is required" });
   }
 
-  // Check if file is provided
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
+
   const { buffer } = req.file;
   let csvData;
 
@@ -584,17 +584,18 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   ) {
     const workbook = xlsx.read(buffer, { type: "buffer" });
-    const sheet_name_list = workbook.SheetNames;
-    csvData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
+    const sheetName = workbook.SheetNames[0];
+    csvData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
   } else {
     return res.status(400).json({ error: "Unsupported file type" });
   }
+
   const currencyNames = [
     ...new Set(
       csvData
         .map((item) => item.currency)
         .filter(Boolean)
-        .map((currencyName) => String(currencyName).trim())
+        .map((currencyName) => String(currencyName).trim()),
     ),
   ];
 
@@ -617,30 +618,41 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
     currencyMap.set(currency.currencyCode, currency._id);
   });
 
+  const existingAccounts = await AccountingTree.find({ companyId })
+    .select("_id code")
+    .lean();
+
+  const codeMap = new Map();
+  existingAccounts.forEach((acc) => {
+    codeMap.set(String(acc.code).trim(), acc._id);
+  });
+
   const treeRows = csvData.map((item) => {
-    const currencyName = item.currency ? String(item.currency).trim() : "";
+    const currencyKey = item.currency ? String(item.currency).trim() : "";
+
+    const parentCode = item.parentCode ? String(item.parentCode).trim() : "";
 
     return {
       ...item,
-      currency: currencyMap.get(currencyName),
       companyId,
+      currency: currencyMap.get(currencyKey) || null,
+      parentId: parentCode ? codeMap.get(parentCode) || null : null,
     };
   });
 
   try {
-    // Insert Tree into the database
     const insertedTree = await AccountingTree.insertMany(treeRows, {
       ordered: false,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       message: "Tree imported successfully",
       data: insertedTree,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "faild",
+    return res.status(500).json({
+      status: "failed",
       error: error.message,
     });
   }
@@ -660,7 +672,7 @@ exports.changeBalance = asyncHandler(async (req, res, next) => {
     {
       $inc: { debtor: req.body.debtor || 0, creditor: req.body.creditor || 0 },
     },
-    { new: true }
+    { new: true },
   );
 
   res
@@ -751,14 +763,14 @@ exports.calculateBalance = asyncHandler(async (req, res) => {
   const round4 = (n) => Math.round((Number(n) || 0) * 10000) / 10000;
 
   const totalDebit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0)
+    journalSums.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0),
   );
 
   const totalCredit = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0)
+    journalSums.reduce((sum, v) => sum + (Number(v.totalCredit) || 0), 0),
   );
   const totalBalance = round4(
-    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0)
+    journalSums.reduce((sum, v) => sum + (Number(v.balance) || 0), 0),
   );
   const diff = round4(totalDebit - totalCredit);
 
