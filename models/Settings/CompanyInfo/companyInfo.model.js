@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { v4: uuidv4 } = require("uuid");
 
 const companyInfoSchema = new mongoose.Schema(
   {
@@ -8,7 +9,7 @@ const companyInfoSchema = new mongoose.Schema(
       minlength: [3, "Name is too short"],
       trim: true,
     },
-
+    publicId: { type: String, default: uuidv4, unique: true, index: true },
     companyAddress: String,
     companyTax: String,
 

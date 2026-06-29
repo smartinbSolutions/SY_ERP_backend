@@ -218,7 +218,7 @@ exports.switchCompany = asyncHandler(async (req, res, next) => {
       message: "Company id is required",
     });
   }
-
+  const company = await companyInfoModel.findOne({ publicId: companyId });
   const user = await usersModel.findById(userId).populate({
     path: "companies.roleId",
     populate: { path: "permissions" },
@@ -231,7 +231,7 @@ exports.switchCompany = asyncHandler(async (req, res, next) => {
   }
 
   const selectedCompany = user.companies.find(
-    (item) => item.companyId.toString() === companyId,
+    (item) => item.companyId.toString() === company._id.toString(),
   );
 
   if (!selectedCompany) {
@@ -246,25 +246,39 @@ exports.switchCompany = asyncHandler(async (req, res, next) => {
   }
 
   const companyPlan = await companyPlanModel
-    .findOne({ companyId: companyId })
+    .findOne({ companyId: company._id })
     .lean();
 
-  console.log(selectedCompany);
+  if (!companyPlan) {
+    return next(new ApiError("No Plan", 403));
+  }
 
   const token = createToken({
     userId: user._id,
     email: user.email,
     roleId: role._id,
     channels: role.channels,
-    companyId: companyId,
+    companyId: company._id,
     authSource: "erp",
   });
   const currency = await currencyModel.findOne({
     is_primary: true,
-    companyId: companyId,
+    companyId: company._id,
   });
-  const company = await companyInfoModel.findById({ _id: companyId }).lean();
+  const now = new Date();
 
+  const subscription = await companySubscriptionModel.findOne({
+    companyId: company._id,
+    endDate: { $gte: now },
+  });
+  if (!subscription) {
+    return next(
+      new ApiError(
+        "Your subscription has expired. Please renew your subscription.",
+        403,
+      ),
+    );
+  }
   res.status(200).json({
     status: true,
     data: user,
