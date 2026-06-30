@@ -1,5 +1,5 @@
-const EmployeePayroll = require("../../../models/Hr/employeepayrollModel.js");
-const EmployeePayrollState = require("../../../models/Hr/EmployeePayrollStateSchema.js");
+const EmployeePayroll = require("../../../models/Hr/Payrolls/employeePayrollModel.js");
+const EmployeePayrollState = require("../../../models/Hr/Payrolls/EmployeePayrollStateSchema.js");
 const { CalculateAdvances } = require("./CalculateAdvances.js");
 const { calculateAttendance } = require("./CalculateAttendence.js");
 const { CalculateDeductions } = require("./CalculateDeductions.js");
@@ -10,26 +10,26 @@ exports.processEmployeePayroll = async (employee, context, stateId) => {
   let payroll;
 
   try {
-  payroll = await EmployeePayroll.findOneAndUpdate(
-  {
-    employeeId: employee._id,
-    payrollPeriodId: context.period._id,
-  },
-  {
-    $setOnInsert: {
-      employeeId: employee._id,
-      payrollPeriodId: context.period._id,
-      payrollGroupId: employee.payrollGroupId,
-      salaryBase: employee.salary.amount || 0,
-      netSalary: 0,
-      status: "processing",
-    },
-  },
-  {
-    new: true,
-    upsert: true,
-  }
-);
+    payroll = await EmployeePayroll.findOneAndUpdate(
+      {
+        employeeId: employee._id,
+        payrollPeriodId: context.period._id,
+      },
+      {
+        $setOnInsert: {
+          employeeId: employee._id,
+          payrollPeriodId: context.period._id,
+          payrollGroupId: employee.payrollGroupId,
+          salaryBase: employee.salary.amount || 0,
+          netSalary: 0,
+          status: "processing",
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      },
+    );
     // await EmployeePayrollState.findByIdAndUpdate(stateId, {
     //   step: "init",
     //   status: "processing",

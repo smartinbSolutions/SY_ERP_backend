@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 const ListModel = require("../../models/Tasks/ListModel");
-const staffModel = require("../../models/Hr/staffModel");
+const staffModel = require("../../models/Hr/Staffs/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 const notificationHelper = require("./notificationHelper");
-const activityLogModel = require("../../models/Hr/activityLogModel");
+const activityLogModel = require("../../models/Tasks/activityLogModel");
 
 // ======================================
 // CREATE TASK (workspace aware)
@@ -378,7 +378,6 @@ exports.updateTask = async (taskId, data, actor) => {
   // ======================================================
 
   await activityLogModel.create({
-
     companyId: task.companyId,
     actor: actor._id,
     action,

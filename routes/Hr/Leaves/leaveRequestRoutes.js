@@ -10,7 +10,7 @@ const {
   processLeaveAttachment,
   uploadLeaveAttachment,
   getMyApprovals,
-} = require("../../../services/Hr/Leaves/leaveRequestService");
+} = require("../../../controllers/Hr/Leaves/leaveRequests.controller");
 
 const hrAuthServices = require("../../../services/Hr/hrAuthServices");
 

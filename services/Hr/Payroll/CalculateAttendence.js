@@ -1,4 +1,4 @@
-const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
+const PayrollEmployeeLine = require("../../../models/Hr/Payrolls/employeePayrollLine.js");
 
 /* =========================================================
    ATTENDANCE CALCULATION
@@ -202,7 +202,7 @@ exports.calculateAttendance = async ({
       amount: 0,
       Originalamount: 0,
       affectsNetSalary: false,
-      
+
       metadata: {
         attendanceType,
 
@@ -240,7 +240,7 @@ exports.calculateAttendance = async ({
     };
   } catch (err) {
     console.log(err);
-    
+
     /* =====================================================
        ERROR HANDLING
     ===================================================== */

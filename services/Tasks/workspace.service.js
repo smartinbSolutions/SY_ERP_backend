@@ -2,7 +2,7 @@ const Workspace = require("../../models/Tasks/WorkspaceModel");
 const Folder = require("../../models/Tasks/FolderModel");
 const List = require("../../models/Tasks/ListModel");
 const { default: mongoose } = require("mongoose");
-const staffModel = require("../../models/Hr/staffModel");
+const staffModel = require("../../models/Hr/Staffs/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 const notificationHelper = require("./notificationHelper");
 
@@ -460,13 +460,9 @@ exports.updateWorkspace = async (workspaceId, data, actorId) => {
     throw new Error("Workspace not found");
   }
 
-  const actor = await staffModel
-    .findById(actorId)
-    .select("fullName")
-    .lean();
+  const actor = await staffModel.findById(actorId).select("fullName").lean();
 
   const actorName = actor?.fullName || "Someone";
-
 
   if (data.name) {
     workspace.name = data.name;

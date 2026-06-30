@@ -4,11 +4,11 @@ require("dotenv").config({ path: "config.env" });
 
 const {
   processDailyAbsenceViolationsService,
-} = require("../services/Hr/violationLogsService");
+} = require("../services/Hr/Deductions/violationLogsService");
 
 console.log("🚀 Cron Service Started...");
 
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("0 0 */12 * * *", async () => {
   console.log("\n⏰ Running Daily Absence Job...");
 
   try {

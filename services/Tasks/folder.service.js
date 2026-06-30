@@ -1,5 +1,5 @@
 const Folder = require("../../models/Tasks/FolderModel");
-const staffModel = require("../../models/Hr/staffModel");
+const staffModel = require("../../models/Hr/Staffs/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 const notificationHelper = require("./notificationHelper");
 

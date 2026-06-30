@@ -7,12 +7,12 @@ const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const overtimeLogsModel = require("../../../models/Hr/Overtime/overtimeLogsModel");
-const approvalFlowModel = require("../../../models/Hr/approvalFlowModel");
-const { handleApproval } = require("../approvalService");
+const approvalFlowModel = require("../../../models/Hr/Settings/approvalFlowModel");
+const { handleApproval } = require("../Settings/approvalService");
 const overtimeTypesModel = require("../../../models/Hr/Overtime/overtimeTypesModel");
 const overtimeRequestModel = require("../../../models/Hr/Overtime/overtimeRequestModel");
 const NotificationModel = require("../../../models/Hr/NotificationModel");
-const staffModel = require("../../../models/Hr/staffModel");
+const staffModel = require("../../../models/Hr/Staffs/staffModel");
 
 // ================= MULTER =================
 
@@ -312,8 +312,7 @@ exports.getMyApprovals = asyncHandler(async (req, res) => {
     requests = requests.filter((request) => {
       const employeeName = request.userId?.fullName?.toLowerCase() || "";
       const employeeEmail = request.userId?.email?.toLowerCase() || "";
-      const overtimeType =
-        request.overtimeTypeId?.typeKey?.toLowerCase() || "";
+      const overtimeType = request.overtimeTypeId?.typeKey?.toLowerCase() || "";
 
       return (
         employeeName.includes(searchTerm) ||
@@ -368,7 +367,7 @@ exports.updateOvertimeRequest = asyncHandler(async (req, res, next) => {
 
 // ================= APPROVE / REJECT =================
 exports.handleOvertimeRequest = asyncHandler(async (req, res, next) => {
-    const { action, reason } = req.body;
+  const { action, reason } = req.body;
 
   const session = await mongoose.startSession();
   session.startTransaction();

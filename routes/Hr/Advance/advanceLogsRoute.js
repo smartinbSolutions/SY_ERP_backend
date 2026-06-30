@@ -3,7 +3,7 @@ const authService = require("../../../services/Hr/hrAuthServices");
 const {
   getAllAdvanceLogs,
   getMyAdvanceLogs,
-} = require("../../../controllers/Hr/advanceLogs.controller");
+} = require("../../../controllers/Hr/Advance/advanceLogs.controller");
 
 const advanceLogRoute = express.Router();
 

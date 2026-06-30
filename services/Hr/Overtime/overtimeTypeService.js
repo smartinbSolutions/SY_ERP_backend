@@ -6,7 +6,8 @@ const { default: mongoose } = require("mongoose");
 // @desc    Get all overtime types
 // @route   GET /api/overtime-types
 exports.getAllOvertimeTypes = asyncHandler(async (req, res, next) => {
-  const { companyId, policyId } = req.query;
+  const {policyId } = req.query;
+  const companyId = req.companyId;
 
   if (!companyId) {
     return next(new ApiError("companyId is required", 400));
