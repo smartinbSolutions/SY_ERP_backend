@@ -6,7 +6,7 @@ const {
   getAllLeavePolicies,
   getOneLeavePolicy,
   updateLeavePolicy,
-} = require("../../../services/Hr/Leaves/leavesPolicyService");
+} = require("../../../controllers/Hr/Leaves/leavesPolicy.controller");
 
 const leavesPolicyRoute = express.Router();
 

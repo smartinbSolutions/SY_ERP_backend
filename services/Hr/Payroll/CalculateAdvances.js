@@ -1,4 +1,4 @@
-const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
+const PayrollEmployeeLine = require("../../../models/Hr/Payrolls/employeePayrollLine.js");
 
 /**
  * فلترة السلف حسب الفترة
@@ -29,7 +29,6 @@ function uniqueAdvances(advances) {
   return Array.from(map.values());
 }
 
-
 function shouldDeduct(advance, period) {
   const firstDate = advance?.firstDeductionDate;
 
@@ -37,7 +36,6 @@ function shouldDeduct(advance, period) {
 
   return new Date(period.startDate) >= new Date(firstDate);
 }
-
 
 function getInstallmentAmount(advance) {
   // الحالة 1: موجودة مباشرة من aggregation
@@ -134,15 +132,15 @@ exports.CalculateAdvances = async ({ employee, advances, period, payroll }) => {
     console.log("Total deduction:", totalDeduction);
     console.log("Lines:", createdLines.length);
 
-   return {
-  success: true,
+    return {
+      success: true,
 
-  result: {
-    amount: totalDeduction,
-    linesCount: createdLines.length,
-    lines: createdLines,
-  },
-};
+      result: {
+        amount: totalDeduction,
+        linesCount: createdLines.length,
+        lines: createdLines,
+      },
+    };
   } catch (err) {
     console.log("ADVANCE ENGINE ERROR:", err.message);
 

@@ -3,6 +3,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const morgan = require("morgan");
+require("./utils/violationCron");
 const globalError = require("./middlewares/errorMiddleware");
 const { initSocket } = require("./utils/socket");
 // const cron = require("node-cron");

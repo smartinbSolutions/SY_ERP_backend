@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
 const ListModel = require("../../models/Tasks/ListModel");
-const staffModel = require("../../models/Hr/staffModel");
+const staffModel = require("../../models/Hr/Staffs/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 
 exports.getRecipients = (entity, actorId, level) => {

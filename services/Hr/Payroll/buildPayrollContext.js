@@ -1,11 +1,11 @@
-const actionExecutionLogModel = require("../../../models/Hr/actionExecutionLogModel");
+const actionExecutionLogModel = require("../../../models/Hr/Deductions/actionExecutionLogModel");
 const advanceLogsModel = require("../../../models/Hr/Advance/advanceLogsModel");
-const fingerprintModel = require("../../../models/Hr/fingerprintModel");
+const fingerprintModel = require("../../../models/Hr/Attendance/fingerprintModel");
 const leavesLogsModel = require("../../../models/Hr/Leaves/leavesLogsModel");
 const overtimeLogsModel = require("../../../models/Hr/Overtime/overtimeLogsModel");
-const payrollPeriodModel = require("../../../models/Hr/payrollPeriodModel");
-const staffModel = require("../../../models/Hr/staffModel");
-const EmployeePayrollState = require("../../../models/Hr/EmployeePayrollStateSchema");
+const payrollPeriodModel = require("../../../models/Hr/Payrolls/payrollPeriodModel");
+const staffModel = require("../../../models/Hr/Staffs/staffModel");
+const EmployeePayrollState = require("../../../models/Hr/Payrolls/EmployeePayrollStateSchema");
 const mongoose = require("mongoose");
 
 const buildPayrollContext = async (periodId) => {

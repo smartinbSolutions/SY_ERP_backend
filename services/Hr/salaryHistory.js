@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const SalaryHistoryModel = require("../../models/Hr/salaryHistoryModel");
-const StaffSchema = require("../../models/Hr/staffModel");
+const StaffSchema = require("../../models/Hr/Staffs/staffModel");
 const ApiError = require("../../utils/apiError");
 const { default: mongoose } = require("mongoose");
 const FinancialFundsModel = require("../../models/Accounting/CurrentAssets/financialFundsModel");

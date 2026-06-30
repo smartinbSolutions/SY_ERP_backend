@@ -1,4 +1,4 @@
-const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
+const PayrollEmployeeLine = require("../../../models/Hr/Payrolls/employeePayrollLine.js");
 
 exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
   try {
@@ -24,8 +24,7 @@ exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
         : flexibleAttendance?.requiredHoursPerDay || 8;
 
     // IMPORTANT: use hourlyRate (not dailyRate)
-    const hourlyRate =
-      employee.salary.hourlyRate ;
+    const hourlyRate = employee.salary.hourlyRate;
 
     console.log("Calculated shiftHours:", shiftHours);
     console.log("Using hourlyRate:", hourlyRate);

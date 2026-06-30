@@ -137,6 +137,8 @@ exports.updatePolicy = asyncHandler(async (req, res, next) => {
     updateData.policyName = req.body.policyName;
 
   if (req.body.code !== undefined) updateData.code = req.body.code;
+  if (req.body.approvalFlow !== undefined)
+    updateData.approvalFlow = req.body.approvalFlow;
 
   const policy = await OvertimePolicy.findOneAndUpdate(
     { _id: id, companyId },

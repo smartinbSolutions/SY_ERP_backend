@@ -1,4 +1,4 @@
-const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine.js");
+const PayrollEmployeeLine = require("../../../models/Hr/Payrolls/employeePayrollLine.js");
 
 exports.CalculateOvertime = async ({
   employee,
@@ -72,18 +72,18 @@ exports.CalculateOvertime = async ({
 
     const createdLine = await PayrollEmployeeLine.create(linePayload);
 
-  return {
-  success: true,
+    return {
+      success: true,
 
-  result: {
-    quantity: totalHours,
-    rate: hourlyRate,
-    amount: totalAmount,
-    breakdown,
-  },
+      result: {
+        quantity: totalHours,
+        rate: hourlyRate,
+        amount: totalAmount,
+        breakdown,
+      },
 
-  linePayload: createdLine,
-};
+      linePayload: createdLine,
+    };
   } catch (err) {
     const failureLine = {
       payrollPeriodId: period._id,

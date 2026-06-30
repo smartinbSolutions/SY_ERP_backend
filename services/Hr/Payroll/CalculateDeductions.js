@@ -1,4 +1,4 @@
-const PayrollEmployeeLine = require("../../../models/Hr/employeePayrollLine");
+const PayrollEmployeeLine = require("../../../models/Hr/Payrolls/employeePayrollLine");
 
 exports.CalculateDeductions = async ({
   employee,
@@ -89,18 +89,18 @@ exports.CalculateDeductions = async ({
 
     const createdLine = await PayrollEmployeeLine.create(linePayload);
 
-  return {
-  success: true,
+    return {
+      success: true,
 
-  result: {
-    quantity: deductions.length,
-    rate: hourlyRate,
-    amount: totalAmount,
-    breakdown,
-  },
+      result: {
+        quantity: deductions.length,
+        rate: hourlyRate,
+        amount: totalAmount,
+        breakdown,
+      },
 
-  linePayload: createdLine,
-};
+      linePayload: createdLine,
+    };
   } catch (err) {
     const failureLine = {
       payrollPeriodId: period._id,

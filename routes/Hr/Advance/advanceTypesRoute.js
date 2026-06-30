@@ -8,7 +8,7 @@ const {
   getOneAdvanceType,
   updateAdvanceType,
   createAdvanceType,
-} = require("../../../controllers/Hr/advanceTypes.controller");
+} = require("../../../controllers/Hr/Advance/advanceTypes.controller");
 
 const advanceTypeRoute = express.Router();
 
