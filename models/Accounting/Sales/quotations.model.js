@@ -95,7 +95,7 @@ const quotationSchema = new mongoose.Schema(
     counter: { type: String, default: 0 },
     status: {
       type: String,
-      default: "Draft",
+      default: "draft",
       enum: ["draft", "sent", "seen", "cancelled", "convertedToInvoice"],
     },
     sync: { type: Boolean, default: false },
