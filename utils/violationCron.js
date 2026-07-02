@@ -11,17 +11,17 @@ console.log("🚀 Cron Service Started...");
 cron.schedule("0 0 */12 * * *", async () => {
   console.log("\n⏰ Running Daily Absence Job...");
 
-  try {
-    await mongoose.connect(process.env.DB_URI);
-    console.log("✅ DB Connected");
+  // try {
+  // await mongoose.connect(process.env.DB_URI);
+  // console.log("✅ DB Connected");
 
-    await processDailyAbsenceViolationsService();
+  await processDailyAbsenceViolationsService();
 
-    console.log("✅ Job Completed");
-  } catch (err) {
-    console.error("❌ Job Failed:", err.message);
-  } finally {
-    await mongoose.disconnect();
-    console.log("🔌 DB Disconnected");
-  }
+  //     console.log("✅ Job Completed");
+  //   } catch (err) {
+  //     console.error("❌ Job Failed:", err.message);
+  //   } finally {
+  //     await mongoose.disconnect();
+  //     console.log("🔌 DB Disconnected");
+  //   }
 });
