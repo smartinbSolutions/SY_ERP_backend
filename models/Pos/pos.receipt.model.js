@@ -92,12 +92,16 @@ const receiptSchema = new mongoose.Schema(
     change: { type: Number, default: 0 },
 
     // ── Discounts
-    manuallInvoiceDiscount: Number,
-    manuallInvoiceDiscountValue: Number,
-    invoiceDiscount: Number,
-    ManualInvoiceDiscountValue: Number,
-    InvoiceDiscountType: String,
-
+    discount: {
+      type: {
+        type: String,
+        enum: ["percentage", "fixed", null],
+        default: null,
+      },
+      percentage: { type: Number, default: 0 },
+      amount: { type: Number, default: 0 },
+      _id: false,
+    },
     // ── Tax summary
     taxSummary: [
       {
@@ -115,12 +119,14 @@ const receiptSchema = new mongoose.Schema(
       {
         currency: String,
         currencyID: String,
-        exchangeRate: String,
+        exchangeRate: Number,
+        effectiveRate: Number,
         currencyCode: String,
         fundName: String,
         fundId: String,
         accountId: String,
         allocatedAmount: Number,
+        collectedAmount: Number,
         change: { type: Number, default: 0 },
         _id: false,
       },

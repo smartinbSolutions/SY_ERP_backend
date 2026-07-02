@@ -44,7 +44,7 @@ const companyInfoSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 const setImageURL = (doc) => {
@@ -53,7 +53,7 @@ const setImageURL = (doc) => {
     process.env.BASE_URL &&
     !doc.companyLogo.startsWith("http")
   ) {
-    doc.companyLogo = `${process.env.BASE_URL}/companyinfo/${doc.companyLogo}`;
+    doc.companyLogo = `/companyinfo/${doc.companyLogo}`;
   }
 };
 
