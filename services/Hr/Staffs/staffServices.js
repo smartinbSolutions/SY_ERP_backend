@@ -12,8 +12,8 @@ const generatePassword = require("../../../utils/tools/generatePassword");
 const sendEmail = require("../../../utils/sendEmail");
 const fs = require("fs");
 const groupsModel = require("../../../models/Hr/Attendance/groupsModel");
-const { calculateHourlyRate } = require("../Payroll/payrollService");
 const safeParse = require("../../../utils/tools/safeParse");
+const { calculateHourlyRate } = require("../Payroll/payrollService");
 
 const multerFilter = (req, file, cb) => {
   const allowed = /jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|txt/;
@@ -227,8 +227,6 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
   const employeePass = generatePassword();
 
-  console.log("Generated password for new staff:", employeePass); // Log the generated password
-
   try {
     await sendEmail({
       email,
@@ -236,6 +234,7 @@ exports.createStaff = asyncHandler(async (req, res) => {
       message: `Hello ${req.body.fullName}, your password is: ${employeePass}`,
     });
   } catch (err) {}
+
   req.body.password = await bcrypt.hash(employeePass, 12);
 
   if (typeof req.body.customAttributes === "string") {
@@ -253,18 +252,27 @@ exports.createStaff = asyncHandler(async (req, res) => {
     payType: "monthly",
   });
 
+  const lastStaff = await StaffsModel.findOne({
+    companyId,
+    fingerprintId: { $exists: true },
+  }).sort({ fingerprintId: -1 });
+
+  req.body.fingerprintId = lastStaff ? lastStaff.fingerprintId + 1 : 1;
+
   const staff = await StaffsModel.create(req.body);
 
+  // =========================
+  // NEW: CALCULATE HOURLY RATE
+  // =========================
   const group = await groupsModel.findById(staff.groupId);
 
   if (group) {
-    try {
-      const hourlyRate = calculateHourlyRate(staff, group);
-      staff.salary.hourlyRate = hourlyRate;
-      await staff.save();
-    } catch {}
+    const hourlyRate = calculateHourlyRate(staff, group);
+    staff.salary.hourlyRate = hourlyRate;
+    await staff.save();
   }
 
+  // staff files
   if (req.body.staffFilesMeta && req.savedFiles?.length) {
     try {
       const filesMeta = JSON.parse(req.body.staffFilesMeta);
@@ -377,19 +385,6 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
 
   if (!staff) {
     return next(new ApiError("Staff not found", 404));
-  }
-
-  // Recalculate hourlyRate only if salary or group changed
-  if (req.body.salary || req.body.groupId) {
-    const group = await groupsModel.findById(staff.groupId);
-
-    if (group) {
-      const hourlyRate = calculateHourlyRate(staff, group);
-
-      staff.salary.hourlyRate = hourlyRate;
-
-      await staff.save();
-    }
   }
 
   res.status(200).json({

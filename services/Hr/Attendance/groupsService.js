@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../../../utils/apiError");
 const groupsModel = require("../../../models/Hr/Attendance/groupsModel");
-const { calculateHourlyRate } = require("../Payroll/payrollService");
 const staffModel = require("../../../models/Hr/Staffs/staffModel");
 
 exports.getAllGroups = asyncHandler(async (req, res, next) => {
@@ -84,7 +83,6 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
   }
 
   req.body.companyId = companyId;
-  console.log("req", req.body);
 
   const group = await groupsModel.findOneAndUpdate(
     { _id: id, companyId },
@@ -97,29 +95,6 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
 
   if (!group) {
     return next(new ApiError("Group not found", 404));
-  }
-
-  // هل تم تعديل شيء يؤثر على hourlyRate؟
-  const shouldRecalculate =
-    req.body.attendanceType !== undefined ||
-    req.body.offDays !== undefined ||
-    req.body.fixedAttendance !== undefined ||
-    req.body.flexibleAttendance !== undefined ||
-    req.body.remoteAttendance !== undefined;
-
-  if (shouldRecalculate) {
-    const staffs = await staffModel.find({
-      groupId: group._id,
-      companyId,
-    });
-
-    for (const staff of staffs) {
-      const hourlyRate = calculateHourlyRate(staff, group);
-
-      staff.salary.hourlyRate = hourlyRate;
-
-      await staff.save();
-    }
   }
 
   res.status(200).json({

@@ -11,6 +11,7 @@ const {
   createFingerPrint,
   getTodayFingerPrint,
   getLoggedUserFingerPrintsByDays,
+  importFingerprints,
 } = require("../../../services/Hr/Attendance/fingerPrintServices");
 const authService = require("../../../services/authService");
 
@@ -44,6 +45,14 @@ FingerPrintRout.route("/salary").get(
 /**
  * 🏢 ERP Admin only
  */
+
+FingerPrintRout.post(
+  "/import",
+  authService.protect,
+  authService.allowedTo("fingerprints.read"),
+  importFingerprints,
+);
+
 FingerPrintRout.route("/")
   .get(
     authService.protect,

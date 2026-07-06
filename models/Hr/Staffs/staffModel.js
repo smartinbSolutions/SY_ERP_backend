@@ -14,6 +14,10 @@ const StaffSchema = new mongoose.Schema(
       lowercase: true,
     },
 
+    fingerprintId: {
+      type: Number,
+    },
+
     personalEmail: {
       type: String,
       lowercase: true,
@@ -119,7 +123,7 @@ const StaffSchema = new mongoose.Schema(
 
       payType: {
         type: String,
-        enum: ["hourly", "weekly", "biweekly", "monthly"],
+        enum: ["hourly", "daily", "weekly", "monthly"],
         default: "monthly",
       },
 
@@ -200,5 +204,7 @@ StaffSchema.post("init", function (doc) {
 StaffSchema.post("save", function (doc) {
   setProfileImageURL(doc);
 });
+
+StaffSchema.index({ companyId: 1, fingerprintId: 1 }, { unique: true });
 
 module.exports = mongoose.model("staff", StaffSchema);

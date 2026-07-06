@@ -1,8 +1,6 @@
 const mongoose = require("mongoose");
 
-/* --------------------------------------------------------------------
-   Calendar Rule SubSchema
--------------------------------------------------------------------- */
+
 const calendarRuleSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -86,6 +84,12 @@ const groupsSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "DeductionPolicy",
       // required: true,
+    },
+
+    standardMonthlyHours: {
+      type: Number,
+      required: true,
+      default: 200,
     },
 
     offDays: [{ type: String }],

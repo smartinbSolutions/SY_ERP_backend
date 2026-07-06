@@ -92,22 +92,26 @@ const uploadAttachment = multer({
 
 exports.uploadLeaveAttachment = uploadAttachment.single("attachment");
 
-exports.processLeaveAttachment = async (req) => {
-  if (!req.file) return;
+exports.processLeaveAttachment = async (req, res, next) => {
+  try {
+    if (!req.file) return next();
 
-  await fs.promises.mkdir("uploads/leaveAttachments", {
-    recursive: true,
-  });
+    await fs.promises.mkdir("uploads/leaveAttachments", { recursive: true });
 
-  const ext = path.extname(req.file.originalname);
-  const filename = `leave-${uuidv4()}-${Date.now()}${ext}`;
+    const ext = path.extname(req.file.originalname);
+    const filename = `leave-${uuidv4()}-${Date.now()}${ext}`;
 
-  await fs.promises.writeFile(
-    `uploads/leaveAttachments/${filename}`,
-    req.file.buffer,
-  );
+    await fs.promises.writeFile(
+      `uploads/leaveAttachments/${filename}`,
+      req.file.buffer,
+    );
 
-  req.body.attachment = filename;
+    req.body.attachment = filename;
+
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 };
 
 exports.createLeaveRequest = async (req) => {
@@ -221,7 +225,7 @@ exports.getMyLeaveRequests = async (req) => {
 
   const used = allRequests
     .filter((r) => r.status === "approved")
-    .reduce((sum, r) => sum + (r.days || 0), 0);
+    .reduce((sum, r) => sum + Number(r.days || 0), 0);
 
   const pending = allRequests.filter(
     (request) => request.status === "pending",
@@ -435,6 +439,7 @@ exports.getMyApprovals = async (req) => {
     data: paginatedRequests,
   };
 };
+
 exports.updateLeaveRequest = async (id, body) => {
   const request = await LeaveRequest.findById(id);
 

@@ -821,3 +821,163 @@ exports.calculateSalaryFlexible = asyncHandler(async (req, res, next) => {
     });
   }
 });
+
+exports.importFingerprints = async (req, res, next) => {
+  try {
+    const companyId = req.companyId;
+    const rows = req.body.data;
+
+    console.log("===== IMPORT START =====");
+    console.log("Company ID:", companyId);
+    console.log("Total Rows Received:", rows?.length);
+
+    if (!Array.isArray(rows) || !rows.length) {
+      console.log("❌ No rows received");
+      return res.status(400).json({
+        success: false,
+        message: "No fingerprint data provided",
+      });
+    }
+
+    // Show sample rows
+    console.log("Sample Row:", rows[0]);
+
+    // ==============================
+    // Extract fingerprint IDs
+    // ==============================
+    const fingerprintIds = [
+      ...new Set(
+        rows.map((row) => Number(row.userId)).filter((id) => !Number.isNaN(id)),
+      ),
+    ];
+
+    console.log("Fingerprint IDs extracted:", fingerprintIds);
+
+    // ==============================
+    // STAFF QUERY DEBUG
+    // ==============================
+    console.log("Searching staff with query:", {
+      companyId,
+      fingerprintIds,
+    });
+
+    const staffs = await Staff.find({
+      companyId,
+      fingerprintId: { $in: fingerprintIds },
+    }).select("_id fullName email fingerprintId companyId");
+
+    console.log("Staffs found:", staffs.length);
+    console.log("Staffs:", staffs);
+
+    // ==============================
+    // Build Map
+    // ==============================
+    const staffMap = new Map();
+
+    staffs.forEach((staff) => {
+      staffMap.set(Number(staff.fingerprintId), staff);
+    });
+
+    console.log("Staff Map Keys:", [...staffMap.keys()]);
+
+    // ==============================
+    // Processing rows
+    // ==============================
+    const operations = [];
+    const notFound = [];
+    let invalidRows = 0;
+
+    for (const [index, row] of rows.entries()) {
+      console.log(`Processing row ${index}:`, row);
+
+      if (!row.userId || !row.date || !row.time || !row.type) {
+        console.log(`❌ Invalid row at index ${index}`, row);
+        invalidRows++;
+        continue;
+      }
+
+      const userIdNumber = Number(row.userId);
+
+      console.log("Looking for staff with fingerprintId:", userIdNumber);
+
+      const staff = staffMap.get(userIdNumber);
+
+      if (!staff) {
+        console.log(`❌ Staff NOT FOUND for fingerprintId: ${userIdNumber}`);
+        notFound.push(row.userId);
+        continue;
+      }
+
+      console.log(`✔ Staff FOUND: ${staff.fullName}`);
+
+      const timestamp = new Date(`${row.date} ${row.time}`);
+
+      console.log("Generated timestamp:", timestamp);
+
+      operations.push({
+        updateOne: {
+          filter: {
+            userID: staff._id,
+            date: row.date,
+            Time: row.time,
+            type: row.type,
+            companyId,
+          },
+          update: {
+            $setOnInsert: {
+              name: staff.fullName,
+              email: staff.email,
+              userID: staff._id,
+              Time: row.time,
+              date: row.date,
+              timestamp,
+              type: row.type,
+              companyId,
+            },
+          },
+          upsert: true,
+        },
+      });
+    }
+
+    console.log("Operations count:", operations.length);
+    console.log("Not Found count:", notFound.length);
+    console.log("Invalid rows count:", invalidRows);
+
+    // ==============================
+    // Bulk write
+    // ==============================
+    let result = {
+      upsertedCount: 0,
+      matchedCount: 0,
+    };
+
+    if (operations.length) {
+      console.log("Executing bulkWrite...");
+      result = await fingerprintModel.bulkWrite(operations, {
+        ordered: false,
+      });
+
+      console.log("BulkWrite result:", result);
+    } else {
+      console.log("No operations to execute");
+    }
+
+    console.log("===== IMPORT END =====");
+
+    return res.status(200).json({
+      success: true,
+      message: "Fingerprints imported successfully",
+      data: {
+        totalRows: rows.length,
+        inserted: result.upsertedCount || 0,
+        duplicates: result.matchedCount || 0,
+        invalidRows,
+        notFound,
+      },
+    });
+  } catch (error) {
+    console.error("🔥 IMPORT ERROR:", error);
+    next(error);
+  }
+};
