@@ -30,8 +30,9 @@ router
   .route("/")
   .post(
     hrAuthServices.protectStaffOrERP,
-    // canCreateWorkspace,
-    createWorkspace
+    canCreateWorkspace,
+  
+    createWorkspace,
   )
   .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
 
@@ -50,13 +51,13 @@ router
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
     checkPermission("update:workspace"),
-    updateWorkspace
+    updateWorkspace,
   )
   .delete(
     hrAuthServices.protectStaffOrERP,
     workspaceAccess,
     checkPermission("delete:workspace"),
-    deleteWorkspace
+    deleteWorkspace,
   );
 
 // ======================================
@@ -69,7 +70,7 @@ router.post(
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   checkPermission("manage:members"),
-  addMember
+  addMember,
 );
 
 // REMOVE MEMBER
@@ -78,7 +79,7 @@ router.delete(
   hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   checkPermission("manage:members"),
-  removeMember
+  removeMember,
 );
 
 module.exports = router;

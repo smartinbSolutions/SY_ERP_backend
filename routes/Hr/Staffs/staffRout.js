@@ -1,6 +1,8 @@
 const express = require("express");
 
 const authService = require("../../../services/authService");
+const hrauthService = require("../../../services/Hr/hrAuthServices");
+
 const {
   getStaff,
   createStaff,
@@ -15,9 +17,7 @@ const {
 const staffRout = express.Router();
 
 /* ===================== GET STAFF ===================== */
-staffRout
-  .route("/")
-  .get(authService.protect, authService.allowedTo("employee.read"), getStaff);
+staffRout.route("/").get(hrauthService.protectStaffOrERP, getStaff);
 
 /* ===================== CREATE STAFF ===================== */
 staffRout.post(
