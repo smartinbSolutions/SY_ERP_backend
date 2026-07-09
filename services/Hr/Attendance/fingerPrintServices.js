@@ -19,11 +19,19 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
-  const pageSize = 20;
+  const pageSize = parseInt(req.query.limit) || 20;
   const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
 
-  let mongooseQuery = fingerPrintModel.find({ companyId });
+  let filter = {
+    companyId,
+  };
+
+  if (req.query.userId) {
+    filter.userID = req.query.userId;
+  }
+
+  let mongooseQuery = fingerPrintModel.find(filter);
   mongooseQuery = mongooseQuery.populate("userID", "fullName email");
 
   if (req.query.keyword) {
@@ -32,7 +40,7 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
         {
           $or: [
             {
-              fullName: {
+              name: {
                 $regex: req.query.keyword,
                 $options: "i",
               },
@@ -44,7 +52,7 @@ exports.getFingerPrint = asyncHandler(async (req, res, next) => {
     mongooseQuery = mongooseQuery.find(query);
   }
   mongooseQuery = mongooseQuery.sort({ createdAt: -1 });
-  const totalItems = await fingerPrintModel.countDocuments({ companyId });
+  const totalItems = await fingerPrintModel.countDocuments(filter);
 
   const totalPages = Math.ceil(totalItems / pageSize);
 

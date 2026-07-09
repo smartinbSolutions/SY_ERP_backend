@@ -464,18 +464,36 @@ exports.approvePayrollPeriod = async (id) => {
     throw new Error("Payroll period not found");
   }
 
-  // approval
+  // already approved
   if (period.status === "approved" || period.status === "paid") {
     throw new Error("Payroll already finalized");
   }
 
-  // optional safety check
+  // only review can be approved
   if (period.status !== "review") {
     throw new Error("Payroll must be in review state");
   }
 
+  // ==========================
+  // Approve Period
+  // ==========================
   period.status = "approved";
   await period.save();
+
+  // ==========================
+  // Approve Employee Payrolls
+  // ==========================
+  await EmployeePayroll.updateMany(
+    {
+      payrollPeriodId: period._id,
+      status: { $in: ["calculated", "processing"] },
+    },
+    {
+      $set: {
+        status: "approved",
+      },
+    },
+  );
 
   return period;
 };

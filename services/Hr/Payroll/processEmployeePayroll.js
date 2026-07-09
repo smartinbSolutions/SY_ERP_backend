@@ -88,6 +88,7 @@ exports.processEmployeePayroll = async (employee, context, stateId) => {
       period: context.period,
       payroll,
     });
+console.log("lllll",advances);
 
     await EmployeePayrollState.findByIdAndUpdate(stateId, {
       step: "deductions",

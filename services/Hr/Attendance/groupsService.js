@@ -23,7 +23,12 @@ exports.getAllGroups = asyncHandler(async (req, res, next) => {
 
   const total = await groupsModel.countDocuments(query);
 
-  const groups = await groupsModel.find(query).skip(skip).limit(limit).lean();
+  const groups = await groupsModel
+    .find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   res.status(200).json({
     status: "success",

@@ -10,38 +10,64 @@ exports.CalculateOvertime = async ({
     if (!overtime.length) {
       return {
         success: true,
-        result: { totalHours: 0, amount: 0 },
+        result: {
+          totalHours: 0,
+          amount: 0,
+        },
         linePayload: null,
       };
     }
 
-    const hourlyRate = employee.salary.hourlyRate || 0;
+    const hourlyRate = Number(employee.salary.hourlyRate || 0);
 
     let totalHours = 0;
     let totalAmount = 0;
 
     const breakdown = overtime.map((item) => {
-      const hours = item.calculation?.hours || 0;
+      const hours = Number(item.calculation?.hours || 0);
 
       const multiplier =
-        item.calculation?.appliedRateMultiplier ||
-        item.ruleSnapshot?.rateMultiplier ||
+        item.calculation?.appliedRateMultiplier ??
+        item.ruleSnapshot?.rateMultiplier ??
         1;
 
-      const pay = hours * hourlyRate * multiplier;
+      const amount = Number((hours * hourlyRate * multiplier).toFixed(2));
 
       totalHours += hours;
-      totalAmount += pay;
+      totalAmount += amount;
 
       return {
         overtimeId: item._id,
-        hours,
-        hourlyRate,
-        multiplier,
-        amount: pay,
+
+        period: {
+          date: item.date || null,
+          startTime: item.startTime || null,
+          endTime: item.endTime || null,
+        },
+
+        calculation: {
+          hours,
+          hourlyRate,
+          multiplier,
+          formula: `${hours} × ${hourlyRate} × ${multiplier}`,
+          amount,
+        },
+
+        rule: {
+          name: item.ruleSnapshot?.name || null,
+          type: item.ruleSnapshot?.type || null,
+          sourceRuleId: item.ruleSnapshot?._id || null,
+        },
+
+        status: item.status || null,
+        approvedAt: item.approvedAt || null,
+        createdAt: item.createdAt || null,
       };
     });
 
+    totalHours = Number(totalHours.toFixed(2));
+    totalAmount = Number(totalAmount.toFixed(2));
+    
     const linePayload = {
       payrollPeriodId: period._id,
       payrollEmployeeId: payroll._id,
@@ -74,14 +100,12 @@ exports.CalculateOvertime = async ({
 
     return {
       success: true,
-
       result: {
         quantity: totalHours,
         rate: hourlyRate,
         amount: totalAmount,
         breakdown,
       },
-
       linePayload: createdLine,
     };
   } catch (err) {
@@ -92,12 +116,15 @@ exports.CalculateOvertime = async ({
 
       category: "info",
       type: "manual_adjustment",
+
       label: "overtime_failed",
 
       amount: 0,
+
       sourceType: "manual",
 
       isSystemGenerated: true,
+
       status: "failed",
       errorMessage: err.message,
     };

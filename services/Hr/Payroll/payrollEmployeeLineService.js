@@ -53,7 +53,26 @@ exports.updatePayrollEmployeeLine = async (id, data) => {
 
 // ================= DELETE =================
 exports.deletePayrollEmployeeLine = async (id) => {
-  return await PayrollEmployeeLine.deleteOne({ _id: id });
+  console.log("deletedLine id:", id);
+
+  // 1. جيب البيانات أولاً
+  const line = await PayrollEmployeeLine.findById(id);
+
+  if (!line) {
+    throw new Error("Payroll line not found");
+  }
+
+  console.log("line found:", line);
+
+  // 2. احذف
+  const deleted = await PayrollEmployeeLine.deleteOne({ _id: id });
+
+  console.log("deleted result:", deleted);
+
+  // 3. استخدم البيانات القديمة لإعادة الحساب
+  await recalculatePayroll(line.payrollEmployeeId);
+
+  return deleted;
 };
 
 // ================= GET BY PAYROLL EMPLOYEE =================

@@ -2,9 +2,11 @@ const PayrollEmployeeLine = require("../../../models/Hr/Payrolls/employeePayroll
 
 exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
   try {
-    console.log("===== LEAVE ENGINE START =====");
-    console.log("Employee ID:", employee?._id);
-    console.log("Hourly Rate:", employee?.hourlyRate);
+    // console.log("===== LEAVE ENGINE START =====");
+    // console.log(leaves);
+
+    // console.log("Employee ID:", employee?._id);
+    // console.log("Hourly Rate:", employee?.hourlyRate);
 
     const createdLines = [];
     let totalDeduction = 0;
@@ -26,36 +28,36 @@ exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
     // IMPORTANT: use hourlyRate (not dailyRate)
     const hourlyRate = employee.salary.hourlyRate;
 
-    console.log("Calculated shiftHours:", shiftHours);
-    console.log("Using hourlyRate:", hourlyRate);
+    // console.log("Calculated shiftHours:", shiftHours);
+    // console.log("Using hourlyRate:", hourlyRate);
 
     for (const leave of leaves) {
-      console.log("\n--- Leave ---", leave._id);
+      // console.log("\n--- Leave ---", leave._id);
 
       const totalDays = leave.totalDays || 0;
 
       const payPercentage =
         leave.appliedPayPercentage ?? leave.payPercentage ?? 0;
 
-      console.log("totalDays:", totalDays);
-      console.log("payPercentage:", payPercentage);
+      // console.log("totalDays:", totalDays);
+      // console.log("payPercentage:", payPercentage);
 
       // 🔥 NEW CORE LOGIC (hour-based)
       const leaveHours = totalDays * shiftHours;
 
-      const unpaidHours = leaveHours * (1 - payPercentage / 100);
-
-      console.log("leaveHours:", leaveHours);
-      console.log("unpaidHours:", unpaidHours);
+      const unpaidHours = Number(
+        (leaveHours * (1 - payPercentage / 100)).toFixed(2),
+      );
+      // console.log("leaveHours:", leaveHours);
+      // console.log("unpaidHours:", unpaidHours);
 
       if (unpaidHours <= 0) {
         console.log("SKIPPED: fully paid leave");
         continue;
       }
 
-      const amount = unpaidHours * hourlyRate;
-
-      console.log("final amount:", amount);
+      const amount = Number((unpaidHours * hourlyRate).toFixed(2));
+      // console.log("final amount:", amount);
 
       const linePayload = {
         payrollPeriodId: period._id,
@@ -80,6 +82,31 @@ exports.CalculateLeaves = async ({ employee, leaves, period, payroll }) => {
 
         isSystemGenerated: true,
         status: "success",
+
+        metadata: {
+          logId: leave._id || null,
+          leaveType: leave.leaveType,
+
+          payPercentage: leave.payPercentage,
+          appliedPayPercentage: leave.appliedPayPercentage,
+
+          effectivePayPercentage:
+            leave.appliedPayPercentage ?? leave.payPercentage,
+
+          totalDays: leave.totalDays,
+
+          period: {
+            startDate: leave.startDate,
+            endDate: leave.endDate,
+          },
+
+          compensation: {
+            isFullyPaid:
+              (leave.appliedPayPercentage ?? leave.payPercentage) === 100,
+            unpaidRatio:
+              1 - (leave.appliedPayPercentage ?? leave.payPercentage) / 100,
+          },
+        },
       };
 
       const createdLine = await PayrollEmployeeLine.create(linePayload);

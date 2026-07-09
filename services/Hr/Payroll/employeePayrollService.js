@@ -28,6 +28,7 @@ const getAllEmployeePayrollService = async ({
   const data = await EmployeePayroll.find(query)
     .populate("employeeId", "fullName email employeeNumber")
     .populate("payrollPeriodId", "name startDate endDate")
+    .populate("payrollGroupId", "name")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)

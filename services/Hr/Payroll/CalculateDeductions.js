@@ -6,6 +6,8 @@ exports.CalculateDeductions = async ({
   period,
   payroll,
 }) => {
+  // console.log("ddddddddddddd", deductions);
+
   try {
     if (!deductions.length) {
       return {
@@ -26,20 +28,25 @@ exports.CalculateDeductions = async ({
     const breakdown = deductions.map((item) => {
       const unit = item.deduction?.unit;
       const value = Number(item.deduction?.value || 0);
+      console.log("item", item);
 
       let amount = 0;
 
       switch (unit) {
+        
+        case "minutes":
+          amount = Number(((value / 60) * hourlyRate).toFixed(2));
+          break;
         case "hour":
-          amount = value * hourlyRate;
+          amount = Number((value * hourlyRate).toFixed(2));
           break;
 
         case "day":
-          amount = value * shiftHours * hourlyRate;
+          amount = Number((value * shiftHours * hourlyRate).toFixed(2));
           break;
 
         case "fixed":
-          amount = Number(item.deduction?.amount || 0);
+          amount = Number(Number(item.deduction?.value || 0).toFixed(2));
           break;
 
         default:
@@ -47,18 +54,42 @@ exports.CalculateDeductions = async ({
       }
 
       totalAmount += amount;
-
       return {
         logId: item._id,
-        violationType: item.violationType,
-        occurrenceCount: item.occurrenceCount,
 
-        unit,
-        value,
+        violation: {
+          type: item.violationType,
+          occurrences: item.occurrenceCount,
+          ruleId: item.sourceRuleId,
+          executedAt: item.executedAt,
+        },
 
-        amount,
+        deduction: {
+          unit,
+          value,
+          rate: unit === "hour" ? hourlyRate : null,
+          shiftHours: unit === "day" ? shiftHours : null,
+        },
+
+        period: {
+          start: item.periodStart,
+          end: item.periodEnd,
+        },
+
+        calculation: {
+          formula:
+            unit === "hour"
+              ? `${value} × hourlyRate`
+              : unit === "day"
+                ? `${value} × shiftHours × hourlyRate`
+                : `${value} (fixed)`,
+
+          amount,
+        },
       };
     });
+
+    totalAmount = Number(totalAmount.toFixed(2));
 
     const linePayload = {
       payrollPeriodId: period._id,
