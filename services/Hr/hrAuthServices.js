@@ -7,6 +7,7 @@ const bcrypt = require("bcrypt");
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../../utils/sendEmail");
+const authService = require("../authService");
 
 exports.hrLogin = asyncHandler(async (req, res, next) => {
   try {
@@ -164,59 +165,36 @@ exports.protectStaff = asyncHandler(async (req, res, next) => {
   }
 });
 
-exports.protectERP = asyncHandler(async (req, res, next) => {
-  const companyId = req.companyId;
+// exports.protectERP = asyncHandler(async (req, res, next) => {
+//   let token;
 
-  if (!companyId) {
-    return next(new ApiError("companyId is required", 400));
-  }
+//   if (
+//     req.headers.authorization &&
+//     req.headers.authorization.startsWith("Bearer")
+//   ) {
+//     token = req.headers.authorization.split(" ")[1];
+//   }
 
-  let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    token = req.headers.authorization.split(" ")[1];
-  }
+//   if (!token) {
+//     return next(new ApiError("Not logged in", 401));
+//   }
 
-  if (!token) {
-    return next(new ApiError("Not logged in", 401));
-  }
+//   try {
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-  try {
-    // 1️⃣ Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+//     if (decoded.authSource !== "erp") {
+//       return next(new ApiError("ERP access only", 403));
+//     }
 
-    // 2️⃣ Ensure token source is ERP
-    if (decoded.authSource !== "erp") {
-      return next(new ApiError("ERP access only", 403));
-    }
+//     req.companyId = decoded.companyId;
+//     req.user = decoded; // أو req.erpUser
+//     req.authSource = "erp";
 
-    // 3️⃣ ERP user MUST exist as Staff
-    const staffUser = await StaffsModel.findOne({
-      email: decoded.email,
-      companyId,
-    });
-
-    if (!staffUser) {
-      return next(new ApiError("ERP user is not registered as staff", 403));
-    }
-
-    // 4️⃣ Attach staff (not ERP user!)
-    req.erpUser = staffUser;
-    req.authSource = "erp";
-
-    next();
-  } catch (error) {
-    console.error("JWT Error:", error.message);
-
-    if (error.name === "TokenExpiredError") {
-      return next(new ApiError("Token expired", 401));
-    }
-
-    return next(new ApiError("Invalid token", 401));
-  }
-});
+//     next();
+//   } catch (err) {
+//     return next(new ApiError("Invalid token", 401));
+//   }
+// });
 
 exports.erpToStaffPortal = asyncHandler(async (req, res, next) => {
   const { email, companyId } = req.erpUser;
@@ -274,7 +252,7 @@ exports.protectStaffOrERP = asyncHandler(async (req, res, next) => {
   }
 
   if (decoded.authSource === "erp") {
-    return exports.protectERP(req, res, next);
+    return authService.protect(req, res, next);
   }
 
   return next(new ApiError("Invalid auth source", 401));

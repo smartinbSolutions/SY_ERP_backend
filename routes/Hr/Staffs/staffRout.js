@@ -17,7 +17,12 @@ const {
 const staffRout = express.Router();
 
 /* ===================== GET STAFF ===================== */
-staffRout.route("/").get(hrauthService.protectStaffOrERP, getStaff);
+staffRout
+  .route("/")
+  .get(
+    hrauthService.protectStaffOrERP,
+    getStaff,
+  );
 
 /* ===================== CREATE STAFF ===================== */
 staffRout.post(

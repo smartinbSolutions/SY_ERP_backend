@@ -28,7 +28,7 @@ FingerPrintRout.route("/days").get(
 
 FingerPrintRout.post(
   "/erp-to-staff",
-  hrAuthServices.protectERP,
+  authService.protect,
   hrAuthServices.erpToStaffPortal,
 );
 
