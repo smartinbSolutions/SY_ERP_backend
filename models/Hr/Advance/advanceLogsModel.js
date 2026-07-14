@@ -29,11 +29,21 @@ const advanceLogSchema = new mongoose.Schema(
       index: true,
     },
 
-    // ✅ FIXED: repayment fully defined
     repayment: {
       firstDeductionDate: {
         type: Date,
         default: null,
+      },
+
+      remainingAmount: {
+        type: Number,
+        default: 0,
+      },
+
+      status: {
+        type: String,
+        enum: ["active", "completed"],
+        default: "active",
       },
     },
 
@@ -78,7 +88,7 @@ const advanceLogSchema = new mongoose.Schema(
       trim: true,
     },
 
-     shouldDeduct: {
+    shouldDeduct: {
       type: Boolean,
       default: true,
     },

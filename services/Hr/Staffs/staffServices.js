@@ -217,7 +217,7 @@ exports.createStaff = asyncHandler(async (req, res) => {
 
   req.body.email = email;
 
-  const existingStaff = await StaffsModel.findOne({ email });
+  const existingStaff = await StaffsModel.findOne({ companyId, email });
 
   if (existingStaff) {
     return res.status(400).json({
