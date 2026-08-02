@@ -225,17 +225,28 @@ exports.createStaff = asyncHandler(async (req, res) => {
     });
   }
 
-  const employeePass = generatePassword();
+  // Check if this email already exists in another company
+  const existingEmailStaff = await StaffsModel.findOne({ email });
 
-  try {
-    await sendEmail({
-      email,
-      subject: "New Account Password",
-      message: `Hello ${req.body.fullName}, your password is: ${employeePass}`,
-    });
-  } catch (err) {}
+  if (existingEmailStaff) {
+    // Reuse the same password hash
+    req.body.password = existingEmailStaff.password;
+  } else {
+    // First account for this email
+    const employeePass = generatePassword();
 
-  req.body.password = await bcrypt.hash(employeePass, 12);
+    req.body.password = await bcrypt.hash(employeePass, 12);
+
+    try {
+      await sendEmail({
+        email,
+        subject: "New Account Password",
+        message: `Hello ${req.body.fullName}, your password is: ${employeePass}`,
+      });
+    } catch (err) {
+      // Keep current behavior
+    }
+  }
 
   if (typeof req.body.customAttributes === "string") {
     try {
