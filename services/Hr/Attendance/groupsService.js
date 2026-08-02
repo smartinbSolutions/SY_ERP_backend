@@ -3,6 +3,7 @@ const asyncHandler = require("express-async-handler");
 const ApiError = require("../../../utils/apiError");
 const groupsModel = require("../../../models/Hr/Attendance/groupsModel");
 const staffModel = require("../../../models/Hr/Staffs/staffModel");
+const { calculateHourlyRate } = require("../Payroll/payrollService");
 
 exports.getAllGroups = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -87,6 +88,18 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`No Groups for this ID: ${id}`, 404));
   }
 
+  // Get current group before update
+  const oldGroup = await groupsModel.findOne({
+    _id: id,
+    companyId,
+  });
+
+  if (!oldGroup) {
+    return next(new ApiError("Group not found", 404));
+  }
+
+  const oldStandardMonthlyHours = Number(oldGroup.standardMonthlyHours);
+
   req.body.companyId = companyId;
 
   const group = await groupsModel.findOneAndUpdate(
@@ -98,8 +111,30 @@ exports.updateGroups = asyncHandler(async (req, res, next) => {
     },
   );
 
-  if (!group) {
-    return next(new ApiError("Group not found", 404));
+  const newStandardMonthlyHours = Number(group.standardMonthlyHours);
+
+  // Recalculate hourly rates only if standardMonthlyHours changed
+  if (oldStandardMonthlyHours !== newStandardMonthlyHours) {
+    const staffs = await staffModel.find({
+      companyId,
+      groupId: group._id,
+    });
+
+    if (staffs.length > 0) {
+      await staffModel.bulkWrite(
+        staffs.map((staff) => ({
+          updateOne: {
+            filter: { _id: staff._id },
+            update: {
+              $set: {
+                "salary.hourlyRate": calculateHourlyRate(staff, group),
+                "salary.lastRateCalculatedAt": new Date(),
+              },
+            },
+          },
+        })),
+      );
+    }
   }
 
   res.status(200).json({
