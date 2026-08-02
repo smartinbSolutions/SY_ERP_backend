@@ -63,9 +63,9 @@ exports.login = asyncHandler(async (req, res, next) => {
   }
 
   const passwordMatch = await bcrypt.compare(password, user.password);
-  // if (!passwordMatch) {
-  //   return next(new ApiError("Incorrect password", 401));
-  // }
+  if (!passwordMatch) {
+    return next(new ApiError("Incorrect password", 401));
+  }
 
   const selectedCompany = user.companies.find(
     (c) => c.companyId.toString() === companyId,
@@ -73,9 +73,9 @@ exports.login = asyncHandler(async (req, res, next) => {
   if (!selectedCompany || !selectedCompany.roleId) {
     return next(new ApiError("Role not assigned", 403));
   }
-  // if (!selectedCompany.active) {
-  //   return next(new ApiError("Account is not active", 401));
-  // }
+  if (!selectedCompany.active) {
+    return next(new ApiError("Account is not active", 401));
+  }
   const role = selectedCompany.roleId;
 
   if (!role.channels.includes("dashboard")) {

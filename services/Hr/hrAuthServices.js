@@ -25,12 +25,17 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
       return next(new ApiError("Invalid email or password", 401));
     }
 
-    // Compare password with the first account
-    const passwordMatch = users.some((user) =>
-      bcrypt.compare(password, user.password),
-    );
+    // ✅ الحل الصحيح: فحص كلمة المرور لكل مستخدم
+    let validUser = null;
+    for (const user of users) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (isMatch) {
+        validUser = user;
+        break;
+      }
+    }
 
-    if (!passwordMatch) {
+    if (!validUser) {
       return next(new ApiError("Invalid email or password", 401));
     }
 
@@ -59,8 +64,8 @@ exports.hrLogin = asyncHandler(async (req, res, next) => {
       });
     }
 
-    // Only one company -> continue login
-    const user = await StaffsModel.findById(users[0]._id)
+    // Only one company -> continue login with validUser
+    const user = await StaffsModel.findById(validUser._id)
       .populate({ path: "position", select: "name -_id" })
       .populate({ path: "currency", select: "-_id -updatedAt -sync -__v" })
       .populate("branch")

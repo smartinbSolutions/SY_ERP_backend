@@ -270,18 +270,52 @@ exports.getMyLeaveRequests = async (req) => {
 
   const requests = await LeaveRequest.find(filter)
     .populate("leaveType")
+    .populate({
+      path: "approval.currentApprover",
+      select: "fullName email",
+    })
+    .populate({
+      path: "approval.steps.approverId",
+      select: "fullName email",
+    })
+    .populate({
+      path: "approval.steps.actedBy",
+      select: "fullName email",
+    })
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
+
+  const processedRequests = requests.map((request) => {
+    const reqObj = request.toObject();
+
+    if (reqObj.approval?.steps) {
+      reqObj.approval.steps = reqObj.approval.steps.map((step) => ({
+        ...step,
+        approverName: step.approverId?.fullName || null,
+        actedByName: step.actedBy?.fullName || null,
+        positionName: step.positionId?.name || null,
+      }));
+    }
+
+    reqObj.approval.currentApproverName =
+      reqObj.approval?.currentApprover?.fullName || null;
+
+    return reqObj;
+  });
+
+  console.log(
+    JSON.stringify(processedRequests[0]?.approval, null, 2)
+  );
 
   return {
     status: true,
     page,
     totalPages,
-    results: requests.length,
+    results: processedRequests.length,
     totalItems,
     summary,
-    data: requests,
+    data: processedRequests,
   };
 };
 
