@@ -25,7 +25,7 @@ const journalEntrySchema = new mongoose.Schema(
       {
         counter: Number,
 
-        accountId: {
+        id: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "AccountingTree",
         },
@@ -81,7 +81,7 @@ const journalEntrySchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 journalEntrySchema.index({ companyId: 1, createdAt: -1 });
@@ -90,7 +90,7 @@ journalEntrySchema.index({ companyId: 1, journalDate: 1 });
 const setfilesURL = (doc) => {
   if (doc.filesArray && Array.isArray(doc.filesArray)) {
     doc.filesArray = doc.filesArray.map(
-      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`,
+      (file) => `${process.env.BASE_URL}/journal/${file.fileName || file}`
     );
   }
 };
