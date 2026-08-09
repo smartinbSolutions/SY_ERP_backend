@@ -15,12 +15,12 @@ positionsRout.use(authService.protect);
 positionsRout
   .route("/")
   .get(authService.allowedTo("positions.read"), getAllPositions)
-  .post(authService.checkCompanyEditable, createPositions);
+  .post(createPositions);
 
 positionsRout
   .route("/:id")
   .get(authService.allowedTo("positions.read"), getOnePositions)
-  .put(authService.checkCompanyEditable, updatePositions)
-  .delete(authService.checkCompanyEditable, deletePositions);
+  .put(updatePositions)
+  .delete(deletePositions);
 
 module.exports = positionsRout;
