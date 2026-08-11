@@ -252,37 +252,34 @@ exports.getOneFingerPrint = asyncHandler(async (req, res, next) => {
 //@access public just for Employee
 exports.createFingerPrint = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
+  const { date, Time } = req.body;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
-  function padZero(value) {
-    return value < 10 ? `0${value}` : value;
+
+  if (!date || !Time) {
+    return res.status(400).json({
+      message: "date and Time are required",
+    });
   }
 
-  let ts = Date.now();
-  let date_ob = new Date(ts);
-  let date = padZero(date_ob.getDate());
-  let month = padZero(date_ob.getMonth() + 1);
-  let year = date_ob.getFullYear();
-  let hours = padZero(date_ob.getHours());
-  let minutes = padZero(date_ob.getMinutes());
-  let seconds = padZero(date_ob.getSeconds());
+  const fingerPrint = await fingerprintModel.create({
+    ...req.body,
+    companyId,
+    date,
+    Time,
+  });
 
-  const Dates = year + "-" + month + "-" + date;
-  const Time = hours + ":" + minutes + ":" + seconds;
-  req.body.date = Dates;
-  req.body.Time = Time;
-
-  req.body.companyId = companyId;
-
-  const fingerPrint = await fingerprintModel.create(req.body);
-  res.status(200).json({
+  res.status(201).json({
     status: "success",
     data: fingerPrint,
   });
 });
+
 
 exports.createLoggedFingerPrint = asyncHandler(async (req, res, next) => {
   console.log("========== CREATE FINGERPRINT ==========");
