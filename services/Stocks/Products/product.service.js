@@ -246,10 +246,17 @@ exports.createProductService = async ({ req, companyId, session }) => {
   productData.slug = slugify(productData.name);
   productData.qr = safeParse(req.body.qr);
   productData.serialNumbers = safeParse(req.body.serialNumbers);
-  if (productData.type && req.body.type !== "Service") {
+
+  if (productData.type && productData.type !== "Service") {
     productData.unitsPrices = safeParse(req.body.unitsPrices);
     productData.variants = safeParse(req.body.variants);
     productData.variantName = safeParse(req.body.variantName);
+  } else {
+    // Service products don't carry variants/unit-prices — drop the raw
+    // JSON-string placeholders instead of letting them hit Mongoose as strings.
+    delete productData.unitsPrices;
+    delete productData.variants;
+    delete productData.variantName;
   }
   if (req.body.customAttributes) {
     productData.customAttributes = safeParse(req.body.customAttributes);
@@ -302,6 +309,10 @@ exports.updateProductService = async ({ id, req, companyId, session }) => {
     productData.unitsPrices = safeParse(req.body.unitsPrices);
     productData.variants = safeParse(req.body.variants);
     productData.variantName = safeParse(req.body.variantName);
+  } else {
+    delete productData.unitsPrices;
+    delete productData.variants;
+    delete productData.variantName;
   }
 
   if (req.body.customAttributes) {
