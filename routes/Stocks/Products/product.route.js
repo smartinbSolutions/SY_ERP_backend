@@ -57,7 +57,9 @@ productRout
 
 productRout
   .route("/productpos")
-  .get(authService.allowedTo("products.read"), getProductPos);
+  .get(
+    // authService.allowedTo("products.read"),
+     getProductPos);
 
 productRout
   .route("/getallproduct")

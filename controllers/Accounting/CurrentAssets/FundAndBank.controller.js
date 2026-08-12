@@ -155,7 +155,7 @@ exports.deleteFundAndBank = asyncHandler(async (req, res, next) => {
 
 exports.getFundAndBankForSalesPoint = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
-
+console.log("companyId", companyId)
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -174,9 +174,13 @@ exports.getFundAndBankForSalesPoint = asyncHandler(async (req, res, next) => {
       status: "success",
       data: funds,
     });
-  } catch (error) {
-    await session.abortTransaction();
-    next(error);
+  }  catch (error) {
+  console.error("=== Error in getFundAndBankForSalesPoint ===");
+  console.error("Message:", error?.message);
+  console.error("Stack:", error?.stack);
+  await session.abortTransaction();
+  next(error);
+
   } finally {
     session.endSession();
   }

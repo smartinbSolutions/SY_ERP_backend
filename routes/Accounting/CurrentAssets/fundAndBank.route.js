@@ -27,7 +27,7 @@ FundAndBank.route("/")
   .get(authService.allowedTo("funds.read"), findAllFundAndBank);
 
 FundAndBank.route("/sales-point/:id").get(
-  authService.allowedTo("funds.read"),
+  // authService.allowedTo("funds.read"),
   authService.checkCompanyEditable,
   getFundAndBankForSalesPoint,
 );

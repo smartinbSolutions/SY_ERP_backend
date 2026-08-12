@@ -1,9 +1,17 @@
 const Permission = require("../../models/Settings/permission.model");
 
+const FEATURE_TO_MODULE = {
+  pos: ["pos", "pos system"],
+  resturant: ["resturant", "restaurant management"],
+};
+
 const getGroupedPermissions = async (features) => {
-  const allowedModules = Object.entries(features)
-    .filter(([_, enabled]) => enabled)
-    .map(([module]) => module);
+
+const allowedModules = Object.entries(features)
+  .filter(([_, enabled]) => enabled)
+  .flatMap(([feature]) => FEATURE_TO_MODULE[feature] || [feature]);
+
+
 
   const permissions = await Permission.find({
     $or: [{ module: { $in: allowedModules } }, { module: "settings" }],

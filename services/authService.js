@@ -78,14 +78,18 @@ exports.login = asyncHandler(async (req, res, next) => {
   }
   const role = selectedCompany.roleId;
 
-  if (!role.channels.includes("dashboard")) {
-    return next(new ApiError("No dashboard access", 403));
-  }
+  // if (!role.channels.includes("dashboard")) {
+  //   return next(new ApiError("No dashboard access", 403));
+  // }
 
-  const settings = await userCompanySettingsModel
-    .findOne({ companyId, userId: user._id })
-    .select("selectedQuickActions")
-    .lean();
+const settings = await userCompanySettingsModel
+  .findOne({ companyId, userId: user._id })
+  .select("selectedQuickActions salesPoint")
+  .populate({
+    path: "salesPoint",
+    populate: { path: "salesPointCurrency" },
+  })
+  .lean();
 
   const userData = user.toObject();
   userData.password = undefined;

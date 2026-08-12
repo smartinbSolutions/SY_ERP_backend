@@ -20,21 +20,21 @@ PosReceiptRefundRoute.use(
 
 PosReceiptRefundRoute.route("/")
   .get(
-    authService.allowedTo("pos.receipts.refund.read"),
+    // authService.allowedTo("pos.receipts.refund.read"),
     findAllPosReceiptRefund,
   )
   .post(
-    authService.allowedTo("sales.refund.create"),
+    // authService.allowedTo("sales.refund.create"),
     authService.checkCompanyEditable,
     createPosReceiptRefund,
   );
 PosReceiptRefundRoute.route("/daily_refund_receipt/:id").get(
-  authService.allowedTo("pos.receipts.refund.read"),
+  // authService.allowedTo("pos.receipts.refund.read"),
   findRefundReceiptForDate,
 );
 
 PosReceiptRefundRoute.route("/:id").get(
-  authService.allowedTo("pos.receipts.refund.read"),
+  // authService.allowedTo("pos.receipts.refund.read"),
   findOnePosReceiptRefund,
 );
 
