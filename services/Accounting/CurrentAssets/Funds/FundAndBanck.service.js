@@ -21,7 +21,42 @@ exports.findAllFundAndBankService = async ({ req, companyId }) => {
       populate: { path: "currency" },
     });
 
-  return { fundAndBanks, totalItems: fundAndBanks.length };
+  // ── Compute live balances from movement rows ──────────────────────
+  // direction is the only field that drives math: "in" adds, "out" subtracts.
+  const balanceRows = await reportsFinancialFunds.aggregate([
+    { $match: { companyId, archives: { $ne: true } } },
+    {
+      $group: {
+        _id: "$financialFundId",
+        balance: {
+          $sum: {
+            $cond: [
+              { $eq: ["$direction", "out"] },
+              { $multiply: ["$amount", -1] },
+              "$amount",
+            ],
+          },
+        },
+      },
+    },
+  ]);
+
+  const balanceMap = new Map(
+    balanceRows.map((row) => [row._id.toString(), row.balance]),
+  );
+
+  const fundAndBanksWithBalance = fundAndBanks.map((fund) => {
+    const plain = fund.toObject();
+    return {
+      ...plain,
+      fundBalance: balanceMap.get(fund._id.toString()) || 0,
+    };
+  });
+
+  return {
+    fundAndBanks: fundAndBanksWithBalance,
+    totalItems: fundAndBanks.length,
+  };
 };
 
 exports.createFundAndBankService = async ({ req, companyId, session }) => {
@@ -77,7 +112,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
           companyId,
         },
       ],
-      { session }
+      { session },
     );
 
     // ── 2b. Journal entry ──────────────────────────────────────────
@@ -86,7 +121,7 @@ exports.createFundAndBankService = async ({ req, companyId, session }) => {
       const nextCounterJournal = await counterModel.findOneAndUpdate(
         { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
 
       await createJournalEntryService({
@@ -144,7 +179,7 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
   const fund = await financialFundsModel.findOneAndUpdate(
     { _id: fundId, companyId },
     { $inc: { fundBalance: delta } },
-    { new: true, session }
+    { new: true, session },
   );
 
   if (!fund) throw new Error("Fund not found");
@@ -167,14 +202,14 @@ exports.createFundAdjustmentService = async ({ req, companyId, session }) => {
         companyId,
       },
     ],
-    { session }
+    { session },
   );
 
   // ── 3. Save the journal ─────────────────────────────────────────
   const nextCounterJournal = await counterModel.findOneAndUpdate(
     { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
   console.log("nextCounterJournal", nextCounterJournal);
   await createJournalEntryService({
@@ -236,7 +271,7 @@ exports.updateFundAndBankService = async ({ req, companyId, session }) => {
         companyId,
       },
       req.body,
-      { new: true }
+      { new: true },
     )
     .session(session);
 
@@ -259,7 +294,7 @@ exports.deleteFundAndBankService = async ({ req, companyId, session }) => {
   if (ReportsFinancialFunds > 0) {
     throw new ApiError(
       "Cannot delete this financial fund because it has related reports.",
-      400
+      400,
     );
   }
 
@@ -360,7 +395,7 @@ exports.getFundAndBankForSalesPointService = async ({
           path: "fundCurrency",
           select: "_id currencyCode currencyName exchangeRate",
         });
-    })
+    }),
   );
 
   return funds;

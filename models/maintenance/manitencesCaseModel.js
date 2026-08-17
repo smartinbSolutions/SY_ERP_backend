@@ -10,6 +10,7 @@ const manitencesCase = new mongoose.Schema(
     deviceStatus: String,
     employeeDesc: String,
     expectedAmount: String,
+    expectedDate: Date,
     amountDue: { type: Number, default: 0 },
     partsCurrency: {
       id: { type: String },
@@ -78,7 +79,7 @@ const manitencesCase = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("manitencesCase", manitencesCase);

@@ -7,6 +7,7 @@ const counterModel = require("../../../../models/Settings/counterModel");
 const ApiError = require("../../../../utils/apiError");
 const {
   createJournalService,
+  createJournalEntryService,
 } = require("../../../Accounting/JournalEntries/journalEntries.Service");
 
 function padZero(value) {
@@ -231,6 +232,7 @@ exports.cancelFundTransferService = async ({
   companyId,
   cancelledBy,
   cancellationReason,
+  counter,
   session,
 }) => {
   if (!transferId) {
@@ -291,29 +293,31 @@ exports.cancelFundTransferService = async ({
       {
         date: cancellationDate,
         amount: fromAmount,
-        type: "Deposit transfer reverse",
-        exchangeRate: Number(transfer?.fromFund?.exchangeRate || 1),
+        direction: "in",
+        source: "cancel_transfer",
+        refType: "transfer",
+        refId: transfer._id,
         financialFundId: fromFund._id,
         financialFundRest: fromFund.fundBalance,
-        paymentType: "Deposit",
+        exchangeRate: Number(transfer?.fromFund?.exchangeRate || 1),
         description:
           cancellationReason ||
           `Reverse fund transfer ${transfer.counter || transfer._id}`,
-        ref: transfer._id,
         companyId,
       },
       {
         date: cancellationDate,
         amount: toAmount,
-        type: "Withdrawal transfer reverse",
-        exchangeRate: Number(transfer?.toFund?.exchangeRate || 1),
+        direction: "out",
+        source: "cancel_transfer",
+        refType: "transfer",
+        refId: transfer._id,
         financialFundId: toFund._id,
         financialFundRest: toFund.fundBalance,
-        paymentType: "Withdrawal",
+        exchangeRate: Number(transfer?.toFund?.exchangeRate || 1),
         description:
           cancellationReason ||
           `Reverse fund transfer ${transfer.counter || transfer._id}`,
-        ref: transfer._id,
         companyId,
       },
     ],
@@ -325,6 +329,7 @@ exports.cancelFundTransferService = async ({
     transfer,
     cancellationDate,
     session,
+    counter,
   });
 
   transfer.status = "cancelled";
@@ -458,6 +463,7 @@ const reverseFundTransferJournal = async ({
   companyId,
   transfer,
   cancellationDate,
+  counter,
   session,
 }) => {
   if (!transfer?.journalCounter) {
@@ -485,14 +491,19 @@ const reverseFundTransferJournal = async ({
     throw new ApiError("Original transfer journal accounts are missing", 400);
   }
 
-  const reversedLines = originalLines.map((line, index) => ({
-    ...line,
-    MainDebit: Number(line?.MainCredit || 0),
-    MainCredit: Number(line?.MainDebit || 0),
-    accountDebit: Number(line?.accountCredit || 0),
-    accountCredit: Number(line?.accountDebit || 0),
-    counter: index + 1,
-  }));
+  const reversedLines = originalLines.map((line, index) => {
+    const plainLine =
+      typeof line.toObject === "function" ? line.toObject() : line;
+
+    return {
+      ...plainLine,
+      MainDebit: Number(plainLine?.MainCredit || 0),
+      MainCredit: Number(plainLine?.MainDebit || 0),
+      accountDebit: Number(plainLine?.accountCredit || 0),
+      accountCredit: Number(plainLine?.accountDebit || 0),
+      counter: index + 1,
+    };
+  });
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
@@ -519,9 +530,9 @@ const reverseFundTransferJournal = async ({
 
   const reversalLinkCounter = Date.now();
 
-  const reversalJournal = await createJournalService({
+  const reversalJournal = await createJournalEntryService({
     companyId,
-    journalInfo: {
+    data: {
       journalName: `Fund Transfer Cancellation - ${transfer.counter || ""}`,
       journalDate: cancellationDate,
       journalDesc: `Reverse accounting effect of cancelled fund transfer ${
@@ -530,15 +541,14 @@ const reverseFundTransferJournal = async ({
       journalType: "Fund Transfer Reversal",
       linkCounter: String(reversalLinkCounter),
       refCounter: String(transfer.counter || ""),
-      counter: journalCounterDoc.seq,
       refId: transfer._id,
       party: "",
       receiptNumber: "",
       filesArray: [],
-      journalDebit: totalDebit,
-      journalCredit: totalCredit,
+      journalAccounts: reversedLines,
+      counter: counter || 0,
     },
-    journalAccounts: reversedLines,
+    nextCounterJournal: journalCounterDoc,
     session,
   });
 
