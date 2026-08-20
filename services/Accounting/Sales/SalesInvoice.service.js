@@ -1506,13 +1506,48 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
   }
 
   const totalItems = await orderModel.countDocuments(query);
-
   const totalPages = Math.ceil(totalItems / pageSize);
-  const salesInvoices = await orderModel
-    .find(query)
-    .sort({ orderDate: -1 })
-    .skip(skip)
-    .limit(pageSize);
+
+  const salesInvoices = await orderModel.aggregate([
+    { $match: query },
+    { $sort: { orderDate: -1 } },
+    { $skip: skip },
+    { $limit: pageSize },
+    {
+      $lookup: {
+        from: "payments", // confirm collection name
+        let: { invoiceId: { $toString: "$_id" } },
+        pipeline: [
+          { $match: { status: "active" } },
+          { $unwind: "$allocations" },
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$allocations.documentId", "$$invoiceId"] },
+                  { $eq: ["$allocations.documentType", "sales_invoice"] },
+                  { $eq: ["$allocations.cancelled", false] },
+                ],
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              fund: 1,
+              allocatedAmountMainCurrency:
+                "$allocations.allocatedAmountMainCurrency",
+              allocatedAmountDocumentCurrency:
+                "$allocations.allocatedAmountDocumentCurrency",
+              paymentDate: "$date",
+              paymentCounter: "$counter",
+            },
+          },
+        ],
+        as: "fundAllocations",
+      },
+    },
+  ]);
 
   return {
     totalItems,
