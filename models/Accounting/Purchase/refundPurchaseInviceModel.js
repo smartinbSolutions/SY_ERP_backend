@@ -30,6 +30,7 @@ const returnPurchaseInvicesSchema = new mongoose.Schema(
 
     invoicesItems: [
       {
+        id: { type: mongoose.Schema.Types.ObjectId },
         type: { type: String },
         qr: { type: String },
         name: { type: String },
