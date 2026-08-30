@@ -1,4 +1,5 @@
 const express = require("express");
+
 const taskRoute = express.Router({ mergeParams: true });
 
 const {
@@ -25,39 +26,42 @@ const {
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 // ======================================
-// GLOBAL AUTH + WORKSPACE
+// GLOBAL AUTHENTICATION
 // ======================================
+
 taskRoute.use(hrAuthServices.protectStaffOrERP);
-taskRoute.use(listAccess);
 
 // ======================================
 // TASK COLLECTION
-// GET /workspaces/:workspaceId/tasks
-// POST /workspaces/:workspaceId/tasks
+// GET  /lists/:listId/tasks
+// POST /lists/:listId/tasks
 // ======================================
+
 taskRoute
   .route("/")
-  .get(getAllTasks)
-  .post(checkPermission("create:task"), createTask);
+  .get(listAccess, checkPermission("read:task"), getAllTasks)
+  .post(listAccess, checkPermission("create:task"), createTask);
 
 // ======================================
 // SINGLE TASK
-// GET /workspaces/:workspaceId/tasks/:taskId
-// PATCH /workspaces/:workspaceId/tasks/:taskId
-// DELETE /workspaces/:workspaceId/tasks/:taskId
+// GET    /lists/:listId/tasks/:taskId
+// PATCH  /lists/:listId/tasks/:taskId
+// DELETE /lists/:listId/tasks/:taskId
 // ======================================
+
 taskRoute
   .route("/:taskId")
-  .get(taskAccess, getOneTask)
+  .get(taskAccess, checkPermission("read:task"), getOneTask)
   .patch(taskAccess, checkPermission("update:task"), updateTask)
   .delete(taskAccess, checkPermission("delete:task"), deleteTask);
 
 // ======================================
-// CHECKLIST ROUTES
+// TASK CHECKLIST
 // ======================================
 
 // ADD CHECKLIST ITEM
-// POST /workspaces/:workspaceId/tasks/:taskId/checklist
+// POST /lists/:listId/tasks/:taskId/checklist
+
 taskRoute.post(
   "/:taskId/checklist",
   taskAccess,
@@ -66,7 +70,8 @@ taskRoute.post(
 );
 
 // UPDATE CHECKLIST ITEM
-// PATCH /workspaces/:workspaceId/tasks/:taskId/checklist/:itemId
+// PATCH /lists/:listId/tasks/:taskId/checklist/:itemId
+
 taskRoute.patch(
   "/:taskId/checklist/:itemId",
   taskAccess,
@@ -75,7 +80,8 @@ taskRoute.patch(
 );
 
 // DELETE CHECKLIST ITEM
-// DELETE /workspaces/:workspaceId/tasks/:taskId/checklist/:itemId
+// DELETE /lists/:listId/tasks/:taskId/checklist/:itemId
+
 taskRoute.delete(
   "/:taskId/checklist/:itemId",
   taskAccess,
@@ -84,7 +90,8 @@ taskRoute.delete(
 );
 
 // TOGGLE CHECKLIST ITEM
-// PATCH /workspaces/:workspaceId/tasks/:taskId/checklist/:itemId/toggle
+// PATCH /lists/:listId/tasks/:taskId/checklist/:itemId/toggle
+
 taskRoute.patch(
   "/:taskId/checklist/:itemId/toggle",
   taskAccess,

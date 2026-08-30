@@ -55,7 +55,7 @@ const subTaskSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["todo", "in_progress", "done"],
+      enum: ["todo", "in_progress", "review" ,"done"],
       default: "todo",
       index: true,
     },

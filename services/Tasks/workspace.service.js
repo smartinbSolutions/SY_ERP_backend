@@ -132,6 +132,7 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
     members: {
       $elemMatch: {
         user: userObjectId,
+        status: "active",
       },
     },
   }).lean();
@@ -248,6 +249,7 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
   ====================================================== */
 
   const visibleWorkspaces = await Workspace.find({
+    companyId,
     _id: {
       $in: [...visibleWorkspaceIds].map(
         (id) => new mongoose.Types.ObjectId(id),
@@ -281,6 +283,7 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
 
   // directly visible folders
   const directFolders = await Folder.find({
+    companyId,
     _id: {
       $in: [...visibleFolderIds].map((id) => new mongoose.Types.ObjectId(id)),
     },
@@ -337,6 +340,7 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
 
   // direct lists
   const directLists = await List.find({
+    companyId,
     _id: {
       $in: [...visibleListIds].map((id) => new mongoose.Types.ObjectId(id)),
     },
@@ -429,10 +433,19 @@ exports.getUserWorkspaceTree = async (userId, companyId) => {
   return Object.values(workspaceMap);
 };
 
-exports.getUserWorkspaces = async (userId) => {
-  return await Workspace.find({
-    "members.user": userId,
-    "members.status": "active",
+exports.getUserWorkspaces = async (userId, companyId) => {
+  if (!companyId) {
+    throw new Error("Company ID is required");
+  }
+
+  return Workspace.find({
+    companyId,
+    members: {
+      $elemMatch: {
+        user: userId,
+        status: "active",
+      },
+    },
   });
 };
 

@@ -1,4 +1,5 @@
 const express = require("express");
+
 const router = express.Router();
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -22,61 +23,66 @@ const {
 } = require("../../controllers/Tasks/workspace.controller");
 
 // ======================================
-// ROOT: /workspaces
+// GLOBAL AUTHENTICATION
 // ======================================
 
-// CREATE + GET ALL
+router.use(hrAuthServices.protectStaffOrERP);
+
+// ======================================
+// WORKSPACE COLLECTION
+// POST /workspaces
+// GET  /workspaces
+// ======================================
+
 router
   .route("/")
-  .post(
-    hrAuthServices.protectStaffOrERP,
-    canCreateWorkspace,
-  
-    createWorkspace,
-  )
-  .get(hrAuthServices.protectStaffOrERP, getMyWorkspaces);
+  .post(canCreateWorkspace, createWorkspace)
+  .get(getMyWorkspaces);
 
+// ======================================
 // WORKSPACE TREE
-router.get("/tree", hrAuthServices.protectStaffOrERP, getUserWorkspaceTree);
+// GET /workspaces/tree
+// يجب أن يبقى قبل /:workspaceId
+// ======================================
+
+router.get("/tree", getUserWorkspaceTree);
 
 // ======================================
 // SINGLE WORKSPACE
-// /workspaces/:workspaceId
+// GET    /workspaces/:workspaceId
+// PATCH  /workspaces/:workspaceId
+// DELETE /workspaces/:workspaceId
 // ======================================
 
 router
   .route("/:workspaceId")
-  .get(hrAuthServices.protectStaffOrERP, workspaceAccess, getWorkspace)
-  .patch(
-    hrAuthServices.protectStaffOrERP,
-    workspaceAccess,
-    checkPermission("update:workspace"),
-    updateWorkspace,
-  )
+  .get(workspaceAccess, checkPermission("read:workspace"), getWorkspace)
+  .patch(workspaceAccess, checkPermission("update:workspace"), updateWorkspace)
   .delete(
-    hrAuthServices.protectStaffOrERP,
     workspaceAccess,
     checkPermission("delete:workspace"),
     deleteWorkspace,
   );
 
 // ======================================
-// MEMBERS MANAGEMENT
+// ADD WORKSPACE MEMBER
+// POST /workspaces/:workspaceId/members
 // ======================================
 
-// ADD MEMBER
 router.post(
   "/:workspaceId/members",
-  hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   checkPermission("manage:members"),
   addMember,
 );
 
-// REMOVE MEMBER
+// ======================================
+// REMOVE WORKSPACE MEMBER
+// DELETE /workspaces/:workspaceId/members/:userId
+// ======================================
+
 router.delete(
   "/:workspaceId/members/:userId",
-  hrAuthServices.protectStaffOrERP,
   workspaceAccess,
   checkPermission("manage:members"),
   removeMember,

@@ -1,4 +1,5 @@
 const express = require("express");
+
 const router = express.Router({ mergeParams: true });
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
@@ -21,32 +22,35 @@ const {
 } = require("../../controllers/Tasks/folder.controller");
 
 // ======================================
+// GLOBAL MIDDLEWARE
+// ======================================
+
+router.use(hrAuthServices.protectStaffOrERP);
+router.use(workspaceAccess);
+
+// ======================================
 // CREATE FOLDER
 // POST /workspaces/:workspaceId/folders
 // ======================================
-router.post(
-  "/",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
-  checkPermission("create:folder"),
-  createFolder,
-);
+
+router.post("/", checkPermission("create:folder"), createFolder);
 
 // ======================================
 // GET FOLDERS
 // GET /workspaces/:workspaceId/folders
 // ======================================
-router.get("/", hrAuthServices.protectStaffOrERP, workspaceAccess, getFolders);
+
+router.get("/", checkPermission("read:folder"), getFolders);
 
 // ======================================
 // GET SINGLE FOLDER
 // GET /workspaces/:workspaceId/folders/:folderId
 // ======================================
+
 router.get(
   "/:folderId",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
   folderAccess,
+  checkPermission("read:folder"),
   getFolder,
 );
 
@@ -54,10 +58,9 @@ router.get(
 // UPDATE FOLDER
 // PATCH /workspaces/:workspaceId/folders/:folderId
 // ======================================
+
 router.patch(
   "/:folderId",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
   folderAccess,
   checkPermission("update:folder"),
   updateFolder,
@@ -67,36 +70,33 @@ router.patch(
 // DELETE FOLDER
 // DELETE /workspaces/:workspaceId/folders/:folderId
 // ======================================
+
 router.delete(
   "/:folderId",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
   folderAccess,
   checkPermission("delete:folder"),
   deleteFolder,
 );
 
 // ======================================
-// ADD MEMBER
+// ADD FOLDER MEMBER
 // POST /workspaces/:workspaceId/folders/:folderId/members
 // ======================================
+
 router.post(
   "/:folderId/members",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
   folderAccess,
   checkPermission("manage:members"),
   addMember,
 );
 
 // ======================================
-// REMOVE MEMBER
+// REMOVE FOLDER MEMBER
 // DELETE /workspaces/:workspaceId/folders/:folderId/members/:userId
 // ======================================
+
 router.delete(
   "/:folderId/members/:userId",
-  hrAuthServices.protectStaffOrERP,
-  workspaceAccess,
   folderAccess,
   checkPermission("manage:members"),
   removeMember,

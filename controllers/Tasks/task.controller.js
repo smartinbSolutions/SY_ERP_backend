@@ -1,21 +1,11 @@
 const taskService = require("../../services/Tasks/task.service");
-const Workspace = require("../../models/Tasks/WorkspaceModel");
-const Folder = require("../../models/Tasks/FolderModel");
-const List = require("../../models/Tasks/ListModel");
-const NotificationModel = require("../../models/Hr/NotificationModel");
 
 // ======================================
 // CREATE TASK
 // ======================================
 exports.createTask = async (req, res) => {
   try {
-    const task = await taskService.createTask(
-      {
-        ...req.body,
-        list: req.params.listId,
-      },
-      req.user._id,
-    );
+    const task = await taskService.createTask(req.body, req.user._id, req.list);
 
     return res.status(201).json({
       success: true,
@@ -35,8 +25,12 @@ exports.createTask = async (req, res) => {
 // ======================================
 exports.getOneTask = async (req, res) => {
   try {
-    const task = await taskService.getTaskById(req.params.taskId);
-
+    const task = await taskService.getTaskById({
+      taskId: req.params.taskId,
+      listId: req.list._id,
+      workspaceId: req.workspace._id,
+      companyId: req.companyId,
+    });
     return res.status(200).json({
       success: true,
       data: task,
@@ -54,16 +48,12 @@ exports.getOneTask = async (req, res) => {
 // ======================================
 exports.getAllTasks = async (req, res) => {
   try {
-    const result = await taskService.getAllTasks({
+    const data = await taskService.getAllTasks({
       workspaceId: req.workspace._id,
-      userId: req.user._id,
+      listId: req.list._id,
+      companyId: req.companyId,
 
-      listId: req.params.listId,
-
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 10,
-
-      // filters
+      // Filters
       status: req.query.status,
       priority: req.query.priority,
       assignedTo: req.query.assignedTo,
@@ -72,8 +62,8 @@ exports.getAllTasks = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      pagination: result.pagination,
-      data: result.result,
+      count: data.length,
+      data,
     });
   } catch (err) {
     return res.status(400).json({
@@ -112,7 +102,15 @@ exports.updateTask = async (req, res) => {
 // ======================================
 exports.deleteTask = async (req, res) => {
   try {
-    await taskService.deleteTask(req.params.taskId);
+    await taskService.deleteTask({
+      taskId: req.params.taskId,
+      listId: req.list._id,
+      workspaceId: req.workspace._id,
+      folderId: req.folder._id,
+      companyId: req.companyId,
+      actorId: req.user._id,
+      actorName: req.user.fullName || "Someone",
+    });
 
     return res.status(200).json({
       success: true,
@@ -131,11 +129,13 @@ exports.deleteTask = async (req, res) => {
 // ======================================
 exports.addChecklistItem = async (req, res) => {
   try {
-    const task = await taskService.addChecklistItem(
-      req.params.taskId,
-      req.body,
-      req.workspace._id,
-    );
+    const task = await taskService.addChecklistItem({
+      taskId: req.params.taskId,
+      listId: req.list._id,
+      workspaceId: req.workspace._id,
+      companyId: req.companyId,
+      data: req.body,
+    });
 
     return res.status(200).json({
       success: true,
@@ -155,12 +155,14 @@ exports.addChecklistItem = async (req, res) => {
 // ======================================
 exports.updateChecklistItem = async (req, res) => {
   try {
-    const task = await taskService.updateChecklistItem(
-      req.params.taskId,
-      req.params.itemId,
-      req.body,
-      req.workspace._id,
-    );
+    const task = await taskService.updateChecklistItem({
+      taskId: req.params.taskId,
+      itemId: req.params.itemId,
+      listId: req.list._id,
+      workspaceId: req.workspace._id,
+      companyId: req.companyId,
+      data: req.body,
+    });
 
     return res.status(200).json({
       success: true,
@@ -180,11 +182,13 @@ exports.updateChecklistItem = async (req, res) => {
 // ======================================
 exports.deleteChecklistItem = async (req, res) => {
   try {
-    const task = await taskService.deleteChecklistItem(
-      req.params.taskId,
-      req.params.itemId,
-      req.workspace._id,
-    );
+    const task = await taskService.deleteChecklistItem({
+      taskId: req.params.taskId,
+      itemId: req.params.itemId,
+      listId: req.list._id,
+      workspaceId: req.workspace._id,
+      companyId: req.companyId,
+    });
 
     return res.status(200).json({
       success: true,
@@ -204,11 +208,13 @@ exports.deleteChecklistItem = async (req, res) => {
 // ======================================
 exports.toggleChecklistItem = async (req, res) => {
   try {
-    const task = await taskService.toggleChecklistItem(
-      req.params.taskId,
-      req.params.itemId,
-      req.workspace._id,
-    );
+    const task = await taskService.toggleChecklistItem({
+      taskId: req.params.taskId,
+      itemId: req.params.itemId,
+      listId: req.list._id,
+      workspaceId: req.workspace._id,
+      companyId: req.companyId,
+    });
 
     return res.status(200).json({
       success: true,

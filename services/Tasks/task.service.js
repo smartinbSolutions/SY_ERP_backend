@@ -1,39 +1,46 @@
 const mongoose = require("mongoose");
 const subTaskModel = require("../../models/Tasks/SubTaskModel");
 const Task = require("../../models/Tasks/TaskModel");
-const ListModel = require("../../models/Tasks/ListModel");
 const staffModel = require("../../models/Hr/Staffs/staffModel");
 const NotificationModel = require("../../models/Hr/NotificationModel");
 const notificationHelper = require("./notificationHelper");
 const activityLogModel = require("../../models/Tasks/activityLogModel");
+const fs = require("fs");
+const path = require("path");
+const Comment = require("../../models/Tasks/CommentModel");
+const Attachment = require("../../models/Tasks/AttachmentModel");
+const TimeLog = require("../../models/Tasks/TimeTrackingModel");
 
 // ======================================
 // CREATE TASK (workspace aware)
 // ======================================
-exports.createTask = async (data, userId) => {
-  if (!data.list) throw new Error("List is required");
+exports.createTask = async (data, userId, list) => {
+  if (!list) {
+    throw new Error("List is required");
+  }
 
-  console.log("=== CREATE TASK START ===", { data, userId });
+  console.log("=== CREATE TASK START ===", {
+    data,
+    userId,
+    listId: list._id,
+  });
 
-  const list = await ListModel.findById(data.list).populate([
-    { path: "folder" },
-    { path: "workspace" },
-  ]);
+  await list.populate([{ path: "folder" }, { path: "workspace" }]);
 
-  if (!list) throw new Error("Invalid list");
+  const taskData = { ...data };
+
+  delete taskData.list;
+  delete taskData.workspace;
+  delete taskData.companyId;
+  delete taskData.createdBy;
 
   const task = await Task.create({
-    ...data,
-    workspace: list.workspace,
+    ...taskData,
+    list: list._id,
+    workspace: list.workspace._id,
     companyId: list.companyId,
     createdBy: userId,
   });
-
-  console.log("TASK CREATED", { taskId: task._id });
-
-  // =========================
-  // POPULATE FOR TREE
-  // =========================
 
   const populatedTask = await Task.findById(task._id).populate({
     path: "list",
@@ -137,8 +144,17 @@ exports.createTask = async (data, userId) => {
 // ======================================
 // GET TASK BY ID
 // ======================================
-exports.getTaskById = async (taskId) => {
-  const task = await Task.findById(taskId)
+exports.getTaskById = async ({ taskId, listId, workspaceId, companyId }) => {
+  if (!taskId || !listId || !workspaceId || !companyId) {
+    throw new Error("Task hierarchy is required");
+  }
+
+  const task = await Task.findOne({
+    _id: taskId,
+    list: listId,
+    workspace: workspaceId,
+    companyId,
+  })
     .populate({
       path: "list",
       populate: [{ path: "folder" }, { path: "workspace" }],
@@ -146,7 +162,9 @@ exports.getTaskById = async (taskId) => {
     .populate("assignedTo", "fullName email")
     .populate("createdBy", "fullName email");
 
-  if (!task) throw new Error("Task not found");
+  if (!task) {
+    throw new Error("Task not found in the specified list");
+  }
 
   return task;
 };
@@ -156,26 +174,23 @@ exports.getTaskById = async (taskId) => {
 // ======================================
 exports.getAllTasks = async ({
   workspaceId,
-  userId,
-
-  page = 1,
-  limit = 10,
-
+  listId,
+  companyId,
   status,
   priority,
-  listId,
-
   assignedTo,
   due,
 }) => {
+  if (!workspaceId || !listId || !companyId) {
+    throw new Error("Workspace, list and company are required");
+  }
+
   const filter = {
     workspace: workspaceId,
+    list: listId,
+    companyId,
     isArchived: false,
   };
-
-  if (listId && mongoose.Types.ObjectId.isValid(listId)) {
-    filter.list = listId;
-  }
 
   if (status) {
     filter.status = status;
@@ -185,24 +200,22 @@ exports.getAllTasks = async ({
     filter.priority = priority;
   }
 
+  // ===============================
+  // ASSIGNED EMPLOYEE
+  // ===============================
   if (assignedTo) {
-    console.log(assignedTo);
-
     const employees = await staffModel
       .find({
+        companyId,
         fullName: {
           $regex: assignedTo,
           $options: "i",
         },
       })
       .select("_id");
-    console.log(employees);
-
-    const employeeIds = employees.map((e) => e._id);
-    console.log(employeeIds);
 
     filter.assignedTo = {
-      $in: employeeIds,
+      $in: employees.map((employee) => employee._id),
     };
   }
 
@@ -222,24 +235,18 @@ exports.getAllTasks = async ({
     };
   }
 
-  const skip = (page - 1) * limit;
-
   // ===============================
-  // TASKS
+  // ALL TASKS
   // ===============================
   const tasks = await Task.find(filter)
     .populate("assignedTo", "fullName email")
     .populate("createdBy", "fullName email")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-
-  const total = await Task.countDocuments(filter);
+    .sort({ createdAt: -1 });
 
   // ===============================
   // SUBTASKS
   // ===============================
-  const taskIds = tasks.map((t) => t._id);
+  const taskIds = tasks.map((task) => task._id);
 
   const subTasks = await subTaskModel
     .find({
@@ -252,153 +259,119 @@ exports.getAllTasks = async ({
   // ===============================
   // GROUP SUBTASKS
   // ===============================
-  const map = {};
+  const subTasksMap = {};
 
-  subTasks.forEach((st) => {
-    const key = st.task.toString();
+  subTasks.forEach((subTask) => {
+    const taskId = subTask.task.toString();
 
-    if (!map[key]) {
-      map[key] = [];
+    if (!subTasksMap[taskId]) {
+      subTasksMap[taskId] = [];
     }
 
-    map[key].push(st);
+    subTasksMap[taskId].push(subTask);
   });
 
   // ===============================
   // ATTACH SUBTASKS
   // ===============================
-  const result = tasks.map((task) => ({
+  return tasks.map((task) => ({
     ...task.toObject(),
-    subTasks: map[task._id.toString()] || [],
+    subTasks: subTasksMap[task._id.toString()] || [],
   }));
-
-  return {
-    result,
-
-    pagination: {
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-    },
-  };
 };
+
 // ======================================
 // UPDATE TASK
 // ======================================
 exports.updateTask = async (taskId, data, actor) => {
-  console.log("=== UPDATE TASK START ===", {
-    taskId,
-    actorId: actor._id,
-    data,
-  });
-
-  // =========================
-  // GET OLD TASK
-  // =========================
-
   const oldTask = await Task.findById(taskId);
 
   if (!oldTask) {
     throw new Error("Task not found");
   }
 
-  // =========================
-  // UPDATE TASK
-  // =========================
+  const updateData = { ...data };
 
-  const task = await Task.findByIdAndUpdate(taskId, data, {
-    new: true,
-  }).populate({
+  delete updateData.list;
+  delete updateData.workspace;
+  delete updateData.companyId;
+  delete updateData.createdBy;
+
+  const updatedTask = await Task.findOneAndUpdate(
+    {
+      _id: taskId,
+      list: oldTask.list,
+      workspace: oldTask.workspace,
+      companyId: oldTask.companyId,
+    },
+    updateData,
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate({
     path: "list",
     populate: [{ path: "folder" }, { path: "workspace" }],
   });
 
-  console.log("TASK UPDATED", {
-    taskId: task._id,
-  });
-
-  // ======================================================
-  // BUILD SMART MESSAGE + ACTION
-  // ======================================================
+  if (!updatedTask) {
+    throw new Error("Task not found");
+  }
 
   let action = "task.updated";
 
-  let message = `Task "${task.title}" was updated by ${actor.fullName}`;
+  let message = `Task "${updatedTask.title}" was updated by ${actor.fullName}`;
 
-  // title changed
   if (data.title && data.title !== oldTask.title) {
     action = "task.renamed";
     message = `${actor.fullName} renamed task "${oldTask.title}" to "${data.title}"`;
-  }
-
-  // status changed
-  else if (data.status && data.status !== oldTask.status) {
+  } else if (data.status && data.status !== oldTask.status) {
     action = "task.status_changed";
 
-    message = `${actor.fullName} changed task "${task.title}" status to "${data.status}"`;
-  }
-
-  // priority changed
-  else if (data.priority && data.priority !== oldTask.priority) {
+    message = `${actor.fullName} changed task "${updatedTask.title}" status to "${data.status}"`;
+  } else if (data.priority && data.priority !== oldTask.priority) {
     action = "task.priority_changed";
 
-    message = `${actor.fullName} changed priority of "${task.title}" to "${data.priority}"`;
-  }
-
-  // due date changed
-  else if (data.dueDate) {
+    message = `${actor.fullName} changed priority of "${updatedTask.title}" to "${data.priority}"`;
+  } else if (data.dueDate) {
     action = "task.due_date_changed";
 
-    message = `${actor.fullName} updated due date for "${task.title}"`;
-  }
-
-  // assignees changed
-  else if (data.assignedTo) {
+    message = `${actor.fullName} updated due date for "${updatedTask.title}"`;
+  } else if (data.assignedTo) {
     action = "task.assignees_changed";
 
-    message = `${actor.fullName} updated assignees for "${task.title}"`;
+    message = `${actor.fullName} updated assignees for "${updatedTask.title}"`;
   }
 
   // description changed
   else if (data.description) {
     action = "task.description_changed";
 
-    message = `${actor.fullName} updated description of "${task.title}"`;
-  }
-
-  // checklist changed
-  else if (data.checklist) {
+    message = `${actor.fullName} updated description of "${updatedTask.title}"`;
+  } else if (data.checklist) {
     action = "task.checklist_changed";
 
-    message = `${actor.fullName} updated checklist of "${task.title}"`;
+    message = `${actor.fullName} updated checklist of "${updatedTask.title}"`;
   }
 
-  // ======================================================
-  // ACTIVITY LOG
-  // ======================================================
-
   await activityLogModel.create({
-    companyId: task.companyId,
+    companyId: updatedTask.companyId,
     actor: actor._id,
     action,
     entityType: "task",
-    entityId: task._id,
-    workspaceId: task.list?.workspace?._id,
-    folderId: task.list?.folder?._id,
-    listId: task.list?._id,
-    taskId: task._id,
+    entityId: updatedTask._id,
+    workspaceId: updatedTask.list?.workspace?._id,
+    folderId: updatedTask.list?.folder?._id,
+    listId: updatedTask.list?._id,
+    taskId: updatedTask._id,
     message,
   });
 
-  // ======================================================
-  // STEP 1: TREE NOTIFICATIONS
-  // ======================================================
-
-  console.log("STEP 1: TREE NOTIFICATIONS");
-
-  const recipients = notificationHelper.getRecipients(task, actor._id, "task");
-
-  console.log("STEP 1: RECIPIENTS", recipients);
+  const recipients = notificationHelper.getRecipients(
+    updatedTask,
+    actor._id,
+    "task",
+  );
 
   if (recipients.length > 0) {
     const notifications = recipients.map((recipient) => ({
@@ -408,44 +381,163 @@ exports.updateTask = async (taskId, data, actor) => {
       title: "Task Updated",
       message,
       entity: {
-        taskId: task._id,
-        listId: task.list,
-        folderId: task.list?.folder,
-        workspaceId: task.list?.workspace,
+        taskId: updatedTask._id,
+        listId: updatedTask.list?._id,
+        folderId: updatedTask.list?.folder?._id,
+        workspaceId: updatedTask.list?.workspace?._id,
         model: "Task",
       },
     }));
 
     await NotificationModel.create(notifications);
-
-    console.log("STEP 1: TREE NOTIFICATIONS SENT", notifications.length);
-  } else {
-    console.log("STEP 1: NO RECIPIENTS");
   }
-
-  console.log("=== UPDATE TASK END ===");
-
-  return task;
+  return updatedTask;
 };
 
 // ======================================
 // DELETE TASK
 // ======================================
-exports.deleteTask = async (taskId) => {
-  const task = await Task.findByIdAndDelete(taskId);
+exports.deleteTask = async ({
+  taskId,
+  listId,
+  workspaceId,
+  folderId,
+  companyId,
+  actorId,
+  actorName,
+}) => {
+  if (!taskId || !listId || !workspaceId || !companyId || !actorId) {
+    throw new Error("Task hierarchy and actor are required");
+  }
 
-  if (!task) throw new Error("Task not found");
+  const session = await mongoose.startSession();
+
+  let attachmentFileNames = [];
+
+  try {
+    await session.withTransaction(async () => {
+      // تأكيد أن الـTask داخل نفس الشجرة
+      const task = await Task.findOne({
+        _id: taskId,
+        list: listId,
+        workspace: workspaceId,
+        companyId,
+      }).session(session);
+
+      if (!task) {
+        throw new Error("Task not found in the specified list");
+      }
+
+      // جلب SubTasks قبل حذفها
+      const subTasks = await subTaskModel
+        .find({ task: task._id })
+        .select("_id")
+        .session(session)
+        .lean();
+
+      const subTaskIds = subTasks.map((subTask) => subTask._id);
+
+      // يشمل العناصر المرتبطة مباشرة بالـTask
+      // والعناصر المرتبطة بالـSubTasks التابعة لها
+      const treeFilter = {
+        $or: [{ task: task._id }, { subTask: { $in: subTaskIds } }],
+      };
+
+      // نحفظ أسماء الملفات قبل حذف سجلاتها
+      const attachments = await Attachment.find(treeFilter)
+        .select("fileName")
+        .session(session)
+        .lean();
+
+      attachmentFileNames = attachments
+        .map((attachment) => attachment.fileName)
+        .filter(Boolean);
+
+      // لا نستخدم Promise.all داخل Transaction
+      await Comment.deleteMany(treeFilter, { session });
+
+      await TimeLog.deleteMany(treeFilter, { session });
+
+      await Attachment.deleteMany(treeFilter, { session });
+
+      await subTaskModel.deleteMany({ task: task._id }, { session });
+
+      // نحتفظ بالسجلات السابقة ونضيف سجل الحذف
+      await activityLogModel.create(
+        [
+          {
+            actor: actorId,
+            action: "task.deleted",
+            entityType: "task",
+            entityId: task._id,
+            workspaceId,
+            folderId: folderId || null,
+            listId,
+            taskId: task._id,
+            message: `${actorName || "Someone"} deleted task "${task.title}"`,
+          },
+        ],
+        { session },
+      );
+
+      // حذف الـTask يكون آخر عملية داخل Transaction
+      await Task.deleteOne({ _id: task._id }, { session });
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  // حذف الملفات بعد نجاح Transaction
+  // حتى لا نحذف ملفاً ثم يحدث rollback للبيانات
+  for (const fileName of attachmentFileNames) {
+    const safeFileName = path.basename(fileName);
+
+    const filePath = path.resolve("uploads", "taskAttachments", safeFileName);
+
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (error) {
+      // الملف غير موجود أصلاً
+      if (error.code !== "ENOENT") {
+        console.error("Failed to delete attachment file:", {
+          fileName: safeFileName,
+          error: error.message,
+        });
+      }
+    }
+  }
+
+  return true;
+};
+
+const findTaskInTree = async ({ taskId, listId, workspaceId, companyId }) => {
+  const task = await Task.findOne({
+    _id: taskId,
+    list: listId,
+    workspace: workspaceId,
+    companyId,
+  });
+
+  if (!task) {
+    throw new Error("Task not found in the specified list");
+  }
 
   return task;
 };
 
-exports.addChecklistItem = async (taskId, data, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
+exports.addChecklistItem = async ({
+  taskId,
+  listId,
+  workspaceId,
+  companyId,
+  data,
+}) => {
+  const task = await findTaskInTree({
+    taskId,
+    listId,
+    workspaceId,
+    companyId,
   });
-
-  if (!task) throw new Error("Task not found");
 
   task.checklist.push({
     title: data.title,
@@ -454,22 +546,34 @@ exports.addChecklistItem = async (taskId, data, workspaceId) => {
   });
 
   await task.save();
+
   return task;
 };
 
-//  UPDATE ITEM
-exports.updateChecklistItem = async (taskId, itemId, data, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
+exports.updateChecklistItem = async ({
+  taskId,
+  itemId,
+  listId,
+  workspaceId,
+  companyId,
+  data,
+}) => {
+  const task = await findTaskInTree({
+    taskId,
+    listId,
+    workspaceId,
+    companyId,
   });
 
-  if (!task) throw new Error("Task not found");
-
   const item = task.checklist.id(itemId);
-  if (!item) throw new Error("Checklist item not found");
 
-  if (data.title !== undefined) item.title = data.title;
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
+
+  if (data.title !== undefined) {
+    item.title = data.title;
+  }
 
   if (data.isDone !== undefined) {
     item.isDone = data.isDone;
@@ -477,41 +581,61 @@ exports.updateChecklistItem = async (taskId, itemId, data, workspaceId) => {
   }
 
   await task.save();
+
   return task;
 };
 
-//  DELETE ITEM
-exports.deleteChecklistItem = async (taskId, itemId, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
+exports.deleteChecklistItem = async ({
+  taskId,
+  itemId,
+  listId,
+  workspaceId,
+  companyId,
+}) => {
+  const task = await findTaskInTree({
+    taskId,
+    listId,
+    workspaceId,
+    companyId,
   });
 
-  if (!task) throw new Error("Task not found");
-
   const item = task.checklist.id(itemId);
-  if (!item) throw new Error("Checklist item not found");
+
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
 
   task.checklist.pull(itemId);
 
   await task.save();
+
   return task;
 };
 
-exports.toggleChecklistItem = async (taskId, itemId, workspaceId) => {
-  const task = await Task.findOne({
-    _id: taskId,
-    workspace: workspaceId,
+exports.toggleChecklistItem = async ({
+  taskId,
+  itemId,
+  listId,
+  workspaceId,
+  companyId,
+}) => {
+  const task = await findTaskInTree({
+    taskId,
+    listId,
+    workspaceId,
+    companyId,
   });
 
-  if (!task) throw new Error("Task not found");
-
   const item = task.checklist.id(itemId);
-  if (!item) throw new Error("Checklist item not found");
+
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
 
   item.isDone = !item.isDone;
   item.completedAt = item.isDone ? new Date() : null;
 
   await task.save();
+
   return task;
 };

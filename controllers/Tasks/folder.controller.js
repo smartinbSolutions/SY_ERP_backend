@@ -56,10 +56,7 @@ exports.getFolders = async (req, res) => {
 // ===============================
 exports.getFolder = async (req, res) => {
   try {
-    const data = await folderService.getFolderById(
-      req.params.folderId,
-      req.user._id,
-    );
+    const data = await folderService.getFolderById(req.params.folderId);
 
     return res.status(200).json({
       success: true,
@@ -76,12 +73,13 @@ exports.getFolder = async (req, res) => {
 // ===============================
 // UPDATE FOLDER
 // ===============================
+
 exports.updateFolder = async (req, res) => {
   try {
     const data = await folderService.updateFolder(
       req.params.folderId,
       req.body,
-      req.user._id
+      req.user._id,
     );
 
     return res.status(200).json({
@@ -90,7 +88,7 @@ exports.updateFolder = async (req, res) => {
       data,
     });
   } catch (err) {
-    return res.status(403).json({
+    return res.status(400).json({
       success: false,
       message: err.message,
     });
@@ -125,6 +123,7 @@ exports.addMember = async (req, res) => {
       req.params.folderId,
       req.body.userId,
       req.body.role,
+      req.user._id,
     );
 
     return res.status(200).json({
@@ -148,6 +147,7 @@ exports.removeMember = async (req, res) => {
     const data = await folderService.removeMember(
       req.params.folderId,
       req.params.userId,
+      req.user._id,
     );
 
     return res.status(200).json({

@@ -158,7 +158,11 @@ exports.getFolderById = async (folderId) => {
 // ===============================
 // UPDATE FOLDER
 // ===============================
-exports.updateFolder = async (folderId, data, actorId) => {
+exports.updateFolder = async (
+  folderId,
+  data,
+  actorId,
+) => {
   console.log("=== UPDATE FOLDER START ===", {
     folderId,
     actorId,
@@ -170,29 +174,148 @@ exports.updateFolder = async (folderId, data, actorId) => {
     select: "members name",
   });
 
-  if (!folder) throw new Error("Folder not found");
+  if (!folder) {
+    throw new Error("Folder not found");
+  }
 
-  // =========================
-  // UPDATE FIELDS
-  // =========================
+  // ======================================
+  // UPDATE FOLDER FIELDS
+  // ======================================
 
-  if (data.name) folder.name = data.name.trim();
-  if (data.order !== undefined) folder.order = data.order;
-  if (data.visibility) folder.visibility = data.visibility;
+  if (data.name !== undefined) {
+    const normalizedName = String(data.name).trim();
 
-  if (data.members) {
-    folder.members = data.members;
+    if (!normalizedName) {
+      throw new Error("Folder name is required");
+    }
+
+    folder.name = normalizedName;
+  }
+
+  if (data.order !== undefined) {
+    folder.order = data.order;
+  }
+
+  if (data.visibility !== undefined) {
+    folder.visibility = data.visibility;
+  }
+
+  // ======================================
+  // UPDATE FOLDER MEMBERS
+  // ======================================
+
+  if (data.members !== undefined) {
+    if (!Array.isArray(data.members)) {
+      throw new Error("Members must be an array");
+    }
+
+    const allowedRoles = new Set([
+      "viewer",
+      "member",
+      "manager",
+      "owner",
+    ]);
+
+    const existingMembersMap = new Map(
+      (folder.members || []).map((member) => [
+        String(member?.user?._id || member?.user),
+        member,
+      ]),
+    );
+
+    const seenUserIds = new Set();
+
+    const updatedMembers = data.members.map((member) => {
+      const userId = member?.user?._id || member?.user;
+
+      if (!userId) {
+        throw new Error("Member user ID is required");
+      }
+
+      const normalizedUserId = String(userId);
+
+      if (seenUserIds.has(normalizedUserId)) {
+        throw new Error("Duplicate folder member");
+      }
+
+      seenUserIds.add(normalizedUserId);
+
+      const existingMember =
+        existingMembersMap.get(normalizedUserId);
+
+      const role =
+        member.role ||
+        existingMember?.role ||
+        "viewer";
+
+      if (!allowedRoles.has(role)) {
+        throw new Error(`Invalid member role: ${role}`);
+      }
+
+      // لا نسمح بإنشاء Owner جديد عن طريق تحديث Folder
+      if (
+        role === "owner" &&
+        existingMember?.role !== "owner"
+      ) {
+        throw new Error(
+          "A new folder owner cannot be assigned",
+        );
+      }
+
+      return {
+        user: userId,
+        role,
+
+        notificationsEnabled:
+          member.notificationsEnabled !== undefined
+            ? Boolean(member.notificationsEnabled)
+            : existingMember?.notificationsEnabled ??
+              ["owner", "manager"].includes(role),
+
+        joinedAt:
+          existingMember?.joinedAt ||
+          member.joinedAt ||
+          new Date(),
+      };
+    });
+
+    // منع حذف أو تخفيض الـOwner الحالي
+    const currentOwners = (folder.members || []).filter(
+      (member) => member.role === "owner",
+    );
+
+    for (const owner of currentOwners) {
+      const ownerId = String(
+        owner?.user?._id || owner?.user,
+      );
+
+      const updatedOwner = updatedMembers.find(
+        (member) => String(member.user) === ownerId,
+      );
+
+      if (
+        !updatedOwner ||
+        updatedOwner.role !== "owner"
+      ) {
+        throw new Error(
+          "Folder owner cannot be removed or demoted",
+        );
+      }
+    }
+
+    folder.members = updatedMembers;
   }
 
   await folder.save();
 
-  console.log("FOLDER UPDATED", { folderId: folder._id });
+  console.log("FOLDER UPDATED", {
+    folderId: folder._id,
+    membersCount: folder.members?.length || 0,
+  });
 
-  // =========================
-  // TREE NOTIFICATIONS ONLY
-  // =========================
-
-  console.log("STEP 1: TREE NOTIFICATIONS");
+  // ======================================
+  // TREE NOTIFICATIONS
+  // ======================================
 
   const recipients = notificationHelper.getRecipients(
     {
@@ -202,34 +325,36 @@ exports.updateFolder = async (folderId, data, actorId) => {
     "folder",
   );
 
-  console.log("STEP 1: RECIPIENTS", recipients);
+  console.log("NOTIFICATION RECIPIENTS", recipients);
 
   if (recipients.length > 0) {
-    const notifications = recipients.map((recipient) => ({
-      recipient,
-      actor: actorId,
-      type: "folder.updated",
-      title: "Folder Updated",
-      message: `Folder "${folder.name}" was updated`,
-      entity: {
-        folderId: folder._id,
-        workspaceId: folder.workspace?._id,
-        model: "Folder",
-      },
-    }));
+    const notifications = recipients.map(
+      (recipient) => ({
+        recipient,
+        actor: actorId,
+        type: "folder.updated",
+        title: "Folder Updated",
+        message: `Folder "${folder.name}" was updated`,
+        entity: {
+          folderId: folder._id,
+          workspaceId: folder.workspace?._id,
+          model: "Folder",
+        },
+      }),
+    );
 
     await NotificationModel.create(notifications);
 
-    console.log("STEP 1: NOTIFICATIONS SENT", notifications.length);
-  } else {
-    console.log("STEP 1: NO RECIPIENTS");
+    console.log(
+      "NOTIFICATIONS SENT",
+      notifications.length,
+    );
   }
 
   console.log("=== UPDATE FOLDER END ===");
 
   return folder;
 };
-
 // ===============================
 // DELETE FOLDER
 // ===============================
@@ -248,21 +373,25 @@ exports.deleteFolder = async (folderId) => {
 // ===============================
 // ADD MEMBER
 // ===============================
-exports.addMember = async (folderId, userId, role = "member") => {
+exports.addMember = async (folderId, userId, role = "member", actorId) => {
   const folder = await Folder.findById(folderId).populate("workspace");
 
   if (!folder) {
     throw new Error("Folder not found");
   }
 
-  const staff = await staffModel.findById(userId);
+  // التأكد أن المستخدم من نفس شركة الـFolder
+  const staff = await staffModel.findOne({
+    _id: userId,
+    companyId: folder.companyId,
+  });
 
   if (!staff) {
-    throw new Error("User not found");
+    throw new Error("User not found in this company");
   }
 
   const exists = folder.members.some(
-    (m) => m.user.toString() === userId.toString(),
+    (member) => member.user.toString() === userId.toString(),
   );
 
   if (exists) {
@@ -279,51 +408,50 @@ exports.addMember = async (folderId, userId, role = "member") => {
           user: userId,
           role,
           notificationsEnabled,
+          joinedAt: new Date(),
         },
       },
     },
-    { new: true },
+    {
+      new: true,
+    },
   );
 
-  // ======================================================
-  // STEP 1: DIRECT NOTIFICATION (only the added member)
-  // ======================================================
+  const workspaceId = folder.workspace?._id || folder.workspace;
 
+  // إشعار العضو المضاف
   await NotificationModel.create({
     recipient: userId,
-    actor: folder.createdBy,
+    actor: actorId,
     type: "folder.member_added",
     title: "Added to Folder",
     message: `You have been added to folder "${folder.name}"`,
     entity: {
       folderId: folder._id,
-      workspaceId: folder.workspace,
+      workspaceId,
       model: "Folder",
     },
   });
 
-  // ======================================================
-  // STEP 2: TREE NOTIFICATION (workspace propagation)
-  // ======================================================
-
+  // إشعارات الشجرة
   const treeRecipients = notificationHelper.getRecipients(
     {
       workspace: folder.workspace,
     },
-    userId,
+    actorId,
     "folder",
   );
 
   if (treeRecipients.length > 0) {
     const treeNotifications = treeRecipients.map((recipient) => ({
       recipient,
-      actor: userId,
+      actor: actorId,
       type: "folder.member_added_tree",
       title: "Folder Updated",
       message: `A new member was added to folder "${folder.name}"`,
       entity: {
         folderId: folder._id,
-        workspaceId: folder.workspace,
+        workspaceId,
         model: "Folder",
       },
     }));
@@ -337,7 +465,7 @@ exports.addMember = async (folderId, userId, role = "member") => {
 // ===============================
 // REMOVE MEMBER
 // ===============================
-exports.removeMember = async (folderId, userId) => {
+exports.removeMember = async (folderId, userId, actorId) => {
   const folder = await Folder.findById(folderId);
 
   if (!folder) {
@@ -345,32 +473,36 @@ exports.removeMember = async (folderId, userId) => {
   }
 
   const member = folder.members.find(
-    (m) => m.user.toString() === userId.toString(),
+    (member) => member.user.toString() === userId.toString(),
   );
 
   if (!member) {
     throw new Error("User is not a member of this folder");
   }
 
-  // =========================
-  // REMOVE MEMBER
-  // =========================
+  const owners = folder.members.filter((member) => member.role === "owner");
+
+  if (member.role === "owner" && owners.length === 1) {
+    throw new Error("Cannot remove the last folder owner");
+  }
+
   const updatedFolder = await Folder.findByIdAndUpdate(
     folderId,
     {
       $pull: {
-        members: { user: userId },
+        members: {
+          user: userId,
+        },
       },
     },
-    { new: true },
+    {
+      new: true,
+    },
   );
-  // =========================
-  // NOTIFICATION
-  // =========================
+
   await NotificationModel.create({
     recipient: userId,
-    actor: folder.createdBy,
-
+    actor: actorId,
     type: "folder.member_removed",
     title: "Removed from Folder",
     message: `You were removed from folder "${folder.name}"`,

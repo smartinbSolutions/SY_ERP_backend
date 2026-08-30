@@ -1,11 +1,13 @@
 const express = require("express");
+
 const router = express.Router({ mergeParams: true });
 
 const hrAuthServices = require("../../services/Hr/hrAuthServices");
 
 const {
-  listAccess,
+  workspaceAccess,
   folderAccess,
+  listAccess,
 } = require("../../middlewares/Tasks/AccessMiddleware");
 
 const {
@@ -21,40 +23,51 @@ const {
 const checkPermission = require("../../middlewares/Tasks/permssionMiddleware");
 
 // ======================================
-// GLOBAL AUTH
+// GLOBAL AUTHENTICATION
 // ======================================
+
 router.use(hrAuthServices.protectStaffOrERP);
 
 // ======================================
 // CREATE LIST
-// POST /workspaces/:workspaceId/lists
+// POST /workspaces/:workspaceId/folders/:folderId/lists
 // ======================================
+
 router.post(
   "/",
+  workspaceAccess,
   folderAccess,
   checkPermission("create:list"),
   createList,
 );
 
 // ======================================
-// GET LISTS
-// GET /workspaces/:workspaceId/lists
+// GET LISTS INSIDE FOLDER
+// GET /workspaces/:workspaceId/folders/:folderId/lists
 // ======================================
-router.get("/", folderAccess, getLists);
+
+router.get(
+  "/",
+  workspaceAccess,
+  folderAccess,
+  checkPermission("read:list"),
+  getLists,
+);
 
 // ======================================
 // GET SINGLE LIST
-// GET /workspaces/:workspaceId/lists/:listId
+// GET /workspaces/:workspaceId/folders/:folderId/lists/:listId
 // ======================================
-router.get("/:listId", listAccess, getList);
+
+router.get("/:listId", listAccess, checkPermission("read:list"), getList);
 
 // ======================================
 // UPDATE LIST
-// PATCH /workspaces/:workspaceId/lists/:listId
+// PATCH /workspaces/:workspaceId/folders/:folderId/lists/:listId
 // ======================================
+
 router.patch(
   "/:listId",
-  folderAccess,
   listAccess,
   checkPermission("update:list"),
   updateList,
@@ -62,38 +75,35 @@ router.patch(
 
 // ======================================
 // DELETE LIST
-// DELETE /workspaces/:workspaceId/lists/:listId
+// DELETE /workspaces/:workspaceId/folders/:folderId/lists/:listId
 // ======================================
+
 router.delete(
   "/:listId",
-
-  folderAccess,
   listAccess,
   checkPermission("delete:list"),
   deleteList,
 );
 
 // ======================================
-// ADD MEMBER TO LIST
-// POST /workspaces/:workspaceId/lists/:listId/members
+// ADD LIST MEMBER
+// POST /workspaces/:workspaceId/folders/:folderId/lists/:listId/members
 // ======================================
+
 router.post(
   "/:listId/members",
-
-  folderAccess,
   listAccess,
   checkPermission("manage:members"),
   addMember,
 );
 
 // ======================================
-// REMOVE MEMBER FROM LIST
-// DELETE /workspaces/:workspaceId/lists/:listId/members
+// REMOVE LIST MEMBER
+// DELETE /workspaces/:workspaceId/folders/:folderId/lists/:listId/members/:userId
 // ======================================
+
 router.delete(
   "/:listId/members/:userId",
-
-  folderAccess,
   listAccess,
   checkPermission("manage:members"),
   removeMember,

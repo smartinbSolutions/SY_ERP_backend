@@ -7,20 +7,28 @@ const notificationHelper = require("./notificationHelper");
 // ===============================
 // CREATE LIST
 // ===============================
-exports.createList = async (data, userId, companyId) => {
-  console.log("=== CREATE LIST START ===", {
-    userId,
-    companyId,
-    data,
-  });
+exports.createList = async (data, userId, folder, workspace) => {
+  if (!folder) {
+    throw new Error("Folder is required");
+  }
 
-  if (!companyId) throw new Error("Company ID is required");
-  if (!data.workspace) throw new Error("Workspace is required");
-  if (!data.folder) throw new Error("Folder is required");
+  if (!workspace) {
+    throw new Error("Workspace is required");
+  }
+
+  if (folder.workspace.toString() !== workspace._id.toString()) {
+    throw new Error("Folder does not belong to this workspace");
+  }
+
+  if (folder.companyId.toString() !== workspace.companyId.toString()) {
+    throw new Error("Folder and workspace company mismatch");
+  }
+
+  if (!data.name?.trim()) {
+    throw new Error("List name is required");
+  }
 
   const members = data.members || [];
-
-  console.log("STEP 0: INPUT MEMBERS", members.length);
 
   // =========================
   // CLEAN + UNIQUE MEMBERS
@@ -29,33 +37,26 @@ exports.createList = async (data, userId, companyId) => {
   const uniqueMembers = [];
   const seen = new Set();
 
-  for (const m of members) {
-    const id = String(m.user);
+  for (const member of members) {
+    const id = String(member.user);
 
     if (id === String(userId)) {
-      console.log("SKIP: actor in members", id);
       continue;
     }
 
     if (seen.has(id)) {
-      console.log("SKIP: duplicate member", id);
       continue;
     }
 
     seen.add(id);
 
-    notificationsEnabled =
-      m.notificationsEnabled ?? ["owner", "manager"].includes(m.role);
+    const role = member.role || "viewer";
+    const notificationsEnabled =
+      member.notificationsEnabled ?? ["owner", "manager"].includes(role);
 
     uniqueMembers.push({
-      user: m.user,
-      role: m.role,
-      notificationsEnabled,
-    });
-
-    console.log("ADDED UNIQUE MEMBER", {
-      user: m.user,
-      role: m.role,
+      user: member.user,
+      role,
       notificationsEnabled,
     });
   }
@@ -69,25 +70,19 @@ exports.createList = async (data, userId, companyId) => {
     ...uniqueMembers,
   ];
 
-  console.log("STEP 1: FINAL MEMBERS", finalMembers.length);
-
   // =========================
   // CREATE LIST
   // =========================
 
   const list = await List.create({
     name: data.name.trim(),
-    folder: data.folder,
-    workspace: data.workspace,
-    companyId,
+    folder: folder._id,
+    workspace: workspace._id,
+    companyId: workspace.companyId,
     visibility: data.visibility || "private",
     createdBy: userId,
-    order: data.order || 0,
+    order: data.order ?? 0,
     members: finalMembers,
-  });
-
-  console.log("LIST CREATED", {
-    listId: list._id,
   });
 
   // ======================================================
@@ -95,10 +90,8 @@ exports.createList = async (data, userId, companyId) => {
   // ======================================================
 
   const directRecipients = uniqueMembers
-    .filter((m) => m.notificationsEnabled)
-    .map((m) => String(m.user));
-
-  console.log("STEP 1: DIRECT RECIPIENTS", directRecipients);
+    .filter((member) => member.notificationsEnabled)
+    .map((member) => String(member.user));
 
   if (directRecipients.length > 0) {
     const directNotifications = directRecipients.map((recipient) => ({
@@ -109,38 +102,18 @@ exports.createList = async (data, userId, companyId) => {
       message: `You have been added to list "${list.name}"`,
       entity: {
         listId: list._id,
-        folderId: list.folder,
-        workspaceId: list.workspace,
+        folderId: folder._id,
+        workspaceId: workspace._id,
         model: "List",
       },
     }));
 
-    console.log(
-      "STEP 1: DIRECT NOTIFICATIONS COUNT",
-      directNotifications.length,
-    );
-
     await NotificationModel.create(directNotifications);
-  } else {
-    console.log("STEP 1: NO DIRECT RECIPIENTS");
   }
 
   // ======================================================
   // STEP 2: TREE NOTIFICATIONS
   // ======================================================
-
-  console.log("STEP 2: FETCH FOLDER + WORKSPACE");
-
-  const folder = await FolderModel.findById(list.folder)
-    .select("members")
-    .lean();
-
-  const workspace = await WorkspaceModel.findById(list.workspace)
-    .select("members")
-    .lean();
-
-  console.log("STEP 2: FOLDER MEMBERS", folder?.members?.length);
-  console.log("STEP 2: WORKSPACE MEMBERS", workspace?.members?.length);
 
   const treeRecipients = notificationHelper.getRecipients(
     {
@@ -151,8 +124,6 @@ exports.createList = async (data, userId, companyId) => {
     "list",
   );
 
-  console.log("STEP 2: TREE RECIPIENTS", treeRecipients);
-
   if (treeRecipients.length > 0) {
     const treeNotifications = treeRecipients.map((recipient) => ({
       recipient,
@@ -162,35 +133,26 @@ exports.createList = async (data, userId, companyId) => {
       message: `List "${list.name}" was created in folder`,
       entity: {
         listId: list._id,
-        folderId: list.folder,
-        workspaceId: list.workspace,
+        folderId: folder._id,
+        workspaceId: workspace._id,
         model: "List",
       },
     }));
 
-    console.log("STEP 2: TREE NOTIFICATIONS COUNT", treeNotifications.length);
-
     await NotificationModel.create(treeNotifications);
-  } else {
-    console.log("STEP 2: NO TREE RECIPIENTS");
   }
-
-  console.log("=== CREATE LIST END ===");
 
   return list;
 };
+
 // ===============================
 // UPDATE LIST
 // ===============================
 exports.updateList = async (listId, data, actorId, companyId) => {
-  console.log("=== UPDATE LIST START ===", {
-    listId,
-    actorId,
+  const list = await List.findOne({
+    _id: listId,
     companyId,
-    data,
-  });
-
-  const list = await List.findById(listId).populate([
+  }).populate([
     { path: "folder", populate: { path: "workspace" } },
     { path: "workspace" },
   ]);
@@ -199,11 +161,9 @@ exports.updateList = async (listId, data, actorId, companyId) => {
     throw new Error("List not found");
   }
 
-  // =========================
-  // UPDATE FIELDS
-  // =========================
-
-  if (data.name) list.name = data.name.trim();
+  if (data.name) {
+    list.name = data.name.trim();
+  }
 
   if (data.visibility) {
     list.visibility = data.visibility;
@@ -213,19 +173,12 @@ exports.updateList = async (listId, data, actorId, companyId) => {
     list.order = data.order;
   }
 
+  // Kept unchanged: the current API still allows updating members here.
   if (data.members) {
     list.members = data.members;
   }
 
   await list.save();
-
-  console.log("LIST UPDATED", { listId: list._id });
-
-  // =========================
-  // TREE NOTIFICATIONS ONLY
-  // =========================
-
-  console.log("STEP 1: TREE NOTIFICATIONS");
 
   const recipients = notificationHelper.getRecipients(
     {
@@ -235,8 +188,6 @@ exports.updateList = async (listId, data, actorId, companyId) => {
     actorId,
     "list",
   );
-
-  console.log("STEP 1: RECIPIENTS", recipients);
 
   if (recipients.length > 0) {
     const notifications = recipients.map((recipient) => ({
@@ -254,24 +205,22 @@ exports.updateList = async (listId, data, actorId, companyId) => {
     }));
 
     await NotificationModel.create(notifications);
-
-    console.log("STEP 1: NOTIFICATIONS SENT", notifications.length);
-  } else {
-    console.log("STEP 1: NO RECIPIENTS");
   }
-
-  console.log("=== UPDATE LIST END ===");
 
   return list;
 };
+
 // ===============================
 // DELETE LIST
 // ===============================
 exports.deleteList = async (listId) => {
   const list = await List.findById(listId);
 
-  if (!list) throw new Error("List not found");
+  if (!list) {
+    throw new Error("List not found");
+  }
 
+  // Cascade deletion will be added after reviewing Task/SubTask relations.
   await list.deleteOne();
 
   return true;
@@ -281,95 +230,72 @@ exports.deleteList = async (listId) => {
 // ADD MEMBER
 // ===============================
 exports.addMember = async (listId, targetUserId, role, actorId, companyId) => {
-  console.log("=== ADD LIST MEMBER START ===", {
-    listId,
-    targetUserId,
-    role,
-    actorId,
+  const list = await List.findOne({
+    _id: listId,
     companyId,
   });
 
-  const list = await List.findById(listId);
-
-  if (!list) throw new Error("List not found");
+  if (!list) {
+    throw new Error("List not found");
+  }
 
   const exists = list.members?.some(
-    (m) => m.user.toString() === targetUserId.toString(),
+    (member) => member.user.toString() === targetUserId.toString(),
   );
 
   if (exists) {
     throw new Error("User already exists in list");
   }
 
-  const notificationsEnabled = ["owner", "manager"].includes(role);
-
-  // =========================
-  // ADD MEMBER
-  // =========================
+  const memberRole = role || "member";
+  const notificationsEnabled = ["owner", "manager"].includes(memberRole);
 
   list.members.push({
     user: targetUserId,
-    role,
+    role: memberRole,
     notificationsEnabled,
   });
 
   await list.save();
 
-  console.log("LIST UPDATED WITH NEW MEMBER");
-
-  // ======================================================
-  // STEP 1: DIRECT NOTIFICATION
-  // ======================================================
-
-  console.log("STEP 1: DIRECT NOTIFICATION");
-
-  const directNotifications = [
-    {
-      recipient: targetUserId,
-      actor: actorId,
-      type: "list.member_added",
-      title: "Added to List",
-      message: `You were added to list "${list.name}"`,
-      entity: {
-        listId: list._id,
-        folderId: list.folder,
-        workspaceId: list.workspace,
-        model: "List",
-      },
+  await NotificationModel.create({
+    recipient: targetUserId,
+    actor: actorId,
+    type: "list.member_added",
+    title: "Added to List",
+    message: `You were added to list "${list.name}"`,
+    entity: {
+      listId: list._id,
+      folderId: list.folder,
+      workspaceId: list.workspace,
+      model: "List",
     },
-  ];
+  });
 
-  await NotificationModel.create(directNotifications);
-
-  console.log("STEP 1: DONE");
-
-  // ======================================================
-  // STEP 2: TREE NOTIFICATIONS
-  // ======================================================
-
-  console.log("STEP 2: FETCH FOLDER + WORKSPACE");
-
-  const folder = await FolderModel.findById(list.folder)
-    .select("members")
-    .lean();
-
-  const workspace = await WorkspaceModel.findById(list.workspace)
-    .select("members")
-    .lean();
-
-  console.log("STEP 2: FOLDER MEMBERS", folder?.members?.length);
-  console.log("STEP 2: WORKSPACE MEMBERS", workspace?.members?.length);
+  const [folder, workspace] = await Promise.all([
+    FolderModel.findOne({
+      _id: list.folder,
+      workspace: list.workspace,
+      companyId: list.companyId,
+    })
+      .select("members")
+      .lean(),
+    WorkspaceModel.findOne({
+      _id: list.workspace,
+      companyId: list.companyId,
+    })
+      .select("members")
+      .lean(),
+  ]);
 
   const treeRecipients = notificationHelper.getRecipients(
     {
       folder,
       workspace,
     },
-    targetUserId,
+    actorId,
     "list",
   );
-
-  console.log("STEP 2: TREE RECIPIENTS", treeRecipients);
 
   if (treeRecipients.length > 0) {
     const treeNotifications = treeRecipients.map((recipient) => ({
@@ -387,13 +313,7 @@ exports.addMember = async (listId, targetUserId, role, actorId, companyId) => {
     }));
 
     await NotificationModel.create(treeNotifications);
-
-    console.log("STEP 2: TREE NOTIFICATIONS SENT");
-  } else {
-    console.log("STEP 2: NO TREE RECIPIENTS");
   }
-
-  console.log("=== ADD LIST MEMBER END ===");
 
   return list;
 };
@@ -407,7 +327,9 @@ exports.getListById = async (listId) => {
     "fullName email",
   );
 
-  if (!list) throw new Error("List not found");
+  if (!list) {
+    throw new Error("List not found");
+  }
 
   return list;
 };
@@ -415,70 +337,67 @@ exports.getListById = async (listId) => {
 // ===============================
 // REMOVE MEMBER
 // ===============================
-exports.removeMember = async (listId, targetUserId) => {
+exports.removeMember = async (listId, targetUserId, actorId) => {
   const list = await List.findById(listId);
 
-  if (!list) throw new Error("List not found");
+  if (!list) {
+    throw new Error("List not found");
+  }
 
-  const isMember = list.members.some(
-    (m) => m.user.toString() === targetUserId.toString(),
+  const target = list.members.find(
+    (member) => member.user.toString() === targetUserId.toString(),
   );
 
-  if (!isMember) {
+  if (!target) {
     throw new Error("User is not in the list");
   }
 
-  // 🚫 لا تسمح بحذف الـ owner
-  const target = list.members.find(
-    (m) => m.user.toString() === targetUserId.toString(),
-  );
+  const owners = list.members.filter((member) => member.role === "owner");
 
-  if (target.role === "owner") {
-    throw new Error("Cannot remove the owner");
+  if (target.role === "owner" && owners.length === 1) {
+    throw new Error("Cannot remove the last list owner");
   }
 
-  // =========================
-  // REMOVE MEMBER
-  // =========================
   list.members = list.members.filter(
-    (m) => m.user.toString() !== targetUserId.toString(),
+    (member) => member.user.toString() !== targetUserId.toString(),
   );
 
   await list.save();
 
-  // =========================
-  // NOTIFICATION
-  // =========================
   await NotificationModel.create({
     recipient: targetUserId,
-    actor: list.createdBy,
-
+    actor: actorId,
     type: "list.member_removed",
     title: "Removed from List",
     message: `You were removed from list "${list.name}"`,
-
     entity: {
-      id: list._id,
+      listId: list._id,
+      folderId: list.folder,
+      workspaceId: list.workspace,
       model: "List",
     },
   });
 
   return list;
 };
+
 // ===============================
-// GET LISTS BY WORKSPACE
+// GET LISTS BY FOLDER
 // ===============================
 exports.getListsByWorkspace = async ({
   page = 1,
   limit = 10,
   search = "",
   workspaceId,
+  folderId,
   companyId,
   userId,
   workspaceRole,
+  folderRole,
 }) => {
   const query = {
     workspace: workspaceId,
+    folder: folderId,
     companyId,
   };
 
@@ -489,26 +408,31 @@ exports.getListsByWorkspace = async ({
   const isWorkspaceAdmin =
     workspaceRole === "owner" || workspaceRole === "manager";
 
-  if (!isWorkspaceAdmin) {
+  const isFolderAdmin = folderRole === "owner" || folderRole === "manager";
+
+  if (!isWorkspaceAdmin && !isFolderAdmin) {
     query.$or = [{ visibility: "public" }, { "members.user": userId }];
   }
 
-  const skip = (page - 1) * limit;
+  const normalizedPage = Math.max(Number(page) || 1, 1);
+  const normalizedLimit = Math.max(Number(limit) || 10, 1);
+  const skip = (normalizedPage - 1) * normalizedLimit;
 
-  const lists = await List.find(query)
-    .sort({ order: 1 })
-    .skip(skip)
-    .limit(Number(limit))
-    .populate("members.user", "name email");
-
-  const total = await List.countDocuments(query);
+  const [lists, total] = await Promise.all([
+    List.find(query)
+      .sort({ order: 1 })
+      .skip(skip)
+      .limit(normalizedLimit)
+      .populate("members.user", "fullName email"),
+    List.countDocuments(query),
+  ]);
 
   return {
     data: lists,
     pagination: {
       total,
-      page: Number(page),
-      pages: Math.ceil(total / limit),
+      page: normalizedPage,
+      pages: Math.ceil(total / normalizedLimit),
     },
   };
 };

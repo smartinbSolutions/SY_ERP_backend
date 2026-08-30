@@ -4,6 +4,20 @@ const List = require("../../models/Tasks/ListModel");
 const TaskModel = require("../../models/Tasks/TaskModel");
 const SubTaskModel = require("../../models/Tasks/SubTaskModel");
 
+const { getHighestRole } = require("../../utils/permission.helper");
+
+const getMemberRole = (members, userId) => {
+  const normalizedUserId = String(userId);
+
+  const member = members?.find((item) => {
+    const memberUserId = String(item?.user?._id || item?.user || "");
+
+    return memberUserId === normalizedUserId;
+  });
+
+  return member?.role || null;
+};
+
 // ======================================
 // 1. WORKSPACE ACCESS
 // ======================================
@@ -33,13 +47,9 @@ exports.workspaceAccess = async (req, res, next) => {
     // WORKSPACE MEMBER
     // ======================================
 
-    const workspaceMember = workspace.members?.find(
-      (m) => m.user.toString() === userId,
-    );
+    req.workspaceRole = getMemberRole(workspace.members, userId);
 
-    req.workspaceRole = workspaceMember?.role || null;
-
-    req.workspace = workspace;  
+    req.workspace = workspace;
 
     next();
   } catch (err) {
@@ -91,42 +101,23 @@ exports.folderAccess = async (req, res, next) => {
       });
     }
 
-    const userId = req.user._id.toString();
+    const userId = String(req.user._id);
 
-    // ======================================
-    // WORKSPACE OWNER / MANAGER BYPASS
-    // ======================================
+    const directFolderRole = getMemberRole(folder.members, userId);
 
-    const isWorkspaceAdmin =
-      req.workspaceRole === "owner" || req.workspaceRole === "manager";
+    const publicFolderRole = folder.visibility === "public" ? "viewer" : null;
 
-    if (isWorkspaceAdmin) {
-      req.folder = folder;
-      req.folderRole = req.workspaceRole;
-
-      return next();
-    }
-
-    // ======================================
-    // PUBLIC FOLDER
-    // ======================================
-
-    if (folder.visibility === "public") {
-      req.folder = folder;
-      req.folderRole = req.workspaceRole || "viewer";
-
-      return next();
-    }
-
-    // ======================================
-    // PRIVATE FOLDER MEMBER CHECK
-    // ======================================
-
-    const folderMember = folder.members?.find(
-      (m) => m.user.toString() === userId,
+    /*
+     * Workspace role هو الحد الأدنى.
+     * Folder role تستطيع رفعه، وليس تخفيضه.
+     */
+    const effectiveFolderRole = getHighestRole(
+      req.workspaceRole,
+      directFolderRole,
+      publicFolderRole,
     );
 
-    if (!folderMember) {
+    if (!effectiveFolderRole) {
       return res.status(403).json({
         success: false,
         message: "Folder access denied",
@@ -134,9 +125,9 @@ exports.folderAccess = async (req, res, next) => {
     }
 
     req.folder = folder;
-    req.folderRole = folderMember.role;
+    req.folderRole = effectiveFolderRole;
 
-    next();
+    return next();
   } catch (err) {
     return res.status(500).json({
       success: false,
@@ -150,7 +141,7 @@ exports.folderAccess = async (req, res, next) => {
 // ======================================
 exports.listAccess = async (req, res, next) => {
   try {
-    const listId = req.params.listId;
+    const { listId, folderId, workspaceId } = req.params;
 
     if (!listId) {
       return res.status(400).json({
@@ -159,127 +150,99 @@ exports.listAccess = async (req, res, next) => {
       });
     }
 
-    // ======================================
-    // FIND LIST
-    // ======================================
+    if ((folderId && !workspaceId) || (workspaceId && !folderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Folder ID and Workspace ID must be provided together",
+      });
+    }
 
-    const list = await List.findById(listId);
+    const listQuery = {
+      _id: listId,
+    };
+
+    if (folderId && workspaceId) {
+      listQuery.folder = folderId;
+      listQuery.workspace = workspaceId;
+    }
+
+    const list = await List.findOne(listQuery);
 
     if (!list) {
       return res.status(404).json({
         success: false,
-        message: "List not found",
+        message:
+          folderId && workspaceId
+            ? "List not found in the specified folder and workspace"
+            : "List not found",
       });
     }
 
-    // ======================================
-    // FIND WORKSPACE
-    // ======================================
+    const [workspace, folder] = await Promise.all([
+      Workspace.findById(list.workspace),
 
-    const workspace = await Workspace.findById(list.workspace);
+      Folder.findOne({
+        _id: list.folder,
+        workspace: list.workspace,
+      }),
+    ]);
 
     if (!workspace) {
       return res.status(404).json({
         success: false,
-        message: "Workspace not found",
+        message: "Parent workspace not found",
       });
     }
-
-    // ======================================
-    // FIND FOLDER
-    // ======================================
-
-    const folder = await Folder.findById(list.folder);
 
     if (!folder) {
       return res.status(404).json({
         success: false,
-        message: "Parent folder not found",
+        message: "Parent folder not found or hierarchy mismatch",
       });
     }
 
-    const userId = req.user._id.toString();
+    const userId = String(req.user._id);
 
-    // ======================================
-    // WORKSPACE ROLE
-    // ======================================
+    const directWorkspaceRole = getMemberRole(workspace.members, userId);
+    const directFolderRole = getMemberRole(folder.members, userId);
+    const directListRole = getMemberRole(list.members, userId);
+    const publicFolderRole = folder.visibility === "public" ? "viewer" : null;
+    const publicListRole = list.visibility === "public" ? "viewer" : null;
 
-    const workspaceMember = workspace.members?.find(
-      (m) => m.user.toString() === userId,
+    /*
+     * نحسب الدور الفعلي داخل Folder.
+     */
+    const effectiveFolderRole = getHighestRole(
+      directWorkspaceRole,
+      directFolderRole,
+      publicFolderRole,
+    );
+
+    /*
+     * ثم نحسب الدور الفعلي داخل List.
+     */
+    const effectiveListRole = getHighestRole(
+      effectiveFolderRole,
+      directListRole,
+      publicListRole,
     );
 
     req.workspace = workspace;
-    req.workspaceRole = workspaceMember?.role || null;
+    req.folder = folder;
+    req.list = list;
 
-    // ======================================
-    // WORKSPACE ADMIN BYPASS
-    // ======================================
+    req.workspaceRole = directWorkspaceRole;
+    req.folderRole = effectiveFolderRole;
+    req.listRole = effectiveListRole;
 
-    const isWorkspaceAdmin =
-      req.workspaceRole === "owner" || req.workspaceRole === "manager";
-
-    if (isWorkspaceAdmin) {
-      req.folder = folder;
-      req.list = list;
-
-      req.folderRole = req.workspaceRole;
-      req.listRole = req.workspaceRole;
-
-      return next();
-    }
-
-    // ======================================
-    // FOLDER ADMIN BYPASS
-    // ======================================
-
-    const folderMember = folder.members?.find(
-      (m) => m.user.toString() === userId,
-    );
-
-    const isFolderAdmin =
-      folderMember?.role === "owner" || folderMember?.role === "manager";
-
-    if (isFolderAdmin) {
-      req.folder = folder;
-      req.list = list;
-
-      req.folderRole = folderMember.role;
-      req.listRole = folderMember.role;
-
-      return next();
-    }
-
-    // ======================================
-    // PUBLIC LIST
-    // ======================================
-
-    if (list.visibility === "public") {
-      req.folder = folder;
-      req.list = list;
-
-      req.listRole = "viewer";
-
-      return next();
-    }
-
-    // ======================================
-    // PRIVATE LIST MEMBER CHECK
-    // ======================================
-
-    const listMember = list.members?.find((m) => m.user.toString() === userId);
-
-    if (!listMember) {
+    if (!effectiveListRole) {
       return res.status(403).json({
         success: false,
         message: "List access denied",
       });
     }
 
-    req.folder = folder;
-    req.list = list;
-    req.listRole = listMember.role;
-
-    next();
+    return next();
   } catch (err) {
     return res.status(500).json({
       success: false,
@@ -306,14 +269,22 @@ exports.taskAccess = async (req, res, next) => {
     // FIND TASK
     // ======================================
 
-    const task = await TaskModel.findById(taskId);
+    const taskQuery = {
+      _id: taskId,
+    };
+
+    if (req.params.listId) {
+      taskQuery.list = req.params.listId;
+    }
+
+    const task = await TaskModel.findOne(taskQuery);
+
     if (!task) {
       return res.status(404).json({
         success: false,
-        message: "Task not found",
+        message: "Task not found in the specified list",
       });
     }
-
     // ======================================
     // FIND LIST
     // ======================================
@@ -327,12 +298,24 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
+    if (
+      task.workspace &&
+      task.workspace.toString() !== list.workspace.toString()
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: "Task hierarchy mismatch",
+      });
+    }
+
     // ======================================
     // FIND FOLDER
     // ======================================
 
-    const folder = await Folder.findById(list.folder);
-
+    const folder = await Folder.findOne({
+      _id: list.folder,
+      workspace: list.workspace,
+    });
     if (!folder) {
       return res.status(404).json({
         success: false,
@@ -344,7 +327,7 @@ exports.taskAccess = async (req, res, next) => {
     // FIND WORKSPACE
     // ======================================
 
-    const workspace = await Workspace.findById(task.workspace);
+    const workspace = await Workspace.findById(list.workspace);
 
     if (!workspace) {
       return res.status(404).json({
@@ -353,110 +336,47 @@ exports.taskAccess = async (req, res, next) => {
       });
     }
 
-    const userId = req.user._id.toString();
+    const userId = String(req.user._id);
 
-    // ======================================
-    // WORKSPACE ROLE
-    // ======================================
+    const directWorkspaceRole = getMemberRole(workspace.members, userId);
 
-    const workspaceMember = workspace.members?.find(
-      (m) => m.user.toString() === userId,
+    const directFolderRole = getMemberRole(folder.members, userId);
+
+    const directListRole = getMemberRole(list.members, userId);
+
+    const publicFolderRole = folder.visibility === "public" ? "viewer" : null;
+
+    const publicListRole = list.visibility === "public" ? "viewer" : null;
+
+    const effectiveFolderRole = getHighestRole(
+      directWorkspaceRole,
+      directFolderRole,
+      publicFolderRole,
     );
 
-    req.workspace = workspace;
-    req.workspaceRole = workspaceMember?.role || null;
-
-    // ======================================
-    // WORKSPACE ADMIN BYPASS
-    // ======================================
-
-    const isWorkspaceAdmin =
-      req.workspaceRole === "owner" || req.workspaceRole === "manager";
-
-    if (isWorkspaceAdmin) {
-      req.folder = folder;
-      req.list = list;
-      req.task = task;
-
-      req.folderRole = req.workspaceRole;
-      req.listRole = req.workspaceRole;
-
-      return next();
-    }
-
-    // ======================================
-    // FOLDER ADMIN BYPASS
-    // ======================================
-
-    const folderMember = folder.members?.find(
-      (m) => m.user.toString() === userId,
+    const effectiveListRole = getHighestRole(
+      effectiveFolderRole,
+      directListRole,
+      publicListRole,
     );
 
-    const isFolderAdmin =
-      folderMember?.role === "owner" || folderMember?.role === "manager";
-
-    if (isFolderAdmin) {
-      req.folder = folder;
-      req.list = list;
-      req.task = task;
-
-      req.folderRole = folderMember.role;
-      req.listRole = folderMember.role;
-
-      return next();
-    }
-
-    // ======================================
-    // LIST ADMIN BYPASS
-    // ======================================
-
-    const listMember = list.members?.find((m) => m.user.toString() === userId);
-
-    const isListAdmin =
-      listMember?.role === "owner" || listMember?.role === "manager";
-
-    if (isListAdmin) {
-      req.folder = folder;
-      req.list = list;
-      req.task = task;
-
-      req.listRole = listMember.role;
-
-      return next();
-    }
-
-    // ======================================
-    // PUBLIC LIST
-    // ======================================
-
-    if (list.visibility === "public") {
-      req.folder = folder;
-      req.list = list;
-      req.task = task;
-
-      req.listRole = "viewer";
-
-      return next();
-    }
-
-    // ======================================
-    // PRIVATE LIST MEMBER CHECK
-    // ======================================
-
-    if (!listMember) {
+    if (!effectiveListRole) {
       return res.status(403).json({
         success: false,
         message: "Task access denied",
       });
     }
 
+    req.workspace = workspace;
     req.folder = folder;
     req.list = list;
     req.task = task;
 
-    req.listRole = listMember.role;
+    req.workspaceRole = directWorkspaceRole;
+    req.folderRole = effectiveFolderRole;
+    req.listRole = effectiveListRole;
 
-    next();
+    return next();
   } catch (err) {
     return res.status(500).json({
       success: false,

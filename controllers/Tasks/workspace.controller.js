@@ -8,7 +8,7 @@ exports.createWorkspace = async (req, res) => {
     const data = await workspaceService.createWorkspace(
       req.body,
       req.user._id,
-      req.companyId 
+      req.companyId,
     );
 
     return res.status(201).json({
@@ -28,11 +28,10 @@ exports.createWorkspace = async (req, res) => {
 // GET USER WORKSPACE TREE
 // ===============================
 exports.getUserWorkspaceTree = async (req, res) => {
-  console.log(req.user);
   try {
     const data = await workspaceService.getUserWorkspaceTree(
       req.user._id,
-      req.user.companyId
+      req.companyId,
     );
 
     return res.status(200).json({
@@ -52,8 +51,10 @@ exports.getUserWorkspaceTree = async (req, res) => {
 // ===============================
 exports.getMyWorkspaces = async (req, res) => {
   try {
-    const data = await workspaceService.getUserWorkspaces(req.user._id);
-
+    const data = await workspaceService.getUserWorkspaces(
+      req.user._id,
+      req.companyId,
+    );
     return res.status(200).json({
       success: true,
       count: data.length,
@@ -73,7 +74,7 @@ exports.getMyWorkspaces = async (req, res) => {
 exports.getWorkspace = async (req, res) => {
   try {
     const data = await workspaceService.getWorkspaceById(
-      req.params.workspaceId // ✅ FIX
+      req.params.workspaceId, // ✅ FIX
     );
 
     return res.status(200).json({
@@ -96,7 +97,7 @@ exports.updateWorkspace = async (req, res) => {
     const data = await workspaceService.updateWorkspace(
       req.params.workspaceId, // ✅ FIX
       req.body,
-      req.user._id
+      req.user._id,
     );
 
     return res.status(200).json({
@@ -118,7 +119,7 @@ exports.updateWorkspace = async (req, res) => {
 exports.deleteWorkspace = async (req, res) => {
   try {
     await workspaceService.deleteWorkspace(
-      req.params.workspaceId // ✅ FIX
+      req.params.workspaceId, // ✅ FIX
     );
 
     return res.status(204).send();
@@ -138,7 +139,7 @@ exports.addMember = async (req, res) => {
     const data = await workspaceService.addMember(
       req.params.workspaceId,
       req.body.userId,
-      req.body.role
+      req.body.role,
     );
 
     return res.status(200).json({
@@ -161,7 +162,7 @@ exports.removeMember = async (req, res) => {
   try {
     const data = await workspaceService.removeMember(
       req.params.workspaceId, // ✅ FIX
-      req.params.userId
+      req.params.userId,
     );
 
     return res.status(200).json({
