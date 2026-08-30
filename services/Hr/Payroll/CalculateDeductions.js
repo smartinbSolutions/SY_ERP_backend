@@ -6,8 +6,6 @@ exports.CalculateDeductions = async ({
   period,
   payroll,
 }) => {
-  // console.log("ddddddddddddd", deductions);
-
   try {
     if (!deductions.length) {
       return {
@@ -25,35 +23,58 @@ exports.CalculateDeductions = async ({
 
     let totalAmount = 0;
 
+    let totalDeductionHours = 0;
+
+    let totalFixedAmount = 0;
+
     const breakdown = deductions.map((item) => {
       const unit = item.deduction?.unit;
       const value = Number(item.deduction?.value || 0);
+
       console.log("item", item);
 
       let amount = 0;
+      let deductionHours = 0;
 
+      // =========================
+      // SAME CALCULATION LOGIC
+      // =========================
       switch (unit) {
-        
         case "minutes":
-          amount = Number(((value / 60) * hourlyRate).toFixed(2));
+          deductionHours = value / 60;
+          amount = Number((deductionHours * hourlyRate).toFixed(2));
           break;
+
         case "hour":
+          deductionHours = value;
           amount = Number((value * hourlyRate).toFixed(2));
           break;
 
         case "day":
-          amount = Number((value * shiftHours * hourlyRate).toFixed(2));
+          deductionHours = value * shiftHours;
+          amount = Number((deductionHours * hourlyRate).toFixed(2));
           break;
 
         case "fixed":
+          deductionHours = 0;
+
           amount = Number(Number(item.deduction?.value || 0).toFixed(2));
+
+          totalFixedAmount += amount;
           break;
 
         default:
+          deductionHours = 0;
           amount = 0;
       }
 
+      totalDeductionHours += deductionHours;
+
       totalAmount += amount;
+
+      // =========================
+      // BREAKDOWN DATA
+      // =========================
       return {
         logId: item._id,
 
@@ -67,8 +88,12 @@ exports.CalculateDeductions = async ({
         deduction: {
           unit,
           value,
-          rate: unit === "hour" ? hourlyRate : null,
+
+          rate: hourlyRate,
+
           shiftHours: unit === "day" ? shiftHours : null,
+
+          hours: Number(deductionHours.toFixed(2)),
         },
 
         period: {
@@ -78,19 +103,35 @@ exports.CalculateDeductions = async ({
 
         calculation: {
           formula:
-            unit === "hour"
-              ? `${value} × hourlyRate`
-              : unit === "day"
-                ? `${value} × shiftHours × hourlyRate`
-                : `${value} (fixed)`,
+            unit === "minutes"
+              ? `(${value} ÷ 60) × hourlyRate`
+              : unit === "hour"
+                ? `${value} × hourlyRate`
+                : unit === "day"
+                  ? `${value} × shiftHours × hourlyRate`
+                  : unit === "fixed"
+                    ? `${value} (fixed)`
+                    : `${value}`,
 
           amount,
         },
       };
     });
 
+    totalDeductionHours = Number(totalDeductionHours.toFixed(2));
+
+    totalFixedAmount = Number(totalFixedAmount.toFixed(2));
+
     totalAmount = Number(totalAmount.toFixed(2));
 
+    // =========================
+    // LABEL
+    // =========================
+    let label = "Violation Deductions";
+
+    // =========================
+    // PAYROLL LINE
+    // =========================
     const linePayload = {
       payrollPeriodId: period._id,
       payrollEmployeeId: payroll._id,
@@ -99,9 +140,12 @@ exports.CalculateDeductions = async ({
       category: "deduction",
       type: "manual_adjustment",
 
-      label: "Violation Deductions",
+      label,
+
+      quantity: totalDeductionHours,
 
       rate: hourlyRate,
+      unit: "hour",
 
       Originalamount: totalAmount,
       amount: totalAmount,
@@ -113,6 +157,12 @@ exports.CalculateDeductions = async ({
 
       metadata: {
         breakdown,
+
+        summary: {
+          deductionHours: totalDeductionHours,
+          fixedAmount: totalFixedAmount,
+          totalAmount,
+        },
       },
 
       status: "success",
@@ -124,7 +174,7 @@ exports.CalculateDeductions = async ({
       success: true,
 
       result: {
-        quantity: deductions.length,
+        quantity: totalDeductionHours,
         rate: hourlyRate,
         amount: totalAmount,
         breakdown,
@@ -165,6 +215,7 @@ exports.CalculateDeductions = async ({
 
 function getShiftHours(employee) {
   const start = employee?.groupId?.fixedAttendance?.startTime;
+
   const end = employee?.groupId?.fixedAttendance?.endTime;
 
   if (!start || !end) return 8;

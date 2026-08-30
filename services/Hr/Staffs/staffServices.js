@@ -371,7 +371,7 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // salary comes from FormData as string
+  // salary
   if (req.body.salary && typeof req.body.salary === "string") {
     try {
       req.body.salary = JSON.parse(req.body.salary);
@@ -382,20 +382,44 @@ exports.updateStaff = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Get current staff first
+  const oldStaff = await StaffsModel.findOne({
+    _id: req.params.id,
+    companyId,
+  });
+
+  if (!oldStaff) {
+    return next(new ApiError("Staff not found", 404));
+  }
+
+  // Update staff
   const staff = await StaffsModel.findOneAndUpdate(
     {
       _id: req.params.id,
       companyId,
     },
-    req.body,
+    {
+      $set: req.body,
+    },
     {
       new: true,
       runValidators: true,
     },
   );
 
-  if (!staff) {
-    return next(new ApiError("Staff not found", 404));
+  // Get current group after update
+  const group = await groupsModel.findOne({
+    _id: staff.groupId,
+    companyId,
+  });
+
+  if (group) {
+    const hourlyRate = calculateHourlyRate(staff, group);
+
+    staff.salary.hourlyRate = hourlyRate;
+    staff.salary.lastRateCalculatedAt = new Date();
+
+    await staff.save();
   }
 
   res.status(200).json({

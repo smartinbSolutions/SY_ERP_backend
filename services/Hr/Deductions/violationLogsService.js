@@ -90,137 +90,202 @@ const deleteViolationLogService = async ({ id, companyId }) => {
 /* =====================================================
    PROCESS ABSENCE JOB (KEEP AS SERVICE)
 ===================================================== */
-const processDailyAbsenceViolationsService = async () => {
-  const today = dayjs().format("YYYY-MM-DD");
-  const dayName = dayjs(today).format("dddd");
 
-  /* ===============================
-     1. STAFF
-  =============================== */
+// Check whether a calendar rule makes the selected date a full day off
+const isCalendarRuleActive = (rule, date) => {
+  if (!rule) return false;
+
+  if (rule.effectType !== "FULL_DAY_OFF") {
+    return false;
+  }
+
+  if (rule.patternType === "SINGLE_DATE") {
+    return date === rule.startDate;
+  }
+
+  if (rule.patternType === "DATE_RANGE") {
+    return date >= rule.startDate && date <= rule.endDate;
+  }
+
+  if (rule.patternType === "RECURRING_WEEKLY") {
+    if (date < rule.startDate || date > rule.endDate) {
+      return false;
+    }
+
+    const dayName = dayjs(date).format("dddd");
+
+    return rule.daysOfWeek?.includes(dayName) ?? false;
+  }
+
+  if (rule.patternType === "RECURRING_MONTHLY") {
+    return false;
+  }
+
+  return false;
+};
+
+const processDailyAbsenceViolationsService = async () => {
+  // The job runs at midnight, so process the previous day
+  const targetDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+
+  const dayName = dayjs(targetDate).format("dddd");
+
+  // =====================================================
+  // Load active employees
+  // =====================================================
+
   const staffList = await staffModel
-    .find({ employmentStatus: true })
+    .find({
+      employmentStatus: true,
+    })
     .populate("groupId");
 
   if (!staffList.length) {
-    console.log("⚠️ No staff found");
     return;
   }
 
-  const companyId = staffList[0].companyId;
+  // =====================================================
+  // Group employees by company
+  // =====================================================
 
-  /* ===============================
-     2. LEAVES
-  =============================== */
-  const leaves = await leavesLogsModel.find({
-    companyId,
-    startDate: { $lte: today },
-    endDate: { $gte: today },
-  });
-
-  /* ===============================
-     3. FINGERPRINTS
-  =============================== */
-  const fingerprints = await fingerprintModel.find({
-    companyId,
-    date: today,
-  });
-
-  /* ===============================
-     4. LOOKUPS
-  =============================== */
-  const leaveSet = new Set(leaves.map((l) => l.userId.toString()));
-
-  const fingerprintMap = new Map();
-  fingerprints.forEach((fp) => {
-    if (fp.userID) {
-      fingerprintMap.set(fp.userID.toString(), true);
-    }
-  });
-
-  /* ===============================
-     5. PROCESS STAFF
-  =============================== */
-  let createdCount = 0;
-  let skippedLeave = 0;
-  let skippedFingerprint = 0;
-  let skippedOffDay = 0;
-  let skippedHoliday = 0;
-  let skippedExisting = 0;
+  const companyStaffMap = new Map();
 
   for (const staff of staffList) {
-    const group = staff.groupId;
-    if (!group) continue;
-
-    const userIdStr = staff._id.toString();
-
-    // LEAVE
-    if (leaveSet.has(userIdStr)) {
-      skippedLeave++;
+    if (!staff.companyId) {
       continue;
     }
 
-    // FINGERPRINT
-    if (fingerprintMap.has(userIdStr)) {
-      skippedFingerprint++;
-      continue;
+    if (!companyStaffMap.has(staff.companyId)) {
+      companyStaffMap.set(staff.companyId, []);
     }
 
-    // OFF DAY
-    const isOffDay = group.offDays?.includes(dayName);
-    if (isOffDay) {
-      skippedOffDay++;
-      continue;
-    }
-
-    // HOLIDAY
-    const isHoliday = group.calendarRules?.some(
-      (r) =>
-        r.effectType === "FULL_DAY_OFF" &&
-        today >= r.startDate &&
-        today <= r.endDate,
-    );
-
-    if (isHoliday) {
-      skippedHoliday++;
-      continue;
-    }
-
-    // EXISTING VIOLATION
-    const existing = await ViolationLog.findOne({
-      userId: staff._id,
-      violationDate: today,
-      violationType: "absence",
-    });
-
-    if (existing) {
-      skippedExisting++;
-      continue;
-    }
-
-    // CREATE VIOLATION
-    await createViolationAndProcess({
-      userId: staff._id,
-      companyId: staff.companyId,
-      violationType: "absence",
-      violationDate: today,
-      isExcused: false,
-    });
-
-    createdCount++;
+    companyStaffMap.get(staff.companyId).push(staff);
   }
 
-  /* ===============================
-     FINAL REPORT
-  =============================== */
-  console.log("📊 Absence job result:");
-  console.log("✅ Created:", createdCount);
-  console.log("🌴 Leave skipped:", skippedLeave);
-  console.log("🖐 Fingerprint skipped:", skippedFingerprint);
-  console.log("📅 Off day skipped:", skippedOffDay);
-  console.log("🎉 Holiday skipped:", skippedHoliday);
-  console.log("♻️ Existing skipped:", skippedExisting);
+  // =====================================================
+  // Process each company independently
+  // =====================================================
 
-  console.log("🏁 Absence job finished\n");
+  for (const [companyId, companyStaff] of companyStaffMap) {
+    // ---------------------------------------------------
+    // Load leaves for this company
+    // ---------------------------------------------------
+
+    const leaves = await leavesLogsModel.find({
+      companyId,
+      startDate: { $lte: targetDate },
+      endDate: { $gte: targetDate },
+    });
+
+    // ---------------------------------------------------
+    // Load fingerprints for this company
+    // ---------------------------------------------------
+
+    const fingerprints = await fingerprintModel.find({
+      companyId,
+      date: targetDate,
+    });
+
+    // ---------------------------------------------------
+    // Create lookup maps
+    // ---------------------------------------------------
+
+    const leaveSet = new Set(
+      leaves
+        .filter((leave) => leave.userId)
+        .map((leave) => leave.userId.toString()),
+    );
+
+    const fingerprintMap = new Map();
+
+    fingerprints.forEach((fingerprint) => {
+      if (fingerprint.userID) {
+        fingerprintMap.set(fingerprint.userID.toString(), true);
+      }
+    });
+
+    // ===================================================
+    // Process employees of this company
+    // ===================================================
+
+    for (const staff of companyStaff) {
+      const userIdStr = staff._id.toString();
+      const group = staff.groupId;
+
+      if (!group) {
+        continue;
+      }
+
+      // -------------------------------------------------
+      // Employees with approved leave are excluded
+      // -------------------------------------------------
+
+      const hasLeave = leaveSet.has(userIdStr);
+
+      if (hasLeave) {
+        continue;
+      }
+
+      // -------------------------------------------------
+      // Employees with any fingerprint are excluded
+      // -------------------------------------------------
+
+      const hasFingerprint = fingerprintMap.has(userIdStr);
+
+      if (hasFingerprint) {
+        continue;
+      }
+
+      // -------------------------------------------------
+      // Weekly off days are excluded
+      // -------------------------------------------------
+
+      const isOffDay = group.offDays?.includes(dayName);
+
+      if (isOffDay) {
+        continue;
+      }
+
+      // -------------------------------------------------
+      // Calendar holidays are excluded
+      // -------------------------------------------------
+
+      const isHoliday = group.calendarRules?.some((rule) =>
+        isCalendarRuleActive(rule, targetDate),
+      );
+
+      if (isHoliday) {
+        continue;
+      }
+
+      // -------------------------------------------------
+      // Prevent duplicate absence violations
+      // -------------------------------------------------
+
+      const existing = await ViolationLog.findOne({
+        userId: staff._id,
+        companyId: staff.companyId,
+        violationDate: targetDate,
+        violationType: "absence",
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      // -------------------------------------------------
+      // Create and process absence violation
+      // -------------------------------------------------
+
+      await createViolationAndProcess({
+        userId: staff._id,
+        companyId: staff.companyId,
+        violationType: "absence",
+        violationDate: targetDate,
+        isExcused: false,
+      });
+    }
+  }
 };
 
 module.exports = {

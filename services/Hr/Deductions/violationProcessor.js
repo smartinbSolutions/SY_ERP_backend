@@ -1,36 +1,36 @@
 const mongoose = require("mongoose");
-const ViolationLog = require("../../../models/Hr/Deductions/violationLogModel");
-const groupsModel = require("../../../models/Hr/Attendance/groupsModel");
-const staffModel = require("../../../models/Hr/Staffs/staffModel");
+
+const violationLogModel = require("../../../models/Hr/Deductions/violationLogModel");
 const DeductionTypes = require("../../../models/Hr/Deductions/deductionTypesModel");
 const ActionExecutionLog = require("../../../models/Hr/Deductions/actionExecutionLogModel");
+const staffModel = require("../../../models/Hr/Staffs/staffModel");
+const groupsModel = require("../../../models/Hr/Attendance/groupsModel");
+
 const { getOccurrencePeriod } = require("../../../utils/getOccurrencePeriod");
 
+require("../../../models/Hr/Settings/locationModel");
 const createViolationAndProcess = async (data) => {
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
 
-    /* =========================
-       1. CREATE VIOLATION
-    ========================= */
-    const [violation] = await ViolationLog.create([data], { session });
+    // Create the violation
+    const [violation] = await violationLogModel.create([data], { session });
 
     const { userId, companyId, violationType, violationDate } = violation;
 
-    /* =========================
-       2. STAFF
-    ========================= */
-    const staff = await staffModel.findById(userId).session(session).lean();
+    // Load employee
+    const staff = await staffModel
+      .findById(userId)
+      .session(session)
+      .lean();
 
     if (!staff) {
       throw new Error("STAFF_NOT_FOUND");
     }
 
-    /* =========================
-       3. GROUP + LOCATION
-    ========================= */
+    // Load employee group and location
     const group = await groupsModel
       .findById(staff.groupId)
       .populate("locationId")
@@ -43,9 +43,7 @@ const createViolationAndProcess = async (data) => {
 
     const location = group.locationId;
 
-    /* =========================
-       4. RULE
-    ========================= */
+    // Find deduction rule
     const rule = await DeductionTypes.findOne({
       companyId,
       policyId: group.deductionPolicy,
@@ -54,15 +52,12 @@ const createViolationAndProcess = async (data) => {
       .session(session)
       .lean();
 
-    // no rule → just save violation
     if (!rule) {
       await session.commitTransaction();
       return violation;
     }
 
-    /* =========================
-       5. OCCURRENCE PERIOD
-    ========================= */
+    // Calculate occurrence period
     const { periodStart, periodEnd } = getOccurrencePeriod({
       frequency: rule.resetFrequency,
       violationDate,
@@ -70,29 +65,30 @@ const createViolationAndProcess = async (data) => {
       timezone: location?.timezone,
     });
 
-    /* =========================
-       6. COUNT VIOLATIONS
-    ========================= */
-    const count = await ViolationLog.countDocuments({
-      userId,
-      companyId,
-      violationType,
-      isExcused: false,
-      violationDate: {
-        $gte: periodStart,
-        $lt: periodEnd,
-      },
-    }).session(session);
+    // Count violations within the occurrence period
+    const count = await violationLogModel
+      .countDocuments({
+        userId,
+        companyId,
+        violationType,
+        isExcused: false,
+        violationDate: {
+          $gte: periodStart,
+          $lt: periodEnd,
+        },
+      })
+      .session(session);
 
-    /* =========================
-       7. FIND STAGE
-    ========================= */
+    // Find matching stage
     let matchedStage = null;
 
     for (const stage of rule.stages || []) {
       const min = Number(stage.occurrence?.min);
+
       const max =
-        stage.occurrence?.max == null ? null : Number(stage.occurrence?.max);
+        stage.occurrence?.max == null
+          ? null
+          : Number(stage.occurrence?.max);
 
       if (count >= min && (max === null || count <= max)) {
         matchedStage = stage;
@@ -105,9 +101,7 @@ const createViolationAndProcess = async (data) => {
       return violation;
     }
 
-    /* =========================
-       8. EXECUTE ACTIONS
-    ========================= */
+    // Execute stage actions
     for (const action of matchedStage.actions || []) {
       const payload = {
         userId,
@@ -127,20 +121,22 @@ const createViolationAndProcess = async (data) => {
         };
       }
 
-      await ActionExecutionLog.create([payload], { session });
+      await ActionExecutionLog.create([payload], {
+        session,
+      });
     }
 
-    /* =========================
-       SUCCESS
-    ========================= */
     await session.commitTransaction();
 
     return violation;
   } catch (err) {
-    await session.abortTransaction();
+    try {
+      await session.abortTransaction();
+    } catch (abortError) {}
+
     throw err;
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 };
 

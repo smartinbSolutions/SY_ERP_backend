@@ -304,9 +304,7 @@ exports.getMyLeaveRequests = async (req) => {
     return reqObj;
   });
 
-  console.log(
-    JSON.stringify(processedRequests[0]?.approval, null, 2)
-  );
+  console.log(JSON.stringify(processedRequests[0]?.approval, null, 2));
 
   return {
     status: true,
@@ -582,6 +580,14 @@ exports.handleLeaveRequest = async (req) => {
           break;
 
         case "special":
+          appliedRule = leave.singleRules;
+          ruleType = "single_rule";
+          break;
+
+        case "paternity":
+        case "marriage":
+        case "bereavement":
+        case "hajj":
           appliedRule = leave.singleRules;
           ruleType = "single_rule";
           break;

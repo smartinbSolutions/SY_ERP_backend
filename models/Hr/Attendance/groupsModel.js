@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-
 const calendarRuleSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -92,6 +91,12 @@ const groupsSchema = new mongoose.Schema(
       default: 200,
     },
 
+    severeLateAfter: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    
     offDays: [{ type: String }],
 
     // ---------- FIXED ----------
