@@ -5,6 +5,10 @@ const { v4: uuidv4 } = require("uuid");
 const sharp = require("sharp");
 const CategoryModel = require("../../models/CategoryModel");
 const ecommerceProductModel = require("../../models/ecommerce/ecommerceProductModel");
+const productModel = require("../../models/Stocks/products/productModel");
+const mongoose = require("mongoose");
+const slugify = require("slugify");
+const orderModel = require("../../models/Accounting/Sales/orderModel");
 
 const multerOptions = () => {
   const multerStorage = multer.memoryStorage();
@@ -87,27 +91,90 @@ exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
 // @desc get Product for Ecommerces
 // @route Post /api/productLazy
 // @access public
+// @desc Get products for Ecommerce storefront
+// @route GET /api/productLazy
+// @access Public
 exports.getLezyProduct = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
-  const limit = parseInt(req.query.limit) || 16;
-  const skip = parseInt(req.query.skip) || 0;
+  const limit = Math.max(parseInt(req.query.limit) || 16, 1);
+  const skip = Math.max(parseInt(req.query.skip) || 0, 0);
 
-  let query = {
+  /*
+   * ========================================
+   * ECOMMERCE PRODUCT FILTERS
+   * ========================================
+   *
+   * These fields exist directly inside
+   * ecommerceProductModel.
+   */
+  const ecommerceQuery = {
     publish: true,
     ecommerceActive: true,
     companyId,
   };
 
-  // Default sort query
-  let sortQuery = { importDate: -1 };
-  if (req.query.sold) {
-    sortQuery = { sold: parseInt(req.query.sold) === 1 ? 1 : -1 };
-  } else if (req.query.taxPrice) {
+  /*
+   * Search by Ecommerce product name
+   */
+  if (req.query.keyword) {
+    ecommerceQuery.name = {
+      $regex: req.query.keyword,
+      $options: "i",
+    };
+  }
+
+  /*
+   * Ratings filter
+   */
+  if (req.query.minAvg || req.query.maxAvg) {
+    ecommerceQuery.ratingsAverage = {};
+
+    if (req.query.minAvg) {
+      ecommerceQuery.ratingsAverage.$gte = parseFloat(req.query.minAvg);
+    }
+
+    if (req.query.maxAvg) {
+      ecommerceQuery.ratingsAverage.$lte = parseFloat(req.query.maxAvg);
+    }
+  }
+
+  /*
+   * Price filter
+   */
+  if (req.query.taxPriceMin || req.query.taxPriceMax) {
+    ecommerceQuery.ecommercePriceMainCurrency = {};
+
+    if (req.query.taxPriceMin) {
+      ecommerceQuery.ecommercePriceMainCurrency.$gte = parseFloat(
+        req.query.taxPriceMin,
+      );
+    }
+
+    if (req.query.taxPriceMax) {
+      ecommerceQuery.ecommercePriceMainCurrency.$lte = parseFloat(
+        req.query.taxPriceMax,
+      );
+    }
+  }
+
+  /*
+   * ========================================
+   * SORTING
+   * ========================================
+   */
+
+  let sortQuery = {
+    importDate: -1,
+  };
+
+  if (req.query.taxPrice) {
     sortQuery = {
       ecommercePriceMainCurrency: parseInt(req.query.taxPrice) === 1 ? 1 : -1,
     };
@@ -121,20 +188,29 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
     };
   }
 
-  // Keyword search
-  if (req.query.keyword) {
-    if (req.query.lang === "en") {
-      query.name = { $regex: req.query.keyword, $options: "i" };
-    } else if (req.query.lang === "tr") {
-      query.nameTR = { $regex: req.query.keyword, $options: "i" };
-    } else if (req.query.lang === "ar") {
-      query.nameAR = { $regex: req.query.keyword, $options: "i" };
-    }
-  }
+  /*
+   * ========================================
+   * ORIGINAL PRODUCT FILTERS
+   * ========================================
+   *
+   * category and brand do NOT exist directly
+   * inside ecommerceProduct.
+   *
+   * They exist inside:
+   *
+   * ecommerceProduct.product.category
+   * ecommerceProduct.product.brand
+   */
 
-  // Function to get all active child category IDs recursively
+  const productQuery = {};
+
+  /*
+   * Get selected category + all active
+   * child categories recursively.
+   */
   const getActiveChildCategories = async (categoryId) => {
     let categoryIds = [categoryId];
+
     const categories = await CategoryModel.find({
       parentCategory: categoryId,
       ecommerceVisible: true,
@@ -142,193 +218,301 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
 
     for (const category of categories) {
       const childIds = await getActiveChildCategories(category._id);
+
       categoryIds = categoryIds.concat(childIds);
     }
 
     return categoryIds;
   };
 
-  // Type filtering for category or brand
+  /*
+   * ========================================
+   * CATEGORY FILTER
+   * ========================================
+   */
+
   if (req.query.type === "category" && req.query.id) {
-    try {
-      const categoryId = new mongoose.Types.ObjectId(req.query.id);
-      const category = await CategoryModel.findOne({
-        _id: categoryId,
-        ecommerceVisible: true,
-      });
-      if (!category) {
-        return next(new Error("Category not found or not active"));
-      }
-
-      const categoryIds = await getActiveChildCategories(categoryId);
-      query.category = {
-        $in: categoryIds.map((id) => new mongoose.Types.ObjectId(id)),
-      };
-    } catch (error) {
-      return next(new Error("Invalid category ID format"));
+    if (!mongoose.Types.ObjectId.isValid(req.query.id)) {
+      return next(new ApiError("Invalid category ID format", 400));
     }
+
+    const categoryId = new mongoose.Types.ObjectId(req.query.id);
+
+    const category = await CategoryModel.findOne({
+      _id: categoryId,
+      ecommerceVisible: true,
+    });
+
+    if (!category) {
+      return next(new ApiError("Category not found or not active", 404));
+    }
+
+    const categoryIds = await getActiveChildCategories(categoryId);
+
+    productQuery["product.category"] = {
+      $in: categoryIds,
+    };
   }
+
+  /*
+   * ========================================
+   * SINGLE BRAND FILTER
+   * ========================================
+   */
+
   if (req.query.type === "brand" && req.query.id) {
-    try {
-      query.brand = new mongoose.Types.ObjectId(req.query.id);
-    } catch (error) {
-      return next(new Error("Invalid brand ID format"));
+    if (!mongoose.Types.ObjectId.isValid(req.query.id)) {
+      return next(new ApiError("Invalid brand ID format", 400));
     }
+
+    productQuery["product.brand"] = new mongoose.Types.ObjectId(req.query.id);
   }
 
-  // Handle multiple brand IDs
+  /*
+   * ========================================
+   * MULTIPLE BRAND FILTER
+   * ========================================
+   */
+
   if (req.query.brandId) {
-    let brandIds;
+    let rawBrandIds = [];
+
     if (Array.isArray(req.query.brandId)) {
-      brandIds = req.query.brandId.map((id) => new mongoose.Types.ObjectId(id));
+      rawBrandIds = req.query.brandId;
     } else if (typeof req.query.brandId === "string") {
-      brandIds = req.query.brandId
-        .split(",")
-        .map((id) => new mongoose.Types.ObjectId(id));
-    } else {
-      return next(new Error("Invalid brand ID format"));
+      rawBrandIds = req.query.brandId.split(",").filter(Boolean);
     }
-    query.brand = { $in: brandIds };
+
+    if (!rawBrandIds.length) {
+      return next(new ApiError("Invalid brand ID format", 400));
+    }
+
+    const invalidBrandId = rawBrandIds.find(
+      (id) => !mongoose.Types.ObjectId.isValid(id),
+    );
+
+    if (invalidBrandId) {
+      return next(new ApiError(`Invalid brand ID: ${invalidBrandId}`, 400));
+    }
+
+    productQuery["product.brand"] = {
+      $in: rawBrandIds.map((id) => new mongoose.Types.ObjectId(id)),
+    };
   }
 
-  // Ratings filter
-  if (req.query.minAvg || req.query.maxAvg) {
-    query.ratingsAverage = {};
-    if (req.query.minAvg) {
-      query.ratingsAverage.$gte = parseFloat(req.query.minAvg);
-    }
-    if (req.query.maxAvg) {
-      query.ratingsAverage.$lte = parseFloat(req.query.maxAvg);
-    }
-  }
+  /*
+   * ========================================
+   * AGGREGATION
+   * ========================================
+   */
 
-  // Construct the aggregation pipeline
   const aggregationPipeline = [
+    /*
+     * First filter Ecommerce Products.
+     *
+     * We do this before lookups for better performance.
+     */
+    {
+      $match: ecommerceQuery,
+    },
+
+    /*
+     * Get original ERP/POS product.
+     *
+     * ecommerceProduct.product
+     *        ↓
+     * product._id
+     */
+    {
+      $lookup: {
+        from: "products",
+        localField: "product",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+
+    /*
+     * Convert product array returned by lookup
+     * into a single object.
+     */
+    {
+      $unwind: {
+        path: "$product",
+        preserveNullAndEmptyArrays: false,
+      },
+    },
+
+    /*
+     * Apply category / brand filters AFTER
+     * original product has been joined.
+     */
+    ...(Object.keys(productQuery).length
+      ? [
+          {
+            $match: productQuery,
+          },
+        ]
+      : []),
+
     {
       $addFields: {
         effectivePrice: {
           $cond: {
-            if: { $gt: ["$ecommercePriceAftereDiscount", 0] },
+            if: {
+              $gt: ["$ecommercePriceAftereDiscount", 0],
+            },
+
             then: "$ecommercePriceAftereDiscount",
+
             else: "$ecommercePriceMainCurrency",
           },
         },
       },
     },
+
     {
       $lookup: {
         from: "currencies",
-        localField: "currency",
+        localField: "product.currency",
         foreignField: "_id",
         as: "currencyDetails",
       },
     },
+
     {
       $unwind: {
         path: "$currencyDetails",
         preserveNullAndEmptyArrays: true,
       },
     },
+
     {
       $addFields: {
         convertedPrice: {
-          $multiply: ["$effectivePrice", "$currencyDetails.exchangeRate"],
+          $cond: {
+            if: {
+              $ne: ["$currencyDetails.exchangeRate", null],
+            },
+
+            then: {
+              $multiply: ["$effectivePrice", "$currencyDetails.exchangeRate"],
+            },
+
+            else: "$effectivePrice",
+          },
         },
-      },
-    },
-    {
-      $match: {
-        ...query,
-        ...(req.query.taxPriceMin || req.query.taxPriceMax
-          ? {
-              ecommercePriceMainCurrency: {
-                ...(req.query.taxPriceMin && {
-                  $gte: parseFloat(req.query.taxPriceMin),
-                }),
-                ...(req.query.taxPriceMax && {
-                  $lte: parseFloat(req.query.taxPriceMax),
-                }),
-              },
-            }
-          : {}),
-      },
-    },
-    { $sort: sortQuery },
-    { $skip: skip },
-    { $limit: limit },
-    {
-      $lookup: {
-        from: "categories",
-        localField: "category",
-        foreignField: "_id",
-        as: "category",
-      },
-    },
-    {
-      $unwind: {
-        path: "$category",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $lookup: {
-        from: "brands",
-        localField: "brand",
-        foreignField: "_id",
-        as: "brand",
       },
     },
 
     {
-      $lookup: {
-        from: "taxes",
-        localField: "tax",
-        foreignField: "_id",
-        as: "tax",
-      },
-    },
-    {
-      $lookup: {
-        from: "currencies",
-        localField: "currency",
-        foreignField: "_id",
-        as: "currency",
+      $facet: {
+        metadata: [
+          {
+            $count: "totalItems",
+          },
+        ],
+
+        data: [
+          {
+            $sort: sortQuery,
+          },
+
+          {
+            $skip: skip,
+          },
+
+          {
+            $limit: limit,
+          },
+
+          {
+            $lookup: {
+              from: "categories",
+              localField: "product.category",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
+
+          {
+            $unwind: {
+              path: "$category",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+
+          {
+            $lookup: {
+              from: "brands",
+              localField: "product.brand",
+              foreignField: "_id",
+              as: "brand",
+            },
+          },
+
+          {
+            $lookup: {
+              from: "taxes",
+              localField: "product.tax",
+              foreignField: "_id",
+              as: "tax",
+            },
+          },
+
+          {
+            $lookup: {
+              from: "currencies",
+              localField: "product.currency",
+              foreignField: "_id",
+              as: "currency",
+            },
+          },
+        ],
       },
     },
   ];
 
-  try {
-    const products = await ecommerceProductModel.aggregate(aggregationPipeline);
+  const aggregationResult =
+    await ecommerceProductModel.aggregate(aggregationPipeline);
 
-    const totalItems = await ecommerceProductModel.countDocuments(query);
-    const totalPages = Math.ceil(totalItems / limit);
+  const result = aggregationResult[0] || {
+    metadata: [],
+    data: [],
+  };
 
-    const setImageURL = (doc) => {
-      if (doc.image) {
-        const imageUrl = `${process.env.BASE_URL}/product/${doc.image}`;
-        doc.image = imageUrl;
-      }
-      if (doc.imagesArray) {
-        const imageList = doc.imagesArray.map((imageObj) => {
-          return {
-            image: `${process.env.BASE_URL}/product/${imageObj.image}`,
-          };
-        });
-        doc.imagesArray = imageList;
-      }
-    };
+  const products = result.data || [];
 
-    products.forEach(setImageURL);
+  const totalItems = result.metadata?.[0]?.totalItems || 0;
 
-    res.status(200).json({
-      status: "true",
-      results: products.length,
-      Pages: totalPages,
-      data: products,
-    });
-  } catch (error) {
-    next(error);
-  }
+  const totalPages = Math.ceil(totalItems / limit);
+
+  products.forEach((product) => {
+    if (product.imagesArray?.length) {
+      product.imagesArray = product.imagesArray.map((imageObj) => ({
+        image: imageObj.image
+          ? `${process.env.BASE_URL}/product/${imageObj.image}`
+          : null,
+
+        /*
+         * Keep cover information.
+         */
+        isCover: imageObj.isCover || false,
+      }));
+    }
+  });
+
+  return res.status(200).json({
+    status: "true",
+
+    results: products.length,
+
+    totalItems,
+
+    Pages: totalPages,
+
+    data: products,
+  });
 });
 
 // @desc Update the product to go in Ecommers
@@ -338,93 +522,261 @@ exports.updateEcommerceProducts = async (req, res, next) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
   try {
     const productIds = Array.isArray(req.body.productId)
       ? req.body.productId
-      : [req.body.productId].filter(Boolean); // Filter out null/undefined
+      : [req.body.productId].filter(Boolean);
 
-    const categoryId = Array.isArray(req.body.categoryId)
+    const categoryIds = Array.isArray(req.body.categoryId)
       ? req.body.categoryId
       : [req.body.categoryId].filter(Boolean);
 
-    const brandId = Array.isArray(req.body.brandId)
+    const brandIds = Array.isArray(req.body.brandId)
       ? req.body.brandId
       : [req.body.brandId].filter(Boolean);
 
-    // Step 1: Get the highest productNo
-    const lastProduct = await productModel
-      .find({ productNo: { $nin: [null, "", 0] } })
-      .sort({ productNo: -1 })
-      .limit(1);
+    /*
+     * ========================================
+     * BUILD ORIGINAL PRODUCT QUERY
+     * ========================================
+     */
 
-    let lastProductNo = lastProduct.length
-      ? parseInt(lastProduct[0].productNo, 10)
-      : 0;
+    const productQuery = {
+      companyId,
+    };
 
-    let updatedProducts = [];
+    /*
+     * Import by category / brand
+     */
+    if (categoryIds.length || brandIds.length) {
+      const filterConditions = [];
 
-    if (categoryId.length || brandId.length) {
-      let categoryFilter = [];
-      if (categoryId.length) {
-        categoryFilter = await getAllChildCategories(
-          categoryId,
-          db,
-          categorySchema,
-        );
+      /*
+       * CATEGORY
+       *
+       * Get selected categories + their children.
+       */
+      if (categoryIds.length) {
+        const getChildCategories = async (categoryId) => {
+          let ids = [categoryId];
+
+          const children = await CategoryModel.find({
+            parentCategory: categoryId,
+          }).select("_id");
+
+          for (const child of children) {
+            const childIds = await getChildCategories(child._id);
+            ids = ids.concat(childIds);
+          }
+
+          return ids;
+        };
+
+        let allCategoryIds = [];
+
+        for (const categoryId of categoryIds) {
+          if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+            return res.status(400).json({
+              message: `Invalid categoryId: ${categoryId}`,
+            });
+          }
+
+          const ids = await getChildCategories(categoryId);
+
+          allCategoryIds = allCategoryIds.concat(ids);
+        }
+
+        filterConditions.push({
+          category: {
+            $in: allCategoryIds,
+          },
+        });
       }
 
-      const filterConditions = [];
-      if (categoryFilter.length)
-        filterConditions.push({ category: { $in: categoryFilter } });
-      if (brandId.length) filterConditions.push({ brand: { $in: brandId } });
+      /*
+       * BRAND
+       */
+      if (brandIds.length) {
+        const validBrandIds = [];
 
-      await productModel.updateMany({ $or: filterConditions }, [
-        {
-          $set: {
-            ecommerceActive: true,
-            importDate: new Date(),
-            productNo: {
-              $cond: {
-                if: { $in: ["$productNo", [null, ""]] },
-                then: { $toString: { $add: [lastProductNo, 1] } },
-                else: "$productNo",
-              },
-            },
+        for (const brandId of brandIds) {
+          if (!mongoose.Types.ObjectId.isValid(brandId)) {
+            return res.status(400).json({
+              message: `Invalid brandId: ${brandId}`,
+            });
+          }
+
+          validBrandIds.push(brandId);
+        }
+
+        filterConditions.push({
+          brand: {
+            $in: validBrandIds,
           },
-        },
-      ]);
+        });
+      }
 
-      updatedProducts = await productModel.find({ $or: filterConditions });
+      productQuery.$or = filterConditions;
+    } else if (productIds.length) {
+      /*
+       * Import selected products
+       */
+      for (const productId of productIds) {
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+          return res.status(400).json({
+            message: `Invalid productId: ${productId}`,
+          });
+        }
+      }
+
+      productQuery._id = {
+        $in: productIds,
+      };
     } else {
-      updatedProducts = await Promise.all(
-        productIds.map(async (productId) => {
-          const product = await productModel.findById(productId);
-
-          if (!product) {
-            throw new Error(`Product with productId ${productId} not found.`);
-          }
-
-          if (!product.productNo) {
-            product.productNo = (lastProductNo + 1).toString();
-            lastProductNo++;
-          }
-
-          product.ecommerceActive = true;
-          product.importDate = new Date();
-          await product.save();
-
-          return product;
-        }),
-      );
+      /*
+       * Nothing selected
+       */
+      return res.status(400).json({
+        message: "productId, categoryId or brandId is required",
+      });
     }
 
-    res.status(200).json({ success: true, data: updatedProducts });
+    /*
+     * ========================================
+     * GET ORIGINAL PRODUCTS
+     * ========================================
+     */
+
+    const originalProducts = await productModel.find(productQuery);
+
+    if (!originalProducts.length) {
+      return res.status(404).json({
+        message: "No products found",
+      });
+    }
+
+    /*
+     * ========================================
+     * IMPORT TO ECOMMERCE
+     * ========================================
+     */
+
+    const ecommerceProducts = [];
+
+    /*
+     * Using for...of intentionally instead of Promise.all
+     * because productNo is generated in the pre-save hook.
+     */
+    for (const originalProduct of originalProducts) {
+      /*
+       * Check whether this product was already imported.
+       */
+      let ecommerceProduct = await ecommerceProductModel.findOne({
+        product: originalProduct._id,
+        companyId,
+      });
+
+      /*
+       * ========================================
+       * PRODUCT ALREADY EXISTS
+       * ========================================
+       */
+
+      if (ecommerceProduct) {
+        /*
+         * Reactivate it without overwriting ecommerce data.
+         *
+         * We don't overwrite:
+         * name
+         * ecommercePrice
+         * images
+         * description
+         * etc.
+         *
+         * Because admin may have customized them.
+         */
+        ecommerceProduct.ecommerceActive = true;
+        ecommerceProduct.importDate = new Date();
+
+        await ecommerceProduct.save();
+
+        ecommerceProducts.push(ecommerceProduct);
+
+        continue;
+      }
+
+      /*
+       * ========================================
+       * CREATE NEW ECOMMERCE PRODUCT
+       * ========================================
+       */
+
+      ecommerceProduct = await ecommerceProductModel.create({
+        /*
+         * Relation with original ERP product
+         */
+        product: originalProduct._id,
+
+        /*
+         * Copy basic information
+         */
+        name: originalProduct.name,
+
+        latinName: originalProduct.latinName || "",
+
+        description: originalProduct.description || "Product description",
+
+        /*
+         * Initial ecommerce price
+         *
+         * We copy the regular selling price.
+         * Admin can modify ecommerce price later.
+         */
+        ecommercePrice: originalProduct.price || 0,
+
+        ecommercePriceMainCurrency: originalProduct.price || 0,
+
+        /*
+         * Ecommerce state
+         */
+        ecommerceActive: true,
+
+        /*
+         * Imported does NOT mean published.
+         *
+         * Admin still needs to configure the product
+         * before publishing it on the store.
+         */
+        publish: false,
+
+        importDate: new Date(),
+
+        companyId,
+      });
+
+      ecommerceProducts.push(ecommerceProduct);
+    }
+
+    /*
+     * ========================================
+     * RESPONSE
+     * ========================================
+     */
+
+    return res.status(200).json({
+      success: true,
+      results: ecommerceProducts.length,
+      data: ecommerceProducts,
+    });
   } catch (error) {
-    console.error("Error updating ecommerce products:", error.message);
-    res.status(500).json({ error: "Server Error" });
+    console.error("Error importing ecommerce products:", error);
+
+    next(error);
   }
 };
 
@@ -449,14 +801,19 @@ exports.updateEcommerceProductDeActive = asyncHandler(
         return res.status(400).json({ error: "Invalid productId" });
       }
 
-      const updatedProduct = await productModel.findOneAndUpdate(
-        { _id: productId, companyId },
+      const updatedProduct = await ecommerceProductModel.findOneAndUpdate(
+        {
+          product: productId,
+          companyId,
+        },
         {
           ecommerceActive: false,
           publish: false,
           importDate: null,
         },
-        { new: true },
+        {
+          new: true,
+        },
       );
 
       if (!updatedProduct) {
@@ -483,17 +840,17 @@ exports.setEcommerceProductPublish = async (req, res, next) => {
   try {
     const id = req.body.id;
     const publish = req.body.publish;
-    const product = await productModel.findOne({ _id: id, companyId });
+    const product = await ecommerceProductModel.findOne({ _id: id, companyId });
 
     if (product.ecommercePrice <= 0) {
-      const updatedProduct = await productModel.findOneAndUpdate(
+      const updatedProduct = await ecommerceProductModel.findOneAndUpdate(
         { _id: id, companyId },
         { publish: false },
       );
       return next(new ApiError("Please check the price of the product", 506));
     }
     // Await the findByIdAndUpdate operation
-    const updatedProduct = await productModel.findOneAndUpdate(
+    const updatedProduct = await ecommerceProductModel.findOneAndUpdate(
       { _id: id, companyId },
       { publish: publish, slug: slugify(product.name) },
       { new: true },
@@ -508,144 +865,456 @@ exports.setEcommerceProductPublish = async (req, res, next) => {
 // @desc Get ecommerce products where ecommerceActive is true
 // @route GET /api/product/importEcommerceProduct
 // @access Private
+// @desc Get regular products for Ecommerce import
+// @route GET /api/product/importEcommerceProduct
+// @access Private
 exports.getEcommerceImportProduct = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
-  let query = { companyId };
+  /*
+   * ========================================
+   * PAGINATION
+   * ========================================
+   */
 
-  // Search by QR, Name, Product Number, or Category
+  const pageSize = Math.max(parseInt(req.query.limit, 10) || 20, 1);
+
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+  const skip = (page - 1) * pageSize;
+
+  /*
+   * ========================================
+   * ORIGINAL PRODUCT QUERY
+   * ========================================
+   */
+
+  const query = {
+    companyId,
+  };
+
+  /*
+   * ========================================
+   * KEYWORD SEARCH
+   * ========================================
+   *
+   * Search inside original product fields:
+   *
+   * name
+   * sku
+   * counter
+   * qr
+   */
+
   if (req.query.keyword) {
-    const keywordRegex = new RegExp(req.query.keyword, "i");
+    const escapedKeyword = req.query.keyword.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+
+    const keywordRegex = new RegExp(escapedKeyword, "i");
+
     query.$or = [
-      { name: { $regex: keywordRegex } },
+      {
+        name: {
+          $regex: keywordRegex,
+        },
+      },
+
+      {
+        sku: {
+          $regex: keywordRegex,
+        },
+      },
+
+      {
+        counter: {
+          $regex: keywordRegex,
+        },
+      },
+
       {
         qr: {
           $elemMatch: {
-            $regex: req.query.keyword,
+            $regex: escapedKeyword,
             $options: "i",
           },
         },
       },
-      { productNumber: { $regex: keywordRegex } },
     ];
   }
 
-  // Filter by Published/Unpublished
-  if (req.query.status) {
-    query.ecommerceActive = req.query.status;
+  /*
+   * ========================================
+   * CATEGORY FILTER
+   * ========================================
+   */
+
+  if (req.query.category) {
+    if (!mongoose.Types.ObjectId.isValid(req.query.category)) {
+      return next(new ApiError("Invalid category ID format", 400));
+    }
+
+    query.category = req.query.category;
   }
 
-  const pageSize = 20;
-  const page = parseInt(req.query.page) || 1;
-  const skip = (page - 1) * pageSize;
+  /*
+   * ========================================
+   * ECOMMERCE STATUS FILTER
+   * ========================================
+   *
+   * status=true
+   * → products currently active in Ecommerce
+   *
+   * status=false
+   * → products NOT currently active
+   *    including:
+   *
+   *    - never imported
+   *    - previously imported then deactivated
+   */
 
-  const sortQuery = { updatedAt: -1 };
+  if (req.query.status !== undefined) {
+    if (req.query.status !== "true" && req.query.status !== "false") {
+      return next(new ApiError("status must be true or false", 400));
+    }
 
-  // Count total matching products
+    /*
+     * Get original product IDs that currently
+     * have an ACTIVE ecommerce product.
+     */
+    const activeEcommerceProductIds = await ecommerceProductModel.distinct(
+      "product",
+      {
+        companyId,
+        ecommerceActive: true,
+      },
+    );
+
+    /*
+     * Active Ecommerce products
+     */
+    if (req.query.status === "true") {
+      query._id = {
+        $in: activeEcommerceProductIds,
+      };
+    }
+
+    /*
+     * Products available to import/reactivate
+     */
+    if (req.query.status === "false") {
+      query._id = {
+        $nin: activeEcommerceProductIds,
+      };
+    }
+  }
+
+  /*
+   * ========================================
+   * COUNT
+   * ========================================
+   */
+
   const totalItems = await productModel.countDocuments(query);
-
-  // Fetch products with pagination and population
-  const products = await productModel
-    .find(query)
-    .sort(sortQuery)
-    .skip(skip)
-    .limit(pageSize)
-    .populate({ path: "category", select: "name _id" })
-    .populate({ path: "brand", select: "name _id" })
-    .lean();
 
   const totalPages = Math.ceil(totalItems / pageSize);
 
-  res.status(200).json({
+  /*
+   * ========================================
+   * GET ORIGINAL PRODUCTS
+   * ========================================
+   */
+
+  const products = await productModel
+    .find(query)
+    .sort({
+      updatedAt: -1,
+    })
+    .skip(skip)
+    .limit(pageSize)
+    .populate({
+      path: "category",
+      select: "name _id",
+    })
+    .populate({
+      path: "brand",
+      select: "name _id",
+    })
+    .lean();
+
+  /*
+   * ========================================
+   * GET ECOMMERCE STATUS FOR THESE PRODUCTS
+   * ========================================
+   *
+   * This allows the frontend to know whether
+   * every regular product:
+   *
+   * - was imported
+   * - is active
+   * - is published
+   */
+
+  const productIds = products.map((product) => product._id);
+
+  const ecommerceProducts = await ecommerceProductModel
+    .find({
+      companyId,
+      product: {
+        $in: productIds,
+      },
+    })
+    .select("_id product ecommerceActive publish")
+    .lean();
+
+  /*
+   * Create quick lookup:
+   *
+   * originalProductId → ecommerce information
+   */
+
+  const ecommerceMap = new Map();
+
+  ecommerceProducts.forEach((ecommerceProduct) => {
+    ecommerceMap.set(ecommerceProduct.product.toString(), ecommerceProduct);
+  });
+
+  /*
+   * ========================================
+   * MERGE STATUS INTO REGULAR PRODUCTS
+   * ========================================
+   */
+
+  const data = products.map((product) => {
+    const ecommerceProduct = ecommerceMap.get(product._id.toString());
+
+    return {
+      ...product,
+
+      /*
+       * Was this product ever imported?
+       */
+      imported: !!ecommerceProduct,
+
+      /*
+       * Is it currently active?
+       */
+      ecommerceActive: ecommerceProduct?.ecommerceActive ?? false,
+
+      /*
+       * Is it published on storefront?
+       */
+      publish: ecommerceProduct?.publish ?? false,
+
+      /*
+       * Useful when frontend needs to open
+       * Ecommerce Product directly.
+       */
+      ecommerceProductId: ecommerceProduct?._id ?? null,
+    };
+  });
+
+  return res.status(200).json({
     status: "success",
-    results: products.length,
-    totalItems: totalItems,
+
+    results: data.length,
+
+    totalItems,
+
     pages: totalPages,
-    data: products,
+
+    data,
   });
 });
 
 // @desc Get Ecommerc Active Product
 // @route GET /api/product/ecommerce-active-product
 // @access private
-exports.ecommerceActiveProudct = asyncHandler(async (req, res) => {
+// @desc Get Ecommerce Active Products
+// @route GET /api/product/ecommerce-active-product
+// @access Private
+
+exports.ecommerceActiveProduct = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
-  const pageSize = req.query.limit || 100;
-  const page = parseInt(req.query.page) || 1;
+  const pageSize = Math.max(parseInt(req.query.limit, 10) || 100, 1);
+
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
   const skip = (page - 1) * pageSize;
-  let sortQuery = { importDate: -1 };
-  let query = { ecommerceActive: true, companyId };
+
+  const query = {
+    ecommerceActive: true,
+    companyId,
+  };
+
+  if (req.query.publish !== undefined) {
+    if (req.query.publish !== "true" && req.query.publish !== "false") {
+      return next(new ApiError("publish must be true or false", 400));
+    }
+
+    query.publish = req.query.publish === "true";
+  }
 
   if (req.query.category) {
-    query.category = req.query.category;
+    if (!mongoose.Types.ObjectId.isValid(req.query.category)) {
+      return next(new ApiError("Invalid category ID format", 400));
+    }
+
+    const categoryProductIds = await productModel
+      .find({
+        companyId,
+        category: req.query.category,
+      })
+      .distinct("_id");
+
+    query.product = {
+      $in: categoryProductIds,
+    };
   }
 
-  if (req.query.publish) {
-    const publishStatus = req.query.publish === "true";
-    query.publish = publishStatus;
-  }
   if (req.query.keyword) {
-    query.$or = [
-      { name: { $regex: req.query.keyword, $options: "i" } },
-      {
-        qr: {
-          $elemMatch: {
-            $regex: req.query.keyword,
-            $options: "i",
+    const escapedKeyword = req.query.keyword.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+
+    const keywordRegex = new RegExp(escapedKeyword, "i");
+
+    const matchedProductIds = await productModel
+      .find({
+        companyId,
+
+        $or: [
+          {
+            name: {
+              $regex: keywordRegex,
+            },
           },
+
+          {
+            sku: {
+              $regex: keywordRegex,
+            },
+          },
+
+          {
+            counter: {
+              $regex: keywordRegex,
+            },
+          },
+
+          {
+            qr: {
+              $elemMatch: {
+                $regex: escapedKeyword,
+                $options: "i",
+              },
+            },
+          },
+        ],
+      })
+      .distinct("_id");
+
+    query.$or = [
+      {
+        name: {
+          $regex: keywordRegex,
+        },
+      },
+
+      {
+        product: {
+          $in: matchedProductIds,
         },
       },
     ];
   }
 
-  if (req.query.quantity) {
-    sortQuery = { quantity: parseInt(req.query.quantity) === 1 ? 1 : -1 };
-  }
+  let sortQuery = {
+    importDate: -1,
+  };
+
   if (req.query.productNo) {
-    sortQuery = { productNo: parseInt(req.query.productNo) === 1 ? 1 : -1 };
+    sortQuery = {
+      productNo: parseInt(req.query.productNo, 10) === 1 ? 1 : -1,
+    };
   }
+
   if (req.query.ecommercePrice) {
     sortQuery = {
-      ecommercePrice: parseInt(req.query.ecommercePrice) === 1 ? 1 : -1,
+      ecommercePrice: parseInt(req.query.ecommercePrice, 10) === 1 ? 1 : -1,
     };
   }
 
   if (req.query.name) {
     sortQuery = {
-      name: req.query.name == 1 ? 1 : -1,
+      name: parseInt(req.query.name, 10) === 1 ? 1 : -1,
     };
   }
+
   if (req.query.importDate) {
     sortQuery = {
-      importDate: req.query.importDate == 1 ? 1 : -1,
+      importDate: parseInt(req.query.importDate, 10) === 1 ? 1 : -1,
     };
   }
-  const totalItems = await productModel.countDocuments(query);
+
+  const totalItems = await ecommerceProductModel.countDocuments(query);
 
   const totalPages = Math.ceil(totalItems / pageSize);
-  const product = await productModel
+
+  const products = await ecommerceProductModel
     .find(query)
     .sort(sortQuery)
     .skip(skip)
     .limit(pageSize)
-    .populate({ path: "category" })
-    .populate("unit")
-    .populate("brand");
+    .populate({
+      path: "product",
 
-  res.status(200).json({
+      populate: [
+        {
+          path: "category",
+        },
+
+        {
+          path: "brand",
+        },
+        {
+          path: "unit",
+        },
+        {
+          path: "currency",
+        },
+
+        {
+          path: "tax",
+        },
+      ],
+    });
+
+  return res.status(200).json({
     status: "true",
-    results: product.length,
+
+    results: products.length,
+
+    totalItems,
+
     Pages: totalPages,
-    data: product,
+
+    data: products,
   });
 });
 
@@ -656,39 +1325,56 @@ exports.ecommerceDashboardStats = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
 
   if (!companyId) {
-    return res.status(400).json({ message: "companyId is required" });
+    return res.status(400).json({
+      message: "companyId is required",
+    });
   }
 
+  // Products that have no positive stock quantity
   const zeroQuantityCount = await productModel.countDocuments({
-    quantity: 0,
     companyId,
+    stocks: {
+      $not: {
+        $elemMatch: {
+          productQuantity: { $gt: 0 },
+        },
+      },
+    },
   });
 
-  const ecommerceActiveCount = await productModel.countDocuments({
+  // All products active in Ecommerce
+  const ecommerceActiveCount = await ecommerceProductModel.countDocuments({
     ecommerceActive: true,
     companyId,
   });
 
-  const ecommerceInactiveCount = await productModel.countDocuments({
+  // Active in Ecommerce but not published
+  const ecommerceInactiveCount = await ecommerceProductModel.countDocuments({
     ecommerceActive: true,
     publish: false,
     companyId,
   });
 
-  const othersCount = await productModel.countDocuments({
+  // Products removed/deactivated from Ecommerce
+  const othersCount = await ecommerceProductModel.countDocuments({
     ecommerceActive: false,
     publish: false,
     companyId,
   });
 
-  const publishedCount = await productModel.countDocuments({
+  // Published products
+  const publishedCount = await ecommerceProductModel.countDocuments({
+    ecommerceActive: true,
     publish: true,
     companyId,
   });
 
-  const totalOrderCount = await orderModel.countDocuments({ companyId });
+  // Ecommerce orders
+  const totalOrderCount = await orderModel.countDocuments({
+    companyId,
+  });
 
-  res.status(200).json({
+  return res.status(200).json({
     status: "true",
     zeroQuantityCount,
     ecommerceActiveCount,

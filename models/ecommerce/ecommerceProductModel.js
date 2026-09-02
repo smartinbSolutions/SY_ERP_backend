@@ -2,35 +2,27 @@ const mongoose = require("mongoose");
 
 const ecommerceProductModel = new mongoose.Schema(
   {
-    prodcut: { type: mongoose.Schema.ObjectId, ref: "product" },
-    nameAR: {
+    product: { type: mongoose.Schema.ObjectId, ref: "product" },
+    name: {
       type: String,
-      default: "name AR",
+      required: true,
     },
-    nameTR: {
+    slug: {
       type: String,
-      default: "name TR",
+      lowercase: true,
+      trim: true,
     },
-    descriptionAR: {
+    latinName: String,
+
+    description: {
       type: String,
-      default: "Product description AR",
-    },
-    descriptionTR: {
-      type: String,
-      default: "Product description TR",
+      default: "Product description",
     },
     shortDescription: {
       type: String,
       default: "Product short description",
     },
-    shortDescriptionAR: {
-      type: String,
-      default: " short Description AR",
-    },
-    shortDescriptionTR: {
-      type: String,
-      default: " short Description TR",
-    },
+
     ecommercePrice: {
       type: Number,
       default: 0,
@@ -97,7 +89,10 @@ const ecommerceProductModel = new mongoose.Schema(
         _id: false,
       },
     ],
-    importDate: String,
+    importDate: {
+      type: Date,
+      default: Date.now,
+    },
     companyId: {
       type: String,
       required: true,
@@ -124,16 +119,15 @@ const ecommerceProductModel = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
-ecommerceProductModel.index({ counter: 1, companyId: 1 }, { unique: true });
 
 // Pre-save hook to assign productNo
 ecommerceProductModel.pre("save", async function (next) {
   if (!this.productNo) {
     try {
       const lastProduct = await this.constructor
-        .findOne({}, { productNo: 1 })
+        .findOne({ companyId: this.companyId }, { productNo: 1 })
         .sort({ productNo: -1 });
 
       this.productNo = lastProduct ? lastProduct.productNo + 1 : 1;

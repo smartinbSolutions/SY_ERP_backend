@@ -127,6 +127,7 @@ const payrollEmployeeLineRoute = require("./Hr/Payrolls/payrollEmployeeLineRoute
 const productRout = require("./Stocks/Products/product.route");
 const quotationRouter = require("./Accounting/Sales/quotation.route");
 const employeePayrollRoute = require("./Hr/Payrolls/employeePayrollRoute");
+const ecommerceProductRoute = require("./ecommerce/ecommerceProductRoute");
 
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);
@@ -197,6 +198,7 @@ const mountRoutes = (app) => {
   app.use("/api/footer", footerRout);
   app.use("/api/thirdPartyAuth", thirdPartyRoute);
   app.use("/api/ecommercePaymentMethods", ecommercePaymentMethodRoute);
+  app.use("/api/ecommerce-products", ecommerceProductRoute);
 
   //HepsiJet
   app.use("/api/hepsijet", hepsiJetRouter);
