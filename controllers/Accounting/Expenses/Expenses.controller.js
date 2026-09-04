@@ -89,17 +89,17 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       nextCounterPayment = await counterModel.findOneAndUpdate(
         { companyId, name: "Payment" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
       nextCounterExpensesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Expenses" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
       nextCounterJournal = await counterModel.findOneAndUpdate(
         { companyId, name: "Journal" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true, session }
+        { new: true, upsert: true, session },
       );
     }
 
@@ -173,7 +173,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           },
           invoiceId: newExpenseInvoice._id,
           date: req.body.paymentDate || req.body.date,
-          description: req.body.description || "",
+          description: req.body.paymentDescription || "",
           journalCounter: req.body.journalCounter || "",
           counter: req.body.counter || "0",
           companyId,
@@ -189,7 +189,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           companyId,
           next,
           normalizedPayment,
-          session
+          session,
         );
 
         fxDiff = result?.fxDiff || 0; // ← capture fxDiff
@@ -213,10 +213,10 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           .session(session);
 
         const fxGainLink = linkings.find(
-          (l) => l.name === "Foreign Exchange Gain"
+          (l) => l.name === "Foreign Exchange Gain",
         );
         const fxLossLink = linkings.find(
-          (l) => l.name === "Foreign Exchange Loss"
+          (l) => l.name === "Foreign Exchange Loss",
         );
 
         const isLoss = fxDiff > 0;
@@ -224,7 +224,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           ? fxLossLink?.accountData
           : fxGainLink?.accountData;
         const partyJournalAccount = journalPreview.journalAccounts.find(
-          (a) => a.accountType === "Supplier_Payment"
+          (a) => a.accountType === "Supplier_Payment",
         );
 
         if (fxAccount && partyJournalAccount) {
@@ -298,7 +298,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
 exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
   const invoiceId = req.params.id;
-  console.log("Bodyy", req.body);
+
   const session = await mongoose.startSession();
 
   try {
@@ -322,7 +322,7 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     if (expense.auditing === true) {
       return next(
-        new ApiError("Audited expense invoice cannot be cancelled", 400)
+        new ApiError("Audited expense invoice cannot be cancelled", 400),
       );
     }
 
@@ -339,11 +339,11 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
             expense.paymentStatus === "paid"
               ? "invoice is fully paid"
               : `invoice has ${totalPaidMain.toFixed(
-                  2
+                  2,
                 )} ${primary_currency} in payments applied`
           }. Please reverse the payments first.`,
-          400
-        )
+          400,
+        ),
       );
     }
     const baseCounter = Number(req.body.counter || 0);
@@ -352,9 +352,9 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const prepared = await prepareExpenseDataFromDraftService({
@@ -395,7 +395,7 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Expenses cancelled",
       "expenses",
-      session
+      session,
     );
 
     await session.commitTransaction();
@@ -432,19 +432,19 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     if (expenseInvoice.isDraft === true || expenseInvoice.status === "draft") {
       return next(
-        new ApiError("Draft expense invoice should use draft update flow", 400)
+        new ApiError("Draft expense invoice should use draft update flow", 400),
       );
     }
 
     if (expenseInvoice.status === "cancelled") {
       return next(
-        new ApiError("Cancelled expense invoice cannot be updated", 400)
+        new ApiError("Cancelled expense invoice cannot be updated", 400),
       );
     }
 
     if (expenseInvoice.auditing === true) {
       return next(
-        new ApiError("Audited expense invoice cannot be updated", 400)
+        new ApiError("Audited expense invoice cannot be updated", 400),
       );
     }
 
@@ -453,7 +453,10 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
       (expenseInvoice.payments || []).length > 0
     ) {
       return next(
-        new ApiError("Paid expense invoice cannot be updated in this step", 400)
+        new ApiError(
+          "Paid expense invoice cannot be updated in this step",
+          400,
+        ),
       );
     }
 
@@ -462,9 +465,9 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
 
     const now = new Date();
     const updateDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     const oldPrepared = await prepareExpenseDataFromDraftService({
@@ -575,7 +578,7 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
       updateDate,
       "Purchase invoice updated",
       "purchase",
-      session
+      session,
     );
 
     if (updatedExpenseInvoice.paymentStatus === "paid") {
@@ -587,7 +590,7 @@ exports.updatePostedExpenseInvoice = asyncHandler(async (req, res, next) => {
         req.body.paymentDate || updateDate,
         "Invoice payment recorded from update",
         "expense",
-        session
+        session,
       );
     }
 
@@ -619,9 +622,9 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
     const padMs = (value) => String(value).padStart(3, "0");
     const now = new Date();
     const cancellationDate = `${now.getFullYear()}-${padZero(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padZero(now.getDate())}T${padZero(now.getHours())}:${padZero(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
     if (!companyId) {
@@ -658,7 +661,7 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
       cancellationDate,
       "Cancelled Expense",
       "expense",
-      session
+      session,
     );
 
     await session.commitTransaction();
@@ -694,5 +697,5 @@ exports.findAllExpensesAndPurchaseInvoices = asyncHandler(
       results: totalItems,
       data,
     });
-  }
+  },
 );

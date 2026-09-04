@@ -1466,6 +1466,7 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
   const skip = (page - 1) * pageSize;
 
   const query = { companyId };
+  const andConditions = [];
 
   if (filters?.startDate || filters?.endDate) {
     query.date = {};
@@ -1494,15 +1495,31 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
   }
 
   if (req.query.keyword) {
-    query.$or = [
-      { "customer.name": { $regex: req.query.keyword, $options: "i" } },
-      { invoiceName: { $regex: req.query.keyword, $options: "i" } },
-      { invoiceNumber: { $regex: req.query.keyword, $options: "i" } },
-    ];
+    andConditions.push({
+      $or: [
+        { "customer.name": { $regex: req.query.keyword, $options: "i" } },
+        { invoiceName: { $regex: req.query.keyword, $options: "i" } },
+        { invoiceNumber: { $regex: req.query.keyword, $options: "i" } },
+      ],
+    });
   }
 
   if (filters?.filterTags?.length) {
     query["tag.name"] = { $in: filters.filterTags };
+  }
+
+  if (filters.status) {
+    if (filters.status === "draft") {
+      andConditions.push({
+        $or: [{ status: "draft" }, { isDraft: true }],
+      });
+    } else {
+      query.status = filters.status;
+    }
+  }
+
+  if (andConditions.length) {
+    query.$and = andConditions;
   }
 
   const totalItems = await orderModel.countDocuments(query);
