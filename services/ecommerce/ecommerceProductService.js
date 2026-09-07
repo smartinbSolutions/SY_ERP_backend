@@ -35,74 +35,68 @@ exports.uploadEcommercProductImage = uploadMixOfImages([
   { name: "imagesArray", maxCount: 5 },
 ]);
 
-exports.resizerEcommercProductImage = asyncHandler(
-  async (req, res, next) => {
-    const dir = "uploads/product";
+exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
+  const dir = "uploads/product";
 
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 
-    /*
-     * ========================================
-     * COVER IMAGE
-     * ========================================
-     */
+  /*
+   * ========================================
+   * COVER IMAGE
+   * ========================================
+   */
 
-    if (req.files?.imageCover?.length) {
-      const file = req.files.imageCover[0];
+  if (req.files?.imageCover?.length) {
+    const file = req.files.imageCover[0];
 
-      const filename = `product-${uuidv4()}-${Date.now()}-cover.png`;
+    const filename = `product-${uuidv4()}-${Date.now()}-cover.png`;
 
-      await sharp(file.buffer)
-        .resize({
-          width: 1200,
-          withoutEnlargement: true,
-        })
-        .png({ quality: 70 })
-        .toFile(`${dir}/${filename}`);
-
-      /*
-       * Save processed filename into req.body
-       */
-
-      req.body.imageCover = filename;
-    }
+    await sharp(file.buffer)
+      .resize({
+        width: 1200,
+        withoutEnlargement: true,
+      })
+      .png({ quality: 70 })
+      .toFile(`${dir}/${filename}`);
 
     /*
-     * ========================================
-     * GALLERY IMAGES
-     * ========================================
+     * Save processed filename into req.body
      */
 
-    if (req.files?.imagesArray?.length) {
-      req.body.imagesArray = [];
+    req.body.imageCover = filename;
+  }
 
-      await Promise.all(
-        req.files.imagesArray.map(async (file, index) => {
-          const filename = `product-${uuidv4()}-${Date.now()}-${
-            index + 1
-          }.png`;
+  /*
+   * ========================================
+   * GALLERY IMAGES
+   * ========================================
+   */
 
-          await sharp(file.buffer)
-            .resize({
-              width: 1200,
-              withoutEnlargement: true,
-            })
-            .png({ quality: 70 })
-            .toFile(`${dir}/${filename}`);
+  if (req.files?.imagesArray?.length) {
+    req.body.imagesArray = [];
 
-          req.body.imagesArray.push({
-            image: filename,
-            isCover: false,
-          });
-        }),
-      );
-    }
+    await Promise.all(
+      req.files.imagesArray.map(async (file, index) => {
+        const filename = `product-${uuidv4()}-${Date.now()}-${index + 1}.png`;
 
-    next();
-  },
-);
+        await sharp(file.buffer)
+          .resize({
+            width: 1200,
+            withoutEnlargement: true,
+          })
+          .png({ quality: 70 })
+          .toFile(`${dir}/${filename}`);
+        req.body.imagesArray.push({
+          image: filename,
+        });
+      }),
+    );
+  }
+
+  next();
+});
 
 // @desc get Product for Ecommerces
 // @route Post /api/productLazy
@@ -504,16 +498,17 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
   const totalPages = Math.ceil(totalItems / limit);
 
   products.forEach((product) => {
+    // معالجة صورة الغلاف
+    if (product.imageCover) {
+      product.imageCover = `${process.env.BASE_URL}/product/${product.imageCover}`;
+    }
+
+    // معالجة باقي الصور
     if (product.imagesArray?.length) {
       product.imagesArray = product.imagesArray.map((imageObj) => ({
         image: imageObj.image
           ? `${process.env.BASE_URL}/product/${imageObj.image}`
           : null,
-
-        /*
-         * Keep cover information.
-         */
-        isCover: imageObj.isCover || false,
       }));
     }
   });
@@ -733,45 +728,19 @@ exports.updateEcommerceProducts = async (req, res, next) => {
        */
 
       ecommerceProduct = await ecommerceProductModel.create({
-        /*
-         * Relation with original ERP product
-         */
         product: originalProduct._id,
-
-        /*
-         * Copy basic information
-         */
         name: originalProduct.name,
-
         latinName: originalProduct.latinName || "",
-
         description: originalProduct.description || "Product description",
-
-        /*
-         * Initial ecommerce price
-         *
-         * We copy the regular selling price.
-         * Admin can modify ecommerce price later.
-         */
+        latinDescription: originalProduct.latinDescription || "",
+        shortDescription:
+          originalProduct.shortDescription || "Product short description",
+        latinShortDescription: originalProduct.latinShortDescription || "",
         ecommercePrice: originalProduct.price || 0,
-
         ecommercePriceMainCurrency: originalProduct.price || 0,
-
-        /*
-         * Ecommerce state
-         */
         ecommerceActive: true,
-
-        /*
-         * Imported does NOT mean published.
-         *
-         * Admin still needs to configure the product
-         * before publishing it on the store.
-         */
         publish: false,
-
         importDate: new Date(),
-
         companyId,
       });
 
@@ -1687,34 +1656,12 @@ exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
     ecommerceProduct.shortDescription = req.body.shortDescription;
   }
 
-  /*
-   * ========================================
-   * TRANSLATIONS
-   * ========================================
-   */
-
-  if (req.body.nameAR !== undefined) {
-    ecommerceProduct.nameAR = req.body.nameAR;
+  if (req.body.latinDescription !== undefined) {
+    ecommerceProduct.latinDescription = req.body.latinDescription;
   }
 
-  if (req.body.nameTR !== undefined) {
-    ecommerceProduct.nameTR = req.body.nameTR;
-  }
-
-  if (req.body.shortDescriptionAR !== undefined) {
-    ecommerceProduct.shortDescriptionAR = req.body.shortDescriptionAR;
-  }
-
-  if (req.body.shortDescriptionTR !== undefined) {
-    ecommerceProduct.shortDescriptionTR = req.body.shortDescriptionTR;
-  }
-
-  if (req.body.descriptionAR !== undefined) {
-    ecommerceProduct.descriptionAR = req.body.descriptionAR;
-  }
-
-  if (req.body.descriptionTR !== undefined) {
-    ecommerceProduct.descriptionTR = req.body.descriptionTR;
+  if (req.body.latinShortDescription !== undefined) {
+    ecommerceProduct.latinShortDescription = req.body.latinShortDescription;
   }
 
   /*
@@ -1772,8 +1719,7 @@ exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
 
   if (req.body.ecommerceActive !== undefined) {
     ecommerceProduct.ecommerceActive =
-      req.body.ecommerceActive === true ||
-      req.body.ecommerceActive === "true";
+      req.body.ecommerceActive === true || req.body.ecommerceActive === "true";
   }
 
   /*
@@ -1782,8 +1728,27 @@ exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
    * ========================================
    */
 
-  if (req.body.customAttributes !== undefined) {
-    ecommerceProduct.customAttributes = req.body.customAttributes;
+  if (req.body.specifications !== undefined) {
+    try {
+      let specifications = req.body.specifications;
+
+      if (typeof specifications === "string") {
+        specifications = JSON.parse(specifications);
+      }
+
+      if (!Array.isArray(specifications)) {
+        return next(new ApiError("specifications must be an array", 400));
+      }
+
+      ecommerceProduct.specifications = specifications
+        .filter((spec) => spec && spec.key && spec.value)
+        .map((spec) => ({
+          key: String(spec.key).trim(),
+          value: String(spec.value).trim(),
+        }));
+    } catch (error) {
+      return next(new ApiError("Invalid specifications format", 400));
+    }
   }
 
   /*
@@ -1799,7 +1764,9 @@ exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
       alternateProducts = [alternateProducts];
     }
 
-    ecommerceProduct.alternateProducts = alternateProducts.filter(Boolean);
+    ecommerceProduct.alternateProducts = alternateProducts
+      .filter((productId) => mongoose.Types.ObjectId.isValid(productId))
+      .map((productId) => new mongoose.Types.ObjectId(productId));
   }
 
   /*
@@ -1819,99 +1786,104 @@ exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
     }
   }
 
-/* 
- * ========================================
- * IMAGES
- * ========================================
- */
+  /*
+   * ========================================
+   * KEYWORDS
+   * ========================================
+   */
 
-const hasImageUpdate =
-  req.body.existingImages !== undefined ||
-  req.body.imagesArray !== undefined ||
-  req.body.imageCover !== undefined;
+  if (req.body.keywords !== undefined) {
+    let keywords = req.body.keywords;
 
-if (hasImageUpdate) {
-  // =====================================================
-  // Existing images
-  // =====================================================
-
-  let existingImages = [];
-
-  if (req.body.existingImages !== undefined) {
-    try {
-      existingImages =
-        typeof req.body.existingImages === "string"
-          ? JSON.parse(req.body.existingImages)
-          : req.body.existingImages;
-    } catch (error) {
-      return next(
-        new ApiError("Invalid existingImages format", 400),
-      );
+    if (typeof keywords === "string") {
+      try {
+        keywords = JSON.parse(keywords);
+      } catch {
+        keywords = keywords.split(",").map((k) => k.trim());
+      }
     }
 
-    if (!Array.isArray(existingImages)) {
-      existingImages = [];
+    if (!Array.isArray(keywords)) {
+      return next(new ApiError("keywords must be an array", 400));
     }
+
+    ecommerceProduct.keywords = keywords.filter(Boolean);
   }
 
-  // =====================================================
-  // New images
-  // =====================================================
+  /*
+   * ========================================
+   * IMAGES
+   * ========================================
+   */
 
-  let newImages = [];
+  const hasImageUpdate =
+    req.body.existingImages !== undefined ||
+    req.body.imagesArray !== undefined ||
+    req.body.imageCover !== undefined;
 
-  if (req.body.imagesArray !== undefined) {
-    newImages = Array.isArray(req.body.imagesArray)
-      ? req.body.imagesArray
-      : [req.body.imagesArray];
+  if (hasImageUpdate) {
+    // 1. معالجة الصور الموجودة
+    let existingImages = [];
 
-    newImages = newImages
-      .filter((item) => item?.image)
-      .map((item) => ({
-        image: item.image,
-        isCover: false,
-      }));
-  }
+    if (req.body.existingImages !== undefined) {
+      try {
+        existingImages =
+          typeof req.body.existingImages === "string"
+            ? JSON.parse(req.body.existingImages)
+            : req.body.existingImages;
+      } catch (error) {
+        return next(new ApiError("Invalid existingImages format", 400));
+      }
 
-  // =====================================================
-  // Replace images
-  // =====================================================
+      if (!Array.isArray(existingImages)) {
+        existingImages = [];
+      }
+    }
 
-  ecommerceProduct.imagesArray = [
-    ...existingImages
-      .filter((item) => item?.image)
-      .map((item) => ({
-        image: item.image,
-        isCover: item.isCover === true,
-      })),
+    // 2. معالجة الصور الجديدة
+    let newImages = [];
 
-    ...newImages,
-  ];
-  // =====================================================
-  //  Save cover image independently
-  // =====================================================
+    if (req.body.imagesArray !== undefined) {
+      newImages = Array.isArray(req.body.imagesArray)
+        ? req.body.imagesArray
+        : [req.body.imagesArray];
 
-  if (req.body.imageCover) {
-    ecommerceProduct.imageCover = req.body.imageCover;
-  }
-  // =====================================================
-  // New cover image
-  // =====================================================
+      newImages = newImages
+        .filter((item) => item?.image)
+        .map((item) => ({
+          image: item.image,
+        }));
+    }
 
-  if (req.body.imageCover) {
+    // 3. تحديث imagesArray
     ecommerceProduct.imagesArray = [
-      {
-        image: req.body.imageCover,
-        isCover: true,
-      },
-      ...ecommerceProduct.imagesArray.map((item) => ({
-        image: item.image,
-        isCover: false,
-      })),
+      ...existingImages
+        .filter((item) => item?.image)
+        .map((item) => ({
+          image: item.image,
+        })),
+      ...newImages,
     ];
+
+    // 4. تحديث صورة الغلاف
+    if (req.body.imageCover !== undefined) {
+      ecommerceProduct.imageCover = req.body.imageCover || null;
+    }
   }
-}
+
+  /*
+   * ========================================
+   * SAVE PRODUCT
+   * ========================================
+   */
+
   await ecommerceProduct.save();
+
+  /*
+   * ========================================
+   * GET UPDATED PRODUCT
+   * ========================================
+   */
 
   const updatedProduct = await ecommerceProductModel
     .findOne({

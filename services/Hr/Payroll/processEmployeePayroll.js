@@ -56,6 +56,16 @@ exports.processEmployeePayroll = async (employee, context, stateId) => {
       payroll,
     });
 
+    const salaryBase =
+      employee.salary.payType === "hourly"
+        ? (attendance?.result?.expectedHours || 0) *
+          (employee.salary.hourlyRate || employee.salary.amount || 0)
+        : employee.salary.amount || 0;
+
+    await EmployeePayroll.findByIdAndUpdate(payroll._id, {
+      salaryBase,
+    });
+
     await EmployeePayrollState.findByIdAndUpdate(stateId, {
       step: "leaves",
     });
@@ -88,7 +98,7 @@ exports.processEmployeePayroll = async (employee, context, stateId) => {
       period: context.period,
       payroll,
     });
-console.log("lllll",advances);
+    console.log("lllll", advances);
 
     await EmployeePayrollState.findByIdAndUpdate(stateId, {
       step: "deductions",
@@ -102,7 +112,7 @@ console.log("lllll",advances);
     });
 
     const netSalary =
-      (employee.salary.amount || 0) +
+      salaryBase +
       (overtime?.result?.amount || 0) -
       (leaves?.result?.amount || 0) -
       (advances?.result?.amount || 0) -

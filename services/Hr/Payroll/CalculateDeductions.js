@@ -27,13 +27,32 @@ exports.CalculateDeductions = async ({
 
     let totalFixedAmount = 0;
 
-    const breakdown = deductions.map((item) => {
+    const breakdown = [];
+
+    const deductionPolicy = employee?.groupId?.deductionPolicy;
+
+    const maxMonthlyDeductionPercentage = Number(
+      deductionPolicy?.maxMonthlyDeductionPercentage || 0,
+    );
+
+    const salaryBase = Number(payroll?.salaryBase || 0);
+
+    const monthlyDeductionCap =
+      maxMonthlyDeductionPercentage > 0 && salaryBase > 0
+        ? Number(
+            ((salaryBase * maxMonthlyDeductionPercentage) / 100).toFixed(2),
+          )
+        : null;
+
+    let remainingDeductionCap = monthlyDeductionCap;
+
+    for (const item of deductions) {
       const unit = item.deduction?.unit;
       const value = Number(item.deduction?.value || 0);
 
       console.log("item", item);
 
-      let amount = 0;
+      let calculatedAmount = 0;
       let deductionHours = 0;
 
       // =========================
@@ -42,40 +61,62 @@ exports.CalculateDeductions = async ({
       switch (unit) {
         case "minutes":
           deductionHours = value / 60;
-          amount = Number((deductionHours * hourlyRate).toFixed(2));
+          calculatedAmount = Number((deductionHours * hourlyRate).toFixed(2));
           break;
 
         case "hour":
           deductionHours = value;
-          amount = Number((value * hourlyRate).toFixed(2));
+          calculatedAmount = Number((value * hourlyRate).toFixed(2));
           break;
 
         case "day":
           deductionHours = value * shiftHours;
-          amount = Number((deductionHours * hourlyRate).toFixed(2));
+          calculatedAmount = Number((deductionHours * hourlyRate).toFixed(2));
           break;
 
         case "fixed":
           deductionHours = 0;
 
-          amount = Number(Number(item.deduction?.value || 0).toFixed(2));
+          calculatedAmount = Number(
+            Number(item.deduction?.value || 0).toFixed(2),
+          );
 
-          totalFixedAmount += amount;
           break;
 
         default:
           deductionHours = 0;
-          amount = 0;
+          calculatedAmount = 0;
       }
 
-      totalDeductionHours += deductionHours;
+      // =========================
+      // APPLY MONTHLY CAP
+      // =========================
+      let amount = calculatedAmount;
+
+      if (remainingDeductionCap !== null) {
+        amount = Math.min(calculatedAmount, Math.max(remainingDeductionCap, 0));
+
+        amount = Number(amount.toFixed(2));
+
+        remainingDeductionCap = Number(
+          (remainingDeductionCap - amount).toFixed(2),
+        );
+      }
+
+      // Only count the actually applied deduction.
+      totalDeductionHours +=
+        calculatedAmount > 0 ? deductionHours * (amount / calculatedAmount) : 0;
 
       totalAmount += amount;
+
+      if (unit === "fixed") {
+        totalFixedAmount += amount;
+      }
 
       // =========================
       // BREAKDOWN DATA
       // =========================
-      return {
+      breakdown.push({
         logId: item._id,
 
         violation: {
@@ -93,7 +134,12 @@ exports.CalculateDeductions = async ({
 
           shiftHours: unit === "day" ? shiftHours : null,
 
-          hours: Number(deductionHours.toFixed(2)),
+          hours: Number(
+            (calculatedAmount > 0
+              ? deductionHours * (amount / calculatedAmount)
+              : 0
+            ).toFixed(2),
+          ),
         },
 
         period: {
@@ -113,10 +159,12 @@ exports.CalculateDeductions = async ({
                     ? `${value} (fixed)`
                     : `${value}`,
 
+          originalAmount: calculatedAmount,
           amount,
+          capped: amount < calculatedAmount,
         },
-      };
-    });
+      });
+    }
 
     totalDeductionHours = Number(totalDeductionHours.toFixed(2));
 

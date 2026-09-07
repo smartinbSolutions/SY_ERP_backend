@@ -28,11 +28,15 @@ exports.calculateAttendance = async ({
       attendanceType,
       fixedAttendance = {},
       flexibleAttendance = {},
+      remoteAttendance = {},
       offDays = [],
       calendarRules = [],
     } = group;
 
-    const requiredHoursPerDay = flexibleAttendance?.requiredHoursPerDay || 0;
+    const requiredHoursPerDay =
+      attendanceType === "remote"
+        ? remoteAttendance?.requiredHoursPerDay || 0
+        : flexibleAttendance?.requiredHoursPerDay || 0;
 
     const shiftStart = fixedAttendance?.startTime || null;
     const shiftEnd = fixedAttendance?.endTime || null;
@@ -70,7 +74,7 @@ exports.calculateAttendance = async ({
       const isOffDay = offDays.includes(dayName);
 
       const isHoliday = calendarRules.some((rule) =>
-        matchCalendarRule(rule, day),
+        matchCalendarRule(rule, day, dayName),
       );
 
       if (isOffDay) {
@@ -115,13 +119,13 @@ exports.calculateAttendance = async ({
         const dateKey = session.startDate;
 
         const late = diffMinutes(
-          `${dateKey}T${shiftStart}`,
           `${dateKey}T${session.startTime}`,
+          `${dateKey}T${shiftStart}`,
         );
 
         const earlyLeave = diffMinutes(
-          `${dateKey}T${session.endTime}`,
           `${dateKey}T${shiftEnd}`,
+          `${dateKey}T${session.endTime}`,
         );
 
         if (late > earlyInTolerance) {
@@ -302,7 +306,15 @@ function calcShiftHours(start, end) {
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
 
-  return (eh * 60 + em - (sh * 60 + sm)) / 60;
+  const startMinutes = sh * 60 + sm;
+  const endMinutes = eh * 60 + em;
+
+  const durationMinutes =
+    endMinutes >= startMinutes
+      ? endMinutes - startMinutes
+      : 24 * 60 - startMinutes + endMinutes;
+
+  return durationMinutes / 60;
 }
 
 function buildAllDates(period) {

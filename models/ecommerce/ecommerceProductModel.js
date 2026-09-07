@@ -18,11 +18,32 @@ const ecommerceProductModel = new mongoose.Schema(
       type: String,
       default: "Product description",
     },
+    latinDescription: String,
     shortDescription: {
       type: String,
       default: "Product short description",
     },
 
+    specifications: [
+      {
+        key: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        value: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        _id: false,
+      },
+    ],
+    latinShortDescription: String,
+    imageCover: {
+      type: String,
+      default: null,
+    },
     ecommercePrice: {
       type: Number,
       default: 0,
@@ -42,7 +63,6 @@ const ecommerceProductModel = new mongoose.Schema(
     imagesArray: [
       {
         image: String,
-        isCover: { type: Boolean, default: false },
         _id: false,
       },
     ],
@@ -100,21 +120,15 @@ const ecommerceProductModel = new mongoose.Schema(
     },
     productNo: { type: Number, default: 0 },
     metas: {
-      title: {
-        en: { type: String, default: "" },
-        ar: { type: String, default: "" },
-        tr: { type: String, default: "" },
-      },
-      description: {
-        en: { type: String, default: "" },
-        ar: { type: String, default: "" },
-        tr: { type: String, default: "" },
-      },
-      keywords: {
-        en: { type: [String], default: [] },
-        ar: { type: [String], default: [] },
-        tr: { type: [String], default: [] },
-      },
+      title: { type: String, default: "" },
+      latinTitle: { type: String, default: "" },
+
+      description: { type: String, default: "" },
+      latinDescription: { type: String, default: "" },
+    },
+    keywords: {
+      type: [String],
+      default: [],
     },
   },
   {

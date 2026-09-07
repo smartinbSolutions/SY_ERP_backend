@@ -23,6 +23,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: "Product description",
     },
+    latinDescription: String,
     image: String,
     originalProductId: String,
     /* =========================

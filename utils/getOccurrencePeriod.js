@@ -13,7 +13,7 @@ const getOccurrencePeriod = ({
   hireDate,
   timezone: tz,
 }) => {
-  if (!timezone) {
+  if (!tz) {
     throw new Error("Timezone is required for occurrence calculation");
   }
 

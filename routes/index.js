@@ -237,7 +237,6 @@ const mountRoutes = (app) => {
   app.use("/api/payroll-groups", payrollGroupsRoute);
   app.use("/api/payroll-lines", payrollEmployeeLineRoute);
   app.use("/api/employee-payrolls", employeePayrollRoute);
-
   app.use("/api/action-execution", actionExecutionRoute);
   app.use("/api/violation-logs", violationLogRoute);
 
