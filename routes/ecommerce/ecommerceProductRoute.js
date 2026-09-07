@@ -1,5 +1,7 @@
 const express = require("express");
 
+const authService = require("../../services/authService");
+
 const {
   getLezyProduct,
   updateEcommerceProducts,
@@ -12,6 +14,10 @@ const {
   getEcommerceProductFeatured,
   setEcommerceProductSponsored,
   getEcommerceProductSponsored,
+  updateEcommerceProduct,
+  getOneEcommerceProduct,
+  uploadEcommercProductImage,
+  resizerEcommercProductImage,
 } = require("../../services/ecommerce/ecommerceProductService");
 
 const router = express.Router();
@@ -23,7 +29,7 @@ const router = express.Router();
  */
 
 // Storefront products
-router.get("/lazy", getLezyProduct);
+router.get("/lazy",authService.protect, getLezyProduct);
 
 /*
  * ========================================
@@ -32,16 +38,16 @@ router.get("/lazy", getLezyProduct);
  */
 
 // Get regular products available for Ecommerce import
-router.get("/import-products", getEcommerceImportProduct);
+router.get("/import-products",authService.protect, getEcommerceImportProduct);
 
 // Import regular products to Ecommerce
-router.put("/import", updateEcommerceProducts);
+router.put("/import", authService.protect, updateEcommerceProducts);
 
 // Deactivate Ecommerce product
-router.put("/deactivate", updateEcommerceProductDeActive);
+router.put("/deactivate", authService.protect, updateEcommerceProductDeActive);
 
 // Publish / Unpublish Ecommerce product
-router.put("/publish", setEcommerceProductPublish);
+router.put("/publish", authService.protect, setEcommerceProductPublish);
 
 /*
  * ========================================
@@ -49,7 +55,7 @@ router.put("/publish", setEcommerceProductPublish);
  * ========================================
  */
 
-router.get("/active", ecommerceActiveProduct);
+router.get("/active", authService.protect, ecommerceActiveProduct);
 
 /*
  * ========================================
@@ -57,7 +63,7 @@ router.get("/active", ecommerceActiveProduct);
  * ========================================
  */
 
-router.get("/dashboard-stats", ecommerceDashboardStats);
+router.get("/dashboard-stats", authService.protect, ecommerceDashboardStats);
 
 /*
  * ========================================
@@ -65,9 +71,9 @@ router.get("/dashboard-stats", ecommerceDashboardStats);
  * ========================================
  */
 
-router.put("/featured", setEcommerceProductFeatured);
+router.put("/featured", authService.protect, setEcommerceProductFeatured);
 
-router.get("/featured", getEcommerceProductFeatured);
+router.get("/featured", authService.protect, getEcommerceProductFeatured);
 
 /*
  * ========================================
@@ -75,8 +81,23 @@ router.get("/featured", getEcommerceProductFeatured);
  * ========================================
  */
 
-router.put("/sponsored", setEcommerceProductSponsored);
+router.put("/sponsored", authService.protect, setEcommerceProductSponsored);
 
-router.get("/sponsored", getEcommerceProductSponsored);
+router.get("/sponsored", authService.protect, getEcommerceProductSponsored);
+
+router.get(
+  "/:id",
+  authService.protect,
+  getOneEcommerceProduct,
+);
+
+router.put(
+  "/:id",
+  authService.protect,
+  uploadEcommercProductImage,
+  resizerEcommercProductImage,
+  updateEcommerceProduct,
+);
+
 
 module.exports = router;

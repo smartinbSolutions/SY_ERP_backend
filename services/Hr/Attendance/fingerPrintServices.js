@@ -120,75 +120,86 @@ exports.getLoggedUserFingerPrintsByDays = asyncHandler(
     const companyId = req.companyId;
 
     if (!companyId) {
-      return res.status(400).json({ message: "companyId is required" });
+      return res.status(400).json({
+        message: "companyId is required",
+      });
     }
 
-    const pageSize = 20;
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const skip = (page - 1) * pageSize;
+    const { startDate, endDate } = req.query;
+
     const filter = {
       userID: req.user._id,
       companyId,
     };
 
-    const [result] = await fingerPrintModel.aggregate([
-      { $match: filter },
+    // Date filter
+    if (startDate || endDate) {
+      filter.date = {};
+
+      if (startDate) {
+        filter.date.$gte = startDate;
+      }
+
+      if (endDate) {
+        filter.date.$lte = endDate;
+      }
+    }
+
+    const data = await fingerPrintModel.aggregate([
+      {
+        $match: filter,
+      },
 
       {
-        $facet: {
-          totalDays: [
-            {
-              $group: {
-                _id: "$date",
-              },
+        $sort: {
+          createdAt: -1,
+        },
+      },
+
+      {
+        $group: {
+          _id: "$date",
+
+          date: {
+            $first: "$date",
+          },
+
+          records: {
+            $push: {
+              _id: "$_id",
+              fullName: "$fullName",
+              userID: "$userID",
+              email: "$email",
+              Time: "$Time",
+              date: "$date",
+              type: "$type",
+              companyId: "$companyId",
+              createdAt: "$createdAt",
+              updatedAt: "$updatedAt",
             },
-            { $count: "count" },
-          ],
+          },
 
-          data: [
-            { $sort: { createdAt: -1 } },
+          latestRecord: {
+            $first: "$createdAt",
+          },
 
-            {
-              $group: {
-                _id: "$date",
-                date: { $first: "$date" },
-                records: {
-                  $push: {
-                    _id: "$_id",
-                    fullName: "$fullName",
-                    userID: "$userID",
-                    email: "$email",
-                    Time: "$Time",
-                    date: "$date",
-                    type: "$type",
-                    companyId: "$companyId",
-                    createdAt: "$createdAt",
-                    updatedAt: "$updatedAt",
-                  },
-                },
-                latestRecord: { $first: "$createdAt" },
-                totalRecords: { $sum: 1 },
-              },
-            },
+          totalRecords: {
+            $sum: 1,
+          },
+        },
+      },
 
-            { $sort: { latestRecord: -1 } },
-            { $skip: skip },
-            { $limit: pageSize },
-          ],
+      {
+        $sort: {
+          date: -1,
         },
       },
     ]);
 
-    const totalItems = result?.totalDays?.[0]?.count || 0;
-    const totalPages = Math.ceil(totalItems / pageSize);
-
     res.status(200).json({
       status: true,
-      Pages: totalPages,
-      results: totalItems,
-      currentPage: page,
-      pageSize,
-      data: result?.data || [],
+      results: data.length,
+      data,
     });
   },
 );

@@ -9,6 +9,7 @@ const productModel = require("../../models/Stocks/products/productModel");
 const mongoose = require("mongoose");
 const slugify = require("slugify");
 const orderModel = require("../../models/Accounting/Sales/orderModel");
+const fs = require("fs");
 
 const multerOptions = () => {
   const multerStorage = multer.memoryStorage();
@@ -34,59 +35,74 @@ exports.uploadEcommercProductImage = uploadMixOfImages([
   { name: "imagesArray", maxCount: 5 },
 ]);
 
-exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
-  if (req.files.imageCover) {
-    const imageECoverFilename = `product-${uuidv4()}-${Date.now()}-cover.png`;
+exports.resizerEcommercProductImage = asyncHandler(
+  async (req, res, next) => {
+    const dir = "uploads/product";
 
-    await sharp(req.files.imageCover[0].buffer)
-      .toFormat("png")
-      .png({ quality: 70 })
-      .toFile(`uploads/product/${imageECoverFilename}`);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-    //save image into our db
-    req.body.imageCover = imageECoverFilename;
-  }
-  let coverImageName = null;
-  //-2 Images
-  if (req.files.imagesArray) {
-    req.body.imagesArray = [];
+    /*
+     * ========================================
+     * COVER IMAGE
+     * ========================================
+     */
 
-    // Initialize a variable to store the cover image
-    let coverImageName = null;
+    if (req.files?.imageCover?.length) {
+      const file = req.files.imageCover[0];
 
-    // Process the images
-    await Promise.all(
-      req.files.imagesArray.map(async (img, index) => {
-        const imageName = `product-${uuidv4()}-${Date.now()}-${index + 1}.png`;
+      const filename = `product-${uuidv4()}-${Date.now()}-cover.png`;
 
-        await sharp(img.buffer)
-          .toFormat("png")
-          .png({ quality: 70 })
-          .toFile(`uploads/product/${imageName}`);
+      await sharp(file.buffer)
+        .resize({
+          width: 1200,
+          withoutEnlargement: true,
+        })
+        .png({ quality: 70 })
+        .toFile(`${dir}/${filename}`);
 
-        // Check if this image should be the cover image
-        if (index === 0) {
-          coverImageName = imageName; // Set the first image as the cover
-        } else {
-          // Save other images into the imagesArray
+      /*
+       * Save processed filename into req.body
+       */
+
+      req.body.imageCover = filename;
+    }
+
+    /*
+     * ========================================
+     * GALLERY IMAGES
+     * ========================================
+     */
+
+    if (req.files?.imagesArray?.length) {
+      req.body.imagesArray = [];
+
+      await Promise.all(
+        req.files.imagesArray.map(async (file, index) => {
+          const filename = `product-${uuidv4()}-${Date.now()}-${
+            index + 1
+          }.png`;
+
+          await sharp(file.buffer)
+            .resize({
+              width: 1200,
+              withoutEnlargement: true,
+            })
+            .png({ quality: 70 })
+            .toFile(`${dir}/${filename}`);
+
           req.body.imagesArray.push({
-            image: imageName,
+            image: filename,
             isCover: false,
           });
-        }
-      }),
-    );
-
-    // If there's a cover image, add it to the imagesArray
-    if (coverImageName) {
-      req.body.imagesArray.unshift({
-        image: coverImageName,
-        isCover: true, // Mark this image as the cover
-      });
+        }),
+      );
     }
-  }
-  next();
-});
+
+    next();
+  },
+);
 
 // @desc get Product for Ecommerces
 // @route Post /api/productLazy
@@ -1573,3 +1589,348 @@ exports.getEcommerceProductSponsored = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getOneEcommerceProduct = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({
+      message: "companyId is required",
+    });
+  }
+
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ApiError("Invalid ecommerce product ID", 400));
+  }
+
+  const ecommerceProduct = await ecommerceProductModel
+    .findOne({
+      _id: id,
+      companyId,
+    })
+    .populate({
+      path: "product",
+      populate: [
+        {
+          path: "category",
+        },
+        {
+          path: "brand",
+        },
+        {
+          path: "unit",
+        },
+        {
+          path: "currency",
+        },
+        {
+          path: "tax",
+        },
+      ],
+    });
+
+  if (!ecommerceProduct) {
+    return next(new ApiError("Ecommerce product not found", 404));
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: ecommerceProduct,
+  });
+});
+
+exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({
+      message: "companyId is required",
+    });
+  }
+
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ApiError("Invalid ecommerce product ID", 400));
+  }
+
+  const ecommerceProduct = await ecommerceProductModel.findOne({
+    _id: id,
+    companyId,
+  });
+
+  if (!ecommerceProduct) {
+    return next(new ApiError("Ecommerce product not found", 404));
+  }
+
+  /*
+   * ========================================
+   * BASIC ECOMMERCE INFORMATION
+   * ========================================
+   */
+
+  if (req.body.name !== undefined) {
+    ecommerceProduct.name = req.body.name;
+  }
+
+  if (req.body.latinName !== undefined) {
+    ecommerceProduct.latinName = req.body.latinName;
+  }
+
+  if (req.body.description !== undefined) {
+    ecommerceProduct.description = req.body.description;
+  }
+
+  if (req.body.shortDescription !== undefined) {
+    ecommerceProduct.shortDescription = req.body.shortDescription;
+  }
+
+  /*
+   * ========================================
+   * TRANSLATIONS
+   * ========================================
+   */
+
+  if (req.body.nameAR !== undefined) {
+    ecommerceProduct.nameAR = req.body.nameAR;
+  }
+
+  if (req.body.nameTR !== undefined) {
+    ecommerceProduct.nameTR = req.body.nameTR;
+  }
+
+  if (req.body.shortDescriptionAR !== undefined) {
+    ecommerceProduct.shortDescriptionAR = req.body.shortDescriptionAR;
+  }
+
+  if (req.body.shortDescriptionTR !== undefined) {
+    ecommerceProduct.shortDescriptionTR = req.body.shortDescriptionTR;
+  }
+
+  if (req.body.descriptionAR !== undefined) {
+    ecommerceProduct.descriptionAR = req.body.descriptionAR;
+  }
+
+  if (req.body.descriptionTR !== undefined) {
+    ecommerceProduct.descriptionTR = req.body.descriptionTR;
+  }
+
+  /*
+   * ========================================
+   * ECOMMERCE PRICE
+   * ========================================
+   */
+
+  if (req.body.ecommercePrice !== undefined) {
+    ecommerceProduct.ecommercePrice = Number(req.body.ecommercePrice) || 0;
+  }
+
+  if (req.body.ecommercePriceMainCurrency !== undefined) {
+    ecommerceProduct.ecommercePriceMainCurrency =
+      Number(req.body.ecommercePriceMainCurrency) || 0;
+  }
+
+  if (req.body.ecommercePriceAftereDiscount !== undefined) {
+    ecommerceProduct.ecommercePriceAftereDiscount =
+      Number(req.body.ecommercePriceAftereDiscount) || 0;
+  }
+
+  if (req.body.ecommercePriceBeforeTax !== undefined) {
+    ecommerceProduct.ecommercePriceBeforeTax =
+      Number(req.body.ecommercePriceBeforeTax) || 0;
+  }
+
+  /*
+   * ========================================
+   * SHIPPING
+   * ========================================
+   */
+
+  if (req.body.width !== undefined) {
+    ecommerceProduct.width = Number(req.body.width) || 0;
+  }
+
+  if (req.body.height !== undefined) {
+    ecommerceProduct.height = Number(req.body.height) || 0;
+  }
+
+  if (req.body.length !== undefined) {
+    ecommerceProduct.length = Number(req.body.length) || 0;
+  }
+
+  if (req.body.weight !== undefined) {
+    ecommerceProduct.weight = Number(req.body.weight) || 0;
+  }
+
+  /*
+   * ========================================
+   * ECOMMERCE STATUS
+   * ========================================
+   */
+
+  if (req.body.ecommerceActive !== undefined) {
+    ecommerceProduct.ecommerceActive =
+      req.body.ecommerceActive === true ||
+      req.body.ecommerceActive === "true";
+  }
+
+  /*
+   * ========================================
+   * SPECIFICATIONS
+   * ========================================
+   */
+
+  if (req.body.customAttributes !== undefined) {
+    ecommerceProduct.customAttributes = req.body.customAttributes;
+  }
+
+  /*
+   * ========================================
+   * RELATED PRODUCTS
+   * ========================================
+   */
+
+  if (req.body.alternateProducts !== undefined) {
+    let alternateProducts = req.body.alternateProducts;
+
+    if (!Array.isArray(alternateProducts)) {
+      alternateProducts = [alternateProducts];
+    }
+
+    ecommerceProduct.alternateProducts = alternateProducts.filter(Boolean);
+  }
+
+  /*
+   * ========================================
+   * META TAGS
+   * ========================================
+   */
+
+  if (req.body.metas !== undefined) {
+    try {
+      ecommerceProduct.metas =
+        typeof req.body.metas === "string"
+          ? JSON.parse(req.body.metas)
+          : req.body.metas;
+    } catch (error) {
+      return next(new ApiError("Invalid metas format", 400));
+    }
+  }
+
+/* 
+ * ========================================
+ * IMAGES
+ * ========================================
+ */
+
+const hasImageUpdate =
+  req.body.existingImages !== undefined ||
+  req.body.imagesArray !== undefined ||
+  req.body.imageCover !== undefined;
+
+if (hasImageUpdate) {
+  // =====================================================
+  // Existing images
+  // =====================================================
+
+  let existingImages = [];
+
+  if (req.body.existingImages !== undefined) {
+    try {
+      existingImages =
+        typeof req.body.existingImages === "string"
+          ? JSON.parse(req.body.existingImages)
+          : req.body.existingImages;
+    } catch (error) {
+      return next(
+        new ApiError("Invalid existingImages format", 400),
+      );
+    }
+
+    if (!Array.isArray(existingImages)) {
+      existingImages = [];
+    }
+  }
+
+  // =====================================================
+  // New images
+  // =====================================================
+
+  let newImages = [];
+
+  if (req.body.imagesArray !== undefined) {
+    newImages = Array.isArray(req.body.imagesArray)
+      ? req.body.imagesArray
+      : [req.body.imagesArray];
+
+    newImages = newImages
+      .filter((item) => item?.image)
+      .map((item) => ({
+        image: item.image,
+        isCover: false,
+      }));
+  }
+
+  // =====================================================
+  // Replace images
+  // =====================================================
+
+  ecommerceProduct.imagesArray = [
+    ...existingImages
+      .filter((item) => item?.image)
+      .map((item) => ({
+        image: item.image,
+        isCover: item.isCover === true,
+      })),
+
+    ...newImages,
+  ];
+  // =====================================================
+  //  Save cover image independently
+  // =====================================================
+
+  if (req.body.imageCover) {
+    ecommerceProduct.imageCover = req.body.imageCover;
+  }
+  // =====================================================
+  // New cover image
+  // =====================================================
+
+  if (req.body.imageCover) {
+    ecommerceProduct.imagesArray = [
+      {
+        image: req.body.imageCover,
+        isCover: true,
+      },
+      ...ecommerceProduct.imagesArray.map((item) => ({
+        image: item.image,
+        isCover: false,
+      })),
+    ];
+  }
+}
+  await ecommerceProduct.save();
+
+  const updatedProduct = await ecommerceProductModel
+    .findOne({
+      _id: id,
+      companyId,
+    })
+    .populate({
+      path: "product",
+      populate: [
+        { path: "category" },
+        { path: "brand" },
+        { path: "unit" },
+        { path: "currency" },
+        { path: "tax" },
+      ],
+    });
+
+  return res.status(200).json({
+    success: true,
+    data: updatedProduct,
+  });
+});
