@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
+const slugify = require("slugify");
 
 const companyInfoSchema = new mongoose.Schema(
   {
@@ -9,6 +10,15 @@ const companyInfoSchema = new mongoose.Schema(
       minlength: [3, "Name is too short"],
       trim: true,
     },
+
+    slug: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+
     publicId: { type: String, default: uuidv4, unique: true, index: true },
     companyAddress: String,
     companyTax: String,
@@ -44,8 +54,31 @@ const companyInfoSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
+
+companyInfoSchema.pre("save", async function (next) {
+  if (!this.slug) {
+    let baseSlug = slugify(this.companyName, {
+      lower: true,
+      strict: true,
+      trim: true,
+    });
+
+    let slug = baseSlug;
+    let counter = 1;
+
+    while (await this.constructor.findOne({ slug })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    this.slug = slug;
+  }
+
+  next();
+});
+
 
 const setImageURL = (doc) => {
   if (

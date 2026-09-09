@@ -19,26 +19,39 @@ const {
   uploadEcommercProductImage,
   resizerEcommercProductImage,
 } = require("../../services/ecommerce/ecommerceProductService");
+const { resolveCompanyFromSlug } = require("../../middlewares/resolveCompany");
 
 const router = express.Router();
 
 /*
  * ========================================
- * PUBLIC ECOMMERCE PRODUCTS
+ * PUBLIC ECOMMERCE PRODUCTS (بدون token)
  * ========================================
  */
 
 // Storefront products
-router.get("/lazy",authService.protect, getLezyProduct);
+// GET /api/ecommerce/products?companySlug=smartinb-com
+router.get("/lazy", resolveCompanyFromSlug, getLezyProduct);
 
-/*
- * ========================================
- * PRODUCT IMPORT / MANAGEMENT
- * ========================================
- */
+// GET /api/ecommerce/store/:companySlug/products
+router.get(
+  "/store/:companySlug/products",
+  resolveCompanyFromSlug,
+  getLezyProduct,
+);
+
+// GET /api/ecommerce/products/:id?companySlug=smartinb-com
+router.get("/product/:id", resolveCompanyFromSlug, getOneEcommerceProduct);
+
+// GET /api/ecommerce/store/:companySlug/products/:id
+router.get(
+  "/store/:companySlug/products/:id",
+  resolveCompanyFromSlug,
+  getOneEcommerceProduct,
+);
 
 // Get regular products available for Ecommerce import
-router.get("/import-products",authService.protect, getEcommerceImportProduct);
+router.get("/import-products", authService.protect, getEcommerceImportProduct);
 
 // Import regular products to Ecommerce
 router.put("/import", authService.protect, updateEcommerceProducts);
@@ -49,47 +62,17 @@ router.put("/deactivate", authService.protect, updateEcommerceProductDeActive);
 // Publish / Unpublish Ecommerce product
 router.put("/publish", authService.protect, setEcommerceProductPublish);
 
-/*
- * ========================================
- * ACTIVE ECOMMERCE PRODUCTS
- * ========================================
- */
-
 router.get("/active", authService.protect, ecommerceActiveProduct);
 
-/*
- * ========================================
- * DASHBOARD
- * ========================================
- */
-
 router.get("/dashboard-stats", authService.protect, ecommerceDashboardStats);
-
-/*
- * ========================================
- * FEATURED PRODUCTS
- * ========================================
- */
 
 router.put("/featured", authService.protect, setEcommerceProductFeatured);
 
 router.get("/featured", authService.protect, getEcommerceProductFeatured);
 
-/*
- * ========================================
- * SPONSORED PRODUCTS
- * ========================================
- */
-
 router.put("/sponsored", authService.protect, setEcommerceProductSponsored);
 
 router.get("/sponsored", authService.protect, getEcommerceProductSponsored);
-
-router.get(
-  "/:id",
-  authService.protect,
-  getOneEcommerceProduct,
-);
 
 router.put(
   "/:id",
@@ -98,6 +81,5 @@ router.put(
   resizerEcommercProductImage,
   updateEcommerceProduct,
 );
-
 
 module.exports = router;

@@ -10,6 +10,7 @@ const mongoose = require("mongoose");
 const slugify = require("slugify");
 const orderModel = require("../../models/Accounting/Sales/orderModel");
 const fs = require("fs");
+const CompanyInfoModel = require("../../models/Settings/CompanyInfo/companyInfo.model");
 
 const multerOptions = () => {
   const multerStorage = multer.memoryStorage();
@@ -105,11 +106,26 @@ exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
 // @route GET /api/productLazy
 // @access Public
 exports.getLezyProduct = asyncHandler(async (req, res, next) => {
+  console.log("🔍 Debug getLezyProduct:");
+  console.log("req.companyId:", req.companyId);
+  console.log("req.query.companySlug:", req.query.companySlug);
+  console.log("req.companySlug:", req.companySlug);
+  console.log("");
+  if (!req.companyId && req.query.companySlug) {
+    const company = await CompanyInfoModel.findOne({
+      slug: req.query.companySlug.toLowerCase(),
+    });
+
+    if (company) {
+      req.companyId = company._id;
+    }
+  }
+
   const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({
-      message: "companyId is required",
+      message: "companyId or companySlug is required",
     });
   }
 
@@ -127,7 +143,7 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
   const ecommerceQuery = {
     publish: true,
     ecommerceActive: true,
-    companyId,
+    companyId: companyId.toString(),
   };
 
   /*
@@ -1560,11 +1576,21 @@ exports.getEcommerceProductSponsored = async (req, res, next) => {
 };
 
 exports.getOneEcommerceProduct = asyncHandler(async (req, res, next) => {
+  if (!req.companyId && req.query.companySlug) {
+    const company = await CompanyInfoModel.findOne({
+      slug: req.query.companySlug.toLowerCase(),
+    });
+
+    if (company) {
+      req.companyId = company._id;
+    }
+  }
+
   const companyId = req.companyId;
 
   if (!companyId) {
     return res.status(400).json({
-      message: "companyId is required",
+      message: "companyId or companySlug is required",
     });
   }
 
