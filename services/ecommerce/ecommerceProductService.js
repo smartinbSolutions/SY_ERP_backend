@@ -37,7 +37,8 @@ exports.uploadEcommercProductImage = uploadMixOfImages([
 ]);
 
 exports.resizerEcommercProductImage = asyncHandler(async (req, res, next) => {
-  const dir = "uploads/product";
+  const path = require("path");
+  const dir = path.join(__dirname, "..", "..", "uploads/product");
 
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
