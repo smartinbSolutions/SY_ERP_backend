@@ -16,8 +16,10 @@ const {
   getEcommerceProductSponsored,
   updateEcommerceProduct,
   getOneEcommerceProduct,
+  getOneEcommerceProductForStore,
   uploadEcommercProductImage,
   resizerEcommercProductImage,
+  getLezyProductForStore,
 } = require("../../services/ecommerce/ecommerceProductService");
 const { resolveCompanyFromSlug } = require("../../middlewares/resolveCompany");
 
@@ -37,18 +39,18 @@ router.get("/lazy", resolveCompanyFromSlug, getLezyProduct);
 router.get(
   "/store/:companySlug/products",
   resolveCompanyFromSlug,
-  getLezyProduct,
+  getLezyProductForStore,
 );
-
-// GET /api/ecommerce/products/:id?companySlug=smartinb-com
-router.get("/product/:id", resolveCompanyFromSlug, getOneEcommerceProduct);
 
 // GET /api/ecommerce/store/:companySlug/products/:id
 router.get(
   "/store/:companySlug/products/:id",
   resolveCompanyFromSlug,
-  getOneEcommerceProduct,
+  getOneEcommerceProductForStore,
 );
+
+// GET /api/ecommerce/products/:id?companySlug=smartinb-com
+router.get("/product/:id", authService.protect, getOneEcommerceProduct);
 
 // Get regular products available for Ecommerce import
 router.get("/import-products", authService.protect, getEcommerceImportProduct);

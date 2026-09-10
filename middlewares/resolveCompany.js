@@ -4,7 +4,8 @@ const CompanyInfoModel = require("../models/Settings/CompanyInfo/companyInfo.mod
 
 exports.resolveCompanyFromSlug = asyncHandler(async (req, res, next) => {
   let companySlug = null;
-
+  console.log("resolveCompanyFromSlug middleware called");
+  console.log("req.query:", req.query);
   // 1. من Query Parameter: ?companySlug=smartinb-com
   if (req.query.companySlug) {
     companySlug = req.query.companySlug;

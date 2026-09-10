@@ -542,6 +542,362 @@ exports.getLezyProduct = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.getLezyProductForStore = asyncHandler(async (req, res, next) => {
+  if (!req.companyId && req.query.companySlug) {
+    const company = await CompanyInfoModel.findOne({
+      slug: req.query.companySlug.toLowerCase(),
+    });
+
+    if (company) {
+      req.companyId = company._id;
+    }
+  }
+
+  const companyId = req.companyId;
+
+  if (!companyId) {
+    return res.status(400).json({
+      message: "companyId or companySlug is required",
+    });
+  }
+
+  const limit = Math.max(parseInt(req.query.limit) || 16, 1);
+  const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+
+  /*
+   * ========================================
+   * ECOMMERCE PRODUCT FILTERS
+   * ========================================
+   */
+  const ecommerceQuery = {
+    publish: true,
+    ecommerceActive: true,
+    companyId: companyId.toString(),
+  };
+
+  if (req.query.keyword) {
+    ecommerceQuery.name = {
+      $regex: req.query.keyword,
+      $options: "i",
+    };
+  }
+
+  if (req.query.minAvg || req.query.maxAvg) {
+    ecommerceQuery.ratingsAverage = {};
+
+    if (req.query.minAvg) {
+      ecommerceQuery.ratingsAverage.$gte = parseFloat(req.query.minAvg);
+    }
+
+    if (req.query.maxAvg) {
+      ecommerceQuery.ratingsAverage.$lte = parseFloat(req.query.maxAvg);
+    }
+  }
+
+  if (req.query.taxPriceMin || req.query.taxPriceMax) {
+    ecommerceQuery.ecommercePriceMainCurrency = {};
+
+    if (req.query.taxPriceMin) {
+      ecommerceQuery.ecommercePriceMainCurrency.$gte = parseFloat(
+        req.query.taxPriceMin,
+      );
+    }
+
+    if (req.query.taxPriceMax) {
+      ecommerceQuery.ecommercePriceMainCurrency.$lte = parseFloat(
+        req.query.taxPriceMax,
+      );
+    }
+  }
+
+  /*
+   * ========================================
+   * SORTING
+   * ========================================
+   */
+
+  let sortQuery = {
+    importDate: -1,
+  };
+
+  if (req.query.taxPrice) {
+    sortQuery = {
+      ecommercePriceMainCurrency: parseInt(req.query.taxPrice) === 1 ? 1 : -1,
+    };
+  } else if (req.query.ratingsAverage) {
+    sortQuery = {
+      ratingsAverage: parseInt(req.query.ratingsAverage) === 1 ? 1 : -1,
+    };
+  } else if (req.query.addToFavourites) {
+    sortQuery = {
+      addToFavourites: parseInt(req.query.addToFavourites) === 1 ? 1 : -1,
+    };
+  }
+
+  /*
+   * ========================================
+   * ORIGINAL PRODUCT FILTERS
+   * ========================================
+   */
+
+  const productQuery = {};
+
+  const getActiveChildCategories = async (categoryId) => {
+    let categoryIds = [categoryId];
+
+    const categories = await CategoryModel.find({
+      parentCategory: categoryId,
+      ecommerceVisible: true,
+    }).select("_id");
+
+    for (const category of categories) {
+      const childIds = await getActiveChildCategories(category._id);
+
+      categoryIds = categoryIds.concat(childIds);
+    }
+
+    return categoryIds;
+  };
+
+  if (req.query.type === "category" && req.query.id) {
+    if (!mongoose.Types.ObjectId.isValid(req.query.id)) {
+      return next(new ApiError("Invalid category ID format", 400));
+    }
+
+    const categoryId = new mongoose.Types.ObjectId(req.query.id);
+
+    const category = await CategoryModel.findOne({
+      _id: categoryId,
+      ecommerceVisible: true,
+    });
+
+    if (!category) {
+      return next(new ApiError("Category not found or not active", 404));
+    }
+
+    const categoryIds = await getActiveChildCategories(categoryId);
+
+    productQuery["product.category"] = {
+      $in: categoryIds,
+    };
+  }
+
+  if (req.query.type === "brand" && req.query.id) {
+    if (!mongoose.Types.ObjectId.isValid(req.query.id)) {
+      return next(new ApiError("Invalid brand ID format", 400));
+    }
+
+    productQuery["product.brand"] = new mongoose.Types.ObjectId(req.query.id);
+  }
+
+  if (req.query.brandId) {
+    let rawBrandIds = [];
+
+    if (Array.isArray(req.query.brandId)) {
+      rawBrandIds = req.query.brandId;
+    } else if (typeof req.query.brandId === "string") {
+      rawBrandIds = req.query.brandId.split(",").filter(Boolean);
+    }
+
+    if (!rawBrandIds.length) {
+      return next(new ApiError("Invalid brand ID format", 400));
+    }
+
+    const invalidBrandId = rawBrandIds.find(
+      (id) => !mongoose.Types.ObjectId.isValid(id),
+    );
+
+    if (invalidBrandId) {
+      return next(new ApiError(`Invalid brand ID: ${invalidBrandId}`, 400));
+    }
+
+    productQuery["product.brand"] = {
+      $in: rawBrandIds.map((id) => new mongoose.Types.ObjectId(id)),
+    };
+  }
+
+  /*
+   * ========================================
+   * AGGREGATION
+   * ========================================
+   */
+
+  const aggregationPipeline = [
+    { $match: ecommerceQuery },
+
+    {
+      $lookup: {
+        from: "products",
+        localField: "product",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+
+    { $unwind: { path: "$product", preserveNullAndEmptyArrays: false } },
+
+    ...(Object.keys(productQuery).length ? [{ $match: productQuery }] : []),
+
+    {
+      $addFields: {
+        effectivePrice: {
+          $cond: {
+            if: { $gt: ["$ecommercePriceAftereDiscount", 0] },
+            then: "$ecommercePriceAftereDiscount",
+            else: "$ecommercePriceMainCurrency",
+          },
+        },
+      },
+    },
+
+    {
+      $lookup: {
+        from: "currencies",
+        localField: "product.currency",
+        foreignField: "_id",
+        as: "currencyDetails",
+        pipeline: [
+          { $project: { currencyCode: 1, currencyName: 1, exchangeRate: 1 } },
+        ],
+      },
+    },
+
+    { $unwind: { path: "$currencyDetails", preserveNullAndEmptyArrays: true } },
+
+    {
+      $addFields: {
+        convertedPrice: {
+          $cond: {
+            if: { $ne: ["$currencyDetails.exchangeRate", null] },
+            then: {
+              $multiply: ["$effectivePrice", "$currencyDetails.exchangeRate"],
+            },
+            else: "$effectivePrice",
+          },
+        },
+      },
+    },
+
+    {
+      $facet: {
+        metadata: [{ $count: "totalItems" }],
+
+        data: [
+          { $sort: sortQuery },
+          { $skip: skip },
+          { $limit: limit },
+
+          {
+            $lookup: {
+              from: "categories",
+              localField: "product.category",
+              foreignField: "_id",
+              as: "category",
+              pipeline: [
+                { $project: { name: 1, nameAR: 1, nameTR: 1, slug: 1 } },
+              ],
+            },
+          },
+
+          { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+
+          {
+            $lookup: {
+              from: "brands",
+              localField: "product.brand",
+              foreignField: "_id",
+              as: "brand",
+            },
+          },
+
+          {
+            $lookup: {
+              from: "taxes",
+              localField: "product.tax",
+              foreignField: "_id",
+              as: "tax",
+              pipeline: [{ $project: { name: 1, tax: 1 } }],
+            },
+          },
+          { $unwind: { path: "$tax", preserveNullAndEmptyArrays: true } },
+
+          {
+            $addFields: {
+              productId: "$product._id",
+              quantity: { $sum: "$product.stocks.productQuantity" },
+            },
+          },
+
+          {
+            $project: {
+              name: 1,
+              latinName: 1,
+              slug: 1,
+              description: 1,
+              latinDescription: 1,
+              shortDescription: 1,
+              latinShortDescription: 1,
+              imageCover: 1,
+              imagesArray: 1,
+              ecommercePrice: 1,
+              featured: 1,
+              sponsored: 1,
+              height: 1,
+              width: 1,
+              length: 1,
+              weight: 1,
+              keywords: 1,
+              specifications: 1,
+              metas: 1,
+              alternateProducts: 1,
+              productNo: 1,
+              productId: 1,
+              quantity: 1,
+              category: 1,
+              brand: 1,
+              tax: 1,
+              currencyDetails: 1,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const aggregationResult =
+    await ecommerceProductModel.aggregate(aggregationPipeline);
+
+  const result = aggregationResult[0] || { metadata: [], data: [] };
+
+  const products = result.data || [];
+
+  const totalItems = result.metadata?.[0]?.totalItems || 0;
+
+  const totalPages = Math.ceil(totalItems / limit);
+
+  products.forEach((product) => {
+    if (product.imageCover) {
+      product.imageCover = `${process.env.BASE_URL}/product/${product.imageCover}`;
+    }
+
+    if (product.imagesArray?.length) {
+      product.imagesArray = product.imagesArray.map((imageObj) => ({
+        image: imageObj.image
+          ? `${process.env.BASE_URL}/product/${imageObj.image}`
+          : null,
+      }));
+    }
+  });
+
+  return res.status(200).json({
+    status: "true",
+    results: products.length,
+    totalItems,
+    Pages: totalPages,
+    data: products,
+  });
+});
+
 // @desc Update the product to go in Ecommers
 // @route put /api/ecommersproduct
 // @access private
@@ -1635,6 +1991,94 @@ exports.getOneEcommerceProduct = asyncHandler(async (req, res, next) => {
     data: ecommerceProduct,
   });
 });
+
+exports.getOneEcommerceProductForStore = asyncHandler(
+  async (req, res, next) => {
+    if (!req.companyId && req.query.companySlug) {
+      const company = await CompanyInfoModel.findOne({
+        slug: req.query.companySlug.toLowerCase(),
+      });
+
+      if (company) {
+        req.companyId = company._id;
+      }
+    }
+
+    const companyId = req.companyId;
+
+    if (!companyId) {
+      return res.status(400).json({
+        message: "companyId or companySlug is required",
+      });
+    }
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new ApiError("Invalid ecommerce product ID", 400));
+    }
+
+    const ecommerceProduct = await ecommerceProductModel
+      .findOne(
+        { _id: id, companyId },
+        "name latinName slug description latinDescription shortDescription latinShortDescription imageCover imagesArray ecommercePrice featured sponsored height width length weight keywords specifications metas alternateProducts productNo product",
+      )
+      .populate({
+        path: "product",
+        select: "stocks category brand tax currency",
+        populate: [
+          { path: "category", select: "name nameAR nameTR slug" },
+          { path: "brand" },
+          {
+            path: "currency",
+            select: "currencyCode currencyName exchangeRate",
+          },
+          { path: "tax", select: "name tax" },
+        ],
+      })
+      .lean();
+
+    if (!ecommerceProduct) {
+      return next(new ApiError("Ecommerce product not found", 404));
+    }
+
+    const product = ecommerceProduct.product || {};
+
+    const quantity = (product.stocks || []).reduce(
+      (sum, s) => sum + (s.productQuantity || 0),
+      0,
+    );
+
+    const { product: _drop, ...rest } = ecommerceProduct;
+
+    if (rest.imageCover) {
+      rest.imageCover = `${process.env.BASE_URL}/product/${rest.imageCover}`;
+    }
+
+    if (rest.imagesArray?.length) {
+      rest.imagesArray = rest.imagesArray.map((imageObj) => ({
+        image: imageObj.image
+          ? `${process.env.BASE_URL}/product/${imageObj.image}`
+          : null,
+      }));
+    }
+
+    const data = {
+      ...rest,
+      productId: product._id || null,
+      quantity,
+      category: product.category || null,
+      brand: product.brand || [],
+      tax: product.tax || null,
+      currencyDetails: product.currency || null,
+    };
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  },
+);
 
 exports.updateEcommerceProduct = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
