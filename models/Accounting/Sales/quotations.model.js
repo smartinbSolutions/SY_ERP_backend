@@ -87,7 +87,7 @@ const quotationSchema = new mongoose.Schema(
     invoiceSubTotal: String,
     manuallInvoiceDiscount: Number,
     invoiceDiscount: Number,
-    ManualInvoiceDiscountValue: Number,
+    manuallInvoiceDiscountValue: Number,
     invoiceName: { type: String, default: "" },
     startDate: { type: String },
     endDate: { type: String },
