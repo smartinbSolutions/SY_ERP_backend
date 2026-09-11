@@ -684,9 +684,9 @@ exports.updateSalesInvoiceDraftService = async ({
   const invoiceDiscount = Number(req.body.invoiceDiscount || 0);
   const invoiceGrandTotal = Number(req.body.invoiceGrandTotal || 0);
   const invoiceTax = Number(req.body.invoiceTax || 0);
-  const manualInvoiceDiscount = Number(req.body.ManualInvoiceDiscount || 0);
+  const manualInvoiceDiscount = Number(req.body.manuallInvoiceDiscount || 0);
   const manualInvoiceDiscountValue = Number(
-    req.body.ManualInvoiceDiscountValue || 0,
+    req.body.manuallInvoiceDiscountValue || 0,
   );
 
   const paid = "unpaid";
@@ -694,7 +694,7 @@ exports.updateSalesInvoiceDraftService = async ({
   const paymentInMainCurrency = 0;
   const totalRemainder = invoiceGrandTotal;
   const totalRemainderMainCurrency = totalInMainCurrency;
-  console.log(req.body);
+
   const normalizedDate = resolveInvoiceDate(
     existingInvoice.orderDate,
     req.body.orderDate,
@@ -719,8 +719,8 @@ exports.updateSalesInvoiceDraftService = async ({
     invoiceTax,
 
     InvoiceDiscountType: req.body.InvoiceDiscountType,
-    ManualInvoiceDiscount: manualInvoiceDiscount,
-    ManualInvoiceDiscountValue: manualInvoiceDiscountValue,
+    manuallInvoiceDiscount: manualInvoiceDiscount,
+    manuallInvoiceDiscountValue: manualInvoiceDiscountValue,
 
     paid,
     paymentInInvoiceCurrency,
@@ -1209,8 +1209,8 @@ exports.upsertSalesInvoiceRecordService = async ({
     subtotalWithDiscount,
     invoiceDiscount,
     InvoiceDiscountType,
-    ManualInvoiceDiscount,
-    ManualInvoiceDiscountValue,
+    manuallInvoiceDiscount,
+    manuallInvoiceDiscountValue,
     invoiceGrandTotal,
     invoiceName,
     invoiceTax,
@@ -1260,8 +1260,8 @@ exports.upsertSalesInvoiceRecordService = async ({
     subtotalWithDiscount,
     invoiceDiscount,
     InvoiceDiscountType,
-    ManualInvoiceDiscount,
-    ManualInvoiceDiscountValue,
+    manuallInvoiceDiscount,
+    manuallInvoiceDiscountValue,
 
     invoiceGrandTotal,
     taxDetails,
