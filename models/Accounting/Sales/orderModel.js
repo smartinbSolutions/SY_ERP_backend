@@ -143,7 +143,6 @@ const orderSchema = new mongoose.Schema(
     manuallInvoiceDiscount: Number,
     manuallInvoiceDiscountValue: Number,
     invoiceDiscount: Number,
-    ManualInvoiceDiscountValue: Number,
 
     currencyExchangeRate: { type: Number, default: 1 },
     orderDate: Date,
@@ -241,7 +240,7 @@ const orderSchema = new mongoose.Schema(
     auditing: { type: Boolean, default: false },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Sales", orderSchema);
