@@ -127,7 +127,13 @@ const payrollEmployeeLineRoute = require("./Hr/Payrolls/payrollEmployeeLineRoute
 const productRout = require("./Stocks/Products/product.route");
 const quotationRouter = require("./Accounting/Sales/quotation.route");
 const employeePayrollRoute = require("./Hr/Payrolls/employeePayrollRoute");
-const ecommerceProductRoute = require("./ecommerce/ecommerceProductRoute");
+const crmActivityRoute = require("./CRM/activity.routes");
+const crmCompanyRoute = require("./CRM/company.routes");
+const crmContactRoute = require("./CRM/contact.routes");
+const crmDealRoute = require("./CRM/deal.routes");
+const crmLeadRoute = require("./CRM/lead.routes");
+const crmOpportunityRoute = require("./CRM/opportunity.routes");
+const crmPiplineRoute = require("./CRM/pipeline.routes");
 
 const mountRoutes = (app) => {
   app.use("/api/dashboard-stats", DashboardStatsRoute);
@@ -202,6 +208,15 @@ const mountRoutes = (app) => {
 
   //HepsiJet
   app.use("/api/hepsijet", hepsiJetRouter);
+
+  //CRM
+  app.use("/api/crm/activities", crmActivityRoute);
+  app.use("/api/crm/companies", crmCompanyRoute);
+  app.use("/api/crm/contacts", crmContactRoute);
+  app.use("/api/crm/deals", crmDealRoute);
+  app.use("/api/crm/leads", crmLeadRoute);
+  app.use("/api/crm/opportunities", crmOpportunityRoute);
+  app.use("/api/crm/pipelines", crmPiplineRoute);
 
   //Hr
   app.use("/api/staff", staffRout);
