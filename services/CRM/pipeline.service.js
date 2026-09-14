@@ -1,4 +1,4 @@
-const pipelineModel = require("../../models/CRM/pipelineModel");
+const pipelineModel = require("../../models/CRM/piplineModel");
 const ApiError = require("../../utils/apiError");
 
 // GET ALL
