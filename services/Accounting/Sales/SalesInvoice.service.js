@@ -1459,8 +1459,29 @@ exports.upsertSalesInvoiceRecordService = async ({
 };
 
 exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
-  const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
+  const q = req.query || {};
 
+  const parseMaybeJSON = (value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value; // plain strings like dates pass through unchanged
+    }
+  };
+  console.log("q", q);
+
+  const filters = {
+    startDate: q.startDate,
+    endDate: q.endDate,
+    tags: parseMaybeJSON(q.tags),
+    paymentStatus: q.paymentStatus,
+    employee: q.employee,
+    businessPartners: q.businessPartners,
+    filterTags: parseMaybeJSON(q.filterTags),
+    status: q.status,
+  };
+  console.log("filters", filters);
   const pageSize = Number(req.query.limit) || 20;
   const page = Number(req.query.page) || 1;
   const skip = (page - 1) * pageSize;
@@ -1469,18 +1490,23 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
   const andConditions = [];
 
   if (filters?.startDate || filters?.endDate) {
-    query.date = {};
-    if (filters?.startDate) query.date.$gte = filters.startDate;
-    if (filters?.endDate) query.date.$lte = filters.endDate;
+    query.orderDate = {};
+    if (filters?.startDate) {
+      query.orderDate.$gte = new Date(filters.startDate);
+    }
+    if (filters?.endDate) {
+      const endOfDay = new Date(filters.endDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      query.orderDate.$lte = endOfDay;
+    }
   }
-
   if (filters?.tags?.length) {
     const tagIds = filters.tags.map((tag) => tag.id);
     query["tag.id"] = { $in: tagIds };
   }
 
   if (filters.paymentStatus) {
-    query.paid = filters.paymentStatus;
+    query.paymentsStatus = filters.paymentStatus;
   }
 
   if (filters.employee) {
