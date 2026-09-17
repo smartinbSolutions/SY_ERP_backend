@@ -8,7 +8,11 @@ const {
   deleteActivity,
 } = require("../../controllers/CRM/activity.controller");
 
+const { protect } = require("../../services/authService");
+
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllActivities).post(createActivity);
 
@@ -19,4 +23,3 @@ router
   .delete(deleteActivity);
 
 module.exports = router;
-

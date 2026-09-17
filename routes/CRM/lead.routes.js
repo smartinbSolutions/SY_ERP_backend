@@ -8,7 +8,10 @@ const {
   deleteLead,
 } = require("../../controllers/CRM/lead.controller");
 
+const { protect } = require("../../services/authService");
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllLeads).post(createLead);
 

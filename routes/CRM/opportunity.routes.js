@@ -7,8 +7,11 @@ const {
   updateOpportunity,
   deleteOpportunity,
 } = require("../../controllers/CRM/opportunity.controller");
+const { protect } = require("../../services/authService");
 
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllOpportunities).post(createOpportunity);
 

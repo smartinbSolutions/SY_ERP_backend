@@ -8,6 +8,7 @@ const leadSchema = new mongoose.Schema(
     phone: { type: String, trim: true },
     companyName: { type: String, trim: true },
     jobTitle: { type: String, trim: true },
+
     source: {
       type: String,
       enum: [
@@ -21,16 +22,27 @@ const leadSchema = new mongoose.Schema(
       ],
       default: "other",
     },
+
     status: {
       type: String,
       enum: ["new", "contacted", "qualified", "unqualified", "lost"],
       default: "new",
     },
-    score: { type: Number, min: 0, max: 100, default: 0 }, //the lead score based on engagement and other factors
+
+    score: { type: Number, min: 0, max: 100, default: 0 }, 
+
+    companyId: {
+      type: String,
+      required: true,
+      index: true,
+      trim: true,
+    },
+
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     bant: {
@@ -45,8 +57,8 @@ const leadSchema = new mongoose.Schema(
         notes: String,
       },
       need: {
-        painPoint: String, //the main problem or challenge the lead is facing
-        impact: String, //the effect of the problem on the lead's business or life
+        painPoint: String,
+        impact: String,
         urgency: {
           type: String,
           enum: ["low", "medium", "high"],
@@ -55,19 +67,19 @@ const leadSchema = new mongoose.Schema(
       },
       timeline: {
         expectedStart: Date,
-        deadline: Date, 
+        deadline: Date,
         urgency: {
           type: String,
           enum: ["someday", "year", "quarter", "urgent"],
           default: "someday",
         },
       },
-      score: { type: Number, min: 0, max: 12, default: 0 }, //the total BANT score based on the above factors
+      score: { type: Number, min: 0, max: 12, default: 0 },
     },
 
     convertedTo: {
       contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
-      companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
+      crmCompanyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" }, // ← غيّرنا الاسم
       opportunityId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Opportunity",
@@ -76,11 +88,28 @@ const leadSchema = new mongoose.Schema(
       convertedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     },
 
-    lostReason: { type: String }, //the reason why the lead was lost or disqualified
+    lostReason: { type: String },
     tags: [String],
     notes: { type: String },
+
+    // 🗑️ Soft delete
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true },
+);
+
+leadSchema.index({ companyId: 1, status: 1 });
+leadSchema.index({ companyId: 1, ownerId: 1 });
+leadSchema.index({ companyId: 1, source: 1 });
+leadSchema.index({ companyId: 1, email: 1 });
+leadSchema.index({ companyId: 1, deletedAt: 1 });
+
+leadSchema.index(
+  { companyId: 1, email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { email: { $exists: true, $ne: null } },
+  },
 );
 
 module.exports = mongoose.model("Lead", leadSchema);

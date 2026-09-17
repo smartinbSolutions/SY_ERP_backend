@@ -7,8 +7,11 @@ const {
   updateContact,
   deleteContact,
 } = require("../../controllers/CRM/contact.controller");
+const { protect } = require("../../services/authService");
 
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllContacts).post(createContact);
 

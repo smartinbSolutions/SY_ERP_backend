@@ -42,11 +42,11 @@ const opportunitySchema = new mongoose.Schema(
       required: true,
     },
     currentStageKey: { type: String, required: true }, //the key of the current stage in the pipeline
-    currentStageOrder: { type: Number, required: true },  //the order of the current stage in the pipeline
+    currentStageOrder: { type: Number, required: true }, //the order of the current stage in the pipeline
     probability: { type: Number, min: 0, max: 100, default: 0 },
     stageHistory: [stageHistorySchema],
 
-    companyId: {
+    crmCompanyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
@@ -92,8 +92,19 @@ const opportunitySchema = new mongoose.Schema(
 
     tags: [String],
     deletedAt: { type: Date, default: null },
+    companyId: {
+      type: String,
+      index: true,
+      trim: true,
+    },
   },
   { timestamps: true },
 );
+
+opportunitySchema.index({ companyId: 1, status: 1 });
+opportunitySchema.index({ companyId: 1, pipelineId: 1 });
+opportunitySchema.index({ companyId: 1, ownerId: 1 });
+opportunitySchema.index({ companyId: 1, deletedAt: 1 });
+
 
 module.exports = mongoose.model("Opportunity", opportunitySchema);

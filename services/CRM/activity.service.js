@@ -1,20 +1,48 @@
 const activityModel = require("../../models/CRM/activityModel");
 const ApiError = require("../../utils/apiError");
 
-// GET ALL
-
+// ============ GET ALL ============
 exports.getAllActivities = async (req) => {
+  const companyId = req.companyId;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await activityModel.countDocuments();
+  const {
+    keyword,
+    type,
+    status,
+    priority,
+    ownerId,
+    relatedToType,
+    relatedToId,
+  } = req.query;
 
-  const activities = await activityModel
-    .find()
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 });
+  const query = { companyId, deletedAt: null };
+
+  if (keyword) {
+    query.$or = [
+      { subject: { $regex: keyword, $options: "i" } },
+      { description: { $regex: keyword, $options: "i" } },
+    ];
+  }
+  if (type) query.type = type;
+  if (status) query.status = status;
+  if (priority) query.priority = priority;
+  if (ownerId) query.ownerId = ownerId;
+  if (relatedToType) query["relatedTo.type"] = relatedToType;
+  if (relatedToId) query["relatedTo.id"] = relatedToId;
+
+  const [total, activities] = await Promise.all([
+    activityModel.countDocuments(query),
+    activityModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 })
+      .populate("ownerId", "name email")
+      .populate("attendees", "name email"),
+  ]);
 
   return {
     status: "success",
@@ -22,16 +50,20 @@ exports.getAllActivities = async (req) => {
     limit,
     totalPages: Math.ceil(total / limit),
     results: activities.length,
+    total,
     data: activities,
   };
 };
 
-// GET ONE
-
+// ============ GET ONE ============
 exports.getOneActivity = async (req) => {
+  const companyId = req.companyId;
   const { id } = req.params;
 
-  const activity = await activityModel.findById(id);
+  const activity = await activityModel
+    .findOne({ _id: id, companyId, deletedAt: null })
+    .populate("ownerId", "name email")
+    .populate("attendees", "name email");
 
   if (!activity) {
     throw new ApiError(`No activity found with this ID: ${id}`, 404);
@@ -40,23 +72,35 @@ exports.getOneActivity = async (req) => {
   return activity;
 };
 
-// CREATE
-
+// ============ CREATE ============
 exports.createActivity = async (req) => {
-  const activity = await activityModel.create(req.body);
+  const companyId = req.companyId;
+
+  const payload = {
+    ...req.body,
+    companyId,
+    deletedAt: null,
+  };
+
+  const activity = await activityModel.create(payload);
 
   return activity;
 };
 
-// UPDATE
-
+// ============ UPDATE ============
 exports.updateActivity = async (req) => {
+  const companyId = req.companyId;
   const { id } = req.params;
 
-  const activity = await activityModel.findByIdAndUpdate(id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const updateData = { ...req.body };
+  delete updateData.companyId;
+  delete updateData.deletedAt;
+
+  const activity = await activityModel.findOneAndUpdate(
+    { _id: id, companyId, deletedAt: null },
+    updateData,
+    { new: true, runValidators: true },
+  );
 
   if (!activity) {
     throw new ApiError(`No activity found with this ID: ${id}`, 404);
@@ -65,12 +109,16 @@ exports.updateActivity = async (req) => {
   return activity;
 };
 
-// DELETE
-
+// ============ DELETE (Soft) ============
 exports.deleteActivity = async (req) => {
+  const companyId = req.companyId;
   const { id } = req.params;
 
-  const activity = await activityModel.findByIdAndDelete(id);
+  const activity = await activityModel.findOneAndUpdate(
+    { _id: id, companyId, deletedAt: null },
+    { deletedAt: new Date() },
+    { new: true },
+  );
 
   if (!activity) {
     throw new ApiError(`No activity found with this ID: ${id}`, 404);

@@ -8,7 +8,11 @@ const {
   deleteCompany,
 } = require("../../controllers/CRM/company.controller");
 
+const { protect } = require("../../services/authService");
+
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllCompanies).post(createCompany);
 

@@ -8,7 +8,10 @@ const {
   deletePipeline,
 } = require("../../controllers/CRM/pipeline.controller");
 
+const { protect } = require("../../services/authService");
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllPipelines).post(createPipeline);
 

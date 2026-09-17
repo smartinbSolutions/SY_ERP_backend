@@ -8,7 +8,10 @@ const {
   deleteDeal,
 } = require("../../controllers/CRM/deal.controller");
 
+const { protect } = require("../../services/authService");
 const router = express.Router();
+
+router.use(protect);
 
 router.route("/").get(getAllDeals).post(createDeal);
 

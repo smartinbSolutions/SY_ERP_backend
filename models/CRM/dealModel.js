@@ -22,6 +22,7 @@ const dealSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Opportunity",
       required: true,
+      index: true,
     },
 
     title: { type: String, required: true, trim: true },
@@ -30,15 +31,25 @@ const dealSchema = new mongoose.Schema(
     currency: { type: String, default: "USD", uppercase: true },
 
     companyId: {
+      type: String,
+      required: true,
+      index: true,
+      trim: true,
+    },
+
+    crmCompanyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: true,
+      default: null,
+      index: true,
     },
+
     contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Contact" }],
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     products: [dealProductSchema],
@@ -61,5 +72,12 @@ const dealSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+dealSchema.index({ companyId: 1, status: 1 });
+dealSchema.index({ companyId: 1, ownerId: 1 });
+dealSchema.index({ companyId: 1, crmCompanyId: 1 });
+dealSchema.index({ companyId: 1, opportunityId: 1 });
+dealSchema.index({ companyId: 1, closedAt: -1 });
+dealSchema.index({ companyId: 1, deletedAt: 1 });
 
 module.exports = mongoose.model("Deal", dealSchema);
