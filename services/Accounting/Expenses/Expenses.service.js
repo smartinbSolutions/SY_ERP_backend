@@ -330,7 +330,7 @@ exports.findAllExpensesInvoicesService = async ({ req, companyId }) => {
   if (filters?.startDate || filters?.endDate) {
     query.date = {};
     if (filters?.startDate) query.date.$gte = filters.startDate;
-    if (filters?.endDate) query.date.$lte = filters.endDate;
+    if (filters?.endDate) query.date.$lte = `${filters.endDate}T23:59:59.999Z`;
   }
 
   if (filters?.tags?.length) {
@@ -339,11 +339,11 @@ exports.findAllExpensesInvoicesService = async ({ req, companyId }) => {
   }
 
   if (filters.paymentStatus) {
-    query.paid = filters.paymentStatus;
+    query.paymentStatus = filters.paymentStatus;
   }
 
   if (filters.employee) {
-    query.employee = filters.employee;
+    query.employeeID = filters.employee;
   }
 
   if (filters?.businessPartners) {
@@ -356,8 +356,8 @@ exports.findAllExpensesInvoicesService = async ({ req, companyId }) => {
   if (req.query.keyword) {
     query.$or = [
       { "supllier.name": { $regex: req.query.keyword, $options: "i" } },
-      { invoiceName: { $regex: req.query.keyword, $options: "i" } },
-      { invoiceNumber: { $regex: req.query.keyword, $options: "i" } },
+      { expenseName: { $regex: req.query.keyword, $options: "i" } },
+      { counter: { $regex: req.query.keyword, $options: "i" } },
     ];
   }
 
@@ -365,8 +365,11 @@ exports.findAllExpensesInvoicesService = async ({ req, companyId }) => {
     query["tag.name"] = { $in: filters.filterTags };
   }
 
-  const totalItems = await expensesModel.countDocuments(query);
+  if (filters.status) {
+    query.status = filters.status;
+  }
 
+  const totalItems = await expensesModel.countDocuments(query);
   const totalPages = Math.ceil(totalItems / pageSize);
   const expenses = await expensesModel
     .find(query)
