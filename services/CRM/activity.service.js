@@ -41,7 +41,11 @@ exports.getAllActivities = async (req) => {
       .limit(limit)
       .sort({ createdAt: -1 })
       .populate("ownerId", "name email")
-      .populate("attendees", "name email"),
+      .populate("attendees", "name email")
+      .populate({
+        path: "relatedTo.id",
+      }),
+    ,
   ]);
 
   return {
@@ -63,7 +67,10 @@ exports.getOneActivity = async (req) => {
   const activity = await activityModel
     .findOne({ _id: id, companyId, deletedAt: null })
     .populate("ownerId", "name email")
-    .populate("attendees", "name email");
+    .populate("attendees", "name email")
+    .populate({
+      path: "relatedTo.id",
+    });
 
   if (!activity) {
     throw new ApiError(`No activity found with this ID: ${id}`, 404);

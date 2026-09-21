@@ -54,7 +54,7 @@ const opportunitySchema = new mongoose.Schema(
     contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Contact" }],
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: true,
     },
     leadId: {
@@ -75,6 +75,26 @@ const opportunitySchema = new mongoose.Schema(
       type: String,
       enum: ["price", "competitor", "timing", "no_budget", "no_need", "other"],
     },
+    // new field to track the status of exit criteria for each stage
+    exitCriteriaStatus: [
+      {
+        criteria: String,
+        isCompleted: Boolean,
+        completedAt: Date,
+        // completedBy: ObjectId,
+      },
+    ],
+    // new field to track the status of required actions for each stage
+    requiredActionsStatus: [
+      {
+        type: String,
+        title: String,
+        isMandatory: Boolean,
+        isCompleted: Boolean,
+        completedAt: Date,
+        // completedBy: ObjectId,
+      },
+    ],
 
     bant: {
       budget: { confirmed: Boolean, amount: Number, notes: String },
@@ -105,6 +125,5 @@ opportunitySchema.index({ companyId: 1, status: 1 });
 opportunitySchema.index({ companyId: 1, pipelineId: 1 });
 opportunitySchema.index({ companyId: 1, ownerId: 1 });
 opportunitySchema.index({ companyId: 1, deletedAt: 1 });
-
 
 module.exports = mongoose.model("Opportunity", opportunitySchema);

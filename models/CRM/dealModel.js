@@ -47,7 +47,7 @@ const dealSchema = new mongoose.Schema(
     contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Contact" }],
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: true,
       index: true,
     },

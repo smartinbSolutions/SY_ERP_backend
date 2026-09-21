@@ -22,7 +22,7 @@ const activitySchema = new mongoose.Schema(
         refPath: "relatedTo.type",
       },
     },
-    
+
     companyId: {
       type: String,
       required: true,
@@ -32,7 +32,7 @@ const activitySchema = new mongoose.Schema(
 
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: true,
     },
 

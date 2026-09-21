@@ -63,3 +63,25 @@ exports.deleteLead = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ status: "success", message });
 });
+
+// QUALIFY
+exports.qualifyLead = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ApiError("Invalid ID format", 400));
+  }
+
+  const lead = await leadService.qualifyLead(req);
+
+  res.status(200).json({
+    status: "success",
+    message: "Lead qualified successfully",
+    data: lead,
+  });
+});

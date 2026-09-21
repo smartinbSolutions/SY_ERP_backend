@@ -17,7 +17,7 @@ const stageSchema = new mongoose.Schema(
           enum: ["call", "email", "meeting", "note", "task"],
         },
         title: String,
-        isMandatory: { type: Boolean, default: false },
+        isMandatory: { type: Boolean, default: false }, // is this action mandatory to move to the next stage
       },
     ],
   },
@@ -31,6 +31,7 @@ const pipelineSchema = new mongoose.Schema(
     isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
 
+    // 🔒 Multi-tenant key — String
     companyId: {
       type: String,
       required: true,
@@ -40,7 +41,7 @@ const pipelineSchema = new mongoose.Schema(
 
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: true,
       index: true,
     },
@@ -59,6 +60,7 @@ const pipelineSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// 🔒 Indexes للـ multi-
 pipelineSchema.index({ companyId: 1, isDefault: 1 });
 pipelineSchema.index({ companyId: 1, isActive: 1 });
 pipelineSchema.index({ companyId: 1, ownerId: 1 });
