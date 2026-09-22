@@ -49,7 +49,6 @@ const opportunitySchema = new mongoose.Schema(
     crmCompanyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: true,
     },
     contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Contact" }],
     ownerId: {

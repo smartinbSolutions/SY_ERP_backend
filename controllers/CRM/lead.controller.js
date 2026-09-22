@@ -64,8 +64,8 @@ exports.deleteLead = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", message });
 });
 
-// QUALIFY
-exports.qualifyLead = asyncHandler(async (req, res, next) => {
+// CONVERT LEAD TO
+exports.convertLead = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
   const { id } = req.params;
 
@@ -77,11 +77,11 @@ exports.qualifyLead = asyncHandler(async (req, res, next) => {
     return next(new ApiError("Invalid ID format", 400));
   }
 
-  const lead = await leadService.qualifyLead(req);
+  const result = await leadService.convertLead(req);
 
   res.status(200).json({
     status: "success",
-    message: "Lead qualified successfully",
-    data: lead,
+    message: "Lead converted successfully",
+    data: result,
   });
 });

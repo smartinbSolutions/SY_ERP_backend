@@ -6,7 +6,7 @@ const {
   createLead,
   updateLead,
   deleteLead,
-  qualifyLead,
+  convertLead,
 } = require("../../controllers/CRM/lead.controller");
 
 const { protect } = require("../../services/authService");
@@ -19,6 +19,6 @@ router.route("/").get(getAllLeads).post(createLead);
 
 router.route("/:id").get(getOneLead).put(updateLead).delete(deleteLead);
 
-router.route("/:id/qualify").patch(qualifyLead);
+router.post("/:id/convert", convertLead);
 
 module.exports = router;

@@ -22,14 +22,20 @@ const leadSchema = new mongoose.Schema(
       ],
       default: "other",
     },
-
     status: {
       type: String,
-      enum: ["new", "contacted", "qualified", "unqualified", "lost"],
+      enum: [
+        "new",
+        "contacted",
+        "qualified",
+        "unqualified",
+        "lost",
+        "converted",
+      ],
       default: "new",
     },
 
-    score: { type: Number, min: 0, max: 100, default: 0 }, 
+    score: { type: Number, min: 0, max: 100, default: 0 },
 
     companyId: {
       type: String,

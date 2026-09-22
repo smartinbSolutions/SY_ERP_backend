@@ -1,4 +1,6 @@
+const mongoose = require("mongoose");
 const contactModel = require("../../models/CRM/contactModel");
+const companyModel = require("../../models/CRM/companyModel");
 const ApiError = require("../../utils/apiError");
 
 // ============ GET ALL ============
@@ -32,7 +34,6 @@ exports.getAllContacts = async (req) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .populate("ownerId", "name email")
       .populate("crmCompanyId", "name industry"),
   ]);
 
@@ -54,7 +55,6 @@ exports.getOneContact = async (req) => {
 
   const contact = await contactModel
     .findOne({ _id: id, companyId, deletedAt: null })
-    .populate("ownerId", "name email")
     .populate("crmCompanyId", "name industry website");
 
   if (!contact) {
@@ -140,4 +140,128 @@ exports.deleteContact = async (req) => {
   }
 
   return "Contact deleted successfully";
+};
+
+// ============ ASSIGN CONTACT TO COMPANY ============
+
+exports.assignContactToCompany = async (req) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+  const { crmCompanyId } = req.body;
+
+  if (!crmCompanyId) {
+    throw new ApiError("crmCompanyId is required", 400);
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(crmCompanyId)) {
+    throw new ApiError("Invalid CRM company ID", 400);
+  }
+
+  const contact = await contactModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (!contact) {
+    throw new ApiError(`No contact found with this ID: ${id}`, 404);
+  }
+
+  const crmCompany = await companyModel.findOne({
+    _id: crmCompanyId,
+    companyId,
+    deletedAt: null,
+  });
+  console.log(crmCompanyId);
+  console.log(companyId);
+  
+
+  if (!crmCompany) {
+    throw new ApiError(
+      `No CRM company found with this ID: ${crmCompanyId}`,
+      404,
+    );
+  }
+
+  contact.crmCompanyId = crmCompany._id;
+
+  // A contact is not automatically primary
+  // just because it was assigned to a company.
+  contact.isPrimary = false;
+
+  await contact.save();
+
+  return contact;
+};
+
+// ============ REMOVE CONTACT FROM COMPANY ============
+
+exports.removeContactFromCompany = async (req) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  const contact = await contactModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (!contact) {
+    throw new ApiError(`No contact found with this ID: ${id}`, 404);
+  }
+
+  if (!contact.crmCompanyId) {
+    throw new ApiError("Contact is not assigned to a CRM company", 400);
+  }
+
+  contact.crmCompanyId = null;
+  contact.isPrimary = false;
+
+  await contact.save();
+
+  return contact;
+};
+
+// ============ SET PRIMARY CONTACT ============
+
+exports.setPrimaryContact = async (req) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  const contact = await contactModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (!contact) {
+    throw new ApiError(`No contact found with this ID: ${id}`, 404);
+  }
+
+  if (!contact.crmCompanyId) {
+    throw new ApiError(
+      "Contact must be assigned to a CRM company before becoming primary",
+      400,
+    );
+  }
+
+  // Remove primary status from other contacts
+  // belonging to the same CRM company.
+  await contactModel.updateMany(
+    {
+      companyId,
+      crmCompanyId: contact.crmCompanyId,
+      _id: { $ne: contact._id },
+      deletedAt: null,
+    },
+    {
+      $set: { isPrimary: false },
+    },
+  );
+
+  contact.isPrimary = true;
+
+  await contact.save();
+
+  return contact;
 };

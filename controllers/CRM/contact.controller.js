@@ -63,3 +63,72 @@ exports.deleteContact = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ status: "success", message });
 });
+
+// ================= ASSIGN CONTACT TO COMPANY =================
+
+exports.assignContactToCompany = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ApiError("Invalid ID format", 400));
+  }
+
+  const contact = await contactService.assignContactToCompany(req);
+
+  res.status(200).json({
+    status: "success",
+    message: "Contact assigned to company successfully",
+    data: contact,
+  });
+});
+
+// ================= REMOVE CONTACT FROM COMPANY =================
+
+exports.removeContactFromCompany = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ApiError("Invalid ID format", 400));
+  }
+
+  const contact = await contactService.removeContactFromCompany(req);
+
+  res.status(200).json({
+    status: "success",
+    message: "Contact removed from company successfully",
+    data: contact,
+  });
+});
+
+// ================= SET PRIMARY CONTACT =================
+
+exports.setPrimaryContact = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  if (!companyId) {
+    return next(new ApiError("companyId is required", 400));
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ApiError("Invalid ID format", 400));
+  }
+
+  const contact = await contactService.setPrimaryContact(req);
+
+  res.status(200).json({
+    status: "success",
+    message: "Primary contact updated successfully",
+    data: contact,
+  });
+});
