@@ -30,7 +30,6 @@ exports.getAllCompanies = async (req) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .populate("ownerId", "name email"),
   ]);
 
   return {
@@ -51,7 +50,6 @@ exports.getOneCompany = async (req) => {
 
   const company = await companyModel
     .findOne({ _id: id, companyId, deletedAt: null })
-    .populate("ownerId", "name email");
 
   if (!company) {
     throw new ApiError(`No company found with this ID: ${id}`, 404);

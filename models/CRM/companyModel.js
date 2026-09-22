@@ -18,20 +18,20 @@ const companySchema = new mongoose.Schema(
       state: String,
       country: String,
     },
-    annualRevenue: { type: Number, min: 0 }, 
-    ownerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
-      required: true,
-      index: true,
-    },
+    annualRevenue: { type: Number, min: 0 },
+
     companyId: {
       type: String,
       required: true,
       index: true,
       trim: true,
     },
-    tags: [String],
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
+      },
+    ],
     customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
     notes: { type: String, maxlength: 2000 },
     isActive: { type: Boolean, default: true },

@@ -55,7 +55,7 @@ const activitySchema = new mongoose.Schema(
       enum: ["positive", "neutral", "negative", "no_answer", null],
       default: null,
     },
-    attendees: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    attendees: [{ type: mongoose.Schema.Types.ObjectId, ref: "user" }],
 
     emailData: {
       from: String,
@@ -67,8 +67,12 @@ const activitySchema = new mongoose.Schema(
     reminderAt: Date,
     reminderSent: { type: Boolean, default: false },
 
-    tags: [String],
-
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
+      },
+    ],
     deletedAt: { type: Date, default: null },
   },
   { timestamps: true },

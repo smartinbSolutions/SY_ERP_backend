@@ -21,13 +21,6 @@ const contactSchema = new mongoose.Schema(
       index: true,
     },
 
-    ownerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
-      required: true,
-      index: true,
-    },
-
     status: {
       type: String,
       enum: ["active", "inactive"],
