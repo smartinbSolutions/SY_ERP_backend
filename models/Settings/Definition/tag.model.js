@@ -39,6 +39,16 @@ const tagSchema = new mongoose.Schema(
       default: null,
     },
 
+    color: {
+      type: String,
+      trim: true,
+      default: "",
+      match: [
+        /^#([0-9a-f]{3}|[0-9a-f]{6})$/i,
+        "Invalid color, use hex like #1B84FF",
+      ],
+    },
+
     parentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Tag",
@@ -57,7 +67,6 @@ const tagSchema = new mongoose.Schema(
 tagSchema.index({ companyId: 1, name: 1 }, { unique: true });
 tagSchema.index({ companyId: 1, slug: 1 }, { unique: true });
 tagSchema.index({ companyId: 1, parentId: 1 });
-tagSchema.index({ companyId: 1, type: 1 });
 tagSchema.index({ companyId: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Tag", tagSchema);

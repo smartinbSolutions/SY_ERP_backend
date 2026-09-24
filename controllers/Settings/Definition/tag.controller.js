@@ -101,3 +101,26 @@ exports.deleteTag = asyncHandler(async (req, res) => {
     data: result.data,
   });
 });
+
+exports.setDocTags = asyncHandler(async (req, res) => {
+  const companyId = req.companyId;
+  const { refType, docId } = req.params;
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  const result = await tagService.setDocTags({
+    companyId,
+    refType,
+    docId,
+    tagIds: req.body.tagIds,
+    session,
+  });
+  await session.commitTransaction();
+  session.endSession();
+  return res.status(200).json({
+    status: "success",
+    data: result.data,
+  });
+});

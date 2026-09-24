@@ -7,6 +7,7 @@ const {
   getTag,
   updateTag,
   deleteTag,
+  setDocTags,
 } = require("../../../controllers/Settings/Definition/tag.controller");
 const tagRout = express.Router();
 
@@ -34,5 +35,12 @@ tagRout
     authService.checkCompanyEditable,
     deleteTag,
   );
+
+tagRout.put(
+  "/assign/:refType/:docId",
+  authService.allowedTo("definition.update"),
+  authService.checkCompanyEditable,
+  setDocTags,
+);
 
 module.exports = tagRout;

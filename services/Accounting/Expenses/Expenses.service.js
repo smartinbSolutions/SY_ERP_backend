@@ -326,6 +326,7 @@ exports.findAllExpensesInvoicesService = async ({ req, companyId }) => {
   const skip = (page - 1) * pageSize;
 
   const query = { companyId };
+  const andConditions = [];
 
   if (filters?.startDate || filters?.endDate) {
     query.date = {};
@@ -368,6 +369,43 @@ exports.findAllExpensesInvoicesService = async ({ req, companyId }) => {
   if (filters.status) {
     query.status = filters.status;
   }
+
+  // ── Quick report drill-down filters ───────────────────────────
+  // same scope as the report (legacy docs without status included)
+  if (filters.postedOnly) {
+    query.status = { $nin: ["draft", "cancelled"] };
+  }
+
+  if (filters.categoryId === "uncategorized") {
+    andConditions.push(
+      { $or: [{ categorts: { $exists: false } }, { categorts: { $size: 0 } }] },
+      { expenseCategoryId: { $in: [null, ""] } },
+    );
+  } else if (filters.categoryId) {
+    andConditions.push({
+      $or: [
+        { "categorts.expenseCategoryId": filters.categoryId },
+        { expenseCategoryId: filters.categoryId },
+      ],
+    });
+  }
+
+  if (filters.supplierId === "cash") {
+    andConditions.push({
+      $or: [{ isCash: true }, { "supllier.id": { $in: [null, ""] } }],
+    });
+  } else if (filters.supplierId) {
+    query["supllier.id"] = filters.supplierId;
+    query.isCash = { $ne: true };
+  }
+
+  if (filters.untagged) {
+    andConditions.push({
+      $or: [{ tag: { $exists: false } }, { tag: { $size: 0 } }],
+    });
+  }
+
+  if (andConditions.length) query.$and = andConditions;
 
   const totalItems = await expensesModel.countDocuments(query);
   const totalPages = Math.ceil(totalItems / pageSize);

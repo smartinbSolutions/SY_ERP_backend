@@ -78,6 +78,7 @@ const quotationSchema = new mongoose.Schema(
       {
         id: String,
         name: String,
+        color: String,
         _id: false,
       },
     ],
