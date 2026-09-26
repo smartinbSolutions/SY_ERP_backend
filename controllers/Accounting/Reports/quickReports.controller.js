@@ -3,7 +3,13 @@ const asyncHandler = require("express-async-handler");
 const {
   getExpensesReportService,
 } = require("../../../services/reports/expensesReport.service");
+const {
+  getSalesReportService,
+} = require("../../../services/reports/salesReport.service");
 const ApiError = require("../../../utils/apiError");
+const {
+  getProfitLossReportService,
+} = require("../../../services/reports/profitLossReport.service");
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -37,5 +43,27 @@ exports.getExpensesReport = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", data });
 });
 
-// exports.getSalesReport = asyncHandler(async (req, res, next) => { ... });
+// @desc    Sales quick report (summary, byStatus, byCustomer, byTag, byProduct, byCategory, byBrand)
+// @route   GET /api/quickReports/sales
+// @query   startDate, endDate (YYYY-MM-DD), includeTax (true|false), sections (comma list)
+exports.getSalesReport = asyncHandler(async (req, res, next) => {
+  if (validateReportQuery(req.query, next) !== true) return;
+
+  const companyId = req.companyId;
+
+  const data = await getSalesReportService({ req, companyId });
+
+  res.status(200).json({ status: "success", data });
+});
+
 // exports.getPurchaseReport = asyncHandler(async (req, res, next) => { ... });
+
+exports.getProfitLossReport = asyncHandler(async (req, res, next) => {
+  if (validateReportQuery(req.query, next) !== true) return;
+
+  const companyId = req.companyId;
+
+  const data = await getProfitLossReportService({ req, companyId });
+
+  res.status(200).json({ status: "success", data });
+});

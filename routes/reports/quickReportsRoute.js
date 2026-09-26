@@ -4,6 +4,8 @@ const quickReportsRoute = express.Router();
 const authService = require("../../services/authService");
 const {
   getExpensesReport,
+  getSalesReport,
+  getProfitLossReport,
 } = require("../../controllers/Accounting/Reports/quickReports.controller");
 
 quickReportsRoute.use(
@@ -15,7 +17,13 @@ quickReportsRoute
   .route("/expenses")
   .get(authService.allowedTo("reports.read"), getExpensesReport);
 
-// quickReportsRoute.route("/sales").get(authService.allowedTo("reports.read"), getSalesReport);
+quickReportsRoute
+  .route("/sales")
+  .get(authService.allowedTo("reports.read"), getSalesReport);
 // quickReportsRoute.route("/purchases").get(authService.allowedTo("reports.read"), getPurchaseReport);
+
+quickReportsRoute
+  .route("/profit-loss")
+  .get(authService.allowedTo("reports.profit_loss.read"), getProfitLossReport);
 
 module.exports = quickReportsRoute;

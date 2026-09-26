@@ -1480,6 +1480,14 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
     businessPartners: q.businessPartners,
     filterTags: parseMaybeJSON(q.filterTags),
     status: q.status,
+
+    // quick report drill-down
+    postedOnly: q.postedOnly === "true",
+    customerId: q.customerId,
+    untagged: q.untagged === "true",
+    productId: q.productId,
+    categoryId: q.categoryId,
+    brandId: q.brandId,
   };
   console.log("filters", filters);
   const pageSize = Number(req.query.limit) || 20;
@@ -1542,6 +1550,53 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
     } else {
       query.status = filters.status;
     }
+  }
+
+  // ── Quick report drill-down ───────────────────────────────────
+  // same scope as the report (legacy docs without status count as posted)
+  if (filters.postedOnly) {
+    andConditions.push(
+      { status: { $nin: ["draft", "cancelled"] } },
+      { isDraft: { $ne: true } },
+    );
+  }
+
+  if (filters.customerId === "noCustomer") {
+    andConditions.push({ "customer.id": { $in: [null, ""] } });
+  } else if (filters.customerId) {
+    query["customer.id"] = filters.customerId;
+  }
+
+  if (filters.untagged) {
+    andConditions.push({
+      $or: [{ tag: { $exists: false } }, { tag: { $size: 0 } }],
+    });
+  }
+
+  if (filters.productId) {
+    query["invoicesItems.id"] = filters.productId;
+  }
+
+  // category / brand live on the product → resolve product ids first
+  if (filters.categoryId || filters.brandId) {
+    const refField = filters.categoryId ? "category" : "brand";
+    const refValue = filters.categoryId || filters.brandId;
+    const isEmptyBucket =
+      refValue === "uncategorized" || refValue === "noBrand";
+
+    const products = await productModel
+      .find({
+        companyId,
+        ...(isEmptyBucket
+          ? { $or: [{ [refField]: { $exists: false } }, { [refField]: null }] }
+          : { [refField]: refValue }),
+      })
+      .select("_id")
+      .lean();
+
+    andConditions.push({
+      "invoicesItems.id": { $in: products.map((p) => String(p._id)) },
+    });
   }
 
   if (andConditions.length) {
