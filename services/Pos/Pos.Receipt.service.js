@@ -70,7 +70,7 @@ exports.createPosReceiptService = async ({
     {
       new: true,
       session,
-    }
+    },
   );
 
   const createRecipt = await receiptModel.create([req.body], {
@@ -89,35 +89,19 @@ exports.applyFundEffectService = async ({
   newReceipt,
   dateTurkey,
 }) => {
-  const {
-    financialFund = [],
-    isMultFunds,
-    change = 0,
-    changeFund = {},
-    totalInMainCurrency = 0,
-  } = req.body;
-  const bulkUpdates = [];
+  const { financialFund = [] } = req.body;
 
   const validFunds = financialFund.filter(
-    (f) => Number(f.allocatedAmount || 0) > 0 && f.fundId
+    (f) => Number(f.collectedAmount || 0) > 0 && f.fundId,
   );
 
   for (const fund of validFunds) {
-    let changeAmount = 0;
-
-    if (validFunds.length === 1 && !isMultFunds) {
-      changeAmount = Number(change || 0);
-    } else if (isMultFunds && changeFund?.id === fund.fundId) {
-      changeAmount = Number(changeFund.changeInFundCurrency || 0);
-    }
-
-    const finalAmount = fund.allocatedAmount - changeAmount;
     fund.id = fund.fundId;
 
     await handleFundPaymentEntity({
       fund,
       companyId,
-      paymentInFundCurrency: finalAmount,
+      paymentInFundCurrency: Number(fund.collectedAmount),
       paymentId: null,
       refId: newReceipt.recipt._id,
       refType: "receipt",
@@ -128,25 +112,6 @@ exports.applyFundEffectService = async ({
       session,
       createdBy: req.user.id,
     });
-    // if (changeAmount > 0.1) {
-
-    //   await reportsFinancialFunds.create(
-    //     [
-    //       {
-    //         date: dateTurkey,
-    //         amount: changeAmount,
-    //         ref: newReceipt.recipt._id,
-    //         type: "Withdrawal",
-    //         financialFundId: fundId,
-    //         financialFundRest: updatedFundBalance,
-    //         exchangeRate,
-    //         paymentType: "Withdrawal",
-    //         companyId,
-    //       },
-    //     ],
-    //     { session },
-    //   );
-    // }
   }
 
   return validFunds;
@@ -204,7 +169,7 @@ exports.applyReciptInventoryEffectService = async ({
     }
 
     const stockData = product.stocks.find(
-      (s) => String(s.stockId) === String(stockID)
+      (s) => String(s.stockId) === String(stockID),
     );
 
     if (!stockData) {
@@ -268,7 +233,7 @@ exports.applyReciptInventoryEffectService = async ({
             actionType: "create",
           },
         ],
-        { session }
+        { session },
       );
     }
 
@@ -277,14 +242,14 @@ exports.applyReciptInventoryEffectService = async ({
     }
 
     const receiptItem = newReceipt.recipt.cartItems.find(
-      (i) => String(i.id) === String(item.id)
+      (i) => String(i.id) === String(item.id),
     );
 
     if (receiptItem) {
       receiptItem.batches = itemBatches;
     } else {
       console.warn(
-        `[RECEIPT] Could not find receipt cartItem for id: ${item.id}`
+        `[RECEIPT] Could not find receipt cartItem for id: ${item.id}`,
       );
     }
 
@@ -380,7 +345,7 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
 
   if (req.query.salesPointID) {
     query.salesPoint = mongoose.Types.ObjectId.createFromHexString(
-      req.query.salesPointID
+      req.query.salesPointID,
     );
   }
   if (req.query.keyword) {
@@ -413,7 +378,7 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
 
   if (filters.salesPoint) {
     query.salesPoint = mongoose.Types.ObjectId.createFromHexString(
-      filters.salesPoint
+      filters.salesPoint,
     );
   }
 
@@ -466,7 +431,7 @@ exports.findAllReceiptService = async ({ req, companyId }) => {
       acc.grandTotal += s.total;
       return acc;
     },
-    { totalCount: 0, grandTotal: 0 }
+    { totalCount: 0, grandTotal: 0 },
   );
 
   return {
@@ -525,20 +490,20 @@ exports.reverseReceiptInventoryEffectsService = async ({
     if (!product || product.type === "Service") continue;
 
     const stockData = product.stocks.find(
-      (s) => String(s.stockId) === String(stockId)
+      (s) => String(s.stockId) === String(stockId),
     );
 
     if (!stockData) {
       throw new ApiError(
         `Stock row not found for product ${product.name}`,
-        400
+        400,
       );
     }
 
     if (!item.batches || item.batches.length === 0) {
       throw new ApiError(
         `No batch data found for product ${product.name}`,
-        400
+        400,
       );
     }
 
@@ -554,7 +519,7 @@ exports.reverseReceiptInventoryEffectsService = async ({
       if (!batch) {
         throw new ApiError(
           `Batch not found ${batchItem.batchId || batchItem.id}`,
-          404
+          404,
         );
       }
 
@@ -578,7 +543,7 @@ exports.reverseReceiptInventoryEffectsService = async ({
             actionType: "cancel",
           },
         ],
-        { session }
+        { session },
       );
 
       await createProductMovement({
@@ -642,7 +607,7 @@ exports.reverseReceiptInventoryEffectsService = async ({
           costBuyingPrice: newAvgCost,
         },
       },
-      { session }
+      { session },
     );
   }
 
@@ -802,9 +767,9 @@ exports.mergeReceiptsService = async ({
   const date_ob = new Date(ts);
 
   const date = `${date_ob.getFullYear()}-${padZero(
-    date_ob.getMonth() + 1
+    date_ob.getMonth() + 1,
   )}-${padZero(date_ob.getDate())}T${padZero(date_ob.getHours())}:${padZero(
-    date_ob.getMinutes()
+    date_ob.getMinutes(),
   )}:${padZero(date_ob.getSeconds())}.${date_ob.getMilliseconds()}Z`;
 
   return {
@@ -941,8 +906,8 @@ exports.mergeEffectService = async ({
     return next(
       new ApiError(
         "No receipts found in the specified date range or all receipts have already been merged.",
-        400
-      )
+        400,
+      ),
     );
   }
   const sales = await orderModel.create(newOrderData);

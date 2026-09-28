@@ -141,10 +141,16 @@ const receiptSchema = new mongoose.Schema(
       ref: "JournalEntry",
       default: null,
     },
+    salesRef: {
+      type: mongoose.Schema.ObjectId,
+      ref: "order", // your sales model name
+      default: null,
+      index: true,
+    },
     tags: [{ id: String, name: String, _id: false }],
     sync: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("receipt", receiptSchema);

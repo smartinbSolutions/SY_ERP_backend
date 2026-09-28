@@ -479,3 +479,8 @@ exports.getSalesReportService = async ({ req, companyId }) => {
     byStatus: invoiceResult?.byStatus?.[0] || EMPTY_STATUS,
   };
 };
+
+// reused by the P&L report
+exports.buildSalesMatch = buildSalesMatch;
+exports.invoiceNormalize = invoiceNormalize;
+exports.POSTED_MATCH = POSTED_MATCH;

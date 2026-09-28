@@ -8,6 +8,7 @@ const {
   findReceiptForDate,
   findAllReceiptForSalesPoint,
   mergeReceipts,
+  convertReceiptsToSales,
 } = require("../../controllers/Pos/Pos.Receipt.controller");
 const authService = require("../../services/authService");
 
@@ -18,7 +19,8 @@ PosReceiptRoute.use(authService.protect, authService.checkPlanFeatures("pos"));
 PosReceiptRoute.route("/")
   .get(
     // authService.allowedTo("sales.invoice.read"),
-     findAllReceipt)
+    findAllReceipt,
+  )
   .post(
     // authService.allowedTo("sales.invoice.create"),
     authService.checkCompanyEditable,
@@ -39,9 +41,11 @@ PosReceiptRoute.route("/salespoint/:id").get(
   // authService.allowedTo("sales.invoice.read"),
   findAllReceiptForSalesPoint,
 );
-PosReceiptRoute.route("/salespoint/:id").get(
-  authService.allowedTo("sales.invoice.read"),
-  mergeReceipts,
+
+PosReceiptRoute.route("/convert/:id").post(
+  // authService.allowedTo("sales.invoice.create"),
+  authService.checkCompanyEditable,
+  convertReceiptsToSales,
 );
 
 PosReceiptRoute.route("/:id").get(

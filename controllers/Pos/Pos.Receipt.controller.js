@@ -5,6 +5,9 @@ const counterModel = require("../../models/Settings/counterModel");
 const receiptService = require("../../services/Pos/Pos.Receipt.service");
 const receiptModel = require("../../models/Pos/pos.receipt.model");
 const companyInfoModel = require("../../models/Settings/CompanyInfo/companyInfo.model");
+const {
+  convertReceiptsToSalesService,
+} = require("../../services/Pos/convertReceiptsToSalesService");
 
 exports.createPosReceipt = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -20,7 +23,7 @@ exports.createPosReceipt = asyncHandler(async (req, res, next) => {
     const nextCounterRecipt = await counterModel.findOneAndUpdate(
       { companyId, name: "Pos Receipt" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
+      { new: true, upsert: true, session },
     );
 
     const dateTurkey = await receiptService.buildTurkeyDate();
@@ -122,7 +125,7 @@ exports.cancelReceipt = asyncHandler(async (req, res, next) => {
 
     if (receipt.status === "cancelled" || receipt.status === "fully_refunded") {
       return next(
-        new ApiError("Receipt is already cancelled or refunded", 400)
+        new ApiError("Receipt is already cancelled or refunded", 400),
       );
     }
 
@@ -200,57 +203,52 @@ exports.findAllReceiptForSalesPoint = asyncHandler(async (req, res, next) => {
   });
 });
 
-exports.mergeReceipts = asyncHandler(async (req, res, next) => {
+exports.convertReceiptsToSales = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
+  const salesPointId = req.params.id;
+  const { from, to, date, counter, primaryCurrency } = req.body;
+
+  // dry run by default — pass dryRun: false to write
+  const dryRun = !(req.body.dryRun === false || req.body.dryRun === "false");
+  const debug = !(req.body.debug === false || req.body.debug === "false");
+
+  const today = new Date().toISOString().split("T")[0];
+
   const session = await mongoose.startSession();
+
   try {
     session.startTransaction();
-    if (!companyId) {
-      return res.status(400).json({ message: "companyId is required" });
-    }
-    req.body.employee = req.user.name;
-    req.body.companyId = req.companyId;
 
-    const nextCounterJournal = await counterModel.findOneAndUpdate(
-      { companyId, name: "Journal" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
-    );
-    const nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
-      { companyId, name: "Sales Invoice" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true, session }
-    );
-    const company = await companyInfoModel.findById(companyId);
-
-    const merge = await receiptService.mergeReceiptsService({
-      req,
+    const result = await convertReceiptsToSalesService({
       companyId,
-      startDate: req.body.startDate,
-      endDate: req.body.endDate,
-      id: req.body.id,
+      salesPointId,
+      from: from ? new Date(from) : new Date(0),
+      to: to ? new Date(to) : new Date(),
+      date: date || today,
+      counter: counter || 0,
+      primaryCurrency,
+      user: req.user,
       session,
-      company,
+      dryRun,
+      debug,
     });
 
-    const newSales = await receiptService.mergeEffectService({
-      receipts: merge.receipts,
-      date: merge.date,
-      counter: merge.counter,
-      salesPoints: merge.salesPoints,
-      session,
-      company,
-    });
-    await session.commitTransaction();
+    if (dryRun) {
+      await session.abortTransaction();
+    } else {
+      await session.commitTransaction();
+    }
 
-    res.status(201).json({
+    res.status(dryRun ? 200 : 201).json({
       status: "success",
-      data: newSales,
+      dryRun,
+      data: result,
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) await session.abortTransaction();
+    if (debug) console.error("[POS→Sales] FAILED", error);
     next(error);
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 });

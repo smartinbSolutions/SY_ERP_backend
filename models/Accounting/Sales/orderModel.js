@@ -188,6 +188,8 @@ const orderSchema = new mongoose.Schema(
 
     description: String,
     receipts: [String],
+    source: { type: String, default: "manual" },
+    salesPoint: { type: mongoose.Schema.ObjectId, ref: "salesPoints" },
     counter: String,
     totalRemainderMainCurrency: { type: Number, default: 0 },
     totalRemainder: { type: Number, default: 0 },
