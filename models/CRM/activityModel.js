@@ -7,7 +7,7 @@ const activitySchema = new mongoose.Schema(
       required: true,
       enum: ["call", "email", "meeting", "note", "task"],
     },
-    subject: { type: String, required: true, trim: true },
+    subject: { type: String, required: true, trim: true }, // The subject or title of the activity
     description: { type: String },
 
     relatedTo: {

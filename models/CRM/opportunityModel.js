@@ -2,16 +2,33 @@ const mongoose = require("mongoose");
 
 const opportunityProductSchema = new mongoose.Schema(
   {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+    product: {
+      type: String,
       required: true,
+      trim: true,
     },
-    name: { type: String, required: true, trim: true },
-    quantity: { type: Number, required: true, min: 1, default: 1 },
-    unitPrice: { type: Number, required: true, min: 0 },
-    discount: { type: Number, min: 0, max: 100, default: 0 },
-    total: { type: Number, required: true, min: 0 },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 1,
+    },
+    unitPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    discount: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
   },
   { _id: true },
 );
@@ -23,7 +40,7 @@ const stageHistorySchema = new mongoose.Schema(
     enteredAt: { type: Date, default: Date.now },
     exitedAt: Date,
     durationDays: Number,
-    movedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    movedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
     notes: String,
   },
   { _id: true },
@@ -77,21 +94,43 @@ const opportunitySchema = new mongoose.Schema(
     // new field to track the status of exit criteria for each stage
     exitCriteriaStatus: [
       {
-        criteria: String,
-        isCompleted: Boolean,
-        completedAt: Date,
-        // completedBy: ObjectId,
+        criteria: {
+          type: String,
+          trim: true,
+        },
+        isCompleted: {
+          type: Boolean,
+          default: false,
+        },
+        completedAt: {
+          type: Date,
+          default: null,
+        },
       },
     ],
     // new field to track the status of required actions for each stage
     requiredActionsStatus: [
       {
-        type: String,
-        title: String,
-        isMandatory: Boolean,
-        isCompleted: Boolean,
-        completedAt: Date,
-        // completedBy: ObjectId,
+        type: {
+          type: String,
+          enum: ["call", "email", "meeting", "note", "task"],
+        },
+        title: {
+          type: String,
+          trim: true,
+        },
+        isMandatory: {
+          type: Boolean,
+          default: false,
+        },
+        isCompleted: {
+          type: Boolean,
+          default: false,
+        },
+        completedAt: {
+          type: Date,
+          default: null,
+        },
       },
     ],
 

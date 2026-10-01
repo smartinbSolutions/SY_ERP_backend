@@ -41,7 +41,6 @@ const companySchema = new mongoose.Schema(
 );
 
 companySchema.index({ companyId: 1, name: 1 });
-companySchema.index({ companyId: 1, ownerId: 1 });
 companySchema.index({ companyId: 1, isActive: 1 });
 companySchema.index({ companyId: 1, deletedAt: 1 });
 

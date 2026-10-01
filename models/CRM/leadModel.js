@@ -6,7 +6,7 @@ const leadSchema = new mongoose.Schema(
     lastName: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true },
     phone: { type: String, trim: true },
-    companyName: { type: String, trim: true },
+    companyName: { type: String, trim: true }, 
     jobTitle: { type: String, trim: true },
 
     source: {
@@ -34,8 +34,6 @@ const leadSchema = new mongoose.Schema(
       ],
       default: "new",
     },
-
-    score: { type: Number, min: 0, max: 100, default: 0 },
 
     companyId: {
       type: String,
@@ -91,11 +89,17 @@ const leadSchema = new mongoose.Schema(
         ref: "Opportunity",
       },
       convertedAt: Date,
-      convertedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      convertedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
     },
 
     lostReason: { type: String },
-    tags: [String],
+
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
+      },
+    ],
     notes: { type: String },
 
     // 🗑️ Soft delete

@@ -32,7 +32,13 @@ const contactSchema = new mongoose.Schema(
       default: "other",
     },
 
-    tags: [String],
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
+      },
+    ],
+
     notes: { type: String },
     isPrimary: { type: Boolean, default: false },
 
@@ -42,7 +48,6 @@ const contactSchema = new mongoose.Schema(
 );
 
 contactSchema.index({ companyId: 1, email: 1 });
-contactSchema.index({ companyId: 1, ownerId: 1 });
 contactSchema.index({ companyId: 1, crmCompanyId: 1 });
 contactSchema.index({ companyId: 1, status: 1 });
 contactSchema.index({ companyId: 1, deletedAt: 1 });

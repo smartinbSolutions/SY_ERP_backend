@@ -71,8 +71,6 @@ pipelineSchema.index(
   { unique: true, partialFilterExpression: { deletedAt: null } },
 );
 
-pipelineSchema
-  .path("stages")
-  .schema.index({ key: 1 }, { unique: true, sparse: true });
+
 
 module.exports = mongoose.model("Pipeline", pipelineSchema);

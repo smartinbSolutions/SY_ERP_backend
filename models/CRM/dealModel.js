@@ -2,16 +2,33 @@ const mongoose = require("mongoose");
 
 const dealProductSchema = new mongoose.Schema(
   {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+    product: {
+      type: String,
       required: true,
+      trim: true,
     },
-    name: { type: String, required: true, trim: true },
-    quantity: { type: Number, required: true, min: 1, default: 1 },
-    unitPrice: { type: Number, required: true, min: 0 },
-    discount: { type: Number, min: 0, max: 100, default: 0 },
-    total: { type: Number, required: true, min: 0 },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 1,
+    },
+    unitPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    discount: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
   },
   { _id: true },
 );
@@ -25,10 +42,29 @@ const dealSchema = new mongoose.Schema(
       index: true,
     },
 
-    title: { type: String, required: true, trim: true },
-    description: { type: String },
-    value: { type: Number, required: true, min: 0 },
-    currency: { type: String, default: "USD", uppercase: true },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    description: {
+      type: String,
+    },
+
+    // Official Deal value.
+    // It is independent from the total of products.
+    value: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    currency: {
+      type: String,
+      default: "USD",
+      uppercase: true,
+    },
 
     companyId: {
       type: String,
@@ -44,7 +80,13 @@ const dealSchema = new mongoose.Schema(
       index: true,
     },
 
-    contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Contact" }],
+    contactIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Contact",
+      },
+    ],
+
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -54,9 +96,19 @@ const dealSchema = new mongoose.Schema(
 
     products: [dealProductSchema],
 
-    closedAt: { type: Date, default: Date.now },
-    expectedDeliveryDate: Date,
-    actualDeliveryDate: Date,
+    expectedDeliveryDate: {
+      type: Date,
+    },
+
+    actualDeliveryDate: {
+      type: Date,
+      default: null,
+    },
+
+    closedAt: {
+      type: Date,
+      default: null,
+    },
 
     status: {
       type: String,
@@ -64,11 +116,20 @@ const dealSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    invoiceId: String,
-    invoiceStatus: String,
+    invoiceId: {
+      type: String,
+    },
+
+    invoiceStatus: {
+      type: String,
+    },
 
     tags: [String],
-    deletedAt: { type: Date, default: null },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );

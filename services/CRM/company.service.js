@@ -21,7 +21,6 @@ exports.getAllCompanies = async (req) => {
   }
   if (industry) query.industry = industry;
   if (isActive !== undefined) query.isActive = isActive === "true";
-  if (ownerId) query.ownerId = ownerId;
 
   const [total, companies] = await Promise.all([
     companyModel.countDocuments(query),
@@ -31,7 +30,7 @@ exports.getAllCompanies = async (req) => {
       .limit(limit)
       .sort({ createdAt: -1 })
   ]);
-
+  
   return {
     status: "success",
     page,

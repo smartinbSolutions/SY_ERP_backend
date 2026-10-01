@@ -1,5 +1,49 @@
 const activityModel = require("../../models/CRM/activityModel");
+const leadModel = require("../../models/CRM/leadModel");
+const contactModel = require("../../models/CRM/contactModel");
+const companyModel = require("../../models/CRM/companyModel");
+const opportunityModel = require("../../models/CRM/opportunityModel");
+const dealModel = require("../../models/CRM/dealModel");
 const ApiError = require("../../utils/apiError");
+
+// ============ VALIDATE RELATED ENTITY ============
+const validateRelatedEntity = async (relatedTo, companyId) => {
+  if (!relatedTo?.type || !relatedTo?.id) {
+    throw new ApiError("relatedTo.type and relatedTo.id are required", 400);
+  }
+
+  const modelMap = {
+    Lead: leadModel,
+    Contact: contactModel,
+    Company: companyModel,
+    Opportunity: opportunityModel,
+    Deal: dealModel,
+  };
+
+  const Model = modelMap[relatedTo.type];
+
+  if (!Model) {
+    throw new ApiError(
+      `Unsupported related entity type: ${relatedTo.type}`,
+      400,
+    );
+  }
+
+  const entity = await Model.findOne({
+    _id: relatedTo.id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (!entity) {
+    throw new ApiError(
+      `${relatedTo.type} not found or does not belong to this company`,
+      404,
+    );
+  }
+
+  return entity;
+};
 
 // ============ GET ALL ============
 exports.getAllActivities = async (req) => {
@@ -18,7 +62,10 @@ exports.getAllActivities = async (req) => {
     relatedToId,
   } = req.query;
 
-  const query = { companyId, deletedAt: null };
+  const query = {
+    companyId,
+    deletedAt: null,
+  };
 
   if (keyword) {
     query.$or = [
@@ -26,6 +73,7 @@ exports.getAllActivities = async (req) => {
       { description: { $regex: keyword, $options: "i" } },
     ];
   }
+
   if (type) query.type = type;
   if (status) query.status = status;
   if (priority) query.priority = priority;
@@ -35,6 +83,7 @@ exports.getAllActivities = async (req) => {
 
   const [total, activities] = await Promise.all([
     activityModel.countDocuments(query),
+
     activityModel
       .find(query)
       .skip(skip)
@@ -46,7 +95,6 @@ exports.getAllActivities = async (req) => {
       .populate({
         path: "relatedTo.id",
       }),
-    ,
   ]);
 
   return {
@@ -66,7 +114,11 @@ exports.getOneActivity = async (req) => {
   const { id } = req.params;
 
   const activity = await activityModel
-    .findOne({ _id: id, companyId, deletedAt: null })
+    .findOne({
+      _id: id,
+      companyId,
+      deletedAt: null,
+    })
     .populate("ownerId", "name email")
     .populate("tags", "name")
     .populate("attendees", "name email")
@@ -85,13 +137,58 @@ exports.getOneActivity = async (req) => {
 exports.createActivity = async (req) => {
   const companyId = req.companyId;
 
+  // ----------------------------------------------------
+  // Validate the related entity
+  // ----------------------------------------------------
+
+  const relatedEntity = await validateRelatedEntity(
+    req.body.relatedTo,
+    companyId,
+  );
+
+  console.log("=== LEAD ACTIVITY DEBUG ===");
+  console.log("relatedTo:", req.body.relatedTo);
+  console.log("activity type:", req.body.type);
+  console.log("related entity status:", relatedEntity.status);
+  console.log("related entity id:", relatedEntity._id);
+  console.log("===========================");
+
   const payload = {
     ...req.body,
     companyId,
+    ownerId: req.user._id,
     deletedAt: null,
   };
 
+  // ----------------------------------------------------
+  // Create activity
+  // ----------------------------------------------------
+
   const activity = await activityModel.create(payload);
+
+  // ----------------------------------------------------
+  // Lead lifecycle:
+  //
+  // new + real communication
+  //        ↓
+  //    contacted
+  //
+  // Only these activities count as real communication:
+  // call / email / meeting
+  // ----------------------------------------------------
+
+  if (
+    req.body.relatedTo.type === "Lead" &&
+    relatedEntity.status === "new" &&
+    ["call", "email", "meeting"].includes(req.body.type)
+  )
+    console.log("LEAD LIFECYCLE CONDITION PASSED");
+  {
+    relatedEntity.status = "contacted";
+
+    await relatedEntity.save();
+  }
+  console.log("LEAD STATUS UPDATED TO:", relatedEntity.status);
 
   return activity;
 };
@@ -102,13 +199,37 @@ exports.updateActivity = async (req) => {
   const { id } = req.params;
 
   const updateData = { ...req.body };
+
   delete updateData.companyId;
   delete updateData.deletedAt;
+  delete updateData.ownerId;
+
+  // If relatedTo is being changed,
+  // make sure the new entity exists and belongs to this company
+  if (updateData.relatedTo) {
+    await validateRelatedEntity(updateData.relatedTo, companyId);
+  }
+
+  // Manage completedAt automatically based on status
+  if (Object.prototype.hasOwnProperty.call(updateData, "status")) {
+    if (updateData.status === "completed") {
+      updateData.completedAt = new Date();
+    } else {
+      updateData.completedAt = null;
+    }
+  }
 
   const activity = await activityModel.findOneAndUpdate(
-    { _id: id, companyId, deletedAt: null },
+    {
+      _id: id,
+      companyId,
+      deletedAt: null,
+    },
     updateData,
-    { new: true, runValidators: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   );
 
   if (!activity) {
@@ -124,9 +245,17 @@ exports.deleteActivity = async (req) => {
   const { id } = req.params;
 
   const activity = await activityModel.findOneAndUpdate(
-    { _id: id, companyId, deletedAt: null },
-    { deletedAt: new Date() },
-    { new: true },
+    {
+      _id: id,
+      companyId,
+      deletedAt: null,
+    },
+    {
+      deletedAt: new Date(),
+    },
+    {
+      new: true,
+    },
   );
 
   if (!activity) {
