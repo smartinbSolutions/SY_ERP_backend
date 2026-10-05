@@ -10,7 +10,7 @@ exports.getAllContacts = async (req) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const { keyword, status, crmCompanyId, ownerId, source } = req.query;
+  const { keyword, status, crmCompanyId, source } = req.query;
 
   const query = { companyId, deletedAt: null };
 
@@ -24,7 +24,6 @@ exports.getAllContacts = async (req) => {
   }
   if (status) query.status = status;
   if (crmCompanyId) query.crmCompanyId = crmCompanyId;
-  if (ownerId) query.ownerId = ownerId;
   if (source) query.source = source;
 
   const [total, contacts] = await Promise.all([
@@ -172,9 +171,6 @@ exports.assignContactToCompany = async (req) => {
     companyId,
     deletedAt: null,
   });
-  console.log(crmCompanyId);
-  console.log(companyId);
-  
 
   if (!crmCompany) {
     throw new ApiError(

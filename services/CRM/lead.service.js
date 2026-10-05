@@ -344,6 +344,11 @@ exports.updateLead = async (req) => {
     updatedBant.score = bantScore;
 
     updateData.bant = updatedBant;
+    if (existingLead.status === "qualified") {
+      if (bantScore <= 6) {
+        updateData.status = "contacted";
+      }
+    }
   }
 
   // ----------------------------------------------------
@@ -396,9 +401,9 @@ exports.convertLead = async (req) => {
     throw new ApiError("This lead has already been converted", 400);
   }
 
-  // Only contacted leads can be evaluated for conversion
-  if (lead.status !== "contacted") {
-    throw new ApiError("Only contacted leads can be converted", 400);
+  // Only qualified leads can be converted
+  if (lead.status !== "qualified") {
+    throw new ApiError("Only qualified leads can be converted", 400);
   }
 
   // ----------------------------------------------------
@@ -655,6 +660,72 @@ exports.convertLead = async (req) => {
     company: crmCompany,
     opportunity,
   };
+};
+
+// QUALIFY LEAD
+exports.qualifyLead = async (req) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+
+  const lead = await leadModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (!lead) {
+    throw new ApiError(`No lead found with this ID: ${id}`, 404);
+  }
+
+  if (lead.status !== "contacted") {
+    throw new ApiError("Only contacted leads can be qualified", 400);
+  }
+
+  if (!lead.bant || Number(lead.bant.score || 0) <= 6) {
+    throw new ApiError(
+      "Lead must have a BANT score greater than 6 to be qualified",
+      400,
+    );
+  }
+
+  lead.status = "qualified";
+
+  await lead.save();
+
+  return lead;
+};
+exports.markLeadAsLost = async (req) => {
+  const companyId = req.companyId;
+  const { id } = req.params;
+  const { lostReason } = req.body;
+
+  const lead = await leadModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (!lead) {
+    throw new ApiError(`No lead found with this ID: ${id}`, 404);
+  }
+
+  if (!["contacted", "qualified"].includes(lead.status)) {
+    throw new ApiError(
+      "Only contacted or qualified leads can be marked as lost",
+      400,
+    );
+  }
+
+  if (!lostReason?.trim()) {
+    throw new ApiError("Lost reason is required", 400);
+  }
+
+  lead.status = "lost";
+  lead.lostReason = lostReason.trim();
+
+  await lead.save();
+
+  return lead;
 };
 
 // ======================================================

@@ -85,3 +85,22 @@ exports.convertLead = asyncHandler(async (req, res, next) => {
     data: result,
   });
 });
+
+// QUALIFY LEAD
+exports.qualifyLead = asyncHandler(async (req, res, next) => {
+  const lead = await leadService.qualifyLead(req);
+
+  res.status(200).json({
+    status: "success",
+    data: lead,
+  });
+});
+
+exports.markLeadAsLost = asyncHandler(async (req, res) => {
+  const lead = await leadService.markLeadAsLost(req);
+
+  res.status(200).json({
+    status: "success",
+    data: lead,
+  });
+});

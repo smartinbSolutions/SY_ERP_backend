@@ -105,6 +105,20 @@ const calculateProducts = (products = []) => {
   }));
 };
 
+const validateStatusChange = (currentStatus, newStatus) => {
+  if (!newStatus || currentStatus === newStatus) {
+    return;
+  }
+
+  if (currentStatus === "completed") {
+    throw new ApiError("Completed deals cannot be changed", 400);
+  }
+
+  if (currentStatus === "cancelled") {
+    throw new ApiError("Cancelled deals cannot be changed", 400);
+  }
+};
+
 const handleStatusChange = (updateData) => {
   if (!updateData.status) {
     return;
@@ -194,7 +208,7 @@ exports.getAllDeals = async (req) => {
       .populate("ownerId", "name email")
       .populate("crmCompanyId", "name industry")
       .populate("opportunityId", "title value status")
-      .populate("contactIds", "firstName lastName email"),
+      .populate("contactIds", "firstName lastName email phone"),
   ]);
 
   return {
@@ -233,37 +247,56 @@ exports.getOneDeal = async (req) => {
 exports.createDeal = async (req) => {
   const companyId = req.companyId;
 
-  const { opportunityId, crmCompanyId, contactIds = [] } = req.body;
+  const { opportunityId, ownerId } = req.body;
 
   // 1. Validate Opportunity
+  // Must be:
+  // - in the same company
+  // - not deleted
+  // - won
+  // - without an existing Deal
   const opportunity = await validateOpportunity(opportunityId, companyId);
 
-  // 2. Validate CRM Company
-  await validateCRMCompany(crmCompanyId, companyId);
+  // 2. Get inherited data directly from the Opportunity
+  const crmCompanyId = opportunity.crmCompanyId || null;
+  const contactIds = opportunity.contactIds || [];
+  const products = calculateProducts(opportunity.products || []);
 
-  // 3. Validate Contacts
+  // 3. Validate inherited CRM Company
+  if (crmCompanyId) {
+    await validateCRMCompany(crmCompanyId, companyId);
+  }
+
+  // 4. Validate inherited Contacts
   await validateContacts(contactIds, companyId, crmCompanyId);
 
-  // 4. Calculate product totals
-  const products = calculateProducts(req.body.products || []);
-
+  // 5. Create Deal
   const payload = {
     ...req.body,
+
+    // System-managed
     companyId,
-    products,
+    opportunityId: opportunity._id,
+    status: "pending",
     closedAt: null,
-    ownerId: req.user._id,
     actualDeliveryDate: null,
     deletedAt: null,
+
+    // Selected by user
+    ownerId,
+
+    // Inherited from Opportunity
+    crmCompanyId,
+    contactIds,
+    value: opportunity.value,
+    currency: opportunity.currency,
+    products,
   };
 
-  // A newly created Deal must start as pending.
-  payload.status = "pending";
-
-  // 5. Create Deal
+  // 6. Create Deal
   const deal = await dealModel.create(payload);
 
-  // 6. Link Deal to Opportunity
+  // 7. Link Deal to Opportunity
   opportunity.dealId = deal._id;
   await opportunity.save();
 
@@ -315,7 +348,11 @@ exports.updateDeal = async (req) => {
   }
 
   // 4. Handle status
-  handleStatusChange(updateData);
+  if (updateData.status) {
+    validateStatusChange(deal.status, updateData.status);
+
+    handleStatusChange(updateData);
+  }
 
   // 5. Protect system-managed fields
   delete updateData.companyId;

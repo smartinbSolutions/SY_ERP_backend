@@ -28,7 +28,15 @@ const contactSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["website", "referral", "ads", "cold_call", "event", "other"],
+      enum: [
+        "website",
+        "referral",
+        "ads",
+        "cold_call",
+        "event",
+        "other",
+        "social",
+      ],
       default: "other",
     },
 

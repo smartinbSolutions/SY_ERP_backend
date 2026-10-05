@@ -43,7 +43,8 @@ exports.getAllOpportunities = async (req) => {
       .populate("pipelineId", "name")
       .populate("leadId", "name")
       .populate("dealId", "title value status")
-      .populate("crmCompanyId", "name email"),
+      .populate("crmCompanyId", "name email")
+      .populate("contactIds", "firstName lastName email phone"),
   ]);
 
   return {
@@ -72,7 +73,8 @@ exports.getOneOpportunity = async (req) => {
     .populate("pipelineId", "name stages settings")
     .populate("contactIds", "firstName lastName email phone")
     .populate("leadId", "name email")
-    .populate("dealId", "title value status");
+    .populate("dealId", "title value status")
+    .populate("contactIds", "firstName lastName email phone");
 
   if (!opportunity) {
     throw new ApiError(`No opportunity found with this ID: ${id}`, 404);
