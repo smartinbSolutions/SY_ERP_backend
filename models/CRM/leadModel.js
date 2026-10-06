@@ -6,7 +6,7 @@ const leadSchema = new mongoose.Schema(
     lastName: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true },
     phone: { type: String, trim: true },
-    companyName: { type: String, trim: true }, 
+    companyName: { type: String, trim: true },
     jobTitle: { type: String, trim: true },
 
     source: {
@@ -56,7 +56,12 @@ const leadSchema = new mongoose.Schema(
         notes: String,
       },
       authority: {
-        isDecisionMaker: { type: Boolean, default: false },
+        decisionMakerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Contact",
+          default: null,
+          index: true,
+        },
         decisionMakerName: String,
         notes: String,
       },

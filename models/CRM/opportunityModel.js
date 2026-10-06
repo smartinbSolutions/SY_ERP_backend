@@ -91,6 +91,7 @@ const opportunitySchema = new mongoose.Schema(
       type: String,
       enum: ["price", "competitor", "timing", "no_budget", "no_need", "other"],
     },
+
     // new field to track the status of exit criteria for each stage
     exitCriteriaStatus: [
       {
@@ -108,6 +109,7 @@ const opportunitySchema = new mongoose.Schema(
         },
       },
     ],
+    
     // new field to track the status of required actions for each stage
     requiredActionsStatus: [
       {

@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const contactModel = require("../../models/CRM/contactModel");
 const companyModel = require("../../models/CRM/companyModel");
 const ApiError = require("../../utils/apiError");
+const opportunityModel = require("../../models/CRM/opportunityModel");
+const dealModel = require("../../models/CRM/dealModel");
 
 // ============ GET ALL ============
 exports.getAllContacts = async (req) => {
@@ -10,7 +12,7 @@ exports.getAllContacts = async (req) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const { keyword, status, crmCompanyId, source } = req.query;
+  const { keyword, status, crmCompanyId, source, isPrimary } = req.query;
 
   const query = { companyId, deletedAt: null };
 
@@ -25,7 +27,9 @@ exports.getAllContacts = async (req) => {
   if (status) query.status = status;
   if (crmCompanyId) query.crmCompanyId = crmCompanyId;
   if (source) query.source = source;
-
+  if (isPrimary !== undefined && isPrimary !== "") {
+    query.isPrimary = isPrimary === "true";
+  }
   const [total, contacts] = await Promise.all([
     contactModel.countDocuments(query),
     contactModel
@@ -128,15 +132,40 @@ exports.deleteContact = async (req) => {
   const companyId = req.companyId;
   const { id } = req.params;
 
-  const contact = await contactModel.findOneAndUpdate(
-    { _id: id, companyId, deletedAt: null },
-    { deletedAt: new Date() },
-    { new: true },
-  );
+  const contact = await contactModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
 
   if (!contact) {
     throw new ApiError(`No contact found with this ID: ${id}`, 404);
   }
+
+  // Check related Opportunities
+  const opportunityExists = await opportunityModel.exists({
+    contactIds: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  // Check related Deals
+  const dealExists = await dealModel.exists({
+    contactIds: id,
+    companyId,
+    deletedAt: null,
+  });
+
+  if (opportunityExists || dealExists) {
+    throw new ApiError(
+      "Cannot delete this contact because it is related to other entities",
+      400,
+    );
+  }
+
+  // Soft delete
+  contact.deletedAt = new Date();
+  await contact.save();
 
   return "Contact deleted successfully";
 };

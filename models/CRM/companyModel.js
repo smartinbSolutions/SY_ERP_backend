@@ -18,7 +18,7 @@ const companySchema = new mongoose.Schema(
       state: String,
       country: String,
     },
-    annualRevenue: { type: Number, min: 0 },
+    annualRevenue: { type: Number, min: 0 }, 
 
     companyId: {
       type: String,

@@ -695,11 +695,20 @@ exports.updateOpportunity = async (req) => {
 
     updateData.bant.score = calculateBantScore(updateData.bant);
   }
-  // Recalculate products
+  // Recalculate products and value
   if (updateData.products !== undefined) {
     updateData.products = calculateProducts(updateData.products);
 
-    updateData.value = calculateProductsValue(updateData.products);
+    // Products exist -> value comes from products
+    if (updateData.products.length > 0) {
+      updateData.value = calculateProductsValue(updateData.products);
+    }
+
+    // No products -> keep manual value
+    else {
+      updateData.value =
+        updateData.value !== undefined ? updateData.value : opportunity.value;
+    }
   }
 
   // Status manual update

@@ -165,6 +165,11 @@ exports.getOneLead = async (req) => {
       "title value currency status pipelineId expectedCloseDate ownerId",
     )
 
+    .populate(
+      "bant.authority.decisionMakerId",
+      "firstName lastName email phone",
+    )
+
     // User who converted the lead
     .populate(
       "convertedTo.convertedBy",
@@ -736,23 +741,31 @@ exports.deleteLead = async (req) => {
   const companyId = req.companyId;
   const { id } = req.params;
 
-  const lead = await leadModel.findOneAndUpdate(
-    {
-      _id: id,
-      companyId,
-      deletedAt: null,
-    },
-    {
-      deletedAt: new Date(),
-    },
-    {
-      new: true,
-    },
-  );
+  const lead = await leadModel.findOne({
+    _id: id,
+    companyId,
+    deletedAt: null,
+  });
 
   if (!lead) {
     throw new ApiError(`No lead found with this ID: ${id}`, 404);
   }
+
+  // Cannot delete a converted lead
+  if (
+    lead.convertedTo?.contactId ||
+    lead.convertedTo?.crmCompanyId ||
+    lead.convertedTo?.opportunityId
+  ) {
+    throw new ApiError(
+      "Cannot delete lead because it is related to other entities",
+      400,
+    );
+  }
+
+  lead.deletedAt = new Date();
+
+  await lead.save();
 
   return "Lead deleted successfully";
 };
