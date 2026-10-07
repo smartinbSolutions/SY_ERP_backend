@@ -174,7 +174,8 @@ exports.getOneLead = async (req) => {
     .populate(
       "convertedTo.convertedBy",
       "name email firstName lastName username",
-    );
+    )
+    .populate("tags", "name");
 
   if (!lead) {
     throw new ApiError(`No lead found with this ID: ${id}`, 404);
@@ -595,21 +596,13 @@ exports.convertLead = async (req) => {
 
   const opportunity = await opportunityModel.create({
     title: req.body.title || `${lead.firstName} ${lead.lastName} Opportunity`,
-
     description: req.body.description || lead.notes,
-
     value: req.body.value ?? lead.bant?.budget?.amount ?? 0,
-
     currency: req.body.currency || "USD",
-
     pipelineId: pipeline._id,
-
     currentStageKey: firstStage.key,
-
     currentStageOrder: firstStage.order,
-
     probability: firstStage.probability,
-
     stageHistory: [
       {
         stageKey: firstStage.key,
@@ -619,21 +612,13 @@ exports.convertLead = async (req) => {
     ],
 
     exitCriteriaStatus: createExitCriteriaStatus(firstStage),
-
     requiredActionsStatus: createRequiredActionsStatus(firstStage),
-
     crmCompanyId: crmCompany?._id || null,
-
     contactIds: [contact._id],
-
     ownerId: lead.ownerId,
-
     leadId: lead._id,
-
     status: "open",
-
     bant: lead.bant,
-
     tags: lead.tags || [],
 
     companyId,
@@ -686,17 +671,19 @@ exports.qualifyLead = async (req) => {
     throw new ApiError("Only contacted leads can be qualified", 400);
   }
 
-  if (!lead.bant || Number(lead.bant.score || 0) <= 6) {
+  const bantScore = exports.calculateBantScore(lead.bant || {});
+
+  if (bantScore <= 6) {
     throw new ApiError(
-      "Lead must have a BANT score greater than 6 to be qualified",
+      `Lead must have a BANT score greater than 6. Current score: ${bantScore}`,
       400,
     );
   }
 
+  lead.bant.score = bantScore;
   lead.status = "qualified";
 
   await lead.save();
-
   return lead;
 };
 exports.markLeadAsLost = async (req) => {

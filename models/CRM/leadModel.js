@@ -56,13 +56,16 @@ const leadSchema = new mongoose.Schema(
         notes: String,
       },
       authority: {
+        isDecisionMaker: {
+          type: Boolean,
+          default: false,
+        },
         decisionMakerId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Contact",
           default: null,
           index: true,
         },
-        decisionMakerName: String,
         notes: String,
       },
       need: {

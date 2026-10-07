@@ -47,12 +47,13 @@ exports.getOneCompany = async (req) => {
   const companyId = req.companyId;
   const { id } = req.params;
 
-  const company = await companyModel.findOne({
-    _id: id,
-    companyId,
-    deletedAt: null,
-  });
-
+  const company = await companyModel
+    .findOne({
+      _id: id,
+      companyId,
+      deletedAt: null,
+    })
+    .populate("tags", "name");
   if (!company) {
     throw new ApiError(`No company found with this ID: ${id}`, 404);
   }

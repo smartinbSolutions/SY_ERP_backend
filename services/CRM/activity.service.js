@@ -137,58 +137,40 @@ exports.getOneActivity = async (req) => {
 exports.createActivity = async (req) => {
   const companyId = req.companyId;
 
-  // ----------------------------------------------------
   // Validate the related entity
-  // ----------------------------------------------------
-
   const relatedEntity = await validateRelatedEntity(
     req.body.relatedTo,
     companyId,
   );
 
-  console.log("=== LEAD ACTIVITY DEBUG ===");
-  console.log("relatedTo:", req.body.relatedTo);
-  console.log("activity type:", req.body.type);
-  console.log("related entity status:", relatedEntity.status);
-  console.log("related entity id:", relatedEntity._id);
-  console.log("===========================");
-
   const payload = {
     ...req.body,
     companyId,
-    ownerId: req.user._id,
     deletedAt: null,
   };
 
-  // ----------------------------------------------------
   // Create activity
-  // ----------------------------------------------------
-
   const activity = await activityModel.create(payload);
 
-  // ----------------------------------------------------
   // Lead lifecycle:
-  //
   // new + real communication
   //        ↓
   //    contacted
   //
   // Only these activities count as real communication:
   // call / email / meeting
-  // ----------------------------------------------------
 
   if (
     req.body.relatedTo.type === "Lead" &&
     relatedEntity.status === "new" &&
     ["call", "email", "meeting"].includes(req.body.type)
-  )
-    console.log("LEAD LIFECYCLE CONDITION PASSED");
-  {
+  ) {
     relatedEntity.status = "contacted";
 
     await relatedEntity.save();
+
+    console.log("LEAD STATUS UPDATED TO:", relatedEntity.status);
   }
-  console.log("LEAD STATUS UPDATED TO:", relatedEntity.status);
 
   return activity;
 };
@@ -200,9 +182,9 @@ exports.updateActivity = async (req) => {
 
   const updateData = { ...req.body };
 
+  // These fields cannot be changed by the client
   delete updateData.companyId;
   delete updateData.deletedAt;
-  delete updateData.ownerId;
 
   // If relatedTo is being changed,
   // make sure the new entity exists and belongs to this company
