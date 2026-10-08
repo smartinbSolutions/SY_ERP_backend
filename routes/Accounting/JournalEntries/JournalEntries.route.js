@@ -10,6 +10,7 @@ const {
   auditingJournal,
   getOneJournalByLink,
   getOneAccountAndJournal,
+  createOpeningBalanceJournal,
 } = require("../../../controllers/Accounting/journalEntries/JournalEntries.controller");
 
 const journalEntriesRoute = express.Router();
@@ -28,6 +29,17 @@ journalEntriesRoute
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
     createJournal,
+  );
+
+journalEntriesRoute
+  .route("/openingbalance")
+  .get(authService.allowedTo("journal_entry.read"), getJournals)
+  .post(
+    authService.allowedTo("journal_entry.create"),
+    authService.checkCompanyEditable,
+    uploadFileAndImagejournal,
+    processFilesAndImagesjournal,
+    createOpeningBalanceJournal,
   );
 
 journalEntriesRoute

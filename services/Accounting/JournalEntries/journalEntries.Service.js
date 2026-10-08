@@ -612,93 +612,156 @@ exports.getOneAccountAndJournalService = async ({
   };
 };
 
+// Finds which collection a partyId belongs to.
+// Uses item.party as a hint when present, otherwise looks the id up.
+const resolvePartyType = async ({ item, companyId, session }) => {
+  if (!item.partyId) return null;
+
+  const filter = { _id: item.partyId, companyId };
+
+  if (["Customer", "Supplier", "Funds"].includes(item.party)) {
+    return item.party;
+  }
+
+  if (await customarModel.exists(filter).session(session)) return "Customer";
+  if (await suppliersModel.exists(filter).session(session)) return "Supplier";
+  if (await financialFundsModel.exists(filter).session(session)) return "Funds";
+
+  return null;
+};
+
 exports.openBalanceJournal = async ({
-  req,
+  journalAccounts,
   companyId,
   newJournal,
+  userId,
   session,
 }) => {
-  for (const item of req.body.journalAccounts) {
-    const amountMainCurrency = (item.MainDebit || 0) - (item.MainCredit || 0);
-    console.log(req.body.journalAccounts);
+  const journalDate = newJournal.journalDate;
+  const description = newJournal.journalDesc || "";
 
+  console.log("[OB] start", {
+    companyId: String(companyId),
+    userId: String(userId),
+    journalId: String(newJournal._id),
+    journalDate,
+    accounts: journalAccounts?.length,
+  });
+
+  for (const item of journalAccounts) {
+    const amountMainCurrency = (item.MainDebit || 0) - (item.MainCredit || 0);
     const amountTransactionCurrency =
       (item.accountDebit || 0) - (item.accountCredit || 0);
 
-    const description = req.body.description || "";
-    const journalDate = newJournal.journalDate;
+    // Not every account is linked: skip rows with no party
+    if (!item.partyId) {
+      console.log("[OB] row", item.counter, "has no partyId, skipped");
+      continue;
+    }
 
-    if (item.party === "Customer") {
-      await customarModel.findOneAndUpdate(
-        {
-          _id: item.partyId,
-          companyId,
-        },
+    const partyType = await resolvePartyType({ item, companyId, session });
+
+    console.log("[OB] row", item.counter, {
+      partyId: item.partyId,
+      partyHint: item.party,
+      partyType,
+      amountMainCurrency,
+      amountTransactionCurrency,
+    });
+
+    if (!partyType) {
+      console.log(
+        "[OB] WARNING: partyId not found in any collection:",
+        item.partyId,
+      );
+      continue;
+    }
+
+    if (partyType === "Customer") {
+      const customer = await customarModel.findOneAndUpdate(
+        { _id: item.partyId, companyId },
         {
           $inc: {
             total: amountMainCurrency,
             TotalUnpaid: amountMainCurrency,
+            openingBalance: amountMainCurrency,
           },
         },
         { new: true, session },
       );
+      if (!customer) throw new ApiError("Customer not found", 404);
 
-      await createPaymentHistoryV2({
+      const openingBalanceHistory = await createPaymentHistoryV2({
         companyId,
-        entryType: "payment",
+        entryType: "opening_balance",
         transactionDate: journalDate,
-        amountTransactionCurrency,
-        amountMainCurrency,
+        amountTransactionCurrency: Math.abs(amountTransactionCurrency),
+        amountMainCurrency: Math.abs(amountMainCurrency),
         customerId: item.partyId,
-        referenceId: "",
-        sourceModule: "payment",
+        sourceModule: "opening_balance",
         actionType: "create",
-        paymentId: null,
         balanceEffectType: amountMainCurrency >= 0 ? "Deposit" : "Withdrawal",
-        description,
+        description: item.Desc || "Opening balance",
         transactionCurrency: item.accountCurrency,
         session,
       });
-    } else if (item.party === "Supplier") {
-      await suppliersModel.findOneAndUpdate(
-        {
-          _id: item.partyId,
-          companyId,
-        },
+
+      if (!customer.openingBalanceId) {
+        customer.openingBalanceId = openingBalanceHistory._id;
+        await customer.save({ session });
+      }
+    } else if (partyType === "Supplier") {
+      const supplier = await suppliersModel.findOneAndUpdate(
+        { _id: item.partyId, companyId },
         {
           $inc: {
             total: amountMainCurrency,
             TotalUnpaid: amountMainCurrency,
+            openingBalance: amountMainCurrency,
           },
         },
         { new: true, session },
       );
+      if (!supplier) throw new ApiError("Supplier not found", 404);
 
-      await createPaymentHistoryV2({
+      const openingBalanceHistory = await createPaymentHistoryV2({
         companyId,
-        entryType: "payment",
+        entryType: "opening_balance",
         transactionDate: journalDate,
-        amountTransactionCurrency,
-        amountMainCurrency,
+        amountTransactionCurrency: Math.abs(amountTransactionCurrency),
+        amountMainCurrency: Math.abs(amountMainCurrency),
         supplierId: item.partyId,
-        referenceId: "",
-        sourceModule: "payment",
+        sourceModule: "opening_balance",
         actionType: "create",
-        paymentId: null,
-        balanceEffectType: amountMainCurrency >= 0 ? "Withdrawal" : "Deposit",
-        description,
+        balanceEffectType: amountMainCurrency >= 0 ? "Deposit" : "Withdrawal",
+        description: item.Desc || "Opening balance",
         transactionCurrency: item.accountCurrency,
         session,
       });
-    } else if (item.party === "Funds") {
+
+      if (!supplier.openingBalanceId) {
+        supplier.openingBalanceId = openingBalanceHistory._id;
+        await supplier.save({ session });
+      }
+    } else if (partyType === "Funds") {
       const fundsData = await financialFundsModel
         .findOne({ _id: item.partyId, companyId })
         .populate("fundCurrency")
         .session(session);
+
+      console.log(
+        "[OB] fund found:",
+        fundsData?._id,
+        fundsData?.fundBalance,
+        fundsData?.fundCurrency?.exchangeRate,
+      );
+
       fundsData.fundBalance +=
         amountMainCurrency * fundsData.fundCurrency.exchangeRate;
 
       await fundsData.save({ session });
+      console.log("[OB] fund new balance:", fundsData.fundBalance);
+
       await reportsFinancialFunds.create(
         [
           {
@@ -713,8 +776,8 @@ exports.openBalanceJournal = async ({
             payment: undefined,
             financialFundId: fundsData._id,
             financialFundRest: fundsData.fundBalance,
-            description: item.description,
-            createdBy: req.user._id,
+            description: item.Desc || description,
+            createdBy: userId,
             companyId,
           },
         ],
@@ -722,4 +785,6 @@ exports.openBalanceJournal = async ({
       );
     }
   }
+
+  console.log("[OB] done");
 };

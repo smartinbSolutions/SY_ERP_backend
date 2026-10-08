@@ -215,3 +215,56 @@ exports.getOneJournalByLink = asyncHandler(async (req, res, next) => {
     data,
   });
 });
+
+exports.createOpeningBalanceJournal = asyncHandler(async (req, res, next) => {
+  const companyId = req.companyId;
+  console.log("req.body", req.body);
+  if (!companyId) {
+    return res.status(400).json({ message: "companyId is required" });
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const nextCounterJournal = await counterModel.findOneAndUpdate(
+      { companyId, name: "Journal" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, session },
+    );
+
+    // multipart form-data sends it as a string
+    const journalAccounts =
+      typeof req.body.journalAccounts === "string"
+        ? JSON.parse(req.body.journalAccounts)
+        : req.body.journalAccounts || [];
+
+    const newJournal = await createJournalEntryService({
+      req,
+      companyId,
+      nextCounterJournal,
+      session,
+    });
+
+    await openBalanceJournal({
+      journalAccounts,
+      companyId,
+      newJournal,
+      userId: req.user._id,
+      session,
+    });
+
+    await session.commitTransaction();
+
+    res.status(201).json({
+      status: "true",
+      data: newJournal,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
+});
