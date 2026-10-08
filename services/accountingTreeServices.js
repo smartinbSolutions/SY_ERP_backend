@@ -5,6 +5,7 @@ const ApiError = require("../utils/apiError");
 const xlsx = require("xlsx");
 const currencySchema = require("../models/Settings/currency.model");
 const journalEntryModel = require("../models/Accounting/JournalEntries/journalEntries.model");
+const { getAllLinkedAccountIds } = require("../utils/linkedAccounts");
 
 exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -120,6 +121,15 @@ exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+exports.getLinkedAccountIds = asyncHandler(async (req, res) => {
+  const companyId = req.companyId;
+  if (!companyId)
+    return res.status(400).json({ message: "companyId is required" });
+
+  const ids = await getAllLinkedAccountIds(companyId);
+  res.status(200).json({ status: "true", data: ids });
 });
 
 exports.getAccountingTreeFromJournals = asyncHandler(async (req, res, next) => {

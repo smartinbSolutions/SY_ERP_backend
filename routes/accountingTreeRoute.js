@@ -12,6 +12,7 @@ const {
   getAccountingTreeFromJournals,
   calculateBalance,
   getChartOfAccounts,
+  getLinkedAccountIds,
 } = require("../services/accountingTreeServices");
 const authService = require("../services/authService");
 const multer = require("multer");
@@ -40,6 +41,7 @@ accountingTreeRouter
     authService.allowedTo("chart_of_accounts.read"),
     getAccountingTreeNoBalance,
   );
+
 accountingTreeRouter
   .route("/tree")
   .get(
@@ -49,6 +51,11 @@ accountingTreeRouter
 accountingTreeRouter
   .route("/chart-off-accounts")
   .get(authService.allowedTo("chart_of_accounts.read"), getChartOfAccounts);
+
+accountingTreeRouter
+  .route("/linked-ids")
+  .get(authService.allowedTo("chart_of_accounts.read"), getLinkedAccountIds);
+
 accountingTreeRouter
   .route("/treefromjournals")
   .get(

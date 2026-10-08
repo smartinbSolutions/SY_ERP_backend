@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const PARTY_TYPES = ["supplier", "customer", "employee"];
+const PARTY_TYPES = ["supplier", "customer", "employee", "account"];
 const DOCUMENT_TYPES = [
   "purchase_invoice",
   "purchase_refund_invoice",

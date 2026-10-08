@@ -24,6 +24,7 @@ const currencyModel = require("../../../../models/Settings/currency.model");
 const counterModel = require("../../../../models/Settings/counterModel");
 const { resolvePaymentAmounts, computeFxDiff } = require("./Payment.helpers");
 const refund_salesModel = require("../../../../models/Accounting/Sales/refund_sales.model");
+const { isAccountLinked } = require("../../../../utils/linkedAccounts");
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED HELPER — reused by both handlers
@@ -1937,6 +1938,7 @@ const handleSupplierPayment = async (
         await savePaymentJournal({
           journalAccounts,
           paymentAmountMain,
+          cashAmountOverride: Number(payment.amount || 0),
           totalFxDiff,
           date,
           description,
@@ -2667,6 +2669,7 @@ const handleCustomerPayment = async (
         await savePaymentJournal({
           journalAccounts,
           paymentAmountMain,
+          cashAmountOverride: Number(payment.amount || 0),
           totalFxDiff: 0, // or compute later if you add FX for customer side
           date,
           description,
@@ -2688,19 +2691,199 @@ const handleCustomerPayment = async (
   }
 };
 
+const assertAccountAllowedForDirectEntry = async ({
+  accountId,
+  fundAccountId,
+  companyId,
+  session,
+}) => {
+  if (String(accountId) === String(fundAccountId))
+    throw new Error("Cannot post a fund entry against the fund's own account");
+
+  const account = await accountingTreeModel
+    .findOne({ _id: accountId, companyId })
+    .session(session);
+  if (!account) throw new Error("Account not found");
+
+  // leaf only (assumes children point to the parent via parentId)
+  const hasChildren = await accountingTreeModel
+    .exists({ parentId: accountId, companyId })
+    .session(session);
+  if (hasChildren) throw new Error("Account must be a leaf account");
+
+  // must not be linked to any customer, supplier, fund, expense category or tax
+  if (await isAccountLinked({ accountId, companyId, session }))
+    throw new Error(
+      "This account is linked to a customer, supplier, fund, expense category or tax. Use the proper flow.",
+    );
+
+  return account;
+};
+
+const handleAccountPayment = async (
+  req,
+  companyId,
+  next,
+  normalizedPayment,
+) => {
+  const session = await mongoose.startSession();
+
+  try {
+    let createdPayment = null;
+
+    await session.withTransaction(async () => {
+      const {
+        party,
+        fund,
+        paymentNature,
+        payment,
+        date,
+        description,
+        journalCounter,
+        counter,
+        postedBy,
+        postedAt,
+      } = normalizedPayment;
+
+      if (!fund?.id) throw new Error("Fund id is required");
+      if (!party?.id) throw new Error("Account is required");
+      if (!["incoming", "outgoing"].includes(paymentNature))
+        throw new Error("paymentNature must be incoming or outgoing");
+
+      const paymentAmountMain = Number(payment.amountMainCurrency || 0);
+      const paymentAmountFund = Number(payment.amount || 0);
+      if (paymentAmountMain <= 0)
+        throw new Error("Amount must be greater than 0");
+
+      // Fund's own account comes from the DB, not from the client
+      const fundDoc = await financialFundsModel
+        .findOne({ _id: fund.id, companyId })
+        .populate("fundCurrency")
+        .session(session);
+      if (!fundDoc) throw new Error("Financial fund not found");
+
+      const fundAccountId = fundDoc.linkAccount || fundDoc.linkedAccount;
+
+      if (!fundAccountId) throw new Error("Fund has no linked account");
+      const fundAccountDoc = await accountingTreeModel
+        .findById(fundAccountId._id || fundAccountId)
+        .populate("currency")
+        .session(session);
+      if (
+        fundAccountDoc?.currency?.currencyCode &&
+        fundAccountDoc.currency.currencyCode !==
+          fundDoc.fundCurrency?.currencyCode
+      )
+        throw new Error(
+          "Fund account currency does not match the fund currency",
+        );
+
+      const account = await assertAccountAllowedForDirectEntry({
+        accountId: party.id,
+        fundAccountId: fundAccountId._id || fundAccountId,
+        companyId,
+        session,
+      });
+
+      const paymentSeq = await getNextCounterValue({
+        companyId,
+        name: "Payment",
+        session,
+      });
+
+      const [newPayment] = await paymentModel.create(
+        [
+          {
+            companyId,
+            counter: Number(counter || 0) + Number(paymentSeq),
+            party: { id: account._id, name: account.name, type: "account" },
+            fund: {
+              id: fund.id,
+              name: fund.name,
+              currencyId: fund.currencyId || "",
+              currencyCode: fund.currencyCode || "",
+              exchangeRate: Number(fund.exchangeRate || 1),
+            },
+            paymentNature,
+            payment: {
+              amount: paymentAmountFund,
+              currencyId: payment?.currencyId || "",
+              currencyCode: payment?.currencyCode || "",
+              exchangeRate: Number(payment?.exchangeRate || 1),
+              amountMainCurrency: paymentAmountMain,
+            },
+            date,
+            description,
+            journalCounter,
+            file: req.body.file || "",
+            allocations: [],
+            postedBy: postedBy || null,
+            postedAt: postedAt || new Date(),
+          },
+        ],
+        { session },
+      );
+      createdPayment = newPayment;
+
+      // Fund effect only: no customer/supplier side
+      await handleFundPaymentEntity({
+        fund,
+        companyId,
+        paymentInFundCurrency: paymentAmountFund,
+        paymentId: newPayment._id,
+        refId: newPayment._id,
+        refType: "payment",
+        source: "payment",
+        date,
+        description,
+        effectSide: paymentNature === "incoming" ? "destination" : "source",
+        session,
+        createdBy: postedBy || req?.user?._id || null,
+      });
+
+      // Journal
+      await savePaymentJournal({
+        journalAccounts: {
+          cashAccountId: fundAccountId._id || fundAccountId,
+          partyAccountId: account._id,
+        },
+        paymentAmountMain,
+        cashAmountOverride: paymentAmountFund,
+        totalFxDiff: 0,
+        date,
+        description,
+        journalCounter,
+        companyId,
+        session,
+        payment: newPayment,
+        partyName: account.name,
+        paymentNature,
+      });
+    });
+
+    return createdPayment;
+  } finally {
+    await session.endSession();
+  }
+};
+
 // Fund Related Payments just bridge for other handlers
 const handleFundPayment = async (req, companyId, next, normalizedPayment) => {
   const { party } = normalizedPayment;
   if (!party?.type) {
     throw new Error("Party type is required");
   }
-
+  console.log("handleFundPayment: party.type =", party.type);
   if (party.type === "customer") {
     return await handleCustomerPayment(req, companyId, next, normalizedPayment);
   }
 
   if (party.type === "supplier") {
     return await handleSupplierPayment(req, companyId, next, normalizedPayment);
+  }
+
+  if (party.type === "account") {
+    return await handleAccountPayment(req, companyId, next, normalizedPayment);
   }
 
   throw new Error("Invalid party type");
@@ -2808,6 +2991,7 @@ const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
 const savePaymentJournal = async ({
   journalAccounts, // { cashAccountId, partyAccountId }
   paymentAmountMain, // total payment in USD
+  cashAmountOverride = null,
   totalFxDiff, // from settleSupplierOpenDocuments (+ = loss, - = gain)
   date,
   description,
@@ -2839,10 +3023,17 @@ const savePaymentJournal = async ({
 
   // ── 2. Resolve party accountType ────────────────────────────────────────
   // used for filtering in cancelPaymentService
+  // const partyAccountType =
+  //   payment.party?.type === "customer"
+  //     ? "Customer_Payment"
+  //     : "Supplier_Payment";
+
   const partyAccountType =
     payment.party?.type === "customer"
       ? "Customer_Payment"
-      : "Supplier_Payment";
+      : payment.party?.type === "account"
+        ? "Account_Payment"
+        : "Supplier_Payment";
 
   // ── 3. Fetch FX accounts (only if FX diff exists) ────────────────────────
   let fxGainAccount = null;
@@ -2866,6 +3057,16 @@ const savePaymentJournal = async ({
       throw new Error("Foreign Exchange Loss account not linked");
   }
   const isOutgoing = paymentNature === "outgoing";
+
+  // Fund line: use the real amount that entered/left the fund when provided
+  const cashAmount =
+    cashAmountOverride != null
+      ? Number(cashAmountOverride)
+      : paymentAmountMain * (Number(cashAccount.currency?.exchangeRate) || 1);
+  const cashRate =
+    cashAmountOverride != null && paymentAmountMain > 0
+      ? cashAmount / paymentAmountMain
+      : Number(cashAccount.currency?.exchangeRate) || 1;
 
   // ── FX sign normalization ──────────────────────────────────────────────
   // totalFxDiff convention: + = loss, - = gain (for the party's NATURAL
@@ -2912,12 +3113,11 @@ const savePaymentJournal = async ({
       name: cashAccount.name,
       code: cashAccount.code,
       accountDebit: 0,
-      accountCredit:
-        paymentAmountMain * (Number(cashAccount.currency?.exchangeRate) || 1),
+      accountCredit: cashAmount,
       MainDebit: 0,
       MainCredit: paymentAmountMain,
       accountCurrency: cashAccount.currency?.currencyCode || "",
-      accountExRate: Number(cashAccount.currency?.exchangeRate) || 1,
+      accountExRate: cashRate,
       isPrimary: cashAccount.currency?.is_primary === "true",
       Desc: description,
       accountType: "Cash", // ← Cash
@@ -2929,13 +3129,12 @@ const savePaymentJournal = async ({
       id: cashAccount._id,
       name: cashAccount.name,
       code: cashAccount.code,
-      accountDebit:
-        paymentAmountMain * (Number(cashAccount.currency?.exchangeRate) || 1),
+      accountDebit: cashAmount,
       accountCredit: 0,
       MainDebit: paymentAmountMain,
       MainCredit: 0,
       accountCurrency: cashAccount.currency?.currencyCode || "",
-      accountExRate: Number(cashAccount.currency?.exchangeRate) || 1,
+      accountExRate: cashRate,
       isPrimary: cashAccount.currency?.is_primary === "true",
       Desc: description,
       accountType: "Cash", // ← Cash
