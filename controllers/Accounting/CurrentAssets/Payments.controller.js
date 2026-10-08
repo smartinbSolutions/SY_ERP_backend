@@ -80,6 +80,7 @@ exports.cancelPayment = asyncHandler(async (req, res, next) => {
       companyId,
       userId: req.user._id,
       reason: req.body.reason || "",
+      counterPrefix: req.body.counter || 0,
       session,
     });
 

@@ -1937,6 +1937,7 @@ const handleSupplierPayment = async (
       if (journalAccounts) {
         await savePaymentJournal({
           journalAccounts,
+          counterPrefix: counter,
           paymentAmountMain,
           cashAmountOverride: Number(payment.amount || 0),
           totalFxDiff,
@@ -2668,6 +2669,7 @@ const handleCustomerPayment = async (
       if (journalAccounts) {
         await savePaymentJournal({
           journalAccounts,
+          counterPrefix: counter,
           paymentAmountMain,
           cashAmountOverride: Number(payment.amount || 0),
           totalFxDiff: 0, // or compute later if you add FX for customer side
@@ -2847,6 +2849,7 @@ const handleAccountPayment = async (
           cashAccountId: fundAccountId._id || fundAccountId,
           partyAccountId: account._id,
         },
+        counterPrefix: counter,
         paymentAmountMain,
         cashAmountOverride: paymentAmountFund,
         totalFxDiff: 0,
@@ -2992,6 +2995,7 @@ const savePaymentJournal = async ({
   journalAccounts, // { cashAccountId, partyAccountId }
   paymentAmountMain, // total payment in USD
   cashAmountOverride = null,
+  counterPrefix = 0,
   totalFxDiff, // from settleSupplierOpenDocuments (+ = loss, - = gain)
   date,
   description,
@@ -3314,7 +3318,7 @@ const savePaymentJournal = async ({
     data: {
       ...journalInfo,
       journalAccounts: journalEntries,
-      counter: payment.counter || 0,
+      counter: counterPrefix,
     },
     companyId,
     nextCounterJournal,

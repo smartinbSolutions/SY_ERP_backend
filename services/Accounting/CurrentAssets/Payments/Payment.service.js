@@ -24,6 +24,7 @@ const {
 const PAYMENT_ACCOUNT_TYPES = [
   "Supplier_Payment",
   "Customer_Payment",
+  "Account_Payment",
   "Cash",
   "FX_Loss",
   "FX_Gain",
@@ -231,6 +232,7 @@ exports.cancelPaymentService = async ({
   companyId,
   userId,
   reason = "",
+  counterPrefix = 0,
   session,
 }) => {
   // ── Step 1 — Validate ──────────────────────────────────────────
@@ -260,21 +262,21 @@ exports.cancelPaymentService = async ({
   const amountFund = Number(payment.payment?.amount || 0);
   const amountMain = Number(payment.payment?.amountMainCurrency || 0);
 
-  console.log("========================================");
-  console.log("   CANCEL PAYMENT");
-  console.log("========================================");
-  console.log(`   Counter:     ${payment.counter}`);
-  console.log(`   Nature:      ${payment.paymentNature}`);
-  console.log(
-    `   Amount:      ${amountMain} USD (${amountFund} ${payment.fund?.currencyCode})`,
-  );
-  console.log(
-    `   Party:       ${payment.party?.name || "Cash"} (${
-      payment.party?.type || "none"
-    })`,
-  );
-  console.log(`   Allocations: ${payment.allocations?.length || 0}`);
-  console.log("========================================\n");
+  // console.log("========================================");
+  // console.log("   CANCEL PAYMENT");
+  // console.log("========================================");
+  // console.log(`   Counter:     ${payment.counter}`);
+  // console.log(`   Nature:      ${payment.paymentNature}`);
+  // console.log(
+  //   `   Amount:      ${amountMain} USD (${amountFund} ${payment.fund?.currencyCode})`,
+  // );
+  // console.log(
+  //   `   Party:       ${payment.party?.name || "Cash"} (${
+  //     payment.party?.type || "none"
+  //   })`,
+  // );
+  // console.log(`   Allocations: ${payment.allocations?.length || 0}`);
+  // console.log("========================================\n");
 
   // ── Step 2 — Reverse fund effect ──────────────────────────────
   // outgoing → money left fund → reverse: money enters (destination)
@@ -294,10 +296,10 @@ exports.cancelPaymentService = async ({
     session,
   });
 
-  console.log("✅ Step 2 — Fund effect reversed");
+  // console.log("✅ Step 2 — Fund effect reversed");
 
   // ── Step 3 — Reverse party ledger ─────────────────────────────
-  if (!isCash && payment.party?.id) {
+  if (!isCash && payment.party?.id && payment.party?.type !== "account") {
     const isSupplier = payment.party?.type === "supplier";
 
     await createPaymentHistoryV2({
@@ -319,12 +321,12 @@ exports.cancelPaymentService = async ({
       session,
     });
 
-    console.log("✅ Step 3 — Party ledger reversed");
+    // console.log("✅ Step 3 — Party ledger reversed");
   }
 
   // ── Step 4 — Reverse invoice allocations ──────────────────────
   if (Array.isArray(payment.allocations) && payment.allocations.length > 0) {
-    console.log(`   Reversing ${payment.allocations.length} allocation(s):`);
+    // console.log(`   Reversing ${payment.allocations.length} allocation(s):`);
     for (const allocation of payment.allocations) {
       await reverseAllocation({
         allocation,
@@ -332,7 +334,7 @@ exports.cancelPaymentService = async ({
         session,
       });
     }
-    console.log("✅ Step 4 — All allocations reversed");
+    // console.log("✅ Step 4 — All allocations reversed");
   }
 
   // ── Step 5 — Fetch journal and reverse payment entries ────────────
@@ -375,10 +377,10 @@ exports.cancelPaymentService = async ({
           0,
         );
 
-        console.log(`   Reversal entries: ${paymentEntries.length}`);
-        console.log(
-          `   DR: ${totalDebit.toFixed(4)}  CR: ${totalCredit.toFixed(4)}`,
-        );
+        // console.log(`   Reversal entries: ${paymentEntries.length}`);
+        // console.log(
+        //   `   DR: ${totalDebit.toFixed(4)}  CR: ${totalCredit.toFixed(4)}`,
+        // );
 
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
           throw new ApiError(
@@ -411,14 +413,14 @@ exports.cancelPaymentService = async ({
             party: payment.party?.id || null,
             filesArray: [],
             journalAccounts: paymentEntries,
-            counter: 0,
+            counter: counterPrefix,
           },
           companyId,
           nextCounterJournal,
           session,
         });
 
-        console.log("✅ Step 5 — Reversal journal created");
+        // console.log("✅ Step 5 — Reversal journal created");
       }
     }
   } else {
@@ -438,8 +440,8 @@ exports.cancelPaymentService = async ({
   }));
   await payment.save({ session });
 
-  console.log("✅ Step 6 — Payment marked cancelled");
-  console.log("========================================\n");
+  // console.log("✅ Step 6 — Payment marked cancelled");
+  // console.log("========================================\n");
 
   return payment;
 };
