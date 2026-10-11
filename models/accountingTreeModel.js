@@ -60,7 +60,11 @@ const AccountingTreeSchema = new mongoose.Schema(
       default: null,
     },
 
-    accountCategory: { type: String },
+    accountCategory: {
+      type: String,
+      enum: ["operating", "financing", "investing"],
+      set: (v) => (v === "" ? undefined : v), // form sends "" when nothing is selected
+    },
 
     currency: {
       type: mongoose.Schema.ObjectId,

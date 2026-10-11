@@ -7,6 +7,8 @@ const currencySchema = require("../models/Settings/currency.model");
 const journalEntryModel = require("../models/Accounting/JournalEntries/journalEntries.model");
 const { getAllLinkedAccountIds } = require("../utils/linkedAccounts");
 
+const ACCOUNT_CATEGORIES = ["operating", "financing", "investing"];
+
 exports.getAccountingTree = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
 
@@ -639,14 +641,19 @@ exports.importAccountingTree = asyncHandler(async (req, res, next) => {
 
   const treeRows = csvData.map((item) => {
     const currencyKey = item.currency ? String(item.currency).trim() : "";
-
     const parentCode = item.parentCode ? String(item.parentCode).trim() : "";
+    const category = item.accountCategory
+      ? String(item.accountCategory).trim().toLowerCase()
+      : "";
 
     return {
       ...item,
       companyId,
       currency: currencyMap.get(currencyKey) || null,
       parentId: parentCode ? codeMap.get(parentCode) || null : null,
+      accountCategory: ACCOUNT_CATEGORIES.includes(category)
+        ? category
+        : undefined,
     };
   });
 
