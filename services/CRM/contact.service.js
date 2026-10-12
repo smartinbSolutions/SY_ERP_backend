@@ -58,6 +58,7 @@ exports.getOneContact = async (req) => {
 
   const contact = await contactModel
     .findOne({ _id: id, companyId, deletedAt: null })
+    .populate("tags", "name")
     .populate("crmCompanyId", "name industry website");
 
   if (!contact) {

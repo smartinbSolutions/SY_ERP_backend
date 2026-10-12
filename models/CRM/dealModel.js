@@ -124,8 +124,12 @@ const dealSchema = new mongoose.Schema(
       type: String,
     },
 
-    tags: [String],
-
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
+      },
+    ],
     deletedAt: {
       type: Date,
       default: null,

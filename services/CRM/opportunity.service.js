@@ -70,10 +70,15 @@ exports.getOneOpportunity = async (req) => {
       deletedAt: null,
     })
     .populate("ownerId", "name email")
+    .populate("tags", "name")
     .populate("pipelineId", "name stages settings")
     .populate("contactIds", "firstName lastName email phone")
     .populate("leadId", "name email")
     .populate("dealId", "title value status")
+    .populate({
+      path: "stageHistory.movedBy",
+      select: "name email",
+    })
     .populate("contactIds", "firstName lastName email phone");
 
   if (!opportunity) {

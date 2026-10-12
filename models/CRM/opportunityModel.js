@@ -109,7 +109,7 @@ const opportunitySchema = new mongoose.Schema(
         },
       },
     ],
-    
+
     // new field to track the status of required actions for each stage
     requiredActionsStatus: [
       {
@@ -150,7 +150,12 @@ const opportunitySchema = new mongoose.Schema(
       default: null,
     },
 
-    tags: [String],
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
+      },
+    ],
     deletedAt: { type: Date, default: null },
     companyId: {
       type: String,

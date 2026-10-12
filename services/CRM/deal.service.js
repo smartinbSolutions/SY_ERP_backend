@@ -233,6 +233,8 @@ exports.getOneDeal = async (req) => {
       deletedAt: null,
     })
     .populate("ownerId", "name email")
+    .populate("tags", "name")
+
     .populate("crmCompanyId", "name industry website")
     .populate("opportunityId", "title value status currentStageKey")
     .populate("contactIds", "firstName lastName email phone");
