@@ -666,7 +666,9 @@ const settleCustomerOpenDocuments = async ({
     const appliedMain = Math.min(invoiceRemainderMain, remainingPaymentMain);
 
     // Rate when invoice was created (stored on the invoice)
-    const invoiceRate = Number(invoice?.currency?.exchangeRate || 1);
+    const invoiceRate = Number(
+      invoice.currencyExchangeRate || invoice?.currency?.exchangeRate || 1,
+    );
     console.log("invoice?.currency?._id", invoice?.currency);
     // Rate TODAY — from currencies collection
     const paymentRate = getTodayRate(invoice?.currency?.id);
@@ -2022,7 +2024,7 @@ const handleSalesPayment = async (
     const invoiceRemainderMain = Number(sales.totalRemainderMainCurrency || 0);
     const invoiceRemainderForeign = Number(sales.totalRemainder || 0);
     const invoiceRate = Number(
-      sales.exchangeRate || sales?.currency?.exchangeRate || 1,
+      sales.currencyExchangeRate || sales?.currency?.exchangeRate || 1,
     );
 
     console.log("BEFORE resolvePaymentAmounts:");
@@ -2312,7 +2314,7 @@ const handleRefundSalesPayment = async (
     const invoiceRemainderMain = Number(sales.totalRemainderMainCurrency || 0);
     const invoiceRemainderForeign = Number(sales.totalRemainder || 0);
     const invoiceRate = Number(
-      sales.exchangeRate || sales?.currency?.exchangeRate || 1,
+      sales.currencyExchangeRate || sales?.currency?.exchangeRate || 1,
     );
 
     const {
