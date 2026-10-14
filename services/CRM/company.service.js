@@ -29,8 +29,35 @@ exports.getAllCompanies = async (req) => {
 
   const [total, companies] = await Promise.all([
     companyModel.countDocuments(query),
-    companyModel.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }),
+    companyModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 })
+      .lean(),
   ]);
+
+  // ----------------------------------------------------
+  // Primary contact for each company (one query)
+  // ----------------------------------------------------
+  const primaryContacts = await contactModel
+    .find({
+      companyId,
+      crmCompanyId: { $in: companies.map((c) => c._id) },
+      isPrimary: true,
+      deletedAt: null,
+    })
+    .select("firstName lastName email phone jobTitle number crmCompanyId")
+    .lean();
+
+  const primaryByCompany = new Map(
+    primaryContacts.map((c) => [String(c.crmCompanyId), c]),
+  );
+
+  const data = companies.map((c) => ({
+    ...c,
+    primaryContact: primaryByCompany.get(String(c._id)) || null,
+  }));
 
   return {
     status: "success",
@@ -39,7 +66,7 @@ exports.getAllCompanies = async (req) => {
     totalPages: Math.ceil(total / limit),
     results: companies.length,
     total,
-    data: companies,
+    data,
   };
 };
 

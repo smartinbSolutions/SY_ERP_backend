@@ -56,7 +56,6 @@ const contactSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-contactSchema.index({ companyId: 1, crmCompanyId: 1 });
 contactSchema.index({ companyId: 1, status: 1 });
 contactSchema.index({ companyId: 1, deletedAt: 1 });
 contactSchema.index({ companyId: 1, number: 1 }, { unique: true });
@@ -64,6 +63,16 @@ contactSchema.index({ companyId: 1, number: 1 }, { unique: true });
 contactSchema.index(
   { companyId: 1, email: 1 },
   { unique: true, partialFilterExpression: { deletedAt: null } },
+);
+contactSchema.index(
+  { companyId: 1, crmCompanyId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isPrimary: true,
+      crmCompanyId: { $type: "objectId" },
+    },
+  },
 );
 
 module.exports = mongoose.model("Contact", contactSchema);

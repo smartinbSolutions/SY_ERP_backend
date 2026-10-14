@@ -14,7 +14,10 @@ const {
 const ApiError = require("../../utils/apiError");
 const countryModel = require("../../models/Shared/country.model");
 const productModel = require("../../models/Stocks/products/productModel");
-const { generateCrmNumber } = require("../../utils/crmhelpers");
+const {
+  generateCrmNumber,
+  resolveIsPrimary,
+} = require("../../utils/crmhelpers");
 
 const validateInterestedIn = async (req) => {
   if (!("interestedIn" in req.body)) return;
@@ -120,12 +123,17 @@ exports.getAllLeads = async (req) => {
     deletedAt: null,
   };
 
+  const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   if (keyword) {
+    const regex = new RegExp(escapeRegex(keyword.trim()), "i");
+
     query.$or = [
-      { LeadName: { $regex: keyword, $options: "i" } },
-      { email: { $regex: keyword, $options: "i" } },
-      { phone: { $regex: keyword, $options: "i" } },
-      { companyName: { $regex: keyword, $options: "i" } },
+      { LeadName: regex },
+      { number: regex },
+      { email: regex },
+      { phone: regex },
+      { companyName: regex },
     ];
   }
 
@@ -518,11 +526,12 @@ exports.convertLead = async (req) => {
     if (!companyData?.name) {
       throw new ApiError("Company name is required", 400);
     }
-
+    const com_number = await generateCrmNumber(companyId, "company");
     crmCompany = await companyModel.create({
       ...companyData,
       companyId,
       deletedAt: null,
+      number: com_number,
     });
   }
 
@@ -593,13 +602,20 @@ exports.convertLead = async (req) => {
       throw new ApiError("A contact with this email already exists", 400);
     }
 
+    const crmCompanyId = crmCompany?._id || null;
+
+    const isPrimary = await resolveIsPrimary(companyId, crmCompanyId, false);
+
+    const contact_number = await generateCrmNumber(companyId, "contact");
     contact = await contactModel.create({
       firstName: data.firstName,
+      number: contact_number,
       lastName: data.lastName,
       email: data.email,
       phone: data.phone,
       jobTitle: data.jobTitle,
       companyId,
+      isPrimary,
       crmCompanyId: crmCompany?._id || null,
       source: data.source || "other",
       status: "active",
@@ -653,10 +669,11 @@ exports.convertLead = async (req) => {
   // ====================================================
   // 7. Create Opportunity
   // ====================================================
-
+  const opt_number = await generateCrmNumber(companyId, "opportunity");
   const opportunity = await opportunityModel.create({
     title: req.body.title || `${lead.firstName} ${lead.lastName} Opportunity`,
     description: req.body.description || lead.notes,
+    number: opt_number,
     value: req.body.value ?? lead.bant?.budget?.amount ?? 0,
     currency: req.body.currency || "USD",
     pipelineId: pipeline._id,

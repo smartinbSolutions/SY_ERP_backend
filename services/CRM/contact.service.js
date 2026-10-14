@@ -4,7 +4,10 @@ const companyModel = require("../../models/CRM/companyModel");
 const ApiError = require("../../utils/apiError");
 const opportunityModel = require("../../models/CRM/opportunityModel");
 const dealModel = require("../../models/CRM/dealModel");
-const { generateCrmNumber } = require("../../utils/crmhelpers");
+const {
+  generateCrmNumber,
+  resolveIsPrimary,
+} = require("../../utils/crmhelpers");
 
 // ============ GET ALL ============
 exports.getAllContacts = async (req) => {
@@ -72,29 +75,37 @@ exports.getOneContact = async (req) => {
 // ============ CREATE ============
 exports.createContact = async (req) => {
   const companyId = req.companyId;
-
+  console.log(req.body);
   const exists = await contactModel.findOne({
     companyId,
     email: req.body.email,
     deletedAt: null,
   });
 
-  const number = await generateCrmNumber(companyId, "contact");
-
   if (exists) {
     throw new ApiError("A contact with this email already exists", 400);
   }
 
+  const crmCompanyId = req.body.crmCompanyId || null;
+
+  const isPrimary = await resolveIsPrimary(
+    companyId,
+    crmCompanyId,
+    req.body.isPrimary === true || req.body.isPrimary === "true",
+  );
+
+  const number = await generateCrmNumber(companyId, "contact");
+
   const payload = {
     ...req.body,
     companyId,
+    crmCompanyId,
+    isPrimary,
     deletedAt: null,
     number,
   };
 
-  const contact = await contactModel.create(payload);
-
-  return contact;
+  return contactModel.create(payload);
 };
 
 // ============ UPDATE ============
@@ -176,7 +187,6 @@ exports.deleteContact = async (req) => {
 };
 
 // ============ ASSIGN CONTACT TO COMPANY ============
-
 exports.assignContactToCompany = async (req) => {
   const companyId = req.companyId;
   const { id } = req.params;
