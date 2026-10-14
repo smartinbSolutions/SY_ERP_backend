@@ -5,6 +5,7 @@ const companyModel = require("../../models/CRM/companyModel");
 const opportunityModel = require("../../models/CRM/opportunityModel");
 const dealModel = require("../../models/CRM/dealModel");
 const ApiError = require("../../utils/apiError");
+const { generateCrmNumber } = require("../../utils/crmhelpers");
 
 // ============ VALIDATE RELATED ENTITY ============
 const validateRelatedEntity = async (relatedTo, companyId) => {
@@ -143,10 +144,13 @@ exports.createActivity = async (req) => {
     companyId,
   );
 
+  const number = await generateCrmNumber(companyId, "activity");
+
   const payload = {
     ...req.body,
     companyId,
     deletedAt: null,
+    number,
   };
 
   // Create activity

@@ -12,6 +12,30 @@ const {
 } = require("./opportunity.service");
 
 const ApiError = require("../../utils/apiError");
+const countryModel = require("../../models/Shared/country.model");
+const productModel = require("../../models/Stocks/products/productModel");
+const { generateCrmNumber } = require("../../utils/crmhelpers");
+
+const validateInterestedIn = async (req) => {
+  if (!("interestedIn" in req.body)) return;
+
+  const ids = Array.isArray(req.body.interestedIn)
+    ? [...new Set(req.body.interestedIn.map(String))]
+    : [];
+
+  if (ids.length) {
+    const count = await productModel.countDocuments({
+      _id: { $in: ids },
+      companyId: req.companyId,
+    });
+
+    if (count !== ids.length) {
+      throw new ApiError("Invalid product selected", 400);
+    }
+  }
+
+  req.body.interestedIn = ids; // [] clears it
+};
 
 // ======================================================
 // CALCULATE BANT SCORE
@@ -89,7 +113,7 @@ exports.getAllLeads = async (req) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const { keyword, status, source, ownerId } = req.query;
+  const { keyword, status, source, ownerId, country } = req.query;
 
   const query = {
     companyId,
@@ -98,8 +122,7 @@ exports.getAllLeads = async (req) => {
 
   if (keyword) {
     query.$or = [
-      { firstName: { $regex: keyword, $options: "i" } },
-      { lastName: { $regex: keyword, $options: "i" } },
+      { LeadName: { $regex: keyword, $options: "i" } },
       { email: { $regex: keyword, $options: "i" } },
       { phone: { $regex: keyword, $options: "i" } },
       { companyName: { $regex: keyword, $options: "i" } },
@@ -109,6 +132,7 @@ exports.getAllLeads = async (req) => {
   if (status) query.status = status;
   if (source) query.source = source;
   if (ownerId) query.ownerId = ownerId;
+  if (country) query.country = country;
 
   const [total, leads] = await Promise.all([
     leadModel.countDocuments(query),
@@ -118,7 +142,8 @@ exports.getAllLeads = async (req) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .populate("ownerId", "name email"),
+      .populate("ownerId", "name email")
+      .populate("country", "name nameAr nameTr iso2 phoneCode"),
   ]);
 
   return {
@@ -141,11 +166,9 @@ exports.getOneLead = async (req) => {
   const { id } = req.params;
 
   const lead = await leadModel
-    .findOne({
-      _id: id,
-      companyId,
-      deletedAt: null,
-    })
+    .findOne({ _id: id, companyId, deletedAt: null })
+    .populate("country", "name nameAr nameTr iso2 phoneCode")
+    .populate("interestedIn", "name type unit qr")
 
     // Lead owner
     .populate("ownerId", "name email firstName lastName username")
@@ -208,6 +231,30 @@ exports.createLead = async (req) => {
   }
 
   // ----------------------------------------------------
+  // Validate country
+  // ----------------------------------------------------
+
+  if (req.body.country) {
+    const country = await countryModel
+      .findOne({ _id: req.body.country, isActive: true })
+      .select("_id")
+      .lean();
+
+    if (!country) {
+      throw new ApiError("Invalid country", 400);
+    }
+  } else {
+    delete req.body.country; // avoid saving "" (cast error)
+  }
+
+  await validateInterestedIn(req);
+  // ----------------------------------------------------
+  // Generate lead number
+  // ----------------------------------------------------
+
+  const number = await generateCrmNumber(companyId, "lead");
+
+  // ----------------------------------------------------
   // Build payload
   // ----------------------------------------------------
 
@@ -217,6 +264,7 @@ exports.createLead = async (req) => {
     companyId,
     ownerId: req.user._id,
     deletedAt: null,
+    number,
 
     // Every newly created lead starts as NEW.
     // Frontend cannot control this.
@@ -270,6 +318,18 @@ exports.updateLead = async (req) => {
       throw new ApiError("A lead with this email already exists", 400);
     }
   }
+
+  if (req.body.country) {
+    const country = await countryModel
+      .findOne({ _id: req.body.country, isActive: true })
+      .select("_id")
+      .lean();
+    if (!country) throw new ApiError("Invalid country", 400);
+  } else if ("country" in req.body) {
+    req.body.country = null; // user cleared it
+  }
+
+  await validateInterestedIn(req);
 
   // ----------------------------------------------------
   // Get existing lead

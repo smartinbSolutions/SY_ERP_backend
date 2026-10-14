@@ -4,6 +4,7 @@ const dealModel = require("../../models/CRM/dealModel");
 const leadModel = require("../../models/CRM/leadModel");
 const opportunityModel = require("../../models/CRM/opportunityModel");
 const ApiError = require("../../utils/apiError");
+const { generateCrmNumber } = require("../../utils/crmhelpers");
 
 // ============ GET ALL ============
 exports.getAllCompanies = async (req) => {
@@ -75,10 +76,12 @@ exports.createCompany = async (req) => {
     throw new ApiError("A company with this name already exists", 400);
   }
 
+  const number = await generateCrmNumber(companyId, "company");
   const payload = {
     ...req.body,
     companyId,
     deletedAt: null,
+    number,
   };
 
   const company = await companyModel.create(payload);

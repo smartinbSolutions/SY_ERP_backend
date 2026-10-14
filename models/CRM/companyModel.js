@@ -8,6 +8,7 @@ const companySchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    number: { type: String, trim: true },
     industry: { type: String, trim: true },
     website: { type: String, trim: true, lowercase: true },
     phone: { type: String, trim: true },
@@ -18,7 +19,7 @@ const companySchema = new mongoose.Schema(
       state: String,
       country: String,
     },
-    annualRevenue: { type: Number, min: 0 }, 
+    annualRevenue: { type: Number, min: 0 },
 
     companyId: {
       type: String,
@@ -43,5 +44,6 @@ const companySchema = new mongoose.Schema(
 companySchema.index({ companyId: 1, name: 1 });
 companySchema.index({ companyId: 1, isActive: 1 });
 companySchema.index({ companyId: 1, deletedAt: 1 });
+companySchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 module.exports = mongoose.model("Company", companySchema);

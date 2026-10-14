@@ -4,6 +4,7 @@ const companyModel = require("../../models/CRM/companyModel");
 const contactModel = require("../../models/CRM/contactModel");
 const leadModel = require("../../models/CRM/leadModel");
 const ApiError = require("../../utils/apiError");
+const { generateCrmNumber } = require("../../utils/crmhelpers");
 
 // ============ GET ALL ============
 exports.getAllOpportunities = async (req) => {
@@ -496,12 +497,13 @@ exports.createOpportunity = async (req) => {
   bant.score = calculateBantScore(bant);
 
   const userId = getCurrentUserId(req);
-
+  const number = await generateCrmNumber(companyId, "opportunity");
   const payload = {
     ...req.body,
     bant,
     companyId,
     deletedAt: null,
+    number,
 
     currentStageKey: stage.key,
     currentStageOrder: stage.order,

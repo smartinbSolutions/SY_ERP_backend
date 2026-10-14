@@ -136,8 +136,12 @@ const crmLeadRoute = require("./CRM/lead.routes");
 const crmOpportunityRoute = require("./CRM/opportunity.routes");
 const crmPiplineRoute = require("./CRM/pipeline.routes");
 const quickReportsRoute = require("./reports/quickReportsRoute");
+const countryRoute = require("./Shared/country.route");
 
 const mountRoutes = (app) => {
+  //Shared
+  app.use("/api/countries", countryRoute);
+
   app.use("/api/dashboard-stats", DashboardStatsRoute);
   app.use("/api/v1/product", productRout);
   app.use("/api/v1/brand", brandRout);

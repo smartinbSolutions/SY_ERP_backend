@@ -3,6 +3,7 @@ const ApiError = require("../../utils/apiError");
 const Opportunity = require("../../models/CRM/opportunityModel");
 const Company = require("../../models/CRM/companyModel");
 const Contact = require("../../models/CRM/contactModel");
+const { generateCrmNumber } = require("../../utils/crmhelpers");
 
 const validateOpportunity = async (opportunityId, companyId) => {
   const opportunity = await Opportunity.findOne({
@@ -272,6 +273,8 @@ exports.createDeal = async (req) => {
   // 4. Validate inherited Contacts
   await validateContacts(contactIds, companyId, crmCompanyId);
 
+  const number = await generateCrmNumber(companyId, "deal");
+
   // 5. Create Deal
   const payload = {
     ...req.body,
@@ -283,6 +286,7 @@ exports.createDeal = async (req) => {
     closedAt: null,
     actualDeliveryDate: null,
     deletedAt: null,
+    number,
 
     // Selected by user
     ownerId,

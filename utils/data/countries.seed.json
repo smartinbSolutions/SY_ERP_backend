@@ -1,0 +1,202 @@
+[
+  {
+    "name": "Syria",
+    "nameAr": "سوريا",
+    "nameTr": "Suriye",
+    "iso2": "SY",
+    "iso3": "SYR",
+    "phoneCode": "+963",
+    "currency": "SYP",
+    "isActive": true
+  },
+  {
+    "name": "Turkey",
+    "nameAr": "تركيا",
+    "nameTr": "Türkiye",
+    "iso2": "TR",
+    "iso3": "TUR",
+    "phoneCode": "+90",
+    "currency": "TRY",
+    "isActive": true
+  },
+  {
+    "name": "Saudi Arabia",
+    "nameAr": "المملكة العربية السعودية",
+    "nameTr": "Suudi Arabistan",
+    "iso2": "SA",
+    "iso3": "SAU",
+    "phoneCode": "+966",
+    "currency": "SAR",
+    "isActive": true
+  },
+  {
+    "name": "United Arab Emirates",
+    "nameAr": "الإمارات العربية المتحدة",
+    "nameTr": "Birleşik Arap Emirlikleri",
+    "iso2": "AE",
+    "iso3": "ARE",
+    "phoneCode": "+971",
+    "currency": "AED",
+    "isActive": true
+  },
+  {
+    "name": "Iraq",
+    "nameAr": "العراق",
+    "nameTr": "Irak",
+    "iso2": "IQ",
+    "iso3": "IRQ",
+    "phoneCode": "+964",
+    "currency": "IQD",
+    "isActive": true
+  },
+  {
+    "name": "Jordan",
+    "nameAr": "الأردن",
+    "nameTr": "Ürdün",
+    "iso2": "JO",
+    "iso3": "JOR",
+    "phoneCode": "+962",
+    "currency": "JOD",
+    "isActive": true
+  },
+  {
+    "name": "Lebanon",
+    "nameAr": "لبنان",
+    "nameTr": "Lübnan",
+    "iso2": "LB",
+    "iso3": "LBN",
+    "phoneCode": "+961",
+    "currency": "LBP",
+    "isActive": true
+  },
+  {
+    "name": "Egypt",
+    "nameAr": "مصر",
+    "nameTr": "Mısır",
+    "iso2": "EG",
+    "iso3": "EGY",
+    "phoneCode": "+20",
+    "currency": "EGP",
+    "isActive": true
+  },
+  {
+    "name": "Kuwait",
+    "nameAr": "الكويت",
+    "nameTr": "Kuveyt",
+    "iso2": "KW",
+    "iso3": "KWT",
+    "phoneCode": "+965",
+    "currency": "KWD",
+    "isActive": true
+  },
+  {
+    "name": "Qatar",
+    "nameAr": "قطر",
+    "nameTr": "Katar",
+    "iso2": "QA",
+    "iso3": "QAT",
+    "phoneCode": "+974",
+    "currency": "QAR",
+    "isActive": true
+  },
+  {
+    "name": "Bahrain",
+    "nameAr": "البحرين",
+    "nameTr": "Bahreyn",
+    "iso2": "BH",
+    "iso3": "BHR",
+    "phoneCode": "+973",
+    "currency": "BHD",
+    "isActive": true
+  },
+  {
+    "name": "Oman",
+    "nameAr": "عُمان",
+    "nameTr": "Umman",
+    "iso2": "OM",
+    "iso3": "OMN",
+    "phoneCode": "+968",
+    "currency": "OMR",
+    "isActive": true
+  },
+  {
+    "name": "Yemen",
+    "nameAr": "اليمن",
+    "nameTr": "Yemen",
+    "iso2": "YE",
+    "iso3": "YEM",
+    "phoneCode": "+967",
+    "currency": "YER",
+    "isActive": true
+  },
+  {
+    "name": "Palestine",
+    "nameAr": "فلسطين",
+    "nameTr": "Filistin",
+    "iso2": "PS",
+    "iso3": "PSE",
+    "phoneCode": "+970",
+    "currency": "ILS",
+    "isActive": true
+  },
+  {
+    "name": "Libya",
+    "nameAr": "ليبيا",
+    "nameTr": "Libya",
+    "iso2": "LY",
+    "iso3": "LBY",
+    "phoneCode": "+218",
+    "currency": "LYD",
+    "isActive": true
+  },
+  {
+    "name": "Tunisia",
+    "nameAr": "تونس",
+    "nameTr": "Tunus",
+    "iso2": "TN",
+    "iso3": "TUN",
+    "phoneCode": "+216",
+    "currency": "TND",
+    "isActive": true
+  },
+  {
+    "name": "Algeria",
+    "nameAr": "الجزائر",
+    "nameTr": "Cezayir",
+    "iso2": "DZ",
+    "iso3": "DZA",
+    "phoneCode": "+213",
+    "currency": "DZD",
+    "isActive": true
+  },
+  {
+    "name": "Morocco",
+    "nameAr": "المغرب",
+    "nameTr": "Fas",
+    "iso2": "MA",
+    "iso3": "MAR",
+    "phoneCode": "+212",
+    "currency": "MAD",
+    "isActive": true
+  },
+  {
+    "name": "Sudan",
+    "nameAr": "السودان",
+    "nameTr": "Sudan",
+    "iso2": "SD",
+    "iso3": "SDN",
+    "phoneCode": "+249",
+    "currency": "SDG",
+    "isActive": true
+  },
+  {
+    "name": "Iran",
+    "nameAr": "إيران",
+    "nameTr": "İran",
+    "iso2": "IR",
+    "iso3": "IRN",
+    "phoneCode": "+98",
+    "currency": "IRR",
+    "isActive": true
+  }
+]

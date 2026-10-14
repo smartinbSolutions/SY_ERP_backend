@@ -79,7 +79,6 @@ companyInfoSchema.pre("save", async function (next) {
   next();
 });
 
-
 const setImageURL = (doc) => {
   if (
     doc.companyLogo &&

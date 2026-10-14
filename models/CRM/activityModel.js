@@ -9,7 +9,7 @@ const activitySchema = new mongoose.Schema(
     },
     subject: { type: String, required: true, trim: true }, // The subject or title of the activity
     description: { type: String },
-
+    number: { type: String, trim: true },
     relatedTo: {
       type: {
         type: String,
@@ -83,5 +83,6 @@ activitySchema.index({ companyId: 1, ownerId: 1 });
 activitySchema.index({ companyId: 1, type: 1 });
 activitySchema.index({ companyId: 1, "relatedTo.type": 1, "relatedTo.id": 1 });
 activitySchema.index({ companyId: 1, deletedAt: 1 });
+activitySchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 module.exports = mongoose.model("Activity", activitySchema);

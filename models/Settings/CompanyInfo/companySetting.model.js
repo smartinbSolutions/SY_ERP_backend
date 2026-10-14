@@ -41,6 +41,13 @@ const companySettingSchema = new mongoose.Schema(
 
       receiptPos: { type: String, default: "RP" },
       posRefund: { type: String, default: "RPF" },
+      // CRM
+      lead: { type: String, default: "C-LD" },
+      company: { type: String, default: "C-CO" },
+      contact: { type: String, default: "C-CT" },
+      opportunity: { type: String, default: "C-OP" },
+      activity: { type: String, default: "C-AC" },
+      deal: { type: String, default: "C-DA" },
     },
     emails: {
       _id: false,

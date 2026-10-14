@@ -41,7 +41,7 @@ const dealSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-
+    number: { type: String, trim: true },
     title: {
       type: String,
       required: true,
@@ -144,5 +144,6 @@ dealSchema.index({ companyId: 1, crmCompanyId: 1 });
 dealSchema.index({ companyId: 1, opportunityId: 1 });
 dealSchema.index({ companyId: 1, closedAt: -1 });
 dealSchema.index({ companyId: 1, deletedAt: 1 });
+dealSchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 module.exports = mongoose.model("Deal", dealSchema);

@@ -52,7 +52,7 @@ const opportunitySchema = new mongoose.Schema(
     description: { type: String },
     value: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "USD", uppercase: true },
-
+    number: { type: String, trim: true },
     pipelineId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Pipeline",
@@ -170,5 +170,6 @@ opportunitySchema.index({ companyId: 1, status: 1 });
 opportunitySchema.index({ companyId: 1, pipelineId: 1 });
 opportunitySchema.index({ companyId: 1, ownerId: 1 });
 opportunitySchema.index({ companyId: 1, deletedAt: 1 });
+opportunitySchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 module.exports = mongoose.model("Opportunity", opportunitySchema);

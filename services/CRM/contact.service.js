@@ -4,6 +4,7 @@ const companyModel = require("../../models/CRM/companyModel");
 const ApiError = require("../../utils/apiError");
 const opportunityModel = require("../../models/CRM/opportunityModel");
 const dealModel = require("../../models/CRM/dealModel");
+const { generateCrmNumber } = require("../../utils/crmhelpers");
 
 // ============ GET ALL ============
 exports.getAllContacts = async (req) => {
@@ -78,6 +79,8 @@ exports.createContact = async (req) => {
     deletedAt: null,
   });
 
+  const number = await generateCrmNumber(companyId, "contact");
+
   if (exists) {
     throw new ApiError("A contact with this email already exists", 400);
   }
@@ -86,6 +89,7 @@ exports.createContact = async (req) => {
     ...req.body,
     companyId,
     deletedAt: null,
+    number,
   };
 
   const contact = await contactModel.create(payload);

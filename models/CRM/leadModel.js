@@ -7,6 +7,7 @@ const leadSchema = new mongoose.Schema(
     phone: { type: String, trim: true },
     companyName: { type: String, trim: true },
     jobTitle: { type: String, trim: true },
+    number: { type: String, trim: true },
 
     source: {
       type: String,
@@ -32,6 +33,13 @@ const leadSchema = new mongoose.Schema(
         "converted",
       ],
       default: "new",
+    },
+
+    country: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Country",
+      default: null,
+      index: true,
     },
 
     companyId: {
@@ -88,6 +96,13 @@ const leadSchema = new mongoose.Schema(
       score: { type: Number, min: 0, max: 12, default: 0 },
     },
 
+    interestedIn: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "product",
+      },
+    ],
+
     convertedTo: {
       contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
       crmCompanyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" }, // ← غيّرنا الاسم
@@ -118,8 +133,8 @@ const leadSchema = new mongoose.Schema(
 leadSchema.index({ companyId: 1, status: 1 });
 leadSchema.index({ companyId: 1, ownerId: 1 });
 leadSchema.index({ companyId: 1, source: 1 });
-leadSchema.index({ companyId: 1, email: 1 });
 leadSchema.index({ companyId: 1, deletedAt: 1 });
+leadSchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 leadSchema.index(
   { companyId: 1, email: 1 },

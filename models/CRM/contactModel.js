@@ -7,6 +7,7 @@ const contactSchema = new mongoose.Schema(
     email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, trim: true },
     jobTitle: { type: String, trim: true },
+    number: { type: String, trim: true },
 
     companyId: {
       type: String,
@@ -55,10 +56,10 @@ const contactSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-contactSchema.index({ companyId: 1, email: 1 });
 contactSchema.index({ companyId: 1, crmCompanyId: 1 });
 contactSchema.index({ companyId: 1, status: 1 });
 contactSchema.index({ companyId: 1, deletedAt: 1 });
+contactSchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 contactSchema.index(
   { companyId: 1, email: 1 },
