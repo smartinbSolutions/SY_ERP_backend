@@ -12,6 +12,12 @@ exports.getAllActivities = asyncHandler(async (req, res, next) => {
   res.status(200).json(result);
 });
 
+exports.getActivityStats = asyncHandler(async (req, res) => {
+  const result = await activityService.getActivityStats(req);
+
+  res.status(200).json(result);
+});
+
 // ================= GET ONE =================
 exports.getOneActivity = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;

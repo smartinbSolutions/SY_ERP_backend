@@ -3,6 +3,7 @@ const express = require("express");
 const {
   getAllActivities,
   getOneActivity,
+  getActivityStats,
   createActivity,
   updateActivity,
   deleteActivity,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use(protect);
 
 router.route("/").get(getAllActivities).post(createActivity);
+router.route("/stats").get(getActivityStats);
 
 router
   .route("/:id")

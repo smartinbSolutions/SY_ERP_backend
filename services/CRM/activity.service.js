@@ -5,6 +5,7 @@ const companyModel = require("../../models/CRM/companyModel");
 const opportunityModel = require("../../models/CRM/opportunityModel");
 const dealModel = require("../../models/CRM/dealModel");
 const ApiError = require("../../utils/apiError");
+const mongoose = require("mongoose");
 const { generateCrmNumber } = require("../../utils/crmhelpers");
 const { createNotification } = require("../Notification/notificationService");
 
@@ -47,13 +48,16 @@ const validateRelatedEntity = async (relatedTo, companyId) => {
   return entity;
 };
 
-// ============ GET ALL ============
-exports.getAllActivities = async (req) => {
-  const companyId = req.companyId;
-  const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
-  const skip = (page - 1) * limit;
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const OPEN_STATUSES = ["pending", "in_progress"];
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BUCKETS = ["overdue", "soon", "upcoming", "completed"];
+
+// ----------------------------------------------------
+// Filters shared by the list and the stats
+// ----------------------------------------------------
+const buildMatch = (query, companyId) => {
   const {
     keyword,
     type,
@@ -62,41 +66,173 @@ exports.getAllActivities = async (req) => {
     ownerId,
     relatedToType,
     relatedToId,
-  } = req.query;
+    startDate,
+    endDate,
+  } = query;
 
-  const query = {
-    companyId,
-    deletedAt: null,
-  };
+  const match = { companyId, deletedAt: null };
 
   if (keyword) {
-    query.$or = [
-      { subject: { $regex: keyword, $options: "i" } },
-      { description: { $regex: keyword, $options: "i" } },
-    ];
+    const regex = new RegExp(escapeRegex(keyword.trim()), "i");
+    match.$or = [{ subject: regex }, { description: regex }, { number: regex }];
   }
 
-  if (type) query.type = type;
-  if (status) query.status = status;
-  if (priority) query.priority = priority;
-  if (ownerId) query.ownerId = ownerId;
-  if (relatedToType) query["relatedTo.type"] = relatedToType;
-  if (relatedToId) query["relatedTo.id"] = relatedToId;
+  if (type) match.type = type;
+  if (priority) match.priority = priority;
 
-  const [total, activities] = await Promise.all([
-    activityModel.countDocuments(query),
+  // status: single value or comma list ("pending,in_progress")
+  if (status) {
+    const statuses = String(status)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    activityModel
-      .find(query)
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 })
-      .populate("ownerId", "name email")
-      .populate("tags", "name")
-      .populate("attendees", "name email")
-      .populate({
-        path: "relatedTo.id",
-      }),
+    match.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
+  }
+
+  // aggregate() does not cast strings to ObjectId, so do it here
+  if (ownerId) {
+    if (!mongoose.isValidObjectId(ownerId)) {
+      throw new ApiError("Invalid owner id", 400);
+    }
+    match.ownerId = new mongoose.Types.ObjectId(ownerId);
+  }
+
+  if (relatedToType) match["relatedTo.type"] = relatedToType;
+
+  if (relatedToId) {
+    if (!mongoose.isValidObjectId(relatedToId)) {
+      throw new ApiError("Invalid related id", 400);
+    }
+    match["relatedTo.id"] = new mongoose.Types.ObjectId(relatedToId);
+  }
+
+  // Due date range (inclusive)
+  if (startDate || endDate) {
+    match.dueDate = {};
+
+    if (startDate) {
+      const from = new Date(startDate);
+      if (isNaN(from)) throw new ApiError("Invalid start date", 400);
+      from.setHours(0, 0, 0, 0);
+      match.dueDate.$gte = from;
+    }
+
+    if (endDate) {
+      const to = new Date(endDate);
+      if (isNaN(to)) throw new ApiError("Invalid end date", 400);
+      to.setHours(23, 59, 59, 999);
+      match.dueDate.$lte = to;
+    }
+  }
+
+  return match;
+};
+
+// ----------------------------------------------------
+// Card groups: one definition for the list and the counts
+// ----------------------------------------------------
+const dueBucket = (name, now = new Date()) => {
+  const in24h = new Date(now.getTime() + DAY_MS);
+
+  switch (name) {
+    case "overdue":
+      return { status: { $in: OPEN_STATUSES }, dueDate: { $lt: now } };
+    case "soon":
+      return {
+        status: { $in: OPEN_STATUSES },
+        dueDate: { $gte: now, $lte: in24h },
+      };
+    case "upcoming":
+      return { status: { $in: OPEN_STATUSES }, dueDate: { $gt: in24h } };
+    case "completed":
+      return { status: "completed" };
+    default:
+      return null;
+  }
+};
+
+// ============ GET ALL ============
+exports.getAllActivities = async (req) => {
+  const companyId = req.companyId;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const match = buildMatch(req.query, companyId);
+
+  // card clicked: overdue | soon | upcoming | completed
+  const bucket = dueBucket(req.query.dueFilter);
+  const finalMatch = bucket ? { $and: [match, bucket] } : match;
+
+  // ----------------------------------------------------
+  // Default order:
+  //   rank 0: open + due date   -> due date ascending (overdue first)
+  //   rank 1: open, no due date -> newest first
+  //   rank 2: completed/cancelled -> most recently updated first
+  // Rank 1 and 2 use a negated timestamp so one ascending sort works.
+  // ----------------------------------------------------
+  const pipeline = [
+    { $match: finalMatch },
+    {
+      $addFields: {
+        _isOpen: { $in: ["$status", OPEN_STATUSES] },
+      },
+    },
+    {
+      $addFields: {
+        _rank: {
+          $switch: {
+            branches: [
+              {
+                case: {
+                  $and: [
+                    "$_isOpen",
+                    { $ne: [{ $type: "$dueDate" }, "missing"] },
+                  ],
+                },
+                then: 0,
+              },
+              { case: "$_isOpen", then: 1 },
+            ],
+            default: 2,
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        _sortKey: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$_rank", 0] }, then: { $toLong: "$dueDate" } },
+              {
+                case: { $eq: ["$_rank", 1] },
+                then: { $multiply: [-1, { $toLong: "$createdAt" }] },
+              },
+            ],
+            default: { $multiply: [-1, { $toLong: "$updatedAt" }] },
+          },
+        },
+      },
+    },
+    { $sort: { _rank: 1, _sortKey: 1, _id: 1 } },
+    { $skip: skip },
+    { $limit: limit },
+    { $project: { _isOpen: 0, _rank: 0, _sortKey: 0 } },
+  ];
+
+  const [total, rows] = await Promise.all([
+    activityModel.countDocuments(finalMatch),
+    activityModel.aggregate(pipeline),
+  ]);
+
+  // aggregate returns plain objects; populate them afterwards
+  const activities = await activityModel.populate(rows, [
+    { path: "ownerId", select: "name email" },
+    { path: "tags", select: "name" },
+    { path: "attendees", select: "name email" },
+    { path: "relatedTo.id" },
   ]);
 
   return {
@@ -110,6 +246,38 @@ exports.getAllActivities = async (req) => {
   };
 };
 
+// ============ CARD COUNTS ============
+exports.getActivityStats = async (req) => {
+  const companyId = req.companyId;
+  const now = new Date();
+
+  const base = { companyId, deletedAt: null };
+  const match = buildMatch(req.query, companyId);
+
+  // anything applied beyond companyId + deletedAt?
+  const filtered = Object.keys(match).length > 2;
+
+  const entries = await Promise.all(
+    BUCKETS.map(async (name) => {
+      const bucket = dueBucket(name, now);
+
+      const [total, matching] = await Promise.all([
+        activityModel.countDocuments({ $and: [base, bucket] }),
+        filtered
+          ? activityModel.countDocuments({ $and: [match, bucket] })
+          : Promise.resolve(null),
+      ]);
+
+      return [name, { total, matching: filtered ? matching : total }];
+    }),
+  );
+
+  return {
+    status: "success",
+    filtered,
+    data: Object.fromEntries(entries),
+  };
+};
 // ============ GET ONE ============
 exports.getOneActivity = async (req) => {
   const companyId = req.companyId;

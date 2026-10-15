@@ -84,5 +84,6 @@ activitySchema.index({ companyId: 1, type: 1 });
 activitySchema.index({ companyId: 1, "relatedTo.type": 1, "relatedTo.id": 1 });
 activitySchema.index({ companyId: 1, deletedAt: 1 });
 activitySchema.index({ companyId: 1, number: 1 }, { unique: true });
+activitySchema.index({ companyId: 1, dueDate: 1 });
 
 module.exports = mongoose.model("Activity", activitySchema);

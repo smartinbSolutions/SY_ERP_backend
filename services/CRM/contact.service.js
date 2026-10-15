@@ -63,7 +63,10 @@ exports.getOneContact = async (req) => {
   const contact = await contactModel
     .findOne({ _id: id, companyId, deletedAt: null })
     .populate("tags", "name")
-    .populate("crmCompanyId", "name industry website");
+    .populate(
+      "crmCompanyId",
+      "name industry website phone email  address isActive",
+    );
 
   if (!contact) {
     throw new ApiError(`No contact found with this ID: ${id}`, 404);
