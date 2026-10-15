@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const morgan = require("morgan");
 require("./utils/violationCron");
+require("./utils/activityReminderCron");
 const globalError = require("./middlewares/errorMiddleware");
 const { initSocket } = require("./utils/socket");
 // const cron = require("node-cron");

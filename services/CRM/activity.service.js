@@ -6,6 +6,7 @@ const opportunityModel = require("../../models/CRM/opportunityModel");
 const dealModel = require("../../models/CRM/dealModel");
 const ApiError = require("../../utils/apiError");
 const { generateCrmNumber } = require("../../utils/crmhelpers");
+const { createNotification } = require("../Notification/notificationService");
 
 // ============ VALIDATE RELATED ENTITY ============
 const validateRelatedEntity = async (relatedTo, companyId) => {
@@ -143,7 +144,6 @@ exports.createActivity = async (req) => {
     req.body.relatedTo,
     companyId,
   );
-
   const number = await generateCrmNumber(companyId, "activity");
 
   const payload = {
@@ -153,17 +153,11 @@ exports.createActivity = async (req) => {
     number,
   };
 
-  // Create activity
+  // 1. Create activity
   const activity = await activityModel.create(payload);
 
-  // Lead lifecycle:
-  // new + real communication
-  //        ↓
-  //    contacted
-  //
-  // Only these activities count as real communication:
-  // call / email / meeting
-
+  // 2. Lead lifecycle:
+  // new + real communication -> contacted
   if (
     req.body.relatedTo.type === "Lead" &&
     relatedEntity.status === "new" &&
@@ -174,6 +168,41 @@ exports.createActivity = async (req) => {
     await relatedEntity.save();
 
     console.log("LEAD STATUS UPDATED TO:", relatedEntity.status);
+  }
+
+  // 3. Create a notification for the activity owner
+  try {
+    await createNotification({
+      companyId,
+      recipientId: activity.ownerId,
+      actorId: req.user?._id || req.user?.id || null,
+
+      type: "crm.activity.created",
+
+      title: "New CRM activity assigned to you",
+
+      message: `A new ${activity.type} activity "${activity.subject}" has been assigned to you.`,
+
+      entityType: "Activity",
+      entityId: activity._id,
+
+      metadata: {
+        activityType: activity.type,
+        subject: activity.subject,
+        relatedTo: {
+          type: activity.relatedTo.type,
+          id: activity.relatedTo.id,
+        },
+        dueDate: activity.dueDate || null,
+        priority: activity.priority,
+      },
+    });
+  } catch (error) {
+    // لا نعيد فشل إنشاء النشاط بعد أن تم حفظه بنجاح.
+    console.error(
+      "Failed to create notification for CRM activity:",
+      error.message,
+    );
   }
 
   return activity;

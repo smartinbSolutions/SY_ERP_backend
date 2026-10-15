@@ -1,48 +1,103 @@
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
+
 let io;
 
 function initSocket(server) {
-  const { Server } = require("socket.io");
   io = new Server(server, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"],
+      methods: ["GET", "POST", "PATCH", "DELETE"],
     },
   });
 
+  io.engine.on("connection_error", () => {});
+
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+
+      if (!token) {
+        return next(new Error("Authentication required"));
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+
+      const User = mongoose.model("user");
+
+      const userId = decoded.id || decoded._id || decoded.userId;
+
+      if (!userId) {
+        return next(new Error("Invalid token payload"));
+      }
+
+      const user = await User.findById(userId).select("_id companyId");
+
+      if (!user) {
+        return next(new Error("User not found"));
+      }
+
+      socket.user = user;
+
+      next();
+    } catch (error) {
+      next(new Error("Socket authentication failed"));
+    }
+  });
+
   io.on("connection", (socket) => {
-    console.log(`✅ Client connected: ${socket.id}`);
+    const userId = socket.user?._id?.toString();
+
+    if (userId) {
+      socket.join(`user:${userId}`);
+    }
 
     socket.on("joinSalePoint", (salePointId) => {
+      if (!salePointId) return;
+
       socket.join(salePointId);
-      console.log(
-        `👤 Socket ${socket.id} joined SalePoint room: ${salePointId}`,
-      );
+    });
+
+    socket.on("leaveSalePoint", (salePointId) => {
+      if (!salePointId) return;
+
+      socket.leave(salePointId);
     });
 
     socket.on("joinRoleRoom", (role) => {
-      const roomName = `room:${role}`;
-      socket.join(roomName);
-      console.log(`👤 Socket ${socket.id} joined Role Room: ${roomName}`);
-    });
+      if (!role) return;
 
-    socket.on("disconnect", () => {
-      console.log(`❌ Client disconnected: ${socket.id}`);
+      socket.join(`room:${role}`);
     });
 
     socket.on("joinPayroll", (periodId) => {
-      const room = `payroll:${periodId}`;
-      socket.join(room);
-      console.log(`📊 Joined Payroll Room: ${room}`);
+      if (!periodId) return;
+
+      socket.join(`payroll:${periodId}`);
     });
-    
+
+    socket.on("leavePayroll", (periodId) => {
+      if (!periodId) return;
+
+      socket.leave(`payroll:${periodId}`);
+    });
+
+    socket.on("disconnect", () => {});
   });
 
   return io;
 }
 
 function getIo() {
-  if (!io) throw new Error("Socket.io not initialized!");
+  if (!io) {
+    throw new Error("Socket.io not initialized!");
+  }
+
   return io;
 }
 
-module.exports = { initSocket, getIo };
+module.exports = {
+  initSocket,
+  getIo,
+};
