@@ -48,6 +48,7 @@ const companySettingSchema = new mongoose.Schema(
       opportunity: { type: String, default: "C-OP" },
       activity: { type: String, default: "C-AC" },
       deal: { type: String, default: "C-DA" },
+      reference: { type: String, default: "C-RF" },
     },
     emails: {
       _id: false,

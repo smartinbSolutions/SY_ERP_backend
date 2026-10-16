@@ -10,6 +10,7 @@ const CRM_DEFAULTS = {
   opportunity: { name: "CrmOpportunity", prefix: "C-OP" },
   activity: { name: "CrmActivity", prefix: "C-AC" },
   deal: { name: "CrmDeal", prefix: "C-DA" },
+  reference: { name: "CrmReference", prefix: "C-RF" },
 };
 
 // ----------------------------------------------------

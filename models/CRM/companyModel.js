@@ -12,6 +12,7 @@ const companySchema = new mongoose.Schema(
     industry: { type: String, trim: true },
     website: { type: String, trim: true, lowercase: true },
     phone: { type: String, trim: true },
+    whatsApp: { type: String, trim: true },
     email: { type: String, lowercase: true, trim: true },
     address: {
       street: String,

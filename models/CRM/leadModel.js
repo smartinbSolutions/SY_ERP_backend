@@ -22,6 +22,16 @@ const leadSchema = new mongoose.Schema(
       ],
       default: "other",
     },
+
+    referenceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Reference",
+      default: null,
+      index: true,
+      required: function () {
+        return this.source === "referral";
+      },
+    },
     status: {
       type: String,
       enum: [
@@ -129,6 +139,13 @@ const leadSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+leadSchema.pre("validate", function (next) {
+  if (this.source !== "referral") {
+    this.referenceId = null;
+  }
+  next();
+});
 
 leadSchema.index({ companyId: 1, status: 1 });
 leadSchema.index({ companyId: 1, ownerId: 1 });

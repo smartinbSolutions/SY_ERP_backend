@@ -3,8 +3,14 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const { default: slugify } = require("slugify");
 
+exports.getRegistry = asyncHandler(async (req, res) => {
+  const result = await tagService.getRegistry({ companyId: req.companyId });
+  return res.status(200).json({ status: "success", data: result.data });
+});
+
 exports.getTags = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
+  const { module, scope } = req.query; // NEW
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -12,6 +18,8 @@ exports.getTags = asyncHandler(async (req, res) => {
 
   const result = await tagService.getTags({
     companyId,
+    module, // NEW
+    scope, // NEW
   });
 
   return res.status(200).json({

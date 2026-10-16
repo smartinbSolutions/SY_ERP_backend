@@ -18,6 +18,7 @@ const {
   generateCrmNumber,
   resolveIsPrimary,
 } = require("../../utils/crmhelpers");
+const referenceModel = require("../../models/CRM/referenceModel");
 
 const validateInterestedIn = async (req) => {
   if (!("interestedIn" in req.body)) return;
@@ -38,6 +39,59 @@ const validateInterestedIn = async (req) => {
   }
 
   req.body.interestedIn = ids; // [] clears it
+};
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const resolveReferenceId = async (
+  companyId,
+  source,
+  body,
+  currentId = null,
+) => {
+  if (source !== "referral") return null;
+
+  if (body.referenceId) return body.referenceId;
+
+  // Nothing new was sent: keep the reference the lead already has.
+  if (!body.reference && currentId) return currentId;
+
+  const ref = body.reference || {};
+  const name = ref.name?.trim();
+  if (!name) throw new ApiError("Reference name is required", 400);
+
+  const phone = ref.phone?.trim();
+  const email = ref.email?.trim().toLowerCase();
+
+  // Reuse an existing reference so the same person isn't duplicated.
+  const matchers = [];
+  if (phone) matchers.push({ phone });
+  if (email) matchers.push({ email });
+  if (!matchers.length) {
+    matchers.push({ name: new RegExp(`^${escapeRegex(name)}$`, "i") });
+  }
+
+  const existing = await referenceModel
+    .findOne({ companyId, deletedAt: null, $or: matchers })
+    .select("_id")
+    .lean();
+
+  if (existing) return existing._id;
+
+  const created = await referenceModel.create({
+    companyId,
+    name,
+    type: ["person", "company", "partner"].includes(ref.type)
+      ? ref.type
+      : "person",
+    ...(phone ? { phone } : {}),
+    ...(ref.whatsApp?.trim() ? { whatsApp: ref.whatsApp.trim() } : {}),
+    ...(email ? { email } : {}),
+    ...(ref.notes?.trim() ? { notes: ref.notes.trim() } : {}),
+    number: await generateCrmNumber(companyId, "reference"),
+  });
+
+  return created._id;
 };
 
 // ======================================================
@@ -206,7 +260,8 @@ exports.getOneLead = async (req) => {
       "convertedTo.convertedBy",
       "name email firstName lastName username",
     )
-    .populate("tags", "name");
+    .populate("tags", "name")
+    .populate("referenceId", "name type phone whatsApp email notes number");
 
   if (!lead) {
     throw new ApiError(`No lead found with this ID: ${id}`, 404);
@@ -256,6 +311,11 @@ exports.createLead = async (req) => {
   }
 
   await validateInterestedIn(req);
+  const referenceId = await resolveReferenceId(
+    companyId,
+    req.body.source,
+    req.body,
+  );
   // ----------------------------------------------------
   // Generate lead number
   // ----------------------------------------------------
@@ -273,6 +333,7 @@ exports.createLead = async (req) => {
     ownerId: req.user._id,
     deletedAt: null,
     number,
+    referenceId,
 
     // Every newly created lead starts as NEW.
     // Frontend cannot control this.
@@ -371,6 +432,19 @@ exports.updateLead = async (req) => {
   delete updateData.companyId;
   delete updateData.deletedAt;
   delete updateData.ownerId;
+
+  if ("source" in updateData || "reference" in updateData) {
+    const effectiveSource = updateData.source ?? existingLead.source;
+
+    updateData.referenceId = await resolveReferenceId(
+      companyId,
+      effectiveSource,
+      updateData,
+      existingLead.referenceId,
+    );
+  }
+
+  delete updateData.reference;
 
   // ----------------------------------------------------
   // Status is controlled by the Lead lifecycle

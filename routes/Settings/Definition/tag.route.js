@@ -8,6 +8,7 @@ const {
   updateTag,
   deleteTag,
   setDocTags,
+  getRegistry,
 } = require("../../../controllers/Settings/Definition/tag.controller");
 const tagRout = express.Router();
 
@@ -21,7 +22,7 @@ tagRout
     authService.checkCompanyEditable,
     createTag,
   );
-
+tagRout.get("/registry", authService.allowedTo("definition.read"), getRegistry);
 tagRout
   .route("/:id")
   .get(authService.allowedTo("definition.read"), getTag)

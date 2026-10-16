@@ -15,7 +15,8 @@ const planSchema = new mongoose.Schema(
       inventory: { type: Boolean, default: false },
       hr: { type: Boolean, default: false },
       pos: { type: Boolean, default: false },
-      resturant: { type: Boolean, default: false },
+      crm: { type: Boolean, default: false },
+      restaurant: { type: Boolean, default: false },
       maintenance: { type: Boolean, default: false },
       manufacturing: { type: Boolean, default: false },
     },
@@ -35,7 +36,7 @@ const planSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("companyPlan", planSchema);

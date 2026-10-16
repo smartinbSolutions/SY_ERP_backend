@@ -138,6 +138,7 @@ const crmPiplineRoute = require("./CRM/pipeline.routes");
 const quickReportsRoute = require("./reports/quickReportsRoute");
 const countryRoute = require("./Shared/country.route");
 const notificationRoute = require("./notificationRoute");
+const referenceRoutes = require("./CRM/reference.routes");
 
 const mountRoutes = (app) => {
   //Shared
@@ -224,6 +225,7 @@ const mountRoutes = (app) => {
   app.use("/api/crm/leads", crmLeadRoute);
   app.use("/api/crm/opportunities", crmOpportunityRoute);
   app.use("/api/crm/pipelines", crmPiplineRoute);
+  app.use("/api/crm/references", referenceRoutes);
 
   //Hr
   app.use("/api/staff", staffRout);
@@ -303,7 +305,7 @@ const mountRoutes = (app) => {
   app.use("/api/v1/cash-flow", cashFlowRoute);
   app.use("/api/quickReports", quickReportsRoute);
 
-    app.use("/api/notifications", notificationRoute);
+  app.use("/api/notifications", notificationRoute);
 
   //Manufacturing
   app.use("/api/manufacturing", manufacturingRoute);
