@@ -1,50 +1,69 @@
 const mongoose = require("mongoose");
 
+const COMPANY_STATUSES = ["prospect", "active", "dormant", "blacklisted"];
+
 const companySchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
+    name: { type: String, required: true, trim: true, index: true },
+    number: { type: String, trim: true },
+
+    // Lookups (managed in CRM Lists).
+    classificationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lookup",
+      default: null,
       index: true,
     },
-    number: { type: String, trim: true },
-    industry: { type: String, trim: true },
+    industryIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Lookup" }],
+
+    // Headquarters location.
+    address: { type: String, trim: true },
+    country: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Country",
+      default: null,
+      index: true,
+    },
+
+    // Other working countries.
+    workingCountries: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Country" },
+    ],
+
     website: { type: String, trim: true, lowercase: true },
+    email: { type: String, lowercase: true, trim: true },
     phone: { type: String, trim: true },
     whatsApp: { type: String, trim: true },
-    email: { type: String, lowercase: true, trim: true },
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      country: String,
-    },
-    annualRevenue: { type: Number, min: 0 },
 
-    companyId: {
+    status: {
       type: String,
+      enum: COMPANY_STATUSES,
+      default: "prospect",
+      required: true,
+    },
+
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
       required: true,
       index: true,
-      trim: true,
     },
-    tags: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Tag",
-      },
-    ],
-    customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
+
+    companyId: { type: String, required: true, index: true, trim: true },
+
+    tags: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tag" }],
     notes: { type: String, maxlength: 2000 },
-    isActive: { type: Boolean, default: true },
     deletedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 
 companySchema.index({ companyId: 1, name: 1 });
-companySchema.index({ companyId: 1, isActive: 1 });
+companySchema.index({ companyId: 1, status: 1 });
+companySchema.index({ companyId: 1, ownerId: 1 });
+companySchema.index({ companyId: 1, industryIds: 1 });
 companySchema.index({ companyId: 1, deletedAt: 1 });
 companySchema.index({ companyId: 1, number: 1 }, { unique: true });
 
 module.exports = mongoose.model("Company", companySchema);
+module.exports.COMPANY_STATUSES = COMPANY_STATUSES;

@@ -170,7 +170,7 @@ exports.getAllLeads = async (req) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const { keyword, status, source, ownerId, country } = req.query;
+  const { keyword, status, source, ownerId, country, referenceId } = req.query;
 
   const query = {
     companyId,
@@ -196,6 +196,13 @@ exports.getAllLeads = async (req) => {
   if (ownerId) query.ownerId = ownerId;
   if (country) query.country = country;
 
+  if (referenceId) {
+    if (!mongoose.Types.ObjectId.isValid(referenceId)) {
+      throw new ApiError("Invalid reference ID", 400);
+    }
+    query.referenceId = referenceId;
+  }
+
   const [total, leads] = await Promise.all([
     leadModel.countDocuments(query),
 
@@ -205,7 +212,8 @@ exports.getAllLeads = async (req) => {
       .limit(limit)
       .sort({ createdAt: -1 })
       .populate("ownerId", "name email")
-      .populate("country", "name nameAr nameTr iso2 phoneCode"),
+      .populate("country", "name nameAr nameTr iso2 phoneCode")
+      .populate("referenceId", "name number phone whatsApp"),
   ]);
 
   return {
@@ -578,10 +586,18 @@ exports.convertLead = async (req) => {
 
   const { companyOption, selectedCrmCompanyId, companyData } = req.body;
 
+  if (!["existing", "create", "none"].includes(companyOption)) {
+    throw new ApiError("Invalid company option", 400);
+  }
+
   // Existing company
   if (companyOption === "existing") {
     if (!selectedCrmCompanyId) {
       throw new ApiError("Company ID is required", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(selectedCrmCompanyId)) {
+      throw new ApiError("Invalid company ID", 400);
     }
 
     crmCompany = await companyModel.findOne({
@@ -597,25 +613,40 @@ exports.convertLead = async (req) => {
 
   // Create new company
   if (companyOption === "create") {
-    if (!companyData?.name) {
+    const data = companyData || {};
+    const name = data.name?.trim();
+
+    if (!name) {
       throw new ApiError("Company name is required", 400);
     }
+
+    const duplicate = await companyModel.findOne({
+      companyId,
+      name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      deletedAt: null,
+    });
+
+    if (duplicate) {
+      throw new ApiError("A company with this name already exists", 400);
+    }
+
     const com_number = await generateCrmNumber(companyId, "company");
+
+    // Only whitelisted fields; the lead's owner and country are the defaults.
     crmCompany = await companyModel.create({
-      ...companyData,
+      name,
+      ...(data.website?.trim() ? { website: data.website.trim() } : {}),
+      ...(data.phone?.trim() ? { phone: data.phone.trim() } : {}),
+      ...(data.email?.trim() ? { email: data.email.trim() } : {}),
+      ...(data.country || lead.country
+        ? { country: data.country || lead.country }
+        : {}),
+      ownerId: data.ownerId || lead.ownerId,
+      status: "prospect",
       companyId,
       deletedAt: null,
       number: com_number,
     });
-  }
-
-  // No company
-  if (
-    companyOption !== "existing" &&
-    companyOption !== "create" &&
-    companyOption !== "none"
-  ) {
-    throw new ApiError("Invalid company option", 400);
   }
 
   // ====================================================
@@ -626,10 +657,18 @@ exports.convertLead = async (req) => {
 
   const { contactOption, contactId, contactData } = req.body;
 
+  if (!["existing", "create"].includes(contactOption)) {
+    throw new ApiError("Invalid contact option", 400);
+  }
+
   // Existing contact
   if (contactOption === "existing") {
     if (!contactId) {
       throw new ApiError("Contact ID is required", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(contactId)) {
+      throw new ApiError("Invalid contact ID", 400);
     }
 
     contact = await contactModel.findOne({
@@ -642,13 +681,7 @@ exports.convertLead = async (req) => {
       throw new ApiError("Contact not found", 404);
     }
 
-    // Attach company if empty
-    if (crmCompany && !contact.crmCompanyId) {
-      contact.crmCompanyId = crmCompany._id;
-      await contact.save();
-    }
-
-    // Prevent moving contact
+    // Prevent moving contact (checked before any change is saved)
     if (
       crmCompany &&
       contact.crmCompanyId &&
@@ -656,24 +689,34 @@ exports.convertLead = async (req) => {
     ) {
       throw new ApiError("Contact already belongs to another company", 400);
     }
+
+    // Attach company if empty
+    if (crmCompany && !contact.crmCompanyId) {
+      contact.crmCompanyId = crmCompany._id;
+      await contact.save();
+    }
   }
 
   // Create new contact
   if (contactOption === "create") {
     const data = contactData || {};
+    const fullName = data.fullName?.trim();
+    const email = data.email?.trim().toLowerCase() || undefined;
 
-    if (!data.firstName || !data.lastName || !data.email) {
-      throw new ApiError("First name, last name and email are required", 400);
+    if (!fullName) {
+      throw new ApiError("Full name is required", 400);
     }
 
-    const existingContact = await contactModel.findOne({
-      companyId,
-      email: data.email,
-      deletedAt: null,
-    });
+    if (email) {
+      const existingContact = await contactModel.findOne({
+        companyId,
+        email,
+        deletedAt: null,
+      });
 
-    if (existingContact) {
-      throw new ApiError("A contact with this email already exists", 400);
+      if (existingContact) {
+        throw new ApiError("A contact with this email already exists", 400);
+      }
     }
 
     const crmCompanyId = crmCompany?._id || null;
@@ -681,20 +724,19 @@ exports.convertLead = async (req) => {
     const isPrimary = await resolveIsPrimary(companyId, crmCompanyId, false);
 
     const contact_number = await generateCrmNumber(companyId, "contact");
+
     contact = await contactModel.create({
-      firstName: data.firstName,
+      fullName,
       number: contact_number,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      jobTitle: data.jobTitle,
+      ...(email ? { email } : {}),
+      ...(data.phone?.trim() ? { phone: data.phone.trim() } : {}),
+      ...(data.jobTitle?.trim() ? { jobTitle: data.jobTitle.trim() } : {}),
       companyId,
       isPrimary,
-      crmCompanyId: crmCompany?._id || null,
-      source: data.source || "other",
+      crmCompanyId,
+      assignedTo: data.assignedTo || lead.ownerId,
+      source: data.source || lead.source || "other",
       status: "active",
-      tags: data.tags || [],
-      notes: data.notes,
     });
   }
 
@@ -745,7 +787,7 @@ exports.convertLead = async (req) => {
   // ====================================================
   const opt_number = await generateCrmNumber(companyId, "opportunity");
   const opportunity = await opportunityModel.create({
-    title: req.body.title || `${lead.firstName} ${lead.lastName} Opportunity`,
+    title: req.body.title || `${lead.LeadName} Opportunity`,
     description: req.body.description || lead.notes,
     number: opt_number,
     value: req.body.value ?? lead.bant?.budget?.amount ?? 0,
