@@ -4,6 +4,7 @@ const authService = require("../../../services/authService");
 const {
   uploadFile,
 } = require("../../../services/Accounting/Purchase/PurchaseInvoice_Refund.service");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const {
   findOnePurchaseRefund,
@@ -31,22 +32,6 @@ RefundPurchaseInvoices.post(
 
 /*
 |--------------------------------------------------------------------------
-| Posted Action Routes
-|--------------------------------------------------------------------------
-*/
-// PurchaseInvoices.route("/cancel/:id").put(
-//   authService.checkCompanyEditable,
-//   cancelPurchaseInvoice
-// );
-
-// PurchaseInvoices.route("/update/:id").put(
-//   authService.checkCompanyEditable,
-//   uploadFile,
-//   updatePostedPurchaseInvoice
-// );
-
-/*
-|--------------------------------------------------------------------------
 | Main Collection Routes
 |--------------------------------------------------------------------------
 */
@@ -55,6 +40,7 @@ RefundPurchaseInvoices.route("/")
     authService.allowedTo("purchase.refund.create"),
     authService.checkCompanyEditable,
     uploadFile,
+    loadCounterDigits,
     createRefundPurchaseInvoice,
   )
   .get(authService.allowedTo("purchase.refund.read"), findAllPurchaseRefunds);

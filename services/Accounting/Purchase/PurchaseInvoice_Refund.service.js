@@ -14,6 +14,7 @@ const { createProductMovement } = require("../../../utils/productMovement");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const unTracedproductLogModel = require("../../../models/Stocks/products/unTracedproductLogModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 function padZero(value) {
   return value < 10 ? `0${value}` : value;
@@ -517,8 +518,6 @@ exports.createRefundPurchaseInvoiceRecordService = async ({
     invoiceName,
     paymentInFundCurrency,
     InvoiceDiscountType,
-    subtotalWithDiscount,
-    paymentDate,
     counter,
   } = req.body;
 
@@ -577,7 +576,11 @@ exports.createRefundPurchaseInvoiceRecordService = async ({
         paid: resolvedPaidStatus,
 
         journalCounter: req.body.journalCounter,
-        counter: Number(counter) + nextCounterRefundPurchaseInvoice.seq,
+        counter: buildCounter({
+          base: counter,
+          seq: nextCounterRefundPurchaseInvoice.seq,
+          digits: req.counterDigits,
+        }),
         companyId,
       },
     ],

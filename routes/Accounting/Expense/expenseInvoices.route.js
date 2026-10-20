@@ -12,6 +12,7 @@ const {
 const {
   uploadFile,
 } = require("../../../services/Accounting/Expenses/Expenses.service");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const ExpenseInvoices = express.Router();
 
@@ -24,6 +25,7 @@ ExpenseInvoices.route("/")
   .post(
     authService.allowedTo("expense.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     uploadFile,
     createExpenseInvoice,
   )

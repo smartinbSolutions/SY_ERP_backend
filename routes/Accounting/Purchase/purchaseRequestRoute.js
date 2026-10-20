@@ -5,8 +5,9 @@ const {
   getPurchaseRequestById,
   updatePurchaseRequest,
   archivePurchaseRequest,
-} = require("../services/purchaseRequestServices");
-const authService = require("../services/authService");
+} = require("../../../services/Accounting/Purchase/purchaseRequestServices");
+const authService = require("../../../services/authService");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const purchaseRequestRouter = express.Router();
 purchaseRequestRouter.use(
@@ -20,6 +21,7 @@ purchaseRequestRouter
   .post(
     authService.allowedTo("purchase.request.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createCashPurchaseRequest,
   )
   .get(authService.allowedTo("purchase.request.read"), getAllPurchaseRequest);

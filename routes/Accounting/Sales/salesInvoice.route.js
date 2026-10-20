@@ -11,6 +11,7 @@ const {
   updatePostedSalesInvoice,
   findCustomerSalesInvoices,
 } = require("../../../controllers/Accounting/Sales/SalesInvoice.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const SalesInvoices = express.Router();
 
@@ -22,6 +23,7 @@ SalesInvoices.use(
 SalesInvoices.route("/post/:id").put(
   authService.allowedTo("sales.invoice.post"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   postSalesInvoiceDraft,
 );
 SalesInvoices.route("/draft/:id")
@@ -56,6 +58,7 @@ SalesInvoices.route("/")
   .post(
     authService.allowedTo("sales.invoice.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createSalesInvoice,
   )
   .get(authService.allowedTo("sales.invoice.read"), findAllSalesInvoices);

@@ -6,6 +6,7 @@ const {
   updateQuotation,
   getOneQuotation,
 } = require("../../../controllers/Accounting/Sales/quotation.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const quotationRouter = express.Router();
 
@@ -19,6 +20,7 @@ quotationRouter
   .post(
     authService.allowedTo("sales.quotation.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createQuotation,
   )
   .get(authService.allowedTo("sales.quotation.read"), getAllQuotations);

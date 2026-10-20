@@ -32,6 +32,7 @@ const linkPanelModel = require("../../../models/linkPanelModel");
 const {
   handleSalesPayment,
 } = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -43,19 +44,10 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    let nextCounterPayment = null;
     let nextCounterSalesInvoices = null;
     let nextCounterJournal = null;
 
     if (!invoiceDraft) {
-      if (req.body.havepayments !== "unpaid") {
-        nextCounterPayment = await counterModel.findOneAndUpdate(
-          { companyId, name: "Payment" },
-          { $inc: { seq: 1 } },
-          { new: true, upsert: true, session },
-        );
-      }
-
       nextCounterSalesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Sales Invoice" },
         { $inc: { seq: 1 } },
@@ -78,7 +70,6 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
       invoiceDraft,
       ...prepared,
       companyId,
-      nextCounterPayment,
       nextCounterSalesInvoices,
       session,
     });
@@ -146,7 +137,8 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
           description:
             req.body.paymentDescription || req.body.description || "",
           journalCounter: req.body.journalCounter || "",
-          counter: req.body.counter || "0",
+          counter: req.body.counter,
+          counterDigits: req.counterDigits,
           companyId,
           postedBy: req.user?._id || null,
           postedAt: new Date(),
@@ -247,6 +239,7 @@ exports.createSalesInvoice = asyncHandler(async (req, res, next) => {
           },
           companyId,
           nextCounterJournal,
+          digits: req.counterDigits,
           session,
         });
       }
@@ -522,8 +515,11 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       { new: true, upsert: true, session },
     );
 
-    const baseCounter = Number(req.body.counter || 0);
-    const finalSalesCounter = baseCounter + nextCounterSalesInvoices.seq;
+    const finalSalesCounter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterSalesInvoices.seq,
+      digits: req.counterDigits,
+    });
     const journalLink = Date.now().toString();
 
     salesInvoice.counter = finalSalesCounter;
@@ -559,7 +555,8 @@ exports.postSalesInvoiceDraft = asyncHandler(async (req, res, next) => {
       companyId,
       salesInvoice,
       journalPreview,
-      counterFormat: baseCounter,
+      counterFormat: req.body.counter,
+      digits: req.counterDigits,
       invoiceRefCounter: finalSalesCounter,
       journalLinkCounter: journalLink,
       session,

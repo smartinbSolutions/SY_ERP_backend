@@ -29,6 +29,7 @@ const {
   createJournalEntryService,
 } = require("../JournalEntries/journalEntries.Service");
 const counterModel = require("../../../models/Settings/counterModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 //Fixed Ourchse invoice
 const multerStorage = multer.diskStorage({
@@ -545,8 +546,11 @@ exports.createPurchaseInvoiceRecordService = async ({
   };
 
   if (!invoiceDraft) {
-    invoicePayload.counter =
-      Number(req.body.counter || 0) + nextCounterPurchaseInvoices.seq;
+    invoicePayload.counter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterPurchaseInvoices.seq,
+      digits: req.counterDigits,
+    });
   }
 
   if (invoiceDraft) {
@@ -602,7 +606,6 @@ exports.upsertPurchaseInvoiceRecordService = async ({
   req,
   existingInvoice = null,
   invoiceDraft,
-  supplier,
   invoicesItem,
   supllierObject,
   currency,
@@ -610,7 +613,6 @@ exports.upsertPurchaseInvoiceRecordService = async ({
   tag,
   formattedDate,
   companyId,
-  nextCounterPayment,
   draftJournalSnapshot,
   nextCounterPurchaseInvoices,
   session,
@@ -628,7 +630,6 @@ exports.upsertPurchaseInvoiceRecordService = async ({
     invoiceGrandTotal,
     invoiceName,
     invoiceTax,
-    paymentInFundCurrency,
     invoiceNumber,
     journalCounter,
     paymentDate,
@@ -671,8 +672,11 @@ exports.upsertPurchaseInvoiceRecordService = async ({
   };
 
   if (mode === "create" && !invoiceDraft) {
-    invoicePayload.counter =
-      Number(req.body.counter || 0) + nextCounterPurchaseInvoices.seq;
+    invoicePayload.counter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterPurchaseInvoices.seq,
+      digits: req.counterDigits,
+    });
     invoicePayload.postedBy = req.user._id;
     invoicePayload.postedAt = new Date();
   }
@@ -1329,6 +1333,7 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
   purchaseInvoice,
   journalPreview,
   counterFormat,
+  digits,
   invoiceRefCounter,
   journalLinkCounter,
   session,
@@ -1388,6 +1393,7 @@ exports.debugAndCreatePurchaseDraftJournalService = async ({
     },
     companyId,
     nextCounterJournal,
+    digits,
     session,
   });
 

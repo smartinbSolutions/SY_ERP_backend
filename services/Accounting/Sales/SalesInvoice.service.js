@@ -22,6 +22,7 @@ const { getNextCounterValue } = require("../../../utils/getNextCounterValue");
 const paymentsModel = require("../../../models/Accounting/CurrentAssets/payments.model");
 const counterModel = require("../../../models/Settings/counterModel");
 const unTracedproductLogModel = require("../../../models/Stocks/products/unTracedproductLogModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 const resolveInvoiceDate = (existingDate, incomingDate) => {
   if (!incomingDate) return existingDate;
@@ -172,7 +173,6 @@ exports.prepareSalesInvoiceDataFromDraftService = async ({
 exports.createSalesInvoiceRecordService = async ({
   req,
   invoiceDraft,
-  customer,
   invoicesItem,
   customerObject,
   currency,
@@ -180,13 +180,11 @@ exports.createSalesInvoiceRecordService = async ({
   tag,
   formattedDate,
   companyId,
-  nextCounterPayment,
   draftJournalSnapshot,
   nextCounterSalesInvoices,
   session,
 }) => {
   const {
-    paymentsStatus,
     currencyExchangeRate,
     totalInMainCurrency,
     invoiceSubTotal,
@@ -198,7 +196,6 @@ exports.createSalesInvoiceRecordService = async ({
     invoiceGrandTotal,
     invoiceName,
     invoiceTax,
-    paymentInFundCurrency,
     invoiceNumber,
     journalCounter,
     paymentDate,
@@ -265,8 +262,11 @@ exports.createSalesInvoiceRecordService = async ({
   };
 
   if (!invoiceDraft) {
-    invoicePayload.counter =
-      Number(req.body.counter || 0) + nextCounterSalesInvoices.seq;
+    invoicePayload.counter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterSalesInvoices.seq,
+      digits: req.counterDigits,
+    });
   }
 
   if (invoiceDraft) {
@@ -579,6 +579,7 @@ exports.debugAndCreateSalesDraftJournalService = async ({
   salesInvoice,
   journalPreview,
   counterFormat,
+  digits,
   invoiceRefCounter,
   journalLinkCounter,
   session,
@@ -638,6 +639,7 @@ exports.debugAndCreateSalesDraftJournalService = async ({
     },
     companyId,
     nextCounterJournal,
+    digits,
     session,
   });
 
@@ -1286,8 +1288,11 @@ exports.upsertSalesInvoiceRecordService = async ({
   };
 
   if (mode === "create" && !invoiceDraft) {
-    invoicePayload.counter =
-      Number(req.body.counter || 0) + nextCounterSalesInvoices.seq;
+    invoicePayload.counter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterSalesInvoices.seq,
+      digits: req.counterDigits,
+    });
 
     invoicePayload.postedBy = req.user._id;
     invoicePayload.postedAt = new Date();

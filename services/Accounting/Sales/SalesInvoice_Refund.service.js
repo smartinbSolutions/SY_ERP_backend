@@ -12,6 +12,7 @@ const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const unTracedproductLogModel = require("../../../models/Stocks/products/unTracedproductLogModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 exports.findAllSalesRefundsService = async ({ req, companyId }) => {
   const filters = req.query?.filters ? JSON.parse(req.query?.filters) : {};
@@ -204,20 +205,15 @@ exports.prepareRefundSalesInvoiceDataService = async ({
 
 exports.createRefundSalesInvoiceRecordService = async ({
   req,
-  customer,
   invoicesItem,
   customerObject,
   currency,
   taxSummary,
   tag,
-  formattedDate,
   companyId,
-  nextCounterPayment,
   //   draftJournalSnapshot,
   nextCounterRefundSalesInvoices,
   session,
-  id,
-  salesInvoice,
 }) => {
   const {
     paymentsStatus,
@@ -237,37 +233,11 @@ exports.createRefundSalesInvoiceRecordService = async ({
     journalCounter,
     paymentDate,
     description,
-    totalRemainder,
-    totalRemainderMainCurrency,
     updateDate,
   } = req.body;
 
-  // if (req.body.financailFund) {
-  //   parsedFinancialFund =
-  //     typeof req.body.financailFund === "string"
-  //       ? JSON.parse(req.body.financailFund)
-  //       : req.body.financailFund;
-  // }
-
   const invoiceTotalMain = Number(totalInMainCurrency || 0);
   const invoiceTotalInvoice = Number(invoiceGrandTotal || 0);
-  // if (paymentsStatus === "paid") {
-  //   const paidAmountMain = Number(req.body.paymentInMainCurrency || 0);
-  //   const invoiceTotalMain = Number(totalInMainCurrency || 0);
-
-  //   const actualPaidMain = Math.min(paidAmountMain, invoiceTotalMain);
-  //   const isFullyPaid = actualPaidMain >= invoiceTotalMain - 0.000001;
-  //   resolvedPaidStatus = isFullyPaid ? "paid" : "unpaid";
-  //   financialFund = await financialFundsModel
-  //     .findOne({ _id: parsedFinancialFund?.id, companyId })
-  //     .session(session);
-
-  //   if (!financialFund) {
-  //     throw new ApiError("Financial fund not found", 404);
-  //   }
-
-  //   financialFund.fundBalance += Number(paymentInFundCurrency || 0);
-  // }
 
   const resolvedPaidStatus = "unpaid";
   const resolvedRemainderMain = invoiceTotalMain;
@@ -303,8 +273,11 @@ exports.createRefundSalesInvoiceRecordService = async ({
     totalRemainderMainCurrency: resolvedRemainderMain,
   };
 
-  invoicePayload.counter =
-    Number(req.body.counter || 0) + nextCounterRefundSalesInvoices.seq;
+  invoicePayload.counter = buildCounter({
+    base: req.body.counter,
+    seq: nextCounterRefundSalesInvoices.seq,
+    digits: req.counterDigits,
+  });
 
   if (paymentsStatus === "paid") {
     // invoicePayload.financailFund = parsedFinancialFund;
@@ -320,127 +293,6 @@ exports.createRefundSalesInvoiceRecordService = async ({
 
   const newRefundSalesInvoice = createdInvoice[0];
 
-  // if (paymentsStatus === "paid") {
-  //   const payment = await paymentModel.create(
-  //     [
-  //       {
-  //         source: {
-  //           id: financialFund._id,
-  //           name: financialFund.fundName,
-  //         },
-  //         destination: {
-  //           id: customerObject.id,
-  //           name: customerObject.name,
-  //         },
-  //         sourceType: "sales",
-  //         destinationType: "fund",
-  //         totalInPaymentCurrency: req.body.paymentInInvoiceCurrency,
-  //         totalMainCurrency: req.body.paymentInMainCurrency,
-  //         paymentInDestinationCurrency: req.body.paymentInFundCurrency,
-  //         paymentCurrency: {
-  //           id: currency?.id,
-  //           name: currency?.name,
-  //           code: currency?.currencyCode,
-  //           exchangeRate: currency?.exchangeRate,
-  //         },
-  //         destinationExchangeRate: financialFund?.fundCurrency?.exchangeRate,
-  //         destinationCurrencyCode: parsedFinancialFund?.code,
-  //         type: "refund sales",
-  //         paymentType: "Deposit",
-  //         description: req.body.paymentDescription,
-  //         date: req.body.paymentDate || formattedDate,
-  //         counter: Number(req.body.counter || 0) + nextCounterPayment.seq,
-  //         companyId,
-  //         payid: [
-  //           {
-  //             id: newRefundSalesInvoice._id,
-  //             status: req.body.paid,
-  //             invoiceTotal: req.body.invoiceGrandTotal,
-  //             invoiceName: req.body.invoiceName,
-  //             invoiceCurrencyCode: currency?.currencyCode,
-  //             paymentInFundCurrency: paymentInFundCurrency,
-  //             paymentMainCurrency: req.body.paymentInMainCurrency,
-  //             paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-  //           },
-  //         ],
-  //       },
-  //     ],
-  //     { session },
-  //   );
-
-  //   await createPaymentHistoryV2({
-  //     companyId,
-  //     entryType: "payment",
-  //     transactionDate: req.body.paymentDate || formattedDate,
-  //     amountTransactionCurrency: paymentInFundCurrency,
-  //     amountMainCurrency:
-  //       paymentInFundCurrency /
-  //       (newRefundSalesInvoice.financailFund[0]?.exchangeRate || 1),
-  //     customerId: customerObject.id,
-  //     referenceId: newRefundSalesInvoice._id,
-  //     sourceModule: "sales",
-  //     actionType: "create",
-  //     balanceEffectType: "Deposit",
-  //     description: req.body.description,
-  //     transactionCurrency: newRefundSalesInvoice.financailFund[0]?.currency,
-  //     session,
-  //   });
-  //   const reports = await reportsFinancialFunds.create(
-  //     [
-  //       {
-  //         date: req.body.paymentDate || formattedDate,
-  //         ref: newRefundSalesInvoice._id,
-  //         amount: paymentInFundCurrency,
-  //         type: "sales",
-  //         exchangeRate,
-  //         financialFundId: parsedFinancialFund?.id,
-  //         financialFundRest: financialFund.fundBalance,
-  //         paymentType: "Deposit",
-  //         payment: payment[0]._id,
-  //         description: req.body.paymentDescription,
-  //         companyId,
-  //       },
-  //     ],
-  //     { session },
-  //   );
-
-  //   newRefundSalesInvoice.payments.push({
-  //     payment: paymentInFundCurrency,
-  //     paymentMainCurrency: req.body.paymentInMainCurrency,
-  //     financialFunds: financialFund.fundName,
-  //     financialFundsCurrencyCode: parsedFinancialFund?.code,
-  //     date: req.body.paymentDate || formattedDate,
-  //     paymentID: payment[0]._id,
-  //     paymentInInvoiceCurrency: req.body.paymentInInvoiceCurrency,
-  //     financialFundsId: parsedFinancialFund?.id,
-  //   });
-
-  //   newRefundSalesInvoice.reportsBalanceId = reports[0]._id;
-
-  //   await createInvoiceHistory(
-  //     companyId,
-  //     newRefundSalesInvoice._id,
-  //     "create",
-  //     req.user._id,
-  //     req.body.date || formattedDate,
-  //     "Refund Sales invoice created",
-  //     "Sales",
-  //     session,
-  //   );
-
-  //   if (paymentsStatus === "paid") {
-  //     await createInvoiceHistory(
-  //       companyId,
-  //       newRefundSalesInvoice._id,
-  //       "payment",
-  //       req.user._id,
-  //       req.body.paymentDate || formattedDate,
-  //       "Invoice payment recorded",
-  //       "sales",
-  //       session,
-  //     );
-  //   }
-  // }
   return newRefundSalesInvoice;
 };
 

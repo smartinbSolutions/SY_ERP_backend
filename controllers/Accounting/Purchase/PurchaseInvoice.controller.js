@@ -36,6 +36,7 @@ const {
   createJournalEntryService,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 const linkPanelModel = require("../../../models/linkPanelModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 /*
 |--------------------------------------------------------------------------
@@ -118,19 +119,10 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    let nextCounterPayment = null;
     let nextCounterPurchaseInvoices = null;
     let nextCounterJournal = null;
 
     if (!invoiceDraft) {
-      if (req.body.paid !== "unpaid") {
-        nextCounterPayment = await counterModel.findOneAndUpdate(
-          { companyId, name: "Payment" },
-          { $inc: { seq: 1 } },
-          { new: true, upsert: true, session },
-        );
-      }
-
       nextCounterPurchaseInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Purchase Invoice" },
         { $inc: { seq: 1 } },
@@ -155,11 +147,10 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
       invoiceDraft,
       ...prepared,
       companyId,
-      nextCounterPayment,
       nextCounterPurchaseInvoices,
       session,
     });
-
+    console.log(req.body);
     if (!invoiceDraft) {
       // ── Inventory effects ──────────────────────────────────────
       await applyPurchaseInventoryEffectsService({
@@ -221,7 +212,8 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           date: req.body.paymentDate || req.body.date,
           description: req.body.description || "",
           journalCounter: req.body.journalCounter || "",
-          counter: req.body.counter || "0",
+          counter: req.body.counter,
+          counterDigits: req.counterDigits,
           companyId,
           postedBy: req.user?._id || null,
           postedAt: new Date(),
@@ -317,6 +309,7 @@ exports.createPurchaseInvoice = asyncHandler(async (req, res, next) => {
           },
           companyId,
           nextCounterJournal,
+          digits: req.counterDigits,
           session,
         });
       }
@@ -722,8 +715,12 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
       { new: true, upsert: true, session },
     );
 
-    const baseCounter = Number(req.body.counter || 0);
-    const finalPurchaseCounter = baseCounter + nextCounterPurchaseInvoices.seq;
+    const finalPurchaseCounter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterPurchaseInvoices.seq,
+      digits: req.counterDigits,
+    });
+
     const journalLink = Date.now().toString();
 
     purchaseInvoice.counter = finalPurchaseCounter;
@@ -760,7 +757,8 @@ exports.postPurchaseInvoiceDraft = asyncHandler(async (req, res, next) => {
       companyId,
       purchaseInvoice,
       journalPreview,
-      counterFormat: baseCounter,
+      counterFormat: req.body.counter,
+      digits: req.counterDigits,
       invoiceRefCounter: finalPurchaseCounter,
       journalLinkCounter: journalLink,
       session,

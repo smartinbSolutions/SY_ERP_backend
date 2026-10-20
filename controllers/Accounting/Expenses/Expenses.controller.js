@@ -28,6 +28,7 @@ const {
   createJournalEntryService,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 const linkPanelModel = require("../../../models/linkPanelModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -81,16 +82,10 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
   try {
     session.startTransaction();
 
-    let nextCounterPayment = null;
     let nextCounterExpensesInvoices = null;
     let nextCounterJournal = null;
 
     if (!invoiceDraft) {
-      nextCounterPayment = await counterModel.findOneAndUpdate(
-        { companyId, name: "Payment" },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true, session },
-      );
       nextCounterExpensesInvoices = await counterModel.findOneAndUpdate(
         { companyId, name: "Expenses" },
         { $inc: { seq: 1 } },
@@ -115,7 +110,6 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
       invoiceDraft,
       ...prepared,
       companyId,
-      nextCounterPayment,
       nextCounterExpensesInvoices,
       session,
     });
@@ -175,7 +169,8 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           date: req.body.paymentDate || req.body.date,
           description: req.body.paymentDescription || "",
           journalCounter: req.body.journalCounter || "",
-          counter: req.body.counter || "0",
+          counter: req.body.counter,
+          counterDigits: req.counterDigits,
           companyId,
           postedBy: req.user?._id || null,
           postedAt: new Date(),
@@ -277,6 +272,7 @@ exports.createExpenseInvoice = asyncHandler(async (req, res, next) => {
           },
           companyId,
           nextCounterJournal,
+          digits: req.counterDigits,
           session, // ← same transaction
         });
       }

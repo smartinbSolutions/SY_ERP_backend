@@ -1,6 +1,7 @@
 const quotationsModel = require("../../../models/Accounting/Sales/quotations.model");
 const counterModel = require("../../../models/Settings/counterModel");
 const ApiError = require("../../../utils/apiError");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 exports.getAllQuotationsService = async ({ companyId, req }) => {
   const filters = req.query?.filters ? JSON.parse(req.query.filters) : {};
@@ -89,7 +90,7 @@ exports.updateQuotationService = async ({ id, companyId, req, session }) => {
     {
       new: true,
       session,
-    }
+    },
   );
 
   if (!quotation) {
@@ -104,9 +105,13 @@ exports.createQuotationService = async ({ session, companyId, req }) => {
   const nextCounter = await counterModel.findOneAndUpdate(
     { companyId, name: "Quotation" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true, session },
   );
-  req.body.counter = Number(req.body.counter) + nextCounter.seq;
+  req.body.counter = buildCounter({
+    base: req.body.counter,
+    seq: nextCounter.seq,
+    digits: req.counterDigits,
+  });
   req.body.companyId = companyId;
   const quotation = await quotationsModel.create([req.body], { session });
 

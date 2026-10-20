@@ -17,6 +17,7 @@ const {
   createJournalEntryService,
 } = require("../JournalEntries/journalEntries.Service");
 const counterModel = require("../../../models/Settings/counterModel");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 const multerStorage = multer.diskStorage({
   destination: function (req, file, callback) {
@@ -151,7 +152,6 @@ exports.createExpensesInvoiceRecordService = async ({
   tag,
   formattedDate,
   companyId,
-  nextCounterPayment,
   draftJournalSnapshot,
   nextCounterExpensesInvoices,
   session,
@@ -230,8 +230,11 @@ exports.createExpensesInvoiceRecordService = async ({
   };
 
   if (!invoiceDraft) {
-    invoicePayload.counter =
-      Number(req.body.counter || 0) + nextCounterExpensesInvoices.seq;
+    invoicePayload.counter = buildCounter({
+      base: req.body.counter,
+      seq: nextCounterExpensesInvoices.seq,
+      digits: req.counterDigits,
+    });
 
     // always set dueDate for posted invoices
     invoicePayload.dueDate = paymentTransactionDate;

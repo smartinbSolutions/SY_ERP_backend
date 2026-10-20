@@ -5,6 +5,7 @@ const {
   findOneSalesRefund,
   findAllSalesRefunds,
 } = require("../../../controllers/Accounting/Sales/SalesInvoice_Refund.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const RefundSalesInvoices = express.Router();
 
@@ -17,6 +18,7 @@ RefundSalesInvoices.route("/")
   .post(
     authService.allowedTo("sales.refund.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createRefundSalesInvoice,
   )
   .get(authService.allowedTo("sales.refund.read"), findAllSalesRefunds);

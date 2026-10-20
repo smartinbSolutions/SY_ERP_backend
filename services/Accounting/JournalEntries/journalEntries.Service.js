@@ -15,6 +15,7 @@ const financialFundsModel = require("../../../models/Accounting/CurrentAssets/fi
 const reportsFinancialFunds = require("../../../models/Accounting/CurrentAssets/reportsFinancialFunds");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
 const ApiError = require("../../../utils/apiError");
+const { buildCounter } = require("../../../utils/buildCounter");
 
 const validateJournalData = ({ journalAccounts, journalDate, journalMeta }) => {
   if (!journalDate) {
@@ -106,6 +107,7 @@ exports.createJournalEntryService = async ({
   data, // ← provided by internal controller calls
   companyId,
   nextCounterJournal,
+  digits,
   session,
 }) => {
   // ── Resolve source ─────────────────────────────────────────────
@@ -136,7 +138,11 @@ exports.createJournalEntryService = async ({
       : body.journalAccounts || [];
 
   // ── Counter ────────────────────────────────────────────────────
-  const counter = Number(body.counter || 0) + nextCounterJournal.seq;
+  const counter = buildCounter({
+    base: body.counter,
+    seq: nextCounterJournal.seq,
+    digits: digits ?? req?.counterDigits,
+  });
 
   // ── Validate ───────────────────────────────────────────────────
   validateJournalData({

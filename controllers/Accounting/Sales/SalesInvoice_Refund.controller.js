@@ -10,16 +10,13 @@ const {
   applyRefundSalesCustomerEffectsService,
   applySalesReturnCartItemEditService,
 } = require("../../../services/Accounting/Sales/SalesInvoice_Refund.service");
-const {
-  createSalesInvoiceRecordService,
-} = require("../../../services/Accounting/Sales/SalesInvoice.service");
+
 const orderModel = require("../../../models/Accounting/Sales/orderModel");
 const ApiError = require("../../../utils/apiError");
 const {
   createJournalEntryService,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 const {
-  handleSalesPayment,
   handleRefundSalesPayment,
 } = require("../../../services/Accounting/CurrentAssets/Payments/Payment.handlers");
 
@@ -95,14 +92,8 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
       now.getMinutes(),
     )}:${padZero(now.getSeconds())}.${padMs(now.getMilliseconds())}Z`;
 
-    let nextCounterPayment = null;
     let nextCounterRefundSalesInvoices = null;
     let nextCounterJournal = null;
-    nextCounterPayment = await counterModel.findOneAndUpdate(
-      { companyId, name: "Payment" },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true, session },
-    );
 
     nextCounterRefundSalesInvoices = await counterModel.findOneAndUpdate(
       { companyId, name: "Refund Sales Invoice" },
@@ -125,7 +116,6 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
       req,
       ...prepared,
       companyId,
-      nextCounterPayment,
       nextCounterRefundSalesInvoices,
       session,
       salesInvoice,
@@ -192,7 +182,8 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
         date: req.body.paymentDate || req.body.date || updateDate,
         description: req.body.paymentDescription || req.body.description || "",
         journalCounter: req.body.journalCounter || "",
-        counter: req.body.counter || "0",
+        counter: req.body.counter,
+        counterDigits: req.counterDigits,
         companyId,
         postedBy: req.user?._id || null,
         postedAt: new Date(),
@@ -287,6 +278,7 @@ exports.createRefundSalesInvoice = asyncHandler(async (req, res, next) => {
         },
         companyId,
         nextCounterJournal,
+        digits: req.counterDigits,
         session,
       });
     }

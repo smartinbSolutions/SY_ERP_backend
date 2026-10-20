@@ -1,9 +1,11 @@
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
-const purchaseRequestModel = require("../models/Accounting/Purchase/purchaseRequestModel");
-const ApiError = require("../utils/apiError");
-const { createInvoiceHistory } = require("./invoiceHistoryService");
-const invoiceHistoryModel = require("../models/invoiceHistoryModel");
+const purchaseRequestModel = require("../../../models/Accounting/Purchase/purchaseRequestModel");
+const ApiError = require("../../../utils/apiError");
+const { createInvoiceHistory } = require("../../invoiceHistoryService");
+const invoiceHistoryModel = require("../../../models/invoiceHistoryModel");
+const { buildCounter } = require("../../../utils/buildCounter");
+const counterModel = require("../../../models/Settings/counterModel");
 
 exports.getAllPurchaseRequest = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -157,9 +159,16 @@ exports.createCashPurchaseRequest = asyncHandler(async (req, res, next) => {
     return next(new ApiError("The cart is empty", 400));
   }
 
-  const nextCounter =
-    (await purchaseRequestModel.countDocuments({ companyId })) + 1;
-  req.body.counter = Number(req.body.counter) + nextCounter;
+  const nextCounter = await counterModel.findOneAndUpdate(
+    { companyId, name: "Purchase Request" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
+  req.body.counter = buildCounter({
+    base: req.body.counter,
+    seq: nextCounter.seq,
+    digits: req.counterDigits,
+  });
   req.body.admin = req.user.name;
 
   const purchaseRequest = await purchaseRequestModel.create(req.body);

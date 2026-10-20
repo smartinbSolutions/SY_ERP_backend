@@ -25,6 +25,7 @@ const counterModel = require("../../../../models/Settings/counterModel");
 const { resolvePaymentAmounts, computeFxDiff } = require("./Payment.helpers");
 const refund_salesModel = require("../../../../models/Accounting/Sales/refund_sales.model");
 const { isAccountLinked } = require("../../../../utils/linkedAccounts");
+const { buildCounter } = require("../../../../utils/buildCounter");
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED HELPER — reused by both handlers
@@ -924,13 +925,14 @@ const handlePurchasePayment = async (
       description,
       journalCounter,
       counter,
+      counterDigits,
       companyId,
       postedBy,
       postedAt,
       journalAccounts,
       invoiceId,
     } = normalizedPayment;
-
+    console.log(fund);
     if (!fund?.id) throw new Error("Fund id is required");
     if (!party?.id || !party?.type) throw new Error("Party is required");
     if (!["customer", "supplier"].includes(party.type))
@@ -970,13 +972,6 @@ const handlePurchasePayment = async (
     );
 
     // ── Resolve payment amounts ───────────────────────────────────
-    // Caps amounts, calculates appliedDocumentCurrency + fxDiff
-    // Trusts frontend amountInvoiceCurrency for cross-currency (real-time rate)
-    console.log("fund", fund);
-    console.log("payment", payment);
-    console.log("invoiceRemainderMain", invoiceRemainderMain);
-    console.log("invoiceRemainderForeign", invoiceRemainderForeign);
-    console.log("invoiceRate", invoiceRate);
 
     const {
       isSameCurrency,
@@ -996,41 +991,6 @@ const handlePurchasePayment = async (
       invoiceCurrencyCode: purchase?.currency?.currencyCode,
     });
 
-    console.log("========================================");
-    console.log(
-      `   ${
-        paymentNature === "outgoing"
-          ? "PURCHASE PAYMENT"
-          : "PURCHASE REFUND RECEIPT"
-      }`,
-    );
-    console.log("========================================");
-    console.log(
-      `   Invoice:       ${purchase.invoiceName} (${purchase.counter})`,
-    );
-    console.log(`   Currency:      ${purchase?.currency?.currencyCode}`);
-    console.log(`   Invoice Rate:  ${invoiceRate}`);
-    console.log(
-      `   Fund:          ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
-    );
-    console.log(`   Same Currency: ${isSameCurrency ? "YES" : "NO"}`);
-    console.log(
-      `   Fund Amt:      ${paymentAmountFund.toFixed(4)} ${fund.currencyCode}`,
-    );
-    console.log(`   Main Amt:      ${paymentAmountMain.toFixed(4)}`);
-    console.log(
-      `   Invoice Amt:   ${appliedDocumentCurrency.toFixed(4)} ${
-        purchase?.currency?.currencyCode
-      }`,
-    );
-    console.log(
-      `   FX Diff:       ${fxDiff.toFixed(6)} ${
-        fxDiff > 0.001 ? "⚠️ LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-      }`,
-    );
-    console.log(`   Will Be Paid:  ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
-    console.log("========================================\n");
-
     // ── Create payment doc ───────────────────────────────────────
     const paymentSeq = await getNextCounterValue({
       companyId,
@@ -1040,7 +1000,11 @@ const handlePurchasePayment = async (
 
     const paymentPayload = {
       companyId,
-      counter: Number(counter || 0) + Number(paymentSeq),
+      counter: buildCounter({
+        base: counter,
+        seq: paymentSeq,
+        digits: counterDigits,
+      }),
       party: { id: party.id, name: party.name, type: party.type },
       fund: {
         id: fund.id,
@@ -1212,6 +1176,7 @@ const handlePurchaseRefundPayment = async (
       description,
       journalCounter,
       counter,
+      counterDigits,
       companyId,
       postedBy,
       postedAt,
@@ -1247,9 +1212,7 @@ const handlePurchaseRefundPayment = async (
     if (!supplier) throw new Error("Supplier not found");
 
     // ── Invoice amounts ──────────────────────────────────────────
-    console.log("sss", purchaseRefund.totalRemainderMainCurrency);
-    console.log("sss", purchaseRefund.totalRemainder);
-    console.log("sss", purchaseRefund.exchangeRate);
+
     const invoiceRemainderMain = Number(
       purchaseRefund.totalRemainderMainCurrency || 0,
     );
@@ -1261,14 +1224,7 @@ const handlePurchaseRefundPayment = async (
     );
 
     // ── Resolve payment amounts ───────────────────────────────────
-    // Caps amounts, calculates appliedDocumentCurrency + fxDiff
-    // Trusts frontend amountInvoiceCurrency for cross-currency (real-time rate)
-    console.log("fund", fund);
-    console.log("payment", payment);
-    console.log("invoiceRemainderMain", invoiceRemainderMain);
-    console.log("invoiceRemainderForeign", invoiceRemainderForeign);
-    console.log("invoiceRate", invoiceRate);
-    console.log("invoiceCurrencyCode", purchaseRefund?.currency?.currencyCode);
+
     const {
       isSameCurrency,
       paymentRate,
@@ -1287,41 +1243,6 @@ const handlePurchaseRefundPayment = async (
       invoiceCurrencyCode: purchaseRefund?.currency?.currencyCode,
     });
 
-    console.log("========================================");
-    console.log(
-      `   ${
-        paymentNature === "outgoing"
-          ? "PURCHASE PAYMENT"
-          : "PURCHASE REFUND RECEIPT"
-      }`,
-    );
-    console.log("========================================");
-    console.log(
-      `   Invoice:       ${purchaseRefund.invoiceName} (${purchaseRefund.counter})`,
-    );
-    console.log(`   Currency:      ${purchaseRefund?.currency?.currencyCode}`);
-    console.log(`   Invoice Rate:  ${invoiceRate}`);
-    console.log(
-      `   Fund:          ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
-    );
-    console.log(`   Same Currency: ${isSameCurrency ? "YES" : "NO"}`);
-    console.log(
-      `   Fund Amt:      ${paymentAmountFund.toFixed(4)} ${fund.currencyCode}`,
-    );
-    console.log(`   Main Amt:      ${paymentAmountMain.toFixed(4)}`);
-    console.log(
-      `   Invoice Amt:   ${appliedDocumentCurrency.toFixed(4)} ${
-        purchaseRefund?.currency?.currencyCode
-      }`,
-    );
-    console.log(
-      `   FX Diff:       ${fxDiff.toFixed(6)} ${
-        fxDiff > 0.001 ? "⚠️ LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-      }`,
-    );
-    console.log(`   Will Be Paid:  ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
-    console.log("========================================\n");
-
     // ── Create payment doc ───────────────────────────────────────
     const paymentSeq = await getNextCounterValue({
       companyId,
@@ -1331,7 +1252,11 @@ const handlePurchaseRefundPayment = async (
 
     const paymentPayload = {
       companyId,
-      counter: Number(counter || 0) + Number(paymentSeq),
+      counter: buildCounter({
+        base: counter,
+        seq: paymentSeq,
+        digits: counterDigits,
+      }),
       party: { id: party.id, name: party.name, type: party.type },
       fund: {
         id: fund.id,
@@ -1503,6 +1428,7 @@ const handleExpensePayment = async (
       description,
       journalCounter,
       counter,
+      counterDigits,
       companyId,
       postedBy,
       postedAt,
@@ -1570,35 +1496,6 @@ const handleExpensePayment = async (
     // gain/loss. effectiveFxDiff is what everything downstream uses.
     const effectiveFxDiff = isCash ? 0 : fxDiff;
 
-    console.log("========================================");
-    console.log("   EXPENSE PAYMENT");
-    console.log("========================================");
-    console.log(
-      `   Expense:          ${expense.expenseName} (${expense.counter})`,
-    );
-    console.log(`   Currency:         ${expense?.currency?.currencyCode}`);
-    console.log(`   Invoice Rate:     ${invoiceRate}`);
-    console.log(
-      `   Fund:             ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
-    );
-    console.log(`   isCash:           ${isCash ? "YES" : "NO"}`);
-    console.log(`   Same Currency:    ${isSameCurrency ? "YES" : "NO"}`);
-    console.log(`   Payment (USD):    ${paymentAmountMain.toFixed(6)}`);
-    console.log(
-      `   FX Diff (raw):    ${fxDiff.toFixed(6)} ${
-        fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-      }`,
-    );
-    console.log(
-      `   FX Diff (used):   ${effectiveFxDiff.toFixed(6)}${
-        isCash && Math.abs(fxDiff) > 0.001
-          ? "  ⚠️  raw FX zeroed (cash expense)"
-          : ""
-      }`,
-    );
-    console.log(`   Will Be Paid:     ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
-    console.log("========================================\n");
-
     // ── Create payment doc ─────────────────────────────────────
     const paymentSeq = await getNextCounterValue({
       companyId,
@@ -1608,7 +1505,11 @@ const handleExpensePayment = async (
 
     const paymentPayload = {
       companyId,
-      counter: Number(counter || 0) + Number(paymentSeq),
+      counter: buildCounter({
+        base: counter,
+        seq: paymentSeq,
+        digits: counterDigits,
+      }),
       party: { id: party.id, name: party.name, type: party.type },
       fund: {
         id: fund.id,
@@ -1967,8 +1868,6 @@ const handleSupplierPayment = async (
 
 const handleSalesPayment = async (
   req,
-  companyId,
-  next,
   normalizedPayment,
   externalSession = null,
 ) => {
@@ -1985,6 +1884,7 @@ const handleSalesPayment = async (
       description,
       journalCounter,
       counter,
+      counterDigits,
       companyId,
       postedBy,
       postedAt,
@@ -2027,16 +1927,6 @@ const handleSalesPayment = async (
       sales.currencyExchangeRate || sales?.currency?.exchangeRate || 1,
     );
 
-    console.log("BEFORE resolvePaymentAmounts:");
-    console.log("  invoice._id:", sales._id);
-    console.log(
-      "  sales.totalRemainderMainCurrency:",
-      sales.totalRemainderMainCurrency,
-    );
-    console.log("  sales.totalRemainder:", sales.totalRemainder);
-    console.log("  sales.invoiceGrandTotal:", sales.invoiceGrandTotal);
-    console.log("  sales.totalInMainCurrency:", sales.totalInMainCurrency);
-
     const {
       isSameCurrency,
       paymentRate,
@@ -2055,34 +1945,6 @@ const handleSalesPayment = async (
       invoiceCurrencyCode: sales?.currency?.currencyCode,
     });
 
-    console.log("========================================");
-    console.log("   SALES INVOICE PAYMENT");
-    console.log("========================================");
-    console.log(`   Invoice:          ${sales.invoiceName} (${sales.counter})`);
-    console.log(`   Currency:         ${sales?.currency?.currencyCode}`);
-    console.log(`   Invoice Rate:     ${invoiceRate}`);
-    console.log(
-      `   Fund:             ${fund.name} (${fund.currencyCode}) @ ${paymentRate}`,
-    );
-    console.log(
-      `   Direction:        ${
-        paymentNature === "incoming"
-          ? "💰 Receiving from customer"
-          : "💸 Paying customer"
-      }`,
-    );
-    console.log(`   Same Currency:    ${isSameCurrency ? "YES" : "NO"}`);
-    console.log(`   Applied (Main):   ${paymentAmountMain.toFixed(6)}`);
-    console.log(`   Applied (Fund):   ${paymentAmountFund.toFixed(6)}`);
-    console.log(`   Applied (Invoice):${appliedDocumentCurrency.toFixed(6)}`);
-    console.log(
-      `   FX Diff:          ${fxDiff.toFixed(6)} ${
-        fxDiff > 0.001 ? "⚠️  LOSS" : fxDiff < -0.001 ? "✅ GAIN" : "➖ NONE"
-      }`,
-    );
-    console.log(`   Will Be Paid:     ${willBePaid ? "✅ YES" : "⏳ PARTIAL"}`);
-    console.log("========================================\n");
-
     // ── Create payment doc ─────────────────────────────────────
     const paymentSeq = await getNextCounterValue({
       companyId,
@@ -2092,7 +1954,11 @@ const handleSalesPayment = async (
 
     const paymentPayload = {
       companyId,
-      counter: Number(counter || 0) + Number(paymentSeq),
+      counter: buildCounter({
+        base: counter,
+        seq: paymentSeq,
+        digits: counterDigits,
+      }),
       party: { id: party.id, name: party.name, type: party.type },
       fund: {
         id: fund.id,
@@ -2275,7 +2141,7 @@ const handleRefundSalesPayment = async (
       description,
       journalCounter,
       counter,
-      companyId,
+      counterDigits,
       postedBy,
       postedAt,
       journalAccounts,
@@ -2343,7 +2209,11 @@ const handleRefundSalesPayment = async (
 
     const paymentPayload = {
       companyId,
-      counter: Number(counter || 0) + Number(paymentSeq),
+      counter: buildCounter({
+        base: counter,
+        seq: paymentSeq,
+        digits: counterDigits,
+      }),
       party: { id: party.id, name: party.name, type: party.type },
       fund: {
         id: fund.id,

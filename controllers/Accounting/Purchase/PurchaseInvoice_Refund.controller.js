@@ -149,7 +149,7 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
       currency: req.body.currency,
       session,
     });
-    console.log(req.body);
+
     // ── Parse journalPreview FIRST ─────────────────────────────
     const journalPreview = req.body.journalPreview;
 
@@ -188,13 +188,14 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         date: req.body.paymentDate || prepared.formattedDate,
         description: req.body.paymentDescription || "",
         journalCounter: req.body.journalCounter || "",
-        counter: req.body.counter || "0",
+        counter: req.body.counter,
+        counterDigits: req.counterDigits,
         companyId,
         postedBy: req.user?._id || null,
         postedAt: new Date(),
         journalAccounts: req.body.journalAccounts || null,
       };
-      console.log("normalizedPayment", normalizedPayment);
+
       const result = await handlePurchaseRefundPayment(
         req,
         companyId,
@@ -281,6 +282,7 @@ exports.createRefundPurchaseInvoice = asyncHandler(async (req, res, next) => {
         },
         companyId,
         nextCounterJournal,
+        digits: req.counterDigits,
         session,
       });
     }

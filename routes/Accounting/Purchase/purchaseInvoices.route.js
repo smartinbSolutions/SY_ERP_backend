@@ -16,6 +16,7 @@ const {
   findOnePurchaseInvoice,
   findSupplierPurchaseInvoicesForRefund,
 } = require("../../../controllers/Accounting/Purchase/PurchaseInvoice.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const PurchaseInvoices = express.Router();
 
@@ -55,6 +56,7 @@ PurchaseInvoices.route("/draft/:id")
 PurchaseInvoices.route("/post/:id").put(
   authService.allowedTo("purchase.invoice.post"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   postPurchaseInvoiceDraft,
 );
 
@@ -86,6 +88,7 @@ PurchaseInvoices.route("/")
     authService.allowedTo("purchase.invoice.create"),
     authService.checkCompanyEditable,
     uploadFile,
+    loadCounterDigits,
     createPurchaseInvoice,
   )
   .get(authService.allowedTo("purchase.invoice.read"), findAllPurchaseInvoices);
