@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
-const { MODULES, MODULE_KEYS } = require("../../../shared/modules");
-
-const MAX_TAG_DEPTH = 5;
+const {
+  MODULES,
+  MODULE_KEYS,
+  MAX_TAG_DEPTH,
+} = require("../../../shared/modules");
 
 const tagSchema = new mongoose.Schema(
   {
@@ -14,7 +16,6 @@ const tagSchema = new mongoose.Schema(
     // NEW
     module: {
       type: String,
-      required: true,
       enum: MODULE_KEYS,
       lowercase: true,
       trim: true,
@@ -24,7 +25,6 @@ const tagSchema = new mongoose.Schema(
     // NEW
     scope: {
       type: String,
-      required: true,
       lowercase: true,
       trim: true,
       validate: {
@@ -98,6 +98,11 @@ tagSchema.index({ companyId: 1, createdAt: -1 });
 
 // NEW: parent must match company/module/scope, build ancestors + depth, block cycles
 tagSchema.pre("save", async function () {
+  // module and scope are set together, or both missing (global tag)
+  if (Boolean(this.module) !== Boolean(this.scope)) {
+    throw new Error("module and scope must be set together");
+  }
+
   if (!this.isNew && !this.isModified("parentId")) return;
 
   if (!this.parentId) {
@@ -106,12 +111,14 @@ tagSchema.pre("save", async function () {
     return;
   }
 
-  const parent = await this.constructor.findOne({
-    _id: this.parentId,
-    companyId: this.companyId,
-    module: this.module,
-    scope: this.scope,
-  });
+  const parent = await this.constructor
+    .findOne({
+      _id: this.parentId,
+      companyId: this.companyId,
+      module: this.module ?? null,
+      scope: this.scope ?? null,
+    })
+    .session(this.$session());
   if (!parent)
     throw new Error("Parent tag must be in the same module and scope");
 

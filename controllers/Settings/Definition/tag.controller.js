@@ -10,7 +10,7 @@ exports.getRegistry = asyncHandler(async (req, res) => {
 
 exports.getTags = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
-  const { module, scope } = req.query; // NEW
+  const { module, scope, global, includeGlobal } = req.query; // CHANGED
 
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
@@ -18,8 +18,10 @@ exports.getTags = asyncHandler(async (req, res) => {
 
   const result = await tagService.getTags({
     companyId,
-    module, // NEW
-    scope, // NEW
+    module,
+    scope,
+    global: global === "true", // NEW
+    includeGlobal: includeGlobal === "true", // NEW
   });
 
   return res.status(200).json({

@@ -138,10 +138,24 @@ exports.getRegistry = async ({ companyId }) => {
   return { data };
 };
 
-exports.getTags = async ({ companyId, module, scope }) => {
-  assertScope(module, scope);
+exports.getTags = async ({
+  companyId,
+  module,
+  scope,
+  global,
+  includeGlobal,
+}) => {
+  let filter;
+  if (global) {
+    filter = { companyId, module: null }; // null also matches a missing field
+  } else {
+    assertScope(module, scope);
+    filter = includeGlobal
+      ? { companyId, $or: [{ module, scope }, { module: null }] }
+      : { companyId, module, scope };
+  }
   const data = await tagModel
-    .find({ companyId, module, scope })
+    .find(filter)
     .sort({ order: 1, createdAt: -1 })
     .lean();
   return { data, results: data.length };
@@ -164,8 +178,13 @@ exports.getTagWithDescendantIds = async ({ companyId, id }) => {
 };
 
 exports.createTag = async ({ companyId, data, session }) => {
-  assertScope(data.module, data.scope);
-  const { ancestors, depth, ...safe } = data; // client can't set these
+  const { ancestors, depth, global, ...safe } = data; // client can't set these
+  if (global === true) {
+    delete safe.module;
+    delete safe.scope;
+  } else {
+    assertScope(safe.module, safe.scope);
+  }
   safe.companyId = companyId;
   safe.slug = makeSlug(safe.name);
   try {
@@ -181,6 +200,43 @@ exports.updateTag = async ({ companyId, id, data, session }) => {
   const tag = await tagModel.findOne({ companyId, _id: id }).session(session);
   if (!tag) throw new ApiError("Tag not found", 404);
 
+  // --- place change (module + scope, or global) -----------------------------
+  const wantsPlace =
+    data.global === true ||
+    data.module !== undefined ||
+    data.scope !== undefined;
+
+  let placeChanged = false;
+  let target = null;
+  if (wantsPlace) {
+    target =
+      data.global === true
+        ? { module: null, scope: null }
+        : { module: data.module, scope: data.scope };
+
+    if (!target.module !== !target.scope) {
+      throw new ApiError("module and scope must be set together", 400);
+    }
+
+    placeChanged =
+      (tag.module || null) !== target.module ||
+      (tag.scope || null) !== target.scope;
+
+    if (placeChanged) {
+      if (target.module) {
+        assertScope(target.module, target.scope);
+        const { data: allowed } = await exports.getRegistry({ companyId });
+        if (!allowed.some((r) => r.module === target.module)) {
+          throw new ApiError("Module is not enabled for this company", 403);
+        }
+      }
+      tag.module = target.module || undefined; // undefined removes the field
+      tag.scope = target.scope || undefined;
+      if (data.parentId === undefined) data.parentId = null;
+    }
+  }
+
+  // --- normal fields ---------------------------------------------------------
   const moved =
     data.parentId !== undefined &&
     String(data.parentId || "") !== String(tag.parentId || "");
@@ -194,6 +250,17 @@ exports.updateTag = async ({ companyId, id, data, session }) => {
     await tag.save({ session });
   } catch (err) {
     rethrowDuplicate(err);
+  }
+
+  // children follow their root tag to the new place
+  if (placeChanged) {
+    await tagModel.updateMany(
+      { companyId, ancestors: tag._id },
+      target.module
+        ? { $set: { module: target.module, scope: target.scope } }
+        : { $unset: { module: "", scope: "" } },
+      { session },
+    );
   }
 
   if (moved) await rebuildSubtree({ tag, session });
@@ -246,12 +313,24 @@ exports.setDocTags = async ({
 
   let tag = [];
   if (ids.length) {
+    // tags the document already has stay valid, even if they were moved
+    const current = await cfg.model
+      .findOne({ companyId, _id: docId })
+      .select("tag")
+      .session(session)
+      .lean();
+    if (!current) throw new ApiError("Document not found", 404);
+    const keep = (current.tag || []).map((t) => String(t.id));
+
     const tags = await tagModel
       .find({
         companyId,
-        module: cfg.module,
-        scope: cfg.scope,
         _id: { $in: ids },
+        $or: [
+          { module: cfg.module, scope: cfg.scope },
+          { module: null },
+          { _id: { $in: keep } },
+        ],
       })
       .select("name nameAr nameTr color")
       .session(session)

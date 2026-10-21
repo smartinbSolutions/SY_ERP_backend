@@ -1,4 +1,6 @@
 // shared/modules.js
+
+const MAX_TAG_DEPTH = 5;
 const MODULES = {
   accounting: {
     scopes: ["sales", "purchase", "expenses", "cash", "general_ledger"],
@@ -33,4 +35,4 @@ const MODULES = {
   },
 };
 
-module.exports = { MODULES, MODULE_KEYS: Object.keys(MODULES) };
+module.exports = { MODULES, MODULE_KEYS: Object.keys(MODULES), MAX_TAG_DEPTH };
