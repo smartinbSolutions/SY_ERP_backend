@@ -6,6 +6,7 @@ const {
   getOneFundTransfer,
   cancelFundTransfer,
 } = require("../../../controllers/Accounting/CurrentAssets/FundTransfer.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const FundTransfer = express.Router();
 
@@ -18,6 +19,7 @@ FundTransfer.route("/")
   .post(
     authService.allowedTo("funds.transfer"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createFundTransfer,
   )
   .get(authService.allowedTo("funds.read"), getAllFundTransfers);
@@ -30,6 +32,7 @@ FundTransfer.route("/:id").get(
 FundTransfer.route("/:id/cancel").put(
   authService.allowedTo("funds.transfer"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   cancelFundTransfer,
 );
 

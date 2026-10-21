@@ -7,6 +7,7 @@ const {
   getAllPayments,
   cancelPayment,
 } = require("../../../controllers/Accounting/CurrentAssets/Payments.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const paymentRoute = express.Router();
 paymentRoute.use(
@@ -20,6 +21,7 @@ paymentRoute
   .post(
     authService.allowedTo("payments.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createPayment,
   );
 paymentRoute
@@ -30,6 +32,7 @@ paymentRoute
   .post(
     authService.allowedTo("payments.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     cancelPayment,
   );
 

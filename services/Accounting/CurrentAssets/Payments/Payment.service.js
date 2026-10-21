@@ -54,6 +54,7 @@ const normalizePaymentRequest = async ({ req, companyId }) => {
     invoiceId: data.invoiceId || "",
     companyId,
     counter: data.counter,
+    counterDigits: req.counterDigits,
     journalCounter: data.journalCounter || "",
     date: fullDate,
     description: data.description || "",
@@ -144,7 +145,6 @@ const paymentHandlers = {
 
 exports.processPaymentService = async ({ req, companyId, next }) => {
   const normalizedPayment = await normalizePaymentRequest({ req, companyId });
-  console.log("normalizedPayment", normalizedPayment);
   const route = paymentHandlers[normalizedPayment.paymentContext];
 
   if (!route) {
@@ -233,6 +233,7 @@ exports.cancelPaymentService = async ({
   userId,
   reason = "",
   counterPrefix = 0,
+  counterDigits,
   session,
 }) => {
   // ── Step 1 — Validate ──────────────────────────────────────────
@@ -261,22 +262,6 @@ exports.cancelPaymentService = async ({
   const isCash = !payment.party?.id;
   const amountFund = Number(payment.payment?.amount || 0);
   const amountMain = Number(payment.payment?.amountMainCurrency || 0);
-
-  // console.log("========================================");
-  // console.log("   CANCEL PAYMENT");
-  // console.log("========================================");
-  // console.log(`   Counter:     ${payment.counter}`);
-  // console.log(`   Nature:      ${payment.paymentNature}`);
-  // console.log(
-  //   `   Amount:      ${amountMain} USD (${amountFund} ${payment.fund?.currencyCode})`,
-  // );
-  // console.log(
-  //   `   Party:       ${payment.party?.name || "Cash"} (${
-  //     payment.party?.type || "none"
-  //   })`,
-  // );
-  // console.log(`   Allocations: ${payment.allocations?.length || 0}`);
-  // console.log("========================================\n");
 
   // ── Step 2 — Reverse fund effect ──────────────────────────────
   // outgoing → money left fund → reverse: money enters (destination)
@@ -377,11 +362,6 @@ exports.cancelPaymentService = async ({
           0,
         );
 
-        // console.log(`   Reversal entries: ${paymentEntries.length}`);
-        // console.log(
-        //   `   DR: ${totalDebit.toFixed(4)}  CR: ${totalCredit.toFixed(4)}`,
-        // );
-
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
           throw new ApiError(
             `Reversal journal not balanced — DR: ${totalDebit}, CR: ${totalCredit}`,
@@ -417,6 +397,7 @@ exports.cancelPaymentService = async ({
           },
           companyId,
           nextCounterJournal,
+          digits: counterDigits,
           session,
         });
 

@@ -68,6 +68,7 @@ PurchaseInvoices.route("/post/:id").put(
 PurchaseInvoices.route("/cancel/:id").put(
   authService.allowedTo("purchase.invoice.cancel"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   cancelPurchaseInvoice,
 );
 
@@ -75,6 +76,7 @@ PurchaseInvoices.route("/update/:id").put(
   authService.allowedTo("purchase.invoice.update.posted"),
   authService.checkCompanyEditable,
   uploadFile,
+  loadCounterDigits,
   updatePostedPurchaseInvoice,
 );
 

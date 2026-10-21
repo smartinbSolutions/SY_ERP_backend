@@ -10,8 +10,6 @@ const ApiError = require("../../../utils/apiError");
 const { createProductMovement } = require("../../../utils/productMovement");
 const { createInvoiceHistory } = require("../../invoiceHistoryService");
 const {
-  createJournalService,
-  createJournalServiceV2,
   createJournalEntryService,
 } = require("../../Accounting/JournalEntries/journalEntries.Service");
 const { createPaymentHistoryV2 } = require("../../paymentHistoryService");
@@ -1061,6 +1059,7 @@ exports.reverseSalesJournalEffectsService = async ({
   salesInvoice,
   session,
   counterFormat,
+  counterDigits,
   cancellationDate,
   reversalJournalLinkCounter,
   mode = "cancel",
@@ -1115,14 +1114,17 @@ exports.reverseSalesJournalEffectsService = async ({
     throw new ApiError("original journal accounts are missing", 400);
   }
 
-  const reversedLines = originalLines.map((line, index) => ({
-    ...line,
-    MainDebit: Number(line?.MainCredit || 0),
-    MainCredit: Number(line?.MainDebit || 0),
-    accountDebit: Number(line?.accountCredit || 0),
-    accountCredit: Number(line?.accountDebit || 0),
-    counter: index + 1,
-  }));
+  const reversedLines = originalLines.map((line, index) => {
+    const plain = line.toObject ? line.toObject() : { ...(line._doc || line) };
+    return {
+      ...plain,
+      MainDebit: Number(plain.MainCredit || 0),
+      MainCredit: Number(plain.MainDebit || 0),
+      accountDebit: Number(plain.accountCredit || 0),
+      accountCredit: Number(plain.accountDebit || 0),
+      counter: index + 1,
+    };
+  });
 
   const totalDebit = reversedLines.reduce(
     (sum, item) => sum + Number(item?.MainDebit || 0),
@@ -1143,12 +1145,10 @@ exports.reverseSalesJournalEffectsService = async ({
 
   const reversalJournalPayload = {
     journalName: `${currentMode.journalNamePrefix} - ${
-      originalJournal?.journalName || purchaseInvoice?.invoiceName || ""
+      originalJournal?.journalName || salesInvoice?.invoiceName || ""
     }`,
     journalDate: cancellationDate.split("T")[0],
-    journalDesc: `${currentMode.journalDescPrefix} ${
-      salesInvoice?.invoiceName || ""
-    }`,
+    journalDesc: `${currentMode.journalDescPrefix} ${salesInvoice?.invoiceName || ""}`,
     journalType: currentMode.journalType,
     linkCounter: String(reversalJournalLinkCounter),
     refCounter: String(salesInvoice?.counter || ""),
@@ -1158,17 +1158,21 @@ exports.reverseSalesJournalEffectsService = async ({
     receiptNumber:
       originalJournal?.receiptNumber || salesInvoice?.invoiceNumber || "",
     filesArray: [],
-    journalDebit: totalDebit,
-    journalCredit: totalCredit,
   };
 
-  const createdReversalJournal = await createJournalServiceV2({
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session },
+  );
+
+  const createdReversalJournal = await createJournalEntryService({
+    data: { ...reversalJournalPayload, journalAccounts: reversedLines },
     companyId,
-    journalInfo: reversalJournalPayload,
-    journalAccounts: reversedLines,
+    nextCounterJournal,
+    digits: counterDigits,
     session,
   });
-
   originalJournal.status = currentMode.originalStatus;
   originalJournal.reversedAt = cancellationDate;
   originalJournal.reverseJournalId = createdReversalJournal?._id || null;
@@ -1474,7 +1478,6 @@ exports.findAllSalesInvoicesService = async ({ req, companyId }) => {
       return value; // plain strings like dates pass through unchanged
     }
   };
-  console.log("q", q);
 
   const filters = {
     startDate: q.startDate,

@@ -547,6 +547,7 @@ exports.reverseExpenseJournalEffectsService = async ({
   expense,
   session,
   counterFormat,
+  counterDigits,
   cancellationDate,
   mode = "cancel",
 }) => {
@@ -664,6 +665,7 @@ exports.reverseExpenseJournalEffectsService = async ({
     },
     companyId,
     nextCounterJournal,
+    digits: counterDigits,
     session,
   });
 

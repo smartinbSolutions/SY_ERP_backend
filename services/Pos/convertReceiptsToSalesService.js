@@ -14,20 +14,15 @@ const posReceiptModel = require("../../models/Pos/pos.receipt.model");
 const salesPointModel = require("../../models/Pos/salesPointModel");
 const counterModel = require("../../models/Settings/counterModel");
 const ApiError = require("../../utils/apiError");
+const { buildCounter } = require("../../utils/buildCounter");
 const {
-  createJournalServiceV2,
+  createJournalEntryService,
 } = require("../Accounting/JournalEntries/journalEntries.Service");
 const { createInvoiceHistory } = require("../invoiceHistoryService");
 
 const INVENTORY_TYPES = ["Normal", "product", "unTracedproduct", "rawmaterial"];
 
 const round = (n, d = 6) => Math.round((Number(n) || 0) * 10 ** d) / 10 ** d;
-
-const makeLogger = (debug) => (step, data) => {
-  if (!debug) return;
-  console.log(`\n[POS→Sales] ── ${step} ──`);
-  if (data !== undefined) console.dir(data, { depth: 4 });
-};
 
 // ── Journal line from a populated account doc ────────────────────────────────
 const toJournalLine = (
@@ -265,16 +260,13 @@ exports.convertReceiptsToSalesService = async ({
   from, // Date
   to, // Date
   date, // "YYYY-MM-DD" — invoice + journal date
-  counter = 0, // counter prefix, same as req.body.counter elsewhere
+  counter, // zero-filled counter base
+  counterDigits,
   primaryCurrency, // primary currency object, same shape as invoice.currency
   user,
   session,
   dryRun = true,
-  debug = false,
 }) => {
-  const log = makeLogger(debug);
-  log("0. input", { companyId, salesPointId, from, to, date, counter, dryRun });
-
   if (!primaryCurrency?.id && !primaryCurrency?._id) {
     throw new ApiError("Primary currency is required", 400);
   }
@@ -291,12 +283,6 @@ exports.convertReceiptsToSalesService = async ({
     .session(session)
     .lean();
 
-  log("1. receipts loaded", {
-    count: receipts.length,
-    counters: receipts.map((r) => r.counter),
-    currencies: [...new Set(receipts.map((r) => r.currency?.currencyCode))],
-  });
-
   if (!receipts.length) {
     throw new ApiError("No receipts to convert", 404);
   }
@@ -308,44 +294,14 @@ exports.convertReceiptsToSalesService = async ({
     .lean();
 
   if (!salesPointDoc) throw new ApiError("Sales point not found", 404);
+
   // 2. Aggregate
-  const agg = aggregateReceipts(receipts, log, debug);
+  const agg = aggregateReceipts(receipts);
 
   if (agg.issues.length) {
-    log("2x. data issues", agg.issues);
     throw new ApiError(
       `Cannot convert, fix these receipts first: ${agg.issues.join("; ")}`,
       400,
-    );
-  }
-
-  log("2b. aggregate totals (main currency)", {
-    subTotal: round(agg.subTotal, 4),
-    tax: round(agg.tax, 4),
-    grandTotal: round(agg.grandTotal, 4),
-    cogs: round(agg.cogs, 4),
-    fxDiff: round(agg.fxDiff, 4),
-    lines: agg.invoicesItems.length,
-  });
-  if (debug) {
-    console.table(
-      agg.invoicesItems.map((l) => ({
-        name: l.name,
-        type: l.type,
-        qty: l.soldQuantity,
-        priceMain: round(l.sellingPrice, 4),
-        withoutTax: round(l.totalWithoutTax, 4),
-        tax: round(l.taxValue, 4),
-        total: round(l.total, 4),
-      })),
-    );
-    console.table(
-      agg.funds.map((f) => ({
-        fund: f.fundName,
-        fundId: f.fundId,
-        fundAmt: round(f.fundAmt, 4),
-        mainAmt: round(f.mainAmt, 4),
-      })),
     );
   }
 
@@ -422,22 +378,13 @@ exports.convertReceiptsToSalesService = async ({
     };
   });
 
-  log("3. accounts resolved", {
-    customer: customerAcc?.name,
-    sales: salesAcc?.name,
-    tax: taxAccs.map((a) => a.name),
-    cash: agg.funds.map((f) => {
-      const acc = fundAccount(f.fundId);
-      return `${f.fundName} → ${acc.name} (${acc.currency?.currencyCode})`;
-    }),
-  });
-
-  // 4. Journal lines (mirrors buildSalesInvoiceJournalPreview: primary, paid, no discount/expense)
+  // 4. Journal lines
   const journalAccounts = [];
 
   journalAccounts.push(
     toJournalLine(customerAcc, "Customer", { mainDebit: agg.grandTotal }),
   );
+
   const goodsSubTotal = agg.subTotal - agg.serviceSubTotal;
 
   if (goodsSubTotal > 0.000001) {
@@ -496,7 +443,7 @@ exports.convertReceiptsToSalesService = async ({
     }),
   );
 
-  // FX — same shape as createSalesInvoice controller
+  // FX
   if (Math.abs(agg.fxDiff) > 0.001) {
     const isLoss = agg.fxDiff < 0;
     const absFx = Math.abs(agg.fxDiff);
@@ -528,27 +475,6 @@ exports.convertReceiptsToSalesService = async ({
   const totalCredit = round(
     journalAccounts.reduce((s, a) => s + a.MainCredit, 0),
   );
-
-  log("4. journal lines", {
-    totalDebit,
-    totalCredit,
-    diff: round(totalDebit - totalCredit),
-  });
-  if (debug) {
-    console.table(
-      journalAccounts.map((a) => ({
-        n: a.counter,
-        type: a.accountType,
-        name: a.name,
-        cur: a.accountCurrency,
-        MainDebit: round(a.MainDebit, 4),
-        MainCredit: round(a.MainCredit, 4),
-        accDebit: round(a.accountDebit, 4),
-        accCredit: round(a.accountCredit, 4),
-        exRate: round(a.accountExRate, 6),
-      })),
-    );
-  }
 
   if (Math.abs(totalDebit - totalCredit) > 0.01) {
     throw new ApiError(
@@ -594,7 +520,6 @@ exports.convertReceiptsToSalesService = async ({
     isDraft: false,
     postedBy: user._id,
     postedAt: new Date(),
-    // POS link — must be declared in the sales schema (strict mode)
     source: "pos",
     salesPoint: salesPointId,
     journalCounter: linkCounter,
@@ -613,15 +538,8 @@ exports.convertReceiptsToSalesService = async ({
     party: "",
   };
 
-  log("5. invoice payload (header)", {
-    ...invoicePayload,
-    invoicesItems: `[${invoicePayload.invoicesItems.length} lines]`,
-    returnCartItem: `[${invoicePayload.returnCartItem.length} lines]`,
-  });
-
-  // ── DRY RUN: stop before any write ─────────────────────────────────────────
+  // DRY RUN: stop before any write
   if (dryRun) {
-    log("DRY RUN — nothing written");
     return {
       dryRun: true,
       receiptsCount: receipts.length,
@@ -643,10 +561,14 @@ exports.convertReceiptsToSalesService = async ({
     { $inc: { seq: 1 } },
     { new: true, upsert: true, session },
   );
-  invoicePayload.counter = Number(counter || 0) + nextCounterSalesInvoices.seq;
+
+  invoicePayload.counter = buildCounter({
+    base: counter,
+    seq: nextCounterSalesInvoices.seq,
+    digits: counterDigits,
+  });
 
   const [invoice] = await orderModel.create([invoicePayload], { session });
-  log("6. invoice created", { _id: invoice._id, counter: invoice.counter });
 
   await createInvoiceHistory(
     companyId,
@@ -660,21 +582,23 @@ exports.convertReceiptsToSalesService = async ({
   );
 
   // 7. Create journal
-  const journal = await createJournalServiceV2({
-    journalInfo: {
+  const nextCounterJournal = await counterModel.findOneAndUpdate(
+    { companyId, name: "Journal" },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, session },
+  );
+
+  const journal = await createJournalEntryService({
+    data: {
       ...journalInfo,
       refId: invoice._id,
-      refCounter: invoice.counter,
+      refCounter: String(invoice.counter),
+      journalAccounts,
     },
-    journalAccounts,
     companyId,
+    nextCounterJournal,
+    digits: counterDigits,
     session,
-    totalDebit,
-    totalCredit,
-  });
-  log("7. journal created", {
-    _id: journal._id,
-    journalRefNum: journal.journalRefNum,
   });
 
   // 8. Stamp receipts (guard against a concurrent close)
@@ -690,10 +614,6 @@ exports.convertReceiptsToSalesService = async ({
     },
     { session },
   );
-  log("8. receipts stamped", {
-    expected: receipts.length,
-    modified: stamped.modifiedCount,
-  });
 
   if (stamped.modifiedCount !== receipts.length) {
     throw new ApiError("Receipts changed during conversion, retry", 409);

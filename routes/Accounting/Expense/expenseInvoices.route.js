@@ -34,11 +34,13 @@ ExpenseInvoices.route("/")
 ExpenseInvoices.route("/cancel/:id").put(
   authService.allowedTo("expense.cancel"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   cancelExpenseInvoice,
 );
 ExpenseInvoices.route("/cancel/iscash/:id").put(
   authService.allowedTo("expense.cancel"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   cancelNoSupplierExpense,
 );
 ExpenseInvoices.route("/update/:id").put(

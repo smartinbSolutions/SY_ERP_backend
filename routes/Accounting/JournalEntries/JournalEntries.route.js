@@ -12,6 +12,7 @@ const {
   getOneAccountAndJournal,
   createOpeningBalanceJournal,
 } = require("../../../controllers/Accounting/journalEntries/JournalEntries.controller");
+const loadCounterDigits = require("../../../middlewares/loadCounterDigits");
 
 const journalEntriesRoute = express.Router();
 
@@ -28,6 +29,7 @@ journalEntriesRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
+    loadCounterDigits,
     createJournal,
   );
 
@@ -39,6 +41,7 @@ journalEntriesRoute
     authService.checkCompanyEditable,
     uploadFileAndImagejournal,
     processFilesAndImagesjournal,
+    loadCounterDigits,
     createOpeningBalanceJournal,
   );
 

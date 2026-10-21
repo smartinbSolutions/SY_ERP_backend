@@ -57,7 +57,8 @@ exports.cancelFundTransfer = asyncHandler(async (req, res) => {
         companyId,
         cancelledBy: req.user?._id || null,
         cancellationReason: req.body.cancellationReason || "",
-        counter: req.body.counter || null,
+        counter: req.counterBase,
+        counterDigits: req.counterDigits,
         session,
       });
     });

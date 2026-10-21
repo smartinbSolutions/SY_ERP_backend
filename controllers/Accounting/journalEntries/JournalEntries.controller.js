@@ -117,6 +117,7 @@ exports.createJournal = asyncHandler(async (req, res, next) => {
       req, // ← standalone route passes req
       companyId,
       nextCounterJournal,
+      digits: req.counterDigits,
       session,
     });
 
@@ -218,7 +219,7 @@ exports.getOneJournalByLink = asyncHandler(async (req, res, next) => {
 
 exports.createOpeningBalanceJournal = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
-  console.log("req.body", req.body);
+
   if (!companyId) {
     return res.status(400).json({ message: "companyId is required" });
   }
@@ -244,6 +245,7 @@ exports.createOpeningBalanceJournal = asyncHandler(async (req, res, next) => {
       req,
       companyId,
       nextCounterJournal,
+      digits: req.counterDigits,
       session,
     });
 

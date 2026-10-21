@@ -11,6 +11,7 @@ const {
   convertReceiptsToSales,
 } = require("../../controllers/Pos/Pos.Receipt.controller");
 const authService = require("../../services/authService");
+const loadCounterDigits = require("../../middlewares/loadCounterDigits");
 
 const PosReceiptRoute = express.Router();
 
@@ -24,6 +25,7 @@ PosReceiptRoute.route("/")
   .post(
     // authService.allowedTo("sales.invoice.create"),
     authService.checkCompanyEditable,
+    loadCounterDigits,
     createPosReceipt,
   );
 PosReceiptRoute.route("/dailyreceipt/:id").get(
@@ -45,6 +47,7 @@ PosReceiptRoute.route("/salespoint/:id").get(
 PosReceiptRoute.route("/convert/:id").post(
   // authService.allowedTo("sales.invoice.create"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   convertReceiptsToSales,
 );
 

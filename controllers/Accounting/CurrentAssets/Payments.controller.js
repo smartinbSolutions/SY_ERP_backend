@@ -71,7 +71,6 @@ exports.cancelPayment = asyncHandler(async (req, res, next) => {
     return res.status(400).json({ message: "paymentId is required" });
 
   const session = await mongoose.startSession();
-  console.log(req.body);
   try {
     session.startTransaction();
 
@@ -80,7 +79,8 @@ exports.cancelPayment = asyncHandler(async (req, res, next) => {
       companyId,
       userId: req.user._id,
       reason: req.body.reason || "",
-      counterPrefix: req.body.counter || 0,
+      counterPrefix: req.counterBase,
+      counterDigits: req.counterDigits,
       session,
     });
 

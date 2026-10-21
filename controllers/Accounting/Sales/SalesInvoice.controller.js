@@ -337,7 +337,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       cancellationDate: updateDate,
       mode: "reverse_update",
     });
-    const counterFormat = req.body.counterFormat;
+    const counterFormat = req.counterBase;
     const reversalJournalLinkCounter = `${
       salesInvoice.journalCounter
     }-reverse-update-${Date.now()}`;
@@ -348,6 +348,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       session,
       cancellationDate: updateDate,
       counterFormat,
+      counterDigits: req.counterDigits,
       reversalJournalLinkCounter,
       mode: "reverse_update",
     });
@@ -422,6 +423,7 @@ exports.updatePostedSalesInvoice = asyncHandler(async (req, res, next) => {
       salesInvoice: updatedSalesInvoice,
       journalPreview,
       counterFormat,
+      digits: req.counterDigits,
       invoiceRefCounter: updatedSalesInvoice.counter,
       journalLinkCounter,
       session,
@@ -699,7 +701,7 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
         ),
       );
     }
-    const baseCounter = Number(req.body.counter || 0);
+
     const padZero = (value) => String(value).padStart(2, "0");
     const padMs = (value) => String(value).padStart(3, "0");
 
@@ -738,7 +740,8 @@ exports.cancelSalesInvoice = asyncHandler(async (req, res, next) => {
       companyId,
       salesInvoice,
       session,
-      counterFormat: baseCounter,
+      counterFormat: req.counterBase,
+      counterDigits: req.counterDigits,
       cancellationDate,
     });
 

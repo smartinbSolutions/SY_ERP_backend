@@ -28,7 +28,6 @@ const {
   createJournalEntryService,
 } = require("../../../services/Accounting/JournalEntries/journalEntries.Service");
 const linkPanelModel = require("../../../models/linkPanelModel");
-const { buildCounter } = require("../../../utils/buildCounter");
 
 exports.findAllExpensesInvoices = asyncHandler(async (req, res, next) => {
   const companyId = req.companyId;
@@ -371,7 +370,8 @@ exports.cancelExpenseInvoice = asyncHandler(async (req, res, next) => {
       companyId,
       expense,
       session,
-      counterFormat: baseCounter,
+      counterFormat: req.counterBase,
+      counterDigits: req.counterDigits,
       cancellationDate,
     });
 
@@ -643,7 +643,8 @@ exports.cancelNoSupplierExpense = asyncHandler(async (req, res, next) => {
       companyId,
       expense: expense,
       session,
-      counterFormat: expense.counter,
+      counterFormat: req.counterBase,
+      counterDigits: req.counterDigits,
       cancellationDate,
       reversalJournalLinkCounter: expense.counter,
       mode: "cancel",

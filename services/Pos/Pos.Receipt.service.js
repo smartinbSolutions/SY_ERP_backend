@@ -11,6 +11,7 @@ const {
   handleFundPaymentEntity,
 } = require("../Accounting/CurrentAssets/Payments/Payment.handlers");
 const { generateCounter } = require("../../utils/counterFormat");
+const { buildCounter } = require("../../utils/buildCounter");
 
 exports.buildTurkeyDate = () => {
   const now = new Date();
@@ -54,8 +55,11 @@ exports.createPosReceiptService = async ({
 
   req.body.date = dateTurkey;
   req.body.returnCartItem = cartItems;
-  req.body.counter =
-    Number(req.body.counter || 0) + Number(nextCounterRecipt.seq || 0);
+  req.body.counter = buildCounter({
+    base: req.body.counter,
+    seq: nextCounterRecipt.seq,
+    digits: req.counterDigits,
+  });
 
   await salesPointModel.findOneAndUpdate(
     {

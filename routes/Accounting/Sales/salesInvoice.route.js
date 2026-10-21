@@ -41,12 +41,14 @@ SalesInvoices.route("/draft/:id")
 SalesInvoices.route("/cancel/:id").put(
   authService.allowedTo("sales.invoice.cancel"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   cancelSalesInvoice,
 );
 
 SalesInvoices.route("/update/:id").put(
   authService.allowedTo("sales.invoice.update.posted"),
   authService.checkCompanyEditable,
+  loadCounterDigits,
   updatePostedSalesInvoice,
 );
 SalesInvoices.route("/customerorder/:id").get(

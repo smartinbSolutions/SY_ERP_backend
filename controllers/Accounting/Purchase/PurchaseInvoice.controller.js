@@ -418,13 +418,14 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       mode: "reverse_update",
     });
 
-    const counterFormat = req.body.counterFormat;
+    const counterFormat = req.counterBase;
     await reversePurchaseJournalEffectsService({
       purchaseInvoice,
       companyId,
       session,
       cancellationDate: updateDate,
       counterFormat,
+      counterDigits: req.counterDigits,
       mode: "reverse_update",
     });
 
@@ -504,6 +505,7 @@ exports.updatePostedPurchaseInvoice = asyncHandler(async (req, res, next) => {
       purchaseInvoice: updatedPurchaseInvoice,
       journalPreview,
       counterFormat,
+      digits: req.counterDigits,
       invoiceRefCounter: updatedPurchaseInvoice.counter,
       journalLinkCounter,
       session,
@@ -594,7 +596,7 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
         ),
       );
     }
-    const baseCounter = Number(req.body.counter || 0);
+
     const padZero = (value) => String(value).padStart(2, "0");
     const padMs = (value) => String(value).padStart(3, "0");
 
@@ -633,7 +635,8 @@ exports.cancelPurchaseInvoice = asyncHandler(async (req, res, next) => {
       companyId,
       purchaseInvoice,
       session,
-      counterFormat: baseCounter,
+      counterFormat: req.counterBase,
+      counterDigits: req.counterDigits,
       cancellationDate,
     });
 

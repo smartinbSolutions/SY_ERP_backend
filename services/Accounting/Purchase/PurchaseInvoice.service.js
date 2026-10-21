@@ -1043,7 +1043,7 @@ exports.reversePurchaseInventoryEffectsService = async ({
 
       if (currentStockQty < reverseQty) {
         throw new ApiError(
-          `Cannot reverse invoice. Product "${item.name}" does not have enough stock to reverse.`,
+          `Cannot cancel. "${item.name}": ${reverseQty} were purchased but only ${currentStockQty} remain in this stock (${reverseQty - currentStockQty} already sold or moved). Reverse those sales or transfers first.`,
           400,
         );
       }
@@ -1405,6 +1405,7 @@ exports.reversePurchaseJournalEffectsService = async ({
   purchaseInvoice,
   session,
   counterFormat,
+  counterDigits,
   cancellationDate,
   mode = "cancel",
 }) => {
@@ -1521,6 +1522,7 @@ exports.reversePurchaseJournalEffectsService = async ({
     },
     companyId,
     nextCounterJournal,
+    digits: counterDigits,
     session,
   });
 

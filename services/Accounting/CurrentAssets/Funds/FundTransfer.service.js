@@ -5,6 +5,7 @@ const journalEntryModel = require("../../../../models/Accounting/JournalEntries/
 const counterModel = require("../../../../models/Settings/counterModel");
 
 const ApiError = require("../../../../utils/apiError");
+const { buildCounter } = require("../../../../utils/buildCounter");
 const {
   createJournalService,
   createJournalEntryService,
@@ -94,10 +95,6 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
     throw new ApiError("Destination fund not found", 404);
   }
 
-  //   if (Number(fromFundDoc.fundBalance || 0) < fromAmount) {
-  //     throw new ApiError("Insufficient source fund balance", 400);
-  //   }
-
   const fromExchangeRate = Number(fromFundDoc?.fundCurrency?.exchangeRate || 1);
   const toExchangeRate = Number(toFundDoc?.fundCurrency?.exchangeRate || 1);
 
@@ -147,7 +144,11 @@ exports.createFundTransferService = async ({ req, companyId, session }) => {
     [
       {
         companyId,
-        counter: counter.seq,
+        counter: buildCounter({
+          base: req.body.counter,
+          seq: counter.seq,
+          digits: req.counterDigits,
+        }),
 
         fromFund: {
           id: fromFundDoc._id.toString(),
@@ -232,6 +233,7 @@ exports.cancelFundTransferService = async ({
   companyId,
   cancelledBy,
   cancellationReason,
+  counterDigits,
   counter,
   session,
 }) => {
@@ -330,6 +332,7 @@ exports.cancelFundTransferService = async ({
     cancellationDate,
     session,
     counter,
+    counterDigits,
   });
 
   transfer.status = "cancelled";
@@ -464,6 +467,7 @@ const reverseFundTransferJournal = async ({
   transfer,
   cancellationDate,
   counter,
+  counterDigits,
   session,
 }) => {
   if (!transfer?.journalCounter) {
@@ -523,7 +527,7 @@ const reverseFundTransferJournal = async ({
   }
 
   const journalCounterDoc = await counterModel.findOneAndUpdate(
-    { companyId, name: "JournalEntry" },
+    { companyId, name: "Journal" },
     { $inc: { seq: 1 } },
     { new: true, upsert: true, session },
   );
@@ -549,6 +553,7 @@ const reverseFundTransferJournal = async ({
       counter: counter || 0,
     },
     nextCounterJournal: journalCounterDoc,
+    digits: counterDigits,
     session,
   });
 

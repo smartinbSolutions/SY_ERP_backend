@@ -77,11 +77,6 @@ const reverseAllocation = async ({ allocation, paymentId, session }) => {
   }
 
   await doc.save({ session });
-
-  console.log(
-    `   ✅ ${allocation.documentType} ${allocation.documentId}` +
-      ` — restored ${allocation.allocatedAmountMainCurrency} USD`,
-  );
 };
 
 // Supplier effects
@@ -264,16 +259,6 @@ const settleSupplierOpenDocuments = async ({
     return a.createdAt - b.createdAt;
   });
 
-  console.log("========================================");
-  console.log("   SETTLEMENT START");
-  console.log("========================================");
-  console.log(`   USD Pool:        ${remainingPool.toFixed(6)}`);
-  console.log(
-    `   Fund:            ${fund?.name} (${fund?.currencyCode}) @ ${fund?.exchangeRate}`,
-  );
-  console.log(`   Total Open Docs: ${openDocs.length}`);
-  console.log("========================================\n");
-
   const EPS = 0.000001;
 
   for (const item of openDocs) {
@@ -334,37 +319,6 @@ const settleSupplierOpenDocuments = async ({
     const newRemainderMain = fullyCovered ? 0 : docRemainderMain - appliedMain;
     const willBePaid = fullyCovered;
 
-    console.log(
-      `[${item.kind.toUpperCase()}] ${
-        doc.invoiceName || doc.expenseName || ""
-      } (${doc.counter})`,
-    );
-    console.log(
-      `   Currency:            ${doc?.currency?.currencyCode || "USD"}`,
-    );
-    console.log(`   Invoice Rate:        ${invoiceRate}`);
-    console.log(`   Payment Rate (today):${paymentRate}`);
-    console.log(`   ── Amounts ──`);
-    console.log(`   Remainder (USD):     ${docRemainderMain.toFixed(6)}`);
-    console.log(`   Remainder (Foreign): ${docRemainderForeign.toFixed(6)}`);
-    console.log(`   Pool can buy:        ${poolCanBuyForeign.toFixed(6)}`);
-    console.log(`   Foreign Applied:     ${foreignApplied.toFixed(6)}`);
-    console.log(`   ── FX ──`);
-    console.log(`   USD at invoice rate: ${appliedMain.toFixed(6)}`);
-    console.log(`   USD at payment rate: ${usdConsumed.toFixed(6)}`);
-    console.log(
-      `   FX Diff:             ${fxDiff.toFixed(6)} ${
-        fxDiff > EPS ? "⚠️  LOSS" : fxDiff < -EPS ? "✅ GAIN" : "➖ NONE"
-      }`,
-    );
-    console.log(`   ── After ──`);
-    console.log(`   New Remainder (USD): ${newRemainderMain.toFixed(6)}`);
-    console.log(`   New Rem. (Foreign):  ${newRemainderForeign.toFixed(6)}`);
-    console.log(
-      `   Status:              ${willBePaid ? "✅ FULLY PAID" : "⏳ PARTIAL"}`,
-    );
-    console.log("");
-
     // ── Persist on the document ───────────────────────────────────────────
     doc.totalRemainderMainCurrency = newRemainderMain;
     doc.totalRemainder = newRemainderForeign;
@@ -407,44 +361,6 @@ const settleSupplierOpenDocuments = async ({
     // ── Drain the pool by ACTUAL usd spent ────────────────────────────────
     remainingPool -= usdConsumed;
   }
-
-  console.log("========================================");
-  console.log("   SETTLEMENT SUMMARY");
-  console.log("========================================");
-  console.log(`   Docs Processed:     ${allocations.length}`);
-  console.log(`   Remaining Pool USD: ${remainingPool.toFixed(6)}`);
-  console.log(
-    `   Total FX Diff:      ${totalFxDiff.toFixed(6)} ${
-      totalFxDiff > EPS
-        ? "⚠️  NET LOSS"
-        : totalFxDiff < -EPS
-          ? "✅ NET GAIN"
-          : "➖ NO FX IMPACT"
-    }`,
-  );
-  allocations.forEach((a, i) => {
-    console.log(
-      `   [${i + 1}] ${a.documentType} | ${a.documentName} (${
-        a.documentCounter
-      })`,
-    );
-    console.log(
-      `       Applied USD (booked): ${a.allocatedAmountMainCurrency.toFixed(4)}`,
-    );
-    console.log(`       USD Consumed (actual):${a.usdConsumed.toFixed(4)}`);
-    console.log(
-      `       Applied Foreign:      ${a.allocatedAmountDocumentCurrency.toFixed(
-        4,
-      )} ${a.documentCurrencyCode}`,
-    );
-    console.log(
-      `       FX Diff:              ${a.fxDiff.toFixed(4)} ${
-        a.fxDiff > EPS ? "LOSS" : a.fxDiff < -EPS ? "GAIN" : "NONE"
-      }`,
-    );
-    console.log(`       Will Be Paid:         ${a.willBePaid ? "YES" : "NO"}`);
-  });
-  console.log("========================================\n");
 
   return {
     allocations,
@@ -630,22 +546,6 @@ const settleCustomerOpenDocuments = async ({
       return a.createdAt - b.createdAt;
     });
 
-  console.log("========================================");
-  console.log("   CUSTOMER SETTLEMENT START");
-  console.log("========================================");
-  console.log(`   Customer:                  ${customer.name || customer._id}`);
-  console.log(`   Payment Amount (Main/USD): ${remainingPaymentMain}`);
-  console.log(`   Currencies Loaded:         ${allCurrencies.length}`);
-  allCurrencies.forEach((c) => {
-    console.log(
-      `     ${c.currencyName} (${c.currencyCode}): rate = ${c.exchangeRate} ${
-        c.is_primary ? "⭐ PRIMARY" : ""
-      }`,
-    );
-  });
-  console.log(`   Total Open Invoices:       ${openDocs.length}`);
-  console.log("========================================\n");
-
   for (const item of openDocs) {
     if (remainingPaymentMain <= 0) {
       console.log("⛔ No remaining payment — stopping.\n");
@@ -670,13 +570,10 @@ const settleCustomerOpenDocuments = async ({
     const invoiceRate = Number(
       invoice.currencyExchangeRate || invoice?.currency?.exchangeRate || 1,
     );
-    console.log("invoice?.currency?._id", invoice?.currency);
+
     // Rate TODAY — from currencies collection
     const paymentRate = getTodayRate(invoice?.currency?.id);
-    // console.log("invoice", invoice);
-    console.log("invoiceRemainderMain", invoiceRemainderMain);
-    console.log("remainingPaymentMain", remainingPaymentMain);
-    console.log("appliedMain", appliedMain);
+
     // Foreign currency amount being closed
     const appliedDocumentCurrency = appliedMain * invoiceRate;
 
@@ -685,8 +582,6 @@ const settleCustomerOpenDocuments = async ({
       appliedMain *
       Number(payment?.payment?.exchangeRate || payment?.exchangeRate || 1);
 
-    console.log("appliedDocumentCurrency", appliedDocumentCurrency);
-    console.log("paymentRate", paymentRate);
     // FX Calculation:
     // Invoice was booked: appliedMain USD = appliedDocumentCurrency foreign
     // Today:              appliedDocumentCurrency foreign = appliedDocumentCurrency / paymentRate USD
@@ -701,46 +596,6 @@ const settleCustomerOpenDocuments = async ({
     const newRemainderForeign =
       Number(invoice.totalRemainder || 0) - appliedDocumentCurrency;
     const willBePaid = newRemainderMain <= 0.000001;
-
-    console.log(`[SALES INVOICE] ${invoice.invoiceName} (${invoice.counter})`);
-    console.log(
-      `   Currency:                  ${
-        invoice?.currency?.currencyCode || "USD"
-      }`,
-    );
-    console.log(`   Invoice Rate (at booking): ${invoiceRate}`);
-    console.log(`   Payment Rate (today):      ${paymentRate}`);
-    console.log(`   ── Amounts ──`);
-    console.log(
-      `   Remainder (USD):           ${invoiceRemainderMain.toFixed(6)}`,
-    );
-    console.log(`   Applied (USD):             ${appliedMain.toFixed(6)}`);
-    console.log(
-      `   Applied (Foreign):         ${appliedDocumentCurrency.toFixed(6)}`,
-    );
-    console.log(
-      `   Applied (Fund Currency):   ${appliedFundCurrency.toFixed(6)}`,
-    );
-    console.log(`   ── FX ──`);
-    console.log(`   USD at invoice rate:       ${appliedMain.toFixed(6)}`);
-    console.log(
-      `   USD at payment rate:       ${usdValueAtPaymentRate.toFixed(6)}`,
-    );
-    console.log(
-      `   FX Diff:                   ${fxDiff.toFixed(6)} ${
-        fxDiff > 0 ? "⚠️  LOSS" : fxDiff < 0 ? "✅ GAIN" : "➖ NONE"
-      }`,
-    );
-    console.log(`   ── After Settlement ──`);
-    console.log(`   New Remainder (USD):       ${newRemainderMain.toFixed(6)}`);
-    console.log(
-      `   New Remainder (Foreign):   ${newRemainderForeign.toFixed(6)}`,
-    );
-    console.log(
-      `   Status:                    ${
-        willBePaid ? "✅ FULLY PAID" : "⏳ PARTIALLY PAID"
-      }`,
-    );
 
     // ── EFFECTS COMMENTED OUT ──────────────────────────────────────────
     invoice.totalRemainderMainCurrency = newRemainderMain;
@@ -786,46 +641,6 @@ const settleCustomerOpenDocuments = async ({
 
     remainingPaymentMain -= appliedMain;
   }
-
-  console.log("========================================");
-  console.log("   CUSTOMER SETTLEMENT SUMMARY");
-  console.log("========================================");
-  console.log(`   Invoices Processed:        ${allocations.length}`);
-  console.log(
-    `   Remaining Payment (USD):   ${remainingPaymentMain.toFixed(6)}`,
-  );
-  console.log(
-    `   Total FX Diff:             ${totalFxDiff.toFixed(6)} ${
-      totalFxDiff > 0
-        ? "⚠️  NET LOSS"
-        : totalFxDiff < 0
-          ? "✅ NET GAIN"
-          : "➖ NO FX IMPACT"
-    }`,
-  );
-  console.log("   Allocations:");
-  allocations.forEach((a, i) => {
-    console.log(
-      `   [${i + 1}] ${a.documentType} | ${a.documentName} (${
-        a.documentCounter
-      })`,
-    );
-    console.log(
-      `       Applied USD:     ${a.allocatedAmountMainCurrency.toFixed(4)}`,
-    );
-    console.log(
-      `       Applied Foreign: ${a.allocatedAmountDocumentCurrency.toFixed(
-        4,
-      )} ${a.documentCurrencyCode}`,
-    );
-    console.log(
-      `       FX Diff:         ${a.fxDiff.toFixed(4)} ${
-        a.fxDiff > 0 ? "LOSS" : a.fxDiff < 0 ? "GAIN" : "NONE"
-      }`,
-    );
-    console.log(`       Will Be Paid:    ${a.willBePaid ? "YES ✅" : "NO ⏳"}`);
-  });
-  console.log("========================================\n");
 
   return {
     allocations,
@@ -932,7 +747,7 @@ const handlePurchasePayment = async (
       journalAccounts,
       invoiceId,
     } = normalizedPayment;
-    console.log(fund);
+
     if (!fund?.id) throw new Error("Fund id is required");
     if (!party?.id || !party?.type) throw new Error("Party is required");
     if (!["customer", "supplier"].includes(party.type))
@@ -1123,6 +938,8 @@ const handlePurchasePayment = async (
     if (journalAccounts && ownsSession) {
       await savePaymentJournal({
         journalAccounts,
+        counterPrefix: counter,
+        counterDigits,
         paymentAmountMain,
         totalFxDiff: fxDiff,
         date,
@@ -1375,6 +1192,8 @@ const handlePurchaseRefundPayment = async (
     if (journalAccounts && ownsSession) {
       await savePaymentJournal({
         journalAccounts,
+        counterPrefix: counter,
+        counterDigits,
         paymentAmountMain,
         totalFxDiff: fxDiff,
         date,
@@ -1630,6 +1449,8 @@ const handleExpensePayment = async (
     if (journalAccounts && ownsSession) {
       await savePaymentJournal({
         journalAccounts,
+        counterPrefix: counter,
+        counterDigits,
         paymentAmountMain,
         totalFxDiff: effectiveFxDiff,
         date,
@@ -1684,6 +1505,7 @@ const handleSupplierPayment = async (
         description,
         journalCounter,
         counter,
+        counterDigits,
         companyId,
         postedBy,
         postedAt,
@@ -1727,7 +1549,11 @@ const handleSupplierPayment = async (
 
       const paymentPayload = {
         companyId,
-        counter: Number(counter || 0) + Number(paymentSeq),
+        counter: buildCounter({
+          base: counter,
+          seq: paymentSeq,
+          digits: counterDigits,
+        }),
         party: { id: party.id, name: party.name, type: party.type },
         fund: {
           id: fund.id,
@@ -1841,6 +1667,7 @@ const handleSupplierPayment = async (
         await savePaymentJournal({
           journalAccounts,
           counterPrefix: counter,
+          counterDigits,
           paymentAmountMain,
           cashAmountOverride: Number(payment.amount || 0),
           totalFxDiff,
@@ -1868,6 +1695,8 @@ const handleSupplierPayment = async (
 
 const handleSalesPayment = async (
   req,
+  companyId,
+  next,
   normalizedPayment,
   externalSession = null,
 ) => {
@@ -2087,6 +1916,8 @@ const handleSalesPayment = async (
     if (journalAccounts && ownsSession) {
       await savePaymentJournal({
         journalAccounts,
+        counterPrefix: counter,
+        counterDigits,
         paymentAmountMain,
         totalFxDiff: fxDiff,
         date,
@@ -2338,6 +2169,8 @@ const handleRefundSalesPayment = async (
     if (journalAccounts && ownsSession) {
       await savePaymentJournal({
         journalAccounts,
+        counterPrefix: counter,
+        counterDigits,
         paymentAmountMain,
         totalFxDiff: fxDiff,
         date,
@@ -2393,6 +2226,7 @@ const handleCustomerPayment = async (
         description,
         journalCounter,
         counter,
+        counterDigits,
         postedBy,
         postedAt,
         journalAccounts, // ✅ added for consistency with supplier
@@ -2430,7 +2264,11 @@ const handleCustomerPayment = async (
 
       const paymentPayload = {
         companyId,
-        counter: Number(counter || 0) + Number(paymentSeq),
+        counter: buildCounter({
+          base: counter,
+          seq: paymentSeq,
+          digits: counterDigits,
+        }),
         party: {
           id: party.id,
           name: party.name,
@@ -2542,6 +2380,7 @@ const handleCustomerPayment = async (
         await savePaymentJournal({
           journalAccounts,
           counterPrefix: counter,
+          counterDigits,
           paymentAmountMain,
           cashAmountOverride: Number(payment.amount || 0),
           totalFxDiff: 0, // or compute later if you add FX for customer side
@@ -2615,6 +2454,7 @@ const handleAccountPayment = async (
         description,
         journalCounter,
         counter,
+        counterDigits,
         postedBy,
         postedAt,
       } = normalizedPayment;
@@ -2669,7 +2509,11 @@ const handleAccountPayment = async (
         [
           {
             companyId,
-            counter: Number(counter || 0) + Number(paymentSeq),
+            counter: buildCounter({
+              base: counter,
+              seq: paymentSeq,
+              digits: counterDigits,
+            }),
             party: { id: account._id, name: account.name, type: "account" },
             fund: {
               id: fund.id,
@@ -2722,6 +2566,7 @@ const handleAccountPayment = async (
           partyAccountId: account._id,
         },
         counterPrefix: counter,
+        counterDigits,
         paymentAmountMain,
         cashAmountOverride: paymentAmountFund,
         totalFxDiff: 0,
@@ -2748,7 +2593,7 @@ const handleFundPayment = async (req, companyId, next, normalizedPayment) => {
   if (!party?.type) {
     throw new Error("Party type is required");
   }
-  console.log("handleFundPayment: party.type =", party.type);
+
   if (party.type === "customer") {
     return await handleCustomerPayment(req, companyId, next, normalizedPayment);
   }
@@ -2778,6 +2623,7 @@ const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
         description,
         journalCounter,
         counter,
+        counterDigits,
         companyId,
         postedBy,
         postedAt,
@@ -2808,7 +2654,11 @@ const handleSalaryPayment = async (req, companyId, next, normalizedPayment) => {
 
       const paymentPayload = {
         companyId,
-        counter: Number(counter || 0) + Number(paymentSeq),
+        counter: buildCounter({
+          base: counter,
+          seq: paymentSeq,
+          digits: counterDigits,
+        }),
         party: {
           id: party.id,
           name: party.name,
@@ -2868,6 +2718,7 @@ const savePaymentJournal = async ({
   paymentAmountMain, // total payment in USD
   cashAmountOverride = null,
   counterPrefix = 0,
+  counterDigits,
   totalFxDiff, // from settleSupplierOpenDocuments (+ = loss, - = gain)
   date,
   description,
@@ -3144,35 +2995,6 @@ const savePaymentJournal = async ({
     0,
   );
 
-  console.log("========================================");
-  console.log("   PAYMENT JOURNAL");
-  console.log("========================================");
-  console.log(`   Name:     ${journalName}`);
-  console.log(`   Date:     ${date}`);
-  console.log(
-    `   FX Diff:  ${totalFxDiff.toFixed(4)} ${
-      isLoss ? "⚠️ LOSS" : isGain ? "✅ GAIN" : "➖ NONE"
-    }`,
-  );
-  console.log("   Entries:");
-  journalEntries.forEach((e) => {
-    console.log(`   [${e.counter}] ${e.name} (${e.code}) [${e.accountType}]`);
-    console.log(
-      `       DR: ${Number(e.MainDebit).toFixed(4)}  CR: ${Number(
-        e.MainCredit,
-      ).toFixed(4)}`,
-    );
-  });
-  console.log(
-    `   Total DR: ${totalDebit.toFixed(4)}  CR: ${totalCredit.toFixed(4)}`,
-  );
-  console.log(
-    `   Balanced: ${
-      Math.abs(totalDebit - totalCredit) < 0.001 ? "✅ YES" : "❌ NO"
-    }`,
-  );
-  console.log("========================================\n");
-
   if (Math.abs(totalDebit - totalCredit) > 0.001) {
     throw new Error(
       `Journal is not balanced — DR: ${totalDebit} CR: ${totalCredit}`,
@@ -3194,6 +3016,7 @@ const savePaymentJournal = async ({
     },
     companyId,
     nextCounterJournal,
+    digits: counterDigits,
     session,
   });
 
