@@ -19,6 +19,7 @@ const {
   resolveIsPrimary,
 } = require("../../utils/crmhelpers");
 const referenceModel = require("../../models/CRM/referenceModel");
+const activityModel = require("../../models/CRM/activityModel");
 
 const validateInterestedIn = async (req) => {
   if (!("interestedIn" in req.body)) return;
@@ -213,20 +214,73 @@ exports.getAllLeads = async (req) => {
       .sort({ createdAt: -1 })
       .populate("ownerId", "name email")
       .populate("country", "name nameAr nameTr iso2 phoneCode")
-      .populate("referenceId", "name number phone whatsApp"),
+      .populate("referenceId", "name number phone whatsApp")
+      .lean(),
   ]);
+
+  /* ---------- last / next activity (2 queries for the whole page) ---------- */
+
+  const leadIds = leads.map((l) => l._id);
+
+  const pickPerLead = (match, sort) =>
+    activityModel.aggregate([
+      {
+        $match: {
+          companyId,
+          deletedAt: null,
+          "relatedTo.type": "Lead",
+          "relatedTo.id": { $in: leadIds },
+          ...match,
+        },
+      },
+      { $sort: sort },
+      { $group: { _id: "$relatedTo.id", activity: { $first: "$$ROOT" } } },
+      {
+        $project: {
+          "activity._id": 1,
+          "activity.number": 1,
+          "activity.type": 1,
+          "activity.subject": 1,
+          "activity.status": 1,
+          "activity.priority": 1,
+          "activity.outcome": 1,
+          "activity.dueDate": 1,
+          "activity.completedAt": 1,
+        },
+      },
+    ]);
+
+  const [lastRows, nextRows] = await Promise.all([
+    // last: most recently completed
+    pickPerLead(
+      { status: "completed", completedAt: { $ne: null } },
+      { completedAt: -1 },
+    ),
+    // next: earliest planned activity that has a due date (overdue included)
+    pickPerLead({ status: "planned", dueDate: { $ne: null } }, { dueDate: 1 }),
+  ]);
+
+  const toMap = (rows) => new Map(rows.map((r) => [String(r._id), r.activity]));
+
+  const lastMap = toMap(lastRows);
+  const nextMap = toMap(nextRows);
+
+  const data = leads.map((l) => ({
+    ...l,
+    lastActivity: lastMap.get(String(l._id)) || null,
+    nextActivity: nextMap.get(String(l._id)) || null,
+  }));
 
   return {
     status: "success",
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    results: leads.length,
+    results: data.length,
     total,
-    data: leads,
+    data,
   };
 };
-
 // ======================================================
 // GET ONE
 // ======================================================

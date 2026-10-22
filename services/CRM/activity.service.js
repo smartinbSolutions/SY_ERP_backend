@@ -48,9 +48,28 @@ const validateRelatedEntity = async (relatedTo, companyId) => {
   return entity;
 };
 
+const COMM_TYPES = ["call", "email", "meeting"];
+
+// new -> contacted, only once a real communication is completed
+const markLeadContacted = async (activity, companyId) => {
+  if (activity.status !== "completed") return;
+  if (activity.relatedTo?.type !== "Lead") return;
+  if (!COMM_TYPES.includes(activity.type)) return;
+
+  await leadModel.updateOne(
+    {
+      _id: activity.relatedTo.id,
+      companyId,
+      deletedAt: null,
+      status: "new",
+    },
+    { $set: { status: "contacted" } },
+  );
+};
+
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const OPEN_STATUSES = ["pending", "in_progress"];
+const OPEN_STATUSES = ["planned"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BUCKETS = ["overdue", "soon", "upcoming", "completed"];
 
@@ -308,10 +327,7 @@ exports.createActivity = async (req) => {
   const companyId = req.companyId;
 
   // Validate the related entity
-  const relatedEntity = await validateRelatedEntity(
-    req.body.relatedTo,
-    companyId,
-  );
+  await validateRelatedEntity(req.body.relatedTo, companyId);
   const number = await generateCrmNumber(companyId, "activity");
 
   const payload = {
@@ -319,6 +335,9 @@ exports.createActivity = async (req) => {
     companyId,
     deletedAt: null,
     number,
+    ...(req.body.status === "completed" && !req.body.completedAt
+      ? { completedAt: new Date() }
+      : {}),
   };
 
   // 1. Create activity
@@ -326,18 +345,7 @@ exports.createActivity = async (req) => {
 
   // 2. Lead lifecycle:
   // new + real communication -> contacted
-  if (
-    req.body.relatedTo.type === "Lead" &&
-    relatedEntity.status === "new" &&
-    ["call", "email", "meeting"].includes(req.body.type)
-  ) {
-    relatedEntity.status = "contacted";
-
-    await relatedEntity.save();
-
-    console.log("LEAD STATUS UPDATED TO:", relatedEntity.status);
-  }
-
+  await markLeadContacted(activity, companyId);
   // 3. Create a notification for the activity owner
   try {
     await createNotification({
@@ -386,6 +394,7 @@ exports.updateActivity = async (req) => {
   // These fields cannot be changed by the client
   delete updateData.companyId;
   delete updateData.deletedAt;
+  delete updateData.completedAt;
 
   // If relatedTo is being changed,
   // make sure the new entity exists and belongs to this company
@@ -393,10 +402,19 @@ exports.updateActivity = async (req) => {
     await validateRelatedEntity(updateData.relatedTo, companyId);
   }
 
-  // Manage completedAt automatically based on status
+  // Manage completedAt automatically based on status.
+  // An activity that is already completed keeps its original date,
+  // so editing it later doesn't move it to the top of "last activity".
   if (Object.prototype.hasOwnProperty.call(updateData, "status")) {
     if (updateData.status === "completed") {
-      updateData.completedAt = new Date();
+      const existing = await activityModel
+        .findOne({ _id: id, companyId, deletedAt: null })
+        .select("status completedAt");
+
+      updateData.completedAt =
+        existing?.status === "completed" && existing.completedAt
+          ? existing.completedAt
+          : new Date();
     } else {
       updateData.completedAt = null;
     }
@@ -418,6 +436,9 @@ exports.updateActivity = async (req) => {
   if (!activity) {
     throw new ApiError(`No activity found with this ID: ${id}`, 404);
   }
+
+  // Lead lifecycle: new -> contacted once a communication is completed
+  await markLeadContacted(activity, companyId);
 
   return activity;
 };

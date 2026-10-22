@@ -40,8 +40,8 @@ const activitySchema = new mongoose.Schema(
     completedAt: { type: Date, default: null },
     status: {
       type: String,
-      enum: ["pending", "in_progress", "completed", "cancelled"],
-      default: "pending",
+      enum: ["planned", "completed", "cancelled"],
+      default: "planned",
     },
     priority: {
       type: String,
