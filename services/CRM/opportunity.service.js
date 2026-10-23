@@ -1,12 +1,82 @@
+const mongoose = require("mongoose");
 const opportunityModel = require("../../models/CRM/opportunityModel");
 const pipelineModel = require("../../models/CRM/piplineModel");
-const companyModel = require("../../models/CRM/companyModel");
 const contactModel = require("../../models/CRM/contactModel");
 const leadModel = require("../../models/CRM/leadModel");
 const ApiError = require("../../utils/apiError");
 const { generateCrmNumber } = require("../../utils/crmhelpers");
+const activityModel = require("../../models/CRM/activityModel");
+
+// The contact, with the CRM company it belongs to (the opportunity does not
+// store the company; it is read from the contact).
+const contactPopulate = () => ({
+  path: "contactId",
+  select: "fullName email phone crmCompanyId",
+  populate: { path: "crmCompanyId", select: "name email" },
+});
+
+// ============ FILTER HELPERS ============
+
+const OPPORTUNITY_STATUSES = ["open", "won", "lost"];
+
+const hasValue = (value) =>
+  value !== undefined && value !== null && value !== "";
+
+const escapeRegex = (text) =>
+  String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// "a,b" or ["a", "b"] -> ["a", "b"]
+const toList = (value) =>
+  (Array.isArray(value) ? value : String(value ?? "").split(","))
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+
+const toIdList = (value, label) => {
+  const ids = toList(value);
+
+  if (ids.some((id) => !mongoose.Types.ObjectId.isValid(id))) {
+    throw new ApiError(`Invalid ${label}`, 400);
+  }
+
+  return ids;
+};
+
+const toNumber = (value, label) => {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    throw new ApiError(`Invalid ${label}`, 400);
+  }
+
+  return number;
+};
+
+// A date-only value ("2026-11-30") used as an upper bound covers that whole day.
+const toDate = (value, label, endOfDay = false) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new ApiError(`Invalid ${label}`, 400);
+  }
+
+  if (endOfDay && /^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    date.setUTCHours(23, 59, 59, 999);
+  }
+
+  return date;
+};
 
 // ============ GET ALL ============
+//
+// Filters (all optional, combined with AND). Id filters accept one id or a
+// comma-separated list:
+//   keyword                    title, description or number
+//   status                     open | won | lost
+//   pipelineId, ownerId, leadId
+//   contactId                  the opportunity's contact
+//   crmCompanyId               the CRM company of the opportunity's contact
+//   probabilityMin / Max       0 - 100
+//   closeFrom / closeTo        expected close date (YYYY-MM-DD)
 exports.getAllOpportunities = async (req) => {
   const companyId = req.companyId;
 
@@ -14,7 +84,19 @@ exports.getAllOpportunities = async (req) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const { keyword, status, pipelineId, ownerId } = req.query;
+  const {
+    keyword,
+    status,
+    pipelineId,
+    ownerId,
+    leadId,
+    contactId,
+    crmCompanyId,
+    probabilityMin,
+    probabilityMax,
+    closeFrom,
+    closeTo,
+  } = req.query;
 
   const query = {
     companyId,
@@ -22,15 +104,88 @@ exports.getAllOpportunities = async (req) => {
   };
 
   if (keyword) {
+    const pattern = escapeRegex(keyword);
+
     query.$or = [
-      { title: { $regex: keyword, $options: "i" } },
-      { description: { $regex: keyword, $options: "i" } },
+      { title: { $regex: pattern, $options: "i" } },
+      { description: { $regex: pattern, $options: "i" } },
+      { number: { $regex: pattern, $options: "i" } },
     ];
   }
 
-  if (status) query.status = status;
-  if (pipelineId) query.pipelineId = pipelineId;
-  if (ownerId) query.ownerId = ownerId;
+  if (hasValue(status)) {
+    const statuses = toList(status);
+
+    if (statuses.some((item) => !OPPORTUNITY_STATUSES.includes(item))) {
+      throw new ApiError("Invalid status", 400);
+    }
+
+    if (statuses.length) query.status = { $in: statuses };
+  }
+
+  if (hasValue(pipelineId)) {
+    query.pipelineId = { $in: toIdList(pipelineId, "pipeline ID") };
+  }
+
+  if (hasValue(ownerId)) {
+    query.ownerId = { $in: toIdList(ownerId, "owner ID") };
+  }
+
+  if (hasValue(leadId)) {
+    query.leadId = { $in: toIdList(leadId, "lead ID") };
+  }
+
+  // Contact and company: the company is read from the contact, so a company
+  // filter first finds that company's contacts. Both filters together
+  // keep only the contacts that match both.
+  if (hasValue(contactId) || hasValue(crmCompanyId)) {
+    let contactIds = hasValue(contactId)
+      ? toIdList(contactId, "contact ID")
+      : null;
+
+    if (hasValue(crmCompanyId)) {
+      const companyContacts = await contactModel
+        .find({
+          companyId,
+          deletedAt: null,
+          crmCompanyId: { $in: toIdList(crmCompanyId, "company ID") },
+        })
+        .select("_id")
+        .lean();
+
+      const fromCompanies = companyContacts.map((item) => String(item._id));
+
+      contactIds = contactIds
+        ? contactIds.filter((id) => fromCompanies.includes(id))
+        : fromCompanies;
+    }
+
+    query.contactId = { $in: contactIds };
+  }
+
+  if (hasValue(probabilityMin) || hasValue(probabilityMax)) {
+    query.probability = {};
+
+    if (hasValue(probabilityMin)) {
+      query.probability.$gte = toNumber(probabilityMin, "probabilityMin");
+    }
+
+    if (hasValue(probabilityMax)) {
+      query.probability.$lte = toNumber(probabilityMax, "probabilityMax");
+    }
+  }
+
+  if (hasValue(closeFrom) || hasValue(closeTo)) {
+    query.expectedCloseDate = {};
+
+    if (hasValue(closeFrom)) {
+      query.expectedCloseDate.$gte = toDate(closeFrom, "closeFrom");
+    }
+
+    if (hasValue(closeTo)) {
+      query.expectedCloseDate.$lte = toDate(closeTo, "closeTo", true);
+    }
+  }
 
   const [total, opportunities] = await Promise.all([
     opportunityModel.countDocuments(query),
@@ -42,20 +197,76 @@ exports.getAllOpportunities = async (req) => {
       .sort({ createdAt: -1 })
       .populate("ownerId", "name email")
       .populate("pipelineId", "name")
-      .populate("leadId", "name")
-      .populate("dealId", "title value status")
-      .populate("crmCompanyId", "name email")
-      .populate("contactIds", "firstName lastName email phone"),
+      .populate("leadId", "LeadName email")
+      .populate("currency")
+      .populate(contactPopulate())
+      .lean(),
   ]);
+
+  /* ---------- last / next activity (2 queries for the whole page) ---------- */
+
+  const opportunityIds = opportunities.map((o) => o._id);
+
+  const pickPerOpportunity = (match, sort) =>
+    activityModel.aggregate([
+      {
+        $match: {
+          companyId,
+          deletedAt: null,
+          "relatedTo.type": "Opportunity",
+          "relatedTo.id": { $in: opportunityIds },
+          ...match,
+        },
+      },
+      { $sort: sort },
+      { $group: { _id: "$relatedTo.id", activity: { $first: "$$ROOT" } } },
+      {
+        $project: {
+          "activity._id": 1,
+          "activity.number": 1,
+          "activity.type": 1,
+          "activity.subject": 1,
+          "activity.status": 1,
+          "activity.priority": 1,
+          "activity.outcome": 1,
+          "activity.dueDate": 1,
+          "activity.completedAt": 1,
+        },
+      },
+    ]);
+
+  const [lastRows, nextRows] = await Promise.all([
+    // last: most recently completed
+    pickPerOpportunity(
+      { status: "completed", completedAt: { $ne: null } },
+      { completedAt: -1 },
+    ),
+    // next: earliest planned activity that has a due date (overdue included)
+    pickPerOpportunity(
+      { status: "planned", dueDate: { $ne: null } },
+      { dueDate: 1 },
+    ),
+  ]);
+
+  const toMap = (rows) => new Map(rows.map((r) => [String(r._id), r.activity]));
+
+  const lastMap = toMap(lastRows);
+  const nextMap = toMap(nextRows);
+
+  const data = opportunities.map((o) => ({
+    ...o,
+    lastActivity: lastMap.get(String(o._id)) || null,
+    nextActivity: nextMap.get(String(o._id)) || null,
+  }));
 
   return {
     status: "success",
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    results: opportunities.length,
+    results: data.length,
     total,
-    data: opportunities,
+    data,
   };
 };
 
@@ -73,14 +284,15 @@ exports.getOneOpportunity = async (req) => {
     .populate("ownerId", "name email")
     .populate("tags", "name")
     .populate("pipelineId", "name stages settings")
-    .populate("contactIds", "firstName lastName email phone")
-    .populate("leadId", "name email")
+    .populate(contactPopulate())
+    .populate("leadId", "LeadName email")
     .populate("dealId", "title value status")
+    .populate("currency")
+    .populate("interestedIn", "name")
     .populate({
       path: "stageHistory.movedBy",
       select: "name email",
-    })
-    .populate("contactIds", "firstName lastName email phone");
+    });
 
   if (!opportunity) {
     throw new ApiError(`No opportunity found with this ID: ${id}`, 404);
@@ -90,67 +302,6 @@ exports.getOneOpportunity = async (req) => {
 };
 
 // ============ HELPERS ============
-
-const calculateBantScore = (bant = {}) => {
-  let score = 0;
-
-  // Budget: 0 - 3
-  if (bant.budget) {
-    if (bant.budget.confirmed) {
-      score += 3;
-    } else if (bant.budget.amount > 0) {
-      score += 2;
-    } else if (bant.budget.notes?.trim()) {
-      score += 1;
-    }
-  }
-
-  // Authority: 0 - 3
-  if (bant.authority) {
-    if (bant.authority.isDecisionMaker) {
-      score += 3;
-    } else if (
-      bant.authority.decisionMakerName?.trim() ||
-      bant.authority.notes?.trim()
-    ) {
-      score += 2;
-    } else {
-      score += 1;
-    }
-  }
-
-  // Need: 0 - 3
-  if (bant.need) {
-    const hasPainPoint = Boolean(bant.need.painPoint?.trim());
-    const hasImpact = Boolean(bant.need.impact?.trim());
-    const urgency = bant.need.urgency;
-
-    if (hasPainPoint && hasImpact && urgency === "high") {
-      score += 3;
-    } else if (hasPainPoint && hasImpact) {
-      score += 2;
-    } else if (hasPainPoint || hasImpact) {
-      score += 1;
-    }
-  }
-
-  // Timeline: 0 - 3
-  if (bant.timeline) {
-    const hasDates = bant.timeline.expectedStart || bant.timeline.deadline;
-
-    const urgency = bant.timeline.urgency;
-
-    if (urgency === "urgent" || bant.timeline.deadline) {
-      score += 3;
-    } else if (urgency === "quarter" || urgency === "year") {
-      score += 2;
-    } else if (hasDates || urgency === "someday") {
-      score += 1;
-    }
-  }
-
-  return Math.min(score, 12);
-};
 
 const validatePipeline = async (pipelineId, companyId) => {
   const pipeline = await pipelineModel.findOne({
@@ -198,59 +349,37 @@ const validateStageOrder = (stage, currentStageOrder) => {
   }
 };
 
-const validateCRMCompany = async (crmCompanyId, companyId) => {
-  if (!crmCompanyId) return null;
+// The contact is required and is the only link to the CRM company.
+const validateContact = async (contactId, companyId) => {
+  if (!contactId) {
+    throw new ApiError("Contact is required", 400);
+  }
 
-  const company = await companyModel.findOne({
-    _id: crmCompanyId,
+  if (!mongoose.Types.ObjectId.isValid(contactId)) {
+    throw new ApiError("Invalid contact ID", 400);
+  }
+
+  const contact = await contactModel.findOne({
+    _id: contactId,
     companyId,
     deletedAt: null,
   });
 
-  if (!company) {
+  if (!contact) {
     throw new ApiError(
-      "CRM Company not found, deleted, or does not belong to this company",
+      "Contact not found, deleted, or does not belong to this company",
       404,
     );
   }
 
-  return company;
+  return contact;
 };
 
-const validateContacts = async (contactIds, companyId, crmCompanyId = null) => {
-  if (!contactIds || contactIds.length === 0) {
-    return [];
+// Currency is an id of one of the company's currencies.
+const validateCurrency = (currency) => {
+  if (!currency || !mongoose.Types.ObjectId.isValid(currency)) {
+    throw new ApiError("A valid currency is required", 400);
   }
-
-  const contacts = await contactModel.find({
-    _id: { $in: contactIds },
-    companyId,
-    deletedAt: null,
-  });
-
-  if (contacts.length !== contactIds.length) {
-    throw new ApiError(
-      "One or more contacts were not found, deleted, or do not belong to this company",
-      404,
-    );
-  }
-
-  if (crmCompanyId) {
-    const invalidContact = contacts.find(
-      (contact) =>
-        contact.crmCompanyId &&
-        String(contact.crmCompanyId) !== String(crmCompanyId),
-    );
-
-    if (invalidContact) {
-      throw new ApiError(
-        "All contacts must belong to the selected CRM Company",
-        400,
-      );
-    }
-  }
-
-  return contacts;
 };
 
 const validateLead = async (leadId, companyId) => {
@@ -270,28 +399,6 @@ const validateLead = async (leadId, companyId) => {
   }
 
   return lead;
-};
-
-const calculateProductTotal = (product) => {
-  const quantity = Number(product.quantity || 0);
-  const unitPrice = Number(product.unitPrice || 0);
-  const discount = Number(product.discount || 0);
-
-  const subtotal = quantity * unitPrice;
-  const discountAmount = subtotal * (discount / 100);
-
-  return Math.max(0, subtotal - discountAmount);
-};
-
-const calculateProducts = (products = []) => {
-  return products.map((product) => ({
-    ...product,
-    total: calculateProductTotal(product),
-  }));
-};
-
-const calculateProductsValue = (products = []) => {
-  return products.reduce((sum, product) => sum + Number(product.total || 0), 0);
 };
 
 const getCurrentUserId = (req) => {
@@ -470,15 +577,8 @@ const syncOpportunityStatusWithStage = (updateData, newStage) => {
 exports.createOpportunity = async (req) => {
   const companyId = req.companyId;
 
-  const {
-    pipelineId,
-    currentStageKey,
-    currentStageOrder,
-    crmCompanyId,
-    contactIds,
-    leadId,
-    products,
-  } = req.body;
+  const { pipelineId, currentStageKey, currentStageOrder, contactId, leadId } =
+    req.body;
 
   const pipeline = await validatePipeline(pipelineId, companyId);
 
@@ -486,21 +586,16 @@ exports.createOpportunity = async (req) => {
 
   validateStageOrder(stage, currentStageOrder);
 
-  await validateCRMCompany(crmCompanyId, companyId);
+  await validateContact(contactId, companyId);
 
-  await validateContacts(contactIds, companyId, crmCompanyId);
+  validateCurrency(req.body.currency);
 
   await validateLead(leadId, companyId);
-
-  const calculatedProducts = calculateProducts(products);
-  const bant = req.body.bant || {};
-  bant.score = calculateBantScore(bant);
 
   const userId = getCurrentUserId(req);
   const number = await generateCrmNumber(companyId, "opportunity");
   const payload = {
     ...req.body,
-    bant,
     companyId,
     deletedAt: null,
     number,
@@ -516,9 +611,7 @@ exports.createOpportunity = async (req) => {
 
     requiredActionsStatus: exports.createRequiredActionsStatus(stage),
 
-    products: calculatedProducts,
-
-    value: req.body.value ?? calculateProductsValue(calculatedProducts),
+    value: Number(req.body.value ?? 0),
 
     status: req.body.status || "open",
 
@@ -574,6 +667,12 @@ exports.updateOpportunity = async (req) => {
   delete updateData.companyId;
   delete updateData.deletedAt;
   delete updateData.dealId;
+
+  // These fields no longer exist on the opportunity
+  delete updateData.bant;
+  delete updateData.products;
+  delete updateData.crmCompanyId;
+  delete updateData.contactIds;
 
   const pipelineId = updateData.pipelineId || opportunity.pipelineId;
 
@@ -652,72 +751,27 @@ exports.updateOpportunity = async (req) => {
     syncOpportunityStatusWithStage(updateData, newStage);
   }
 
-  // Validate CRM Company
-  const finalCRMCompanyId =
-    updateData.crmCompanyId !== undefined
-      ? updateData.crmCompanyId
-      : opportunity.crmCompanyId;
+  // Validate the contact (required, cannot be cleared)
+  if (updateData.contactId !== undefined) {
+    await validateContact(updateData.contactId, companyId);
+  }
 
-  await validateCRMCompany(finalCRMCompanyId, companyId);
+  // Validate the currency
+  if (updateData.currency !== undefined) {
+    validateCurrency(updateData.currency);
+  }
 
-  // Validate Contacts
-  const finalContactIds =
-    updateData.contactIds !== undefined
-      ? updateData.contactIds
-      : opportunity.contactIds;
-
-  await validateContacts(finalContactIds, companyId, finalCRMCompanyId);
+  // Risk level is optional: an empty value removes it
+  if (updateData.riskLevel === "" || updateData.riskLevel === null) {
+    delete updateData.riskLevel;
+    updateData.$unset = { ...(updateData.$unset || {}), riskLevel: 1 };
+  }
 
   // Validate Lead
   const finalLeadId =
     updateData.leadId !== undefined ? updateData.leadId : opportunity.leadId;
 
   await validateLead(finalLeadId, companyId);
-  // Recalculate BANT score
-  if (updateData.bant !== undefined) {
-    updateData.bant = {
-      ...opportunity.bant?.toObject?.(),
-      ...updateData.bant,
-
-      budget: {
-        ...opportunity.bant?.budget?.toObject?.(),
-        ...updateData.bant.budget,
-      },
-
-      authority: {
-        ...opportunity.bant?.authority?.toObject?.(),
-        ...updateData.bant.authority,
-      },
-
-      need: {
-        ...opportunity.bant?.need?.toObject?.(),
-        ...updateData.bant.need,
-      },
-
-      timeline: {
-        ...opportunity.bant?.timeline?.toObject?.(),
-        ...updateData.bant.timeline,
-      },
-    };
-
-    updateData.bant.score = calculateBantScore(updateData.bant);
-  }
-  // Recalculate products and value
-  if (updateData.products !== undefined) {
-    updateData.products = calculateProducts(updateData.products);
-
-    // Products exist -> value comes from products
-    if (updateData.products.length > 0) {
-      updateData.value = calculateProductsValue(updateData.products);
-    }
-
-    // No products -> keep manual value
-    else {
-      updateData.value =
-        updateData.value !== undefined ? updateData.value : opportunity.value;
-    }
-  }
-
   // Status manual update
   handleStatusChange(updateData);
 

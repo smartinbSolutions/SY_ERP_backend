@@ -50,6 +50,17 @@ const validateRelatedEntity = async (relatedTo, companyId) => {
 
 const COMM_TYPES = ["call", "email", "meeting"];
 
+const happenedOn = (dueDate) => {
+  if (!dueDate) return null;
+  const d = new Date(dueDate);
+  return Number.isNaN(d.getTime()) || d > new Date() ? null : d;
+};
+
+// Same minute? (the form's datetime-local only has minute precision)
+const sameMinute = (a, b) =>
+  Math.floor(new Date(a).getTime() / 60000) ===
+  Math.floor(new Date(b).getTime() / 60000);
+
 // new -> contacted, only once a real communication is completed
 const markLeadContacted = async (activity, companyId) => {
   if (activity.status !== "completed") return;
@@ -335,8 +346,8 @@ exports.createActivity = async (req) => {
     companyId,
     deletedAt: null,
     number,
-    ...(req.body.status === "completed" && !req.body.completedAt
-      ? { completedAt: new Date() }
+    ...(req.body.status === "completed"
+      ? { completedAt: happenedOn(req.body.dueDate) || new Date() }
       : {}),
   };
 
@@ -403,18 +414,29 @@ exports.updateActivity = async (req) => {
   }
 
   // Manage completedAt automatically based on status.
-  // An activity that is already completed keeps its original date,
-  // so editing it later doesn't move it to the top of "last activity".
   if (Object.prototype.hasOwnProperty.call(updateData, "status")) {
     if (updateData.status === "completed") {
       const existing = await activityModel
         .findOne({ _id: id, companyId, deletedAt: null })
-        .select("status completedAt");
+        .select("status completedAt dueDate");
 
-      updateData.completedAt =
-        existing?.status === "completed" && existing.completedAt
-          ? existing.completedAt
-          : new Date();
+      const wasCompleted =
+        existing?.status === "completed" && existing.completedAt;
+
+      if (wasCompleted) {
+        // Already done: keep the date, unless the user changed "Happened on"
+        const dateChanged =
+          updateData.dueDate &&
+          existing.dueDate &&
+          !sameMinute(updateData.dueDate, existing.dueDate);
+
+        updateData.completedAt = dateChanged
+          ? happenedOn(updateData.dueDate) || existing.completedAt
+          : existing.completedAt;
+      } else {
+        // Becoming completed now: use the date on the form, else now
+        updateData.completedAt = happenedOn(updateData.dueDate) || new Date();
+      }
     } else {
       updateData.completedAt = null;
     }

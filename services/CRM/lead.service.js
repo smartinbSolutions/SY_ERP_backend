@@ -20,6 +20,7 @@ const {
 } = require("../../utils/crmhelpers");
 const referenceModel = require("../../models/CRM/referenceModel");
 const activityModel = require("../../models/CRM/activityModel");
+const currencyModel = require("../../models/Settings/currency.model");
 
 const validateInterestedIn = async (req) => {
   if (!("interestedIn" in req.body)) return;
@@ -99,67 +100,41 @@ const resolveReferenceId = async (
 // CALCULATE BANT SCORE
 // ======================================================
 
-exports.calculateBantScore = (bant = {}) => {
-  let score = 0;
+// Timeline is scored from the timeframe only. Dates are informational.
+const TIMELINE_SCORES = { someday: 1, year: 2, quarter: 2, urgent: 3 };
 
+/**
+ * BANT score (0 - 12). Notes never count.
+ *
+ * Budget    : amount = 2, confirmed + amount = 3
+ * Authority : linked contact = 2, + decision maker = 3
+ * Need      : base 1, +1 pain point, +1 impact
+ * Timeline  : someday 1, year 2, quarter 2, urgent 3
+ *
+ * Keep in sync with calculateBantBreakdown in the frontend
+ * (Leadqualification.jsx).
+ */
+exports.calculateBantScore = (bant = {}) => {
   // Budget: 0 - 3
-  if (bant.budget) {
-    if (bant.budget.confirmed) {
-      score += 3;
-    } else if (bant.budget.amount > 0) {
-      score += 2;
-    } else if (bant.budget.notes?.trim()) {
-      score += 1;
-    }
-  }
+  const hasAmount = Number(bant.budget?.amount) > 0;
+  const budget = hasAmount ? (bant.budget.confirmed ? 3 : 2) : 0;
 
   // Authority: 0 - 3
-  if (bant.authority) {
-    if (bant.authority.isDecisionMaker) {
-      score += 3;
-    } else if (
-      bant.authority.decisionMakerName?.trim() ||
-      bant.authority.notes?.trim()
-    ) {
-      score += 2;
-    } else {
-      score += 1;
-    }
-  }
+  const hasContact = Boolean(bant.authority?.decisionMakerId);
+  const authority = hasContact ? (bant.authority.isDecisionMaker ? 3 : 2) : 0;
 
-  // Need: 0 - 3
-  if (bant.need) {
-    const hasPainPoint = Boolean(bant.need.painPoint?.trim());
-    const hasImpact = Boolean(bant.need.impact?.trim());
-    const urgency = bant.need.urgency;
+  // Need: 1 - 3
+  const hasPainPoint = Boolean(bant.need?.painPoint?.trim());
+  const hasImpact = Boolean(bant.need?.impact?.trim());
+  const need = 1 + Number(hasPainPoint) + Number(hasImpact);
 
-    if (hasPainPoint && hasImpact && urgency === "high") {
-      score += 3;
-    } else if (hasPainPoint && hasImpact) {
-      score += 2;
-    } else if (hasPainPoint || hasImpact) {
-      score += 1;
-    }
-  }
+  // Timeline: 1 - 3
+  const timeline =
+    TIMELINE_SCORES[bant.timeline?.urgency || "someday"] ??
+    TIMELINE_SCORES.someday;
 
-  // Timeline: 0 - 3
-  if (bant.timeline) {
-    const hasDates = bant.timeline.expectedStart || bant.timeline.deadline;
-
-    const urgency = bant.timeline.urgency;
-
-    if (urgency === "urgent" || bant.timeline.deadline) {
-      score += 3;
-    } else if (urgency === "quarter" || urgency === "year") {
-      score += 2;
-    } else if (hasDates || urgency === "someday") {
-      score += 1;
-    }
-  }
-
-  return Math.min(score, 12);
+  return Math.min(budget + authority + need + timeline, 12);
 };
-
 // ======================================================
 // GET ALL
 // ======================================================
@@ -585,14 +560,14 @@ exports.updateLead = async (req) => {
 // CONVERT LEAD
 // ======================================================
 
+const OPPORTUNITY_RISK_LEVELS = ["low", "medium", "high"];
+
 exports.convertLead = async (req) => {
   const companyId = req.companyId;
   const { id } = req.params;
+  const body = req.body || {};
 
-  // ----------------------------------------------------
   // 1. Find Lead
-  // ----------------------------------------------------
-
   const lead = await leadModel.findOne({
     _id: id,
     companyId,
@@ -633,89 +608,22 @@ exports.convertLead = async (req) => {
   }
 
   // ====================================================
-  // 4. Company handling (OPTIONAL)
+  // 4. VALIDATE EVERYTHING FIRST
+  //    Nothing is saved in this section, so a failed
+  //    check never leaves a company or contact behind.
   // ====================================================
 
-  let crmCompany = null;
+  // ---------- Contact (REQUIRED) ----------
 
-  const { companyOption, selectedCrmCompanyId, companyData } = req.body;
-
-  if (!["existing", "create", "none"].includes(companyOption)) {
-    throw new ApiError("Invalid company option", 400);
-  }
-
-  // Existing company
-  if (companyOption === "existing") {
-    if (!selectedCrmCompanyId) {
-      throw new ApiError("Company ID is required", 400);
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(selectedCrmCompanyId)) {
-      throw new ApiError("Invalid company ID", 400);
-    }
-
-    crmCompany = await companyModel.findOne({
-      _id: selectedCrmCompanyId,
-      companyId,
-      deletedAt: null,
-    });
-
-    if (!crmCompany) {
-      throw new ApiError("Company not found", 404);
-    }
-  }
-
-  // Create new company
-  if (companyOption === "create") {
-    const data = companyData || {};
-    const name = data.name?.trim();
-
-    if (!name) {
-      throw new ApiError("Company name is required", 400);
-    }
-
-    const duplicate = await companyModel.findOne({
-      companyId,
-      name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-      deletedAt: null,
-    });
-
-    if (duplicate) {
-      throw new ApiError("A company with this name already exists", 400);
-    }
-
-    const com_number = await generateCrmNumber(companyId, "company");
-
-    // Only whitelisted fields; the lead's owner and country are the defaults.
-    crmCompany = await companyModel.create({
-      name,
-      ...(data.website?.trim() ? { website: data.website.trim() } : {}),
-      ...(data.phone?.trim() ? { phone: data.phone.trim() } : {}),
-      ...(data.email?.trim() ? { email: data.email.trim() } : {}),
-      ...(data.country || lead.country
-        ? { country: data.country || lead.country }
-        : {}),
-      ownerId: data.ownerId || lead.ownerId,
-      status: "prospect",
-      companyId,
-      deletedAt: null,
-      number: com_number,
-    });
-  }
-
-  // ====================================================
-  // 5. Contact handling (REQUIRED)
-  // ====================================================
-
-  let contact = null;
-
-  const { contactOption, contactId, contactData } = req.body;
+  const { contactOption, contactId, contactData } = body;
 
   if (!["existing", "create"].includes(contactOption)) {
     throw new ApiError("Invalid contact option", 400);
   }
 
-  // Existing contact
+  let existingContact = null; // contactOption === "existing"
+  let newContactFields = null; // contactOption === "create"
+
   if (contactOption === "existing") {
     if (!contactId) {
       throw new ApiError("Contact ID is required", 400);
@@ -725,34 +633,16 @@ exports.convertLead = async (req) => {
       throw new ApiError("Invalid contact ID", 400);
     }
 
-    contact = await contactModel.findOne({
+    existingContact = await contactModel.findOne({
       _id: contactId,
       companyId,
       deletedAt: null,
     });
 
-    if (!contact) {
+    if (!existingContact) {
       throw new ApiError("Contact not found", 404);
     }
-
-    // Prevent moving contact (checked before any change is saved)
-    if (
-      crmCompany &&
-      contact.crmCompanyId &&
-      contact.crmCompanyId.toString() !== crmCompany._id.toString()
-    ) {
-      throw new ApiError("Contact already belongs to another company", 400);
-    }
-
-    // Attach company if empty
-    if (crmCompany && !contact.crmCompanyId) {
-      contact.crmCompanyId = crmCompany._id;
-      await contact.save();
-    }
-  }
-
-  // Create new contact
-  if (contactOption === "create") {
+  } else {
     const data = contactData || {};
     const fullName = data.fullName?.trim();
     const email = data.email?.trim().toLowerCase() || undefined;
@@ -762,47 +652,115 @@ exports.convertLead = async (req) => {
     }
 
     if (email) {
-      const existingContact = await contactModel.findOne({
+      const duplicateContact = await contactModel.findOne({
         companyId,
         email,
         deletedAt: null,
       });
 
-      if (existingContact) {
-        throw new ApiError("A contact with this email already exists", 400);
+      if (duplicateContact) {
+        throw new ApiError(
+          "A contact with this email already exists",
+          400,
+          "CONTACT_EMAIL_EXISTS",
+        );
       }
     }
 
-    const crmCompanyId = crmCompany?._id || null;
-
-    const isPrimary = await resolveIsPrimary(companyId, crmCompanyId, false);
-
-    const contact_number = await generateCrmNumber(companyId, "contact");
-
-    contact = await contactModel.create({
+    newContactFields = {
       fullName,
-      number: contact_number,
-      ...(email ? { email } : {}),
-      ...(data.phone?.trim() ? { phone: data.phone.trim() } : {}),
-      ...(data.jobTitle?.trim() ? { jobTitle: data.jobTitle.trim() } : {}),
-      companyId,
-      isPrimary,
-      crmCompanyId,
+      email,
+      phone: data.phone?.trim() || undefined,
+      jobTitle: data.jobTitle?.trim() || undefined,
       assignedTo: data.assignedTo || lead.ownerId,
       source: data.source || lead.source || "other",
-      status: "active",
+    };
+  }
+
+  // ---------- Company (OPTIONAL) ----------
+  //
+  // An existing contact that already has a company is LOCKED to it:
+  // the opportunity's company is that company, and the company choice
+  // in the request is ignored. Otherwise the user picks none / existing / create.
+
+  let crmCompany = null; // the company the contact ends up with
+  let newCompanyFields = null; // set only when a company must be created
+
+  if (existingContact?.crmCompanyId) {
+    // A deleted / missing company counts as "no company".
+    crmCompany = await companyModel.findOne({
+      _id: existingContact.crmCompanyId,
+      companyId,
+      deletedAt: null,
     });
   }
 
-  if (!contact) {
-    throw new ApiError("Contact is required for conversion", 400);
+  const companyLocked = Boolean(crmCompany);
+
+  if (!companyLocked) {
+    const { companyOption, selectedCrmCompanyId, companyData } = body;
+
+    if (!["existing", "create", "none"].includes(companyOption)) {
+      throw new ApiError("Invalid company option", 400);
+    }
+
+    if (companyOption === "existing") {
+      if (!selectedCrmCompanyId) {
+        throw new ApiError("Company ID is required", 400);
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(selectedCrmCompanyId)) {
+        throw new ApiError("Invalid company ID", 400);
+      }
+
+      crmCompany = await companyModel.findOne({
+        _id: selectedCrmCompanyId,
+        companyId,
+        deletedAt: null,
+      });
+
+      if (!crmCompany) {
+        throw new ApiError("Company not found", 404);
+      }
+    }
+
+    if (companyOption === "create") {
+      const data = companyData || {};
+      const name = data.name?.trim();
+
+      if (!name) {
+        throw new ApiError("Company name is required", 400);
+      }
+
+      const duplicateCompany = await companyModel.findOne({
+        companyId,
+        name: new RegExp(`^${escapeRegex(name)}$`, "i"),
+        deletedAt: null,
+      });
+
+      if (duplicateCompany) {
+        throw new ApiError(
+          "A company with this name already exists",
+          400,
+          "COMPANY_NAME_EXISTS",
+        );
+      }
+
+      // Only whitelisted fields; the lead's owner and country are the defaults.
+      newCompanyFields = {
+        name,
+        website: data.website?.trim() || undefined,
+        phone: data.phone?.trim() || undefined,
+        email: data.email?.trim() || undefined,
+        country: data.country || lead.country || undefined,
+        ownerId: data.ownerId || lead.ownerId,
+      };
+    }
   }
 
-  // ====================================================
-  // 6. Pipeline
-  // ====================================================
+  // ---------- Pipeline ----------
 
-  const requestedPipelineId = req.body.pipelineId;
+  const requestedPipelineId = body.pipelineId;
 
   let pipeline;
 
@@ -836,69 +794,232 @@ exports.convertLead = async (req) => {
     throw new ApiError("Pipeline has no stages", 400);
   }
 
-  // ====================================================
-  // 7. Create Opportunity
-  // ====================================================
-  const opt_number = await generateCrmNumber(companyId, "opportunity");
-  const opportunity = await opportunityModel.create({
-    title: req.body.title || `${lead.LeadName} Opportunity`,
-    description: req.body.description || lead.notes,
-    number: opt_number,
-    value: req.body.value ?? lead.bant?.budget?.amount ?? 0,
-    currency: req.body.currency || "USD",
-    pipelineId: pipeline._id,
-    currentStageKey: firstStage.key,
-    currentStageOrder: firstStage.order,
-    probability: firstStage.probability,
-    stageHistory: [
-      {
-        stageKey: firstStage.key,
-        stageName: firstStage.name,
-        enteredAt: new Date(),
-      },
-    ],
+  // ---------- Currency ----------
 
-    exitCriteriaStatus: createExitCriteriaStatus(firstStage),
-    requiredActionsStatus: createRequiredActionsStatus(firstStage),
-    crmCompanyId: crmCompany?._id || null,
-    contactIds: [contact._id],
-    ownerId: lead.ownerId,
-    leadId: lead._id,
-    status: "open",
-    bant: lead.bant,
-    tags: lead.tags || [],
+  if (!mongoose.Types.ObjectId.isValid(body.currency)) {
+    throw new ApiError("A valid currency is required", 400);
+  }
 
-    companyId,
-  });
+  // Adjust if your currencies are scoped per tenant (e.g. add companyId).
+  const currency = await currencyModel.findById(body.currency);
 
-  // ====================================================
-  // 8. Update Lead
-  // ====================================================
+  if (!currency) {
+    throw new ApiError("Currency not found", 400);
+  }
 
-  lead.status = "converted";
+  // ---------- Opportunity fields ----------
+  //
+  // A default is used only when the field is missing from the request.
+  // A value the user cleared is kept as cleared.
 
-  lead.convertedTo = {
-    contactId: contact._id,
-    crmCompanyId: crmCompany?._id || null,
-    opportunityId: opportunity._id,
-    convertedAt: new Date(),
-    convertedBy: req.user?._id || req.user?.userId || req.user?.id,
-  };
+  let value = lead.bant?.budget?.amount ?? 0;
 
-  await lead.save();
+  if (body.value !== undefined && body.value !== null) {
+    value = Number(body.value === "" ? 0 : body.value);
+
+    if (!Number.isFinite(value) || value < 0) {
+      throw new ApiError("Value must be 0 or more", 400);
+    }
+  }
+
+  let expectedCloseDate = lead.bant?.timeline?.deadline || undefined;
+
+  if (body.expectedCloseDate !== undefined) {
+    expectedCloseDate = body.expectedCloseDate
+      ? new Date(body.expectedCloseDate)
+      : undefined;
+
+    if (expectedCloseDate && Number.isNaN(expectedCloseDate.getTime())) {
+      throw new ApiError("Invalid expected close date", 400);
+    }
+  }
+
+  const riskLevel = body.riskLevel || undefined;
+
+  if (riskLevel && !OPPORTUNITY_RISK_LEVELS.includes(riskLevel)) {
+    throw new ApiError("Invalid risk level", 400);
+  }
+
+  const contactName = existingContact?.fullName || newContactFields.fullName;
+  const accountName = crmCompany?.name || newCompanyFields?.name || contactName;
 
   // ====================================================
-  // 9. Return result
+  // 5. SAVE
+  //    One transaction: everything is saved, or nothing is.
+  //    (Needs MongoDB running as a replica set.)
   // ====================================================
 
-  return {
-    lead,
-    contact,
-    company: crmCompany,
-    opportunity,
-  };
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    // ---------- Company ----------
+
+    if (newCompanyFields) {
+      const com_number = await generateCrmNumber(companyId, "company");
+
+      const [newCompany] = await companyModel.create(
+        [
+          {
+            name: newCompanyFields.name,
+            ...(newCompanyFields.website
+              ? { website: newCompanyFields.website }
+              : {}),
+            ...(newCompanyFields.phone
+              ? { phone: newCompanyFields.phone }
+              : {}),
+            ...(newCompanyFields.email
+              ? { email: newCompanyFields.email }
+              : {}),
+            ...(newCompanyFields.country
+              ? { country: newCompanyFields.country }
+              : {}),
+            ownerId: newCompanyFields.ownerId,
+            status: "prospect",
+            companyId,
+            deletedAt: null,
+            number: com_number,
+          },
+        ],
+        { session },
+      );
+
+      crmCompany = newCompany;
+    }
+
+    // ---------- Contact ----------
+
+    let contact;
+
+    if (existingContact) {
+      contact = existingContact;
+
+      // Contact without a company + a company was chosen / created → link them.
+      if (crmCompany && !companyLocked) {
+        contact.crmCompanyId = crmCompany._id;
+        await contact.save({ session });
+      }
+    } else {
+      const crmCompanyId = crmCompany?._id || null;
+
+      const isPrimary = await resolveIsPrimary(companyId, crmCompanyId, false);
+
+      const contact_number = await generateCrmNumber(companyId, "contact");
+
+      const [newContact] = await contactModel.create(
+        [
+          {
+            fullName: newContactFields.fullName,
+            number: contact_number,
+            ...(newContactFields.email
+              ? { email: newContactFields.email }
+              : {}),
+            ...(newContactFields.phone
+              ? { phone: newContactFields.phone }
+              : {}),
+            ...(newContactFields.jobTitle
+              ? { jobTitle: newContactFields.jobTitle }
+              : {}),
+            companyId,
+            isPrimary,
+            crmCompanyId,
+            assignedTo: newContactFields.assignedTo,
+            source: newContactFields.source,
+            status: "active",
+          },
+        ],
+        { session },
+      );
+
+      contact = newContact;
+    }
+
+    // ---------- Opportunity ----------
+
+    const opt_number = await generateCrmNumber(companyId, "opportunity");
+
+    const [opportunity] = await opportunityModel.create(
+      [
+        {
+          title: body.title?.trim() || `${accountName} Opportunity`,
+          description: body.description ?? lead.notes,
+          number: opt_number,
+          value,
+          currency: currency._id,
+          pipelineId: pipeline._id,
+          currentStageKey: firstStage.key,
+          currentStageOrder: firstStage.order,
+          probability: firstStage.probability,
+          stageHistory: [
+            {
+              stageKey: firstStage.key,
+              stageName: firstStage.name,
+              enteredAt: new Date(),
+            },
+            {
+              stageKey: firstStage.key,
+              stageName: firstStage.name,
+              enteredAt: new Date(),
+              movedBy: req.user?._id || req.user?.userId || req.user?.id,
+            },
+          ],
+
+          exitCriteriaStatus: createExitCriteriaStatus(firstStage),
+          requiredActionsStatus: createRequiredActionsStatus(firstStage),
+
+          // The company is not stored here: it is read from the contact.
+          contactId: contact._id,
+          ownerId: lead.ownerId,
+          leadId: lead._id,
+          interestedIn: lead.interestedIn || [],
+          source: lead.source,
+          riskLevel,
+          expectedCloseDate,
+          status: "open",
+          tags: lead.tags || [],
+
+          companyId,
+        },
+      ],
+      { session },
+    );
+
+    // ---------- Lead ----------
+
+    lead.status = "converted";
+
+    lead.convertedTo = {
+      contactId: contact._id,
+      crmCompanyId: crmCompany?._id || null,
+      opportunityId: opportunity._id,
+      convertedAt: new Date(),
+      convertedBy: req.user?._id || req.user?.userId || req.user?.id,
+    };
+
+    await lead.save({ session });
+
+    await session.commitTransaction();
+
+    // ====================================================
+    // 6. Return result
+    // ====================================================
+
+    return {
+      lead,
+      contact,
+      company: crmCompany,
+      opportunity,
+    };
+  } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
-
 // QUALIFY LEAD
 exports.qualifyLead = async (req) => {
   const companyId = req.companyId;

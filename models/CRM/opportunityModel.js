@@ -1,38 +1,5 @@
 const mongoose = require("mongoose");
 
-const opportunityProductSchema = new mongoose.Schema(
-  {
-    product: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1,
-      default: 1,
-    },
-    unitPrice: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    discount: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0,
-    },
-    total: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-  },
-  { _id: true },
-);
-
 const stageHistorySchema = new mongoose.Schema(
   {
     stageKey: { type: String, required: true }, //the key of the stage in the pipeline
@@ -49,9 +16,15 @@ const stageHistorySchema = new mongoose.Schema(
 const opportunitySchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
+    // Summary. Filled from the lead notes on conversion, editable.
     description: { type: String },
     value: { type: Number, required: true, min: 0 },
-    currency: { type: String, default: "USD", uppercase: true },
+    // One of the company's currencies (ref), not a free string.
+    currency: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Currency",
+      required: true,
+    },
     number: { type: String, trim: true },
     pipelineId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -60,14 +33,17 @@ const opportunitySchema = new mongoose.Schema(
     },
     currentStageKey: { type: String, required: true }, //the key of the current stage in the pipeline
     currentStageOrder: { type: Number, required: true }, //the order of the current stage in the pipeline
+    // Always the current stage's probability (set on convert and on every stage move).
     probability: { type: Number, min: 0, max: 100, default: 0 },
     stageHistory: [stageHistorySchema],
 
-    crmCompanyId: {
+    // The one contact. The CRM company is read from the contact
+    // (contact.crmCompanyId), it is not stored here.
+    contactId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
+      ref: "Contact",
+      required: true,
     },
-    contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Contact" }],
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -79,7 +55,22 @@ const opportunitySchema = new mongoose.Schema(
       default: null,
     },
 
-    products: [opportunityProductSchema],
+    // Ids only. Quantities and prices belong to the quotation.
+    interestedIn: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
+
+    source: { type: String, trim: true },
+
+    // Set by the user. No default, no computed value.
+    riskLevel: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      set: (v) => v || undefined, // "" from a form means "not set"
+    },
 
     expectedCloseDate: { type: Date },
     actualCloseDate: Date,
@@ -136,20 +127,6 @@ const opportunitySchema = new mongoose.Schema(
       },
     ],
 
-    bant: {
-      budget: { confirmed: Boolean, amount: Number, notes: String },
-      authority: { isDecisionMaker: Boolean, decisionMakerName: String },
-      need: { painPoint: String, impact: String, urgency: String },
-      timeline: { expectedStart: Date, deadline: Date, urgency: String },
-      score: { type: Number, min: 0, max: 12, default: 0 },
-    },
-
-    dealId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Deal",
-      default: null,
-    },
-
     tags: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -157,6 +134,7 @@ const opportunitySchema = new mongoose.Schema(
       },
     ],
     deletedAt: { type: Date, default: null },
+    // Tenant key (global, not the CRM company)
     companyId: {
       type: String,
       index: true,
@@ -169,6 +147,7 @@ const opportunitySchema = new mongoose.Schema(
 opportunitySchema.index({ companyId: 1, status: 1 });
 opportunitySchema.index({ companyId: 1, pipelineId: 1 });
 opportunitySchema.index({ companyId: 1, ownerId: 1 });
+opportunitySchema.index({ companyId: 1, contactId: 1 });
 opportunitySchema.index({ companyId: 1, deletedAt: 1 });
 opportunitySchema.index({ companyId: 1, number: 1 }, { unique: true });
 
