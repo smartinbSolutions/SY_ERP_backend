@@ -31,6 +31,13 @@ const contactSchema = new mongoose.Schema(
       index: true,
     },
 
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customar",
+      default: null,
+      index: true,
+    },
+
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -74,6 +81,16 @@ contactSchema.index(
     partialFilterExpression: {
       isPrimary: true,
       crmCompanyId: { $type: "objectId" },
+    },
+  },
+);
+contactSchema.index(
+  { companyId: 1, customerId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      customerId: { $type: "objectId" },
     },
   },
 );

@@ -12,6 +12,7 @@ const {
   generateCrmNumber,
   resolveIsPrimary,
 } = require("../../utils/crmhelpers");
+const { assertCustomerFree } = require("./helpers/crmCustomerLink");
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -172,6 +173,10 @@ exports.createContact = async (req) => {
   await validateFields(companyId, body);
 
   const crmCompanyId = body.crmCompanyId || null;
+  // A contact with a company takes the customer from the company.
+  if (crmCompanyId) delete body.customerId;
+  else if (!body.customerId) delete body.customerId;
+  else await assertCustomerFree(companyId, body.customerId);
 
   const isPrimary = await resolveIsPrimary(
     companyId,
@@ -256,22 +261,82 @@ exports.updateContact = async (req) => {
     updateData.crmCompanyId = null;
   }
 
+  if ("customerId" in updateData && !updateData.customerId) {
+    updateData.customerId = null;
+  }
+
   await validateFields(companyId, updateData);
 
   // Moving to another company (or leaving one) drops the primary flag,
   // so it can't collide with the other company's primary contact.
-  if ("crmCompanyId" in updateData) {
+  if ("crmCompanyId" in updateData || "customerId" in updateData) {
     const current = await contactModel
       .findOne({ _id: id, companyId, deletedAt: null })
-      .select("crmCompanyId")
+      .select("crmCompanyId customerId")
       .lean();
 
-    if (
-      current &&
-      String(current.crmCompanyId || "") !==
-        String(updateData.crmCompanyId || "")
-    ) {
-      updateData.isPrimary = false;
+    if (current) {
+      const newCompany =
+        "crmCompanyId" in updateData
+          ? updateData.crmCompanyId
+          : current.crmCompanyId;
+
+      if (
+        "crmCompanyId" in updateData &&
+        String(current.crmCompanyId || "") !== String(newCompany || "")
+      ) {
+        updateData.isPrimary = false;
+      }
+
+      if (newCompany) {
+        if (updateData.customerId) {
+          throw new ApiError(
+            "A contact with a company uses the company's customer",
+            400,
+          );
+        }
+
+        // The contact's own customer moves to the company, or must match it.
+        if (current.customerId) {
+          const company = await companyModel
+            .findOne({ _id: newCompany, companyId, deletedAt: null })
+            .select("customerId")
+            .lean();
+
+          if (!company) throw new ApiError("Company not found", 404);
+
+          if (!company.customerId) {
+            try {
+              await companyModel.updateOne(
+                { _id: newCompany, companyId },
+                { customerId: current.customerId },
+              );
+            } catch (err) {
+              if (err.code === 11000) {
+                throw new ApiError(
+                  "This customer is already linked to another company",
+                  400,
+                );
+              }
+              throw err;
+            }
+          } else if (
+            String(company.customerId) !== String(current.customerId)
+          ) {
+            throw new ApiError(
+              "This contact's customer differs from the company's customer. Resolve it first.",
+              400,
+            );
+          }
+
+          updateData.customerId = null;
+        }
+      } else if (updateData.customerId) {
+        // Standalone contact: its customer must not belong to another company or contact.
+        await assertCustomerFree(companyId, updateData.customerId, {
+          excludeContactId: id,
+        });
+      }
     }
   }
 

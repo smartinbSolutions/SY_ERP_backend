@@ -48,6 +48,12 @@ const companySchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customar",
+      default: null,
+      index: true,
+    },
 
     companyId: { type: String, required: true, index: true, trim: true },
 
@@ -64,6 +70,16 @@ companySchema.index({ companyId: 1, ownerId: 1 });
 companySchema.index({ companyId: 1, industryIds: 1 });
 companySchema.index({ companyId: 1, deletedAt: 1 });
 companySchema.index({ companyId: 1, number: 1 }, { unique: true });
+companySchema.index(
+  { companyId: 1, customerId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      customerId: { $type: "objectId" },
+    },
+  },
+);
 
 module.exports = mongoose.model("Company", companySchema);
 module.exports.COMPANY_STATUSES = COMPANY_STATUSES;

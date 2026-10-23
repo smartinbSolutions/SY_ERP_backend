@@ -10,6 +10,7 @@ const lookupModel = require("../../models/CRM/Lookup"); // adjust path
 const countryModel = require("../../models/Shared/country.model"); // adjust path
 const ApiError = require("../../utils/apiError");
 const { generateCrmNumber } = require("../../utils/crmhelpers");
+const { assertCustomerFree } = require("./helpers/crmCustomerLink");
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -215,6 +216,8 @@ exports.createCompany = async (req) => {
   }
 
   await validateRefs(companyId, body);
+  if (body.customerId) await assertCustomerFree(companyId, body.customerId);
+  else delete body.customerId;
 
   const number = await generateCrmNumber(companyId, "company");
 
@@ -265,6 +268,16 @@ exports.updateCompany = async (req) => {
   }
 
   await validateRefs(companyId, updateData);
+
+  if ("customerId" in updateData) {
+    if (updateData.customerId) {
+      await assertCustomerFree(companyId, updateData.customerId, {
+        excludeCompanyId: id,
+      });
+    } else {
+      updateData.customerId = null;
+    }
+  }
 
   const company = await companyModel
     .findOneAndUpdate({ _id: id, companyId, deletedAt: null }, updateData, {
