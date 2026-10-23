@@ -59,7 +59,7 @@ const opportunitySchema = new mongoose.Schema(
     interestedIn: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
+        ref: "product",
       },
     ],
 

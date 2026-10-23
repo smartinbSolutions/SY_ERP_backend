@@ -956,11 +956,6 @@ exports.convertLead = async (req) => {
               stageKey: firstStage.key,
               stageName: firstStage.name,
               enteredAt: new Date(),
-            },
-            {
-              stageKey: firstStage.key,
-              stageName: firstStage.name,
-              enteredAt: new Date(),
               movedBy: req.user?._id || req.user?.userId || req.user?.id,
             },
           ],

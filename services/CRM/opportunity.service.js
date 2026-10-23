@@ -286,7 +286,6 @@ exports.getOneOpportunity = async (req) => {
     .populate("pipelineId", "name stages settings")
     .populate(contactPopulate())
     .populate("leadId", "LeadName email")
-    .populate("dealId", "title value status")
     .populate("currency")
     .populate("interestedIn", "name")
     .populate({
@@ -558,9 +557,7 @@ const syncOpportunityStatusWithStage = (updateData, newStage) => {
 
     delete updateData.lostReason;
     delete updateData.lostReasonCategory;
-  }
-
-  if (newStage.key === "closed_lost") {
+  } else if (newStage.key === "closed_lost") {
     if (!updateData.lostReason && !updateData.lostReasonCategory) {
       throw new ApiError(
         "Lost reason is required before moving to closed lost",
@@ -570,79 +567,55 @@ const syncOpportunityStatusWithStage = (updateData, newStage) => {
 
     updateData.status = "lost";
     updateData.actualCloseDate = new Date();
+  } else {
+    updateData.status = "open";
+    updateData.actualCloseDate = null;
   }
 };
 
 // ============ CREATE ============
 exports.createOpportunity = async (req) => {
   const companyId = req.companyId;
+  const body = req.body || {};
 
-  const { pipelineId, currentStageKey, currentStageOrder, contactId, leadId } =
-    req.body;
+  const pipeline = await validatePipeline(body.pipelineId, companyId);
 
-  const pipeline = await validatePipeline(pipelineId, companyId);
+  const firstStage = [...pipeline.stages].sort((a, b) => a.order - b.order)[0];
 
-  const stage = getPipelineStage(pipeline, currentStageKey);
-
-  validateStageOrder(stage, currentStageOrder);
-
-  await validateContact(contactId, companyId);
-
-  validateCurrency(req.body.currency);
-
-  await validateLead(leadId, companyId);
+  await validateContact(body.contactId, companyId);
+  validateCurrency(body.currency);
 
   const userId = getCurrentUserId(req);
   const number = await generateCrmNumber(companyId, "opportunity");
-  const payload = {
-    ...req.body,
+
+  return opportunityModel.create({
+    // from the form
+    title: body.title,
+    description: body.description,
+    value: Number(body.value ?? 0),
+    currency: body.currency,
+    contactId: body.contactId,
+    ownerId: body.ownerId,
+    interestedIn: body.interestedIn,
+    source: body.source,
+    riskLevel: body.riskLevel || undefined,
+    expectedCloseDate: body.expectedCloseDate || undefined,
+    tags: body.tags,
+
+    // set by the system: the pipeline's first stage
+    pipelineId: pipeline._id,
+    currentStageKey: firstStage.key,
+    currentStageOrder: firstStage.order,
+    probability: firstStage.probability,
+    stageHistory: createInitialStageHistory(firstStage, userId),
+    exitCriteriaStatus: exports.createExitCriteriaStatus(firstStage),
+    requiredActionsStatus: exports.createRequiredActionsStatus(firstStage),
+    status: "open",
+
     companyId,
     deletedAt: null,
     number,
-
-    currentStageKey: stage.key,
-    currentStageOrder: stage.order,
-
-    probability: stage.probability,
-
-    stageHistory: createInitialStageHistory(stage, userId),
-
-    exitCriteriaStatus: exports.createExitCriteriaStatus(stage),
-
-    requiredActionsStatus: exports.createRequiredActionsStatus(stage),
-
-    value: Number(req.body.value ?? 0),
-
-    status: req.body.status || "open",
-
-    actualCloseDate:
-      req.body.status === "won" || req.body.status === "lost"
-        ? new Date()
-        : null,
-
-    dealId: null,
-  };
-
-  // Sync closed stages
-  syncOpportunityStatusWithStage(payload, stage);
-
-  if (payload.status === "lost") {
-    if (!payload.lostReason && !payload.lostReasonCategory) {
-      throw new ApiError(
-        "lostReason or lostReasonCategory is required when opportunity is lost",
-        400,
-      );
-    }
-  }
-
-  if (payload.status === "won") {
-    payload.lostReason = undefined;
-    payload.lostReasonCategory = undefined;
-  }
-
-  const opportunity = await opportunityModel.create(payload);
-
-  return opportunity;
+  });
 };
 
 // ============ UPDATE ============
@@ -673,6 +646,12 @@ exports.updateOpportunity = async (req) => {
   delete updateData.products;
   delete updateData.crmCompanyId;
   delete updateData.contactIds;
+
+  // These are set by the system, never by the client
+  delete updateData.leadId; // only set by lead conversion
+  delete updateData.number;
+  delete updateData.probability; // always comes from the stage
+  delete updateData.status; // set only by moving to a closed stage
 
   const pipelineId = updateData.pipelineId || opportunity.pipelineId;
 
@@ -766,14 +745,6 @@ exports.updateOpportunity = async (req) => {
     delete updateData.riskLevel;
     updateData.$unset = { ...(updateData.$unset || {}), riskLevel: 1 };
   }
-
-  // Validate Lead
-  const finalLeadId =
-    updateData.leadId !== undefined ? updateData.leadId : opportunity.leadId;
-
-  await validateLead(finalLeadId, companyId);
-  // Status manual update
-  handleStatusChange(updateData);
 
   const updatedOpportunity = await opportunityModel.findOneAndUpdate(
     {
